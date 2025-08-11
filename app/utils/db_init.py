@@ -6,19 +6,6 @@ def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # --- usuarios ---
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS usuarios (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        nome VARCHAR(100) NOT NULL,
-        email VARCHAR(120) NOT NULL UNIQUE,
-        senha_hash VARCHAR(255) NOT NULL,
-        ativo BOOLEAN NOT NULL DEFAULT TRUE,
-        perfil VARCHAR(50) DEFAULT 'basico',
-        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    """)
-
     # --- superintendencias ---
     cur.execute("""
     CREATE TABLE IF NOT EXISTS superintendencias (
@@ -63,10 +50,84 @@ def init_db():
            AND COLUMN_NAME = 'descricao'
         LIMIT 1
     """)
-    has_desc = cur.fetchone() is not None
-    if not has_desc:
+    if cur.fetchone() is None:
         cur.execute("ALTER TABLE origens ADD COLUMN descricao VARCHAR(160) NOT NULL DEFAULT ''")
         cur.execute("UPDATE origens SET descricao = nome WHERE (descricao IS NULL OR descricao = '')")
+
+    # --- usuarios (com FKs para superintendencias e centros_custos) ---
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS usuarios (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nome VARCHAR(100) NOT NULL,
+        email VARCHAR(120) NOT NULL UNIQUE,
+        senha_hash VARCHAR(255) NOT NULL,
+        ativo BOOLEAN NOT NULL DEFAULT TRUE,
+        perfil VARCHAR(50) DEFAULT 'basico',
+        superintendencia_id INT NULL,
+        centro_custos_id INT NULL,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT fk_user_sup
+            FOREIGN KEY (superintendencia_id) REFERENCES superintendencias(id)
+            ON UPDATE CASCADE ON DELETE SET NULL,
+        CONSTRAINT fk_user_cc
+            FOREIGN KEY (centro_custos_id) REFERENCES centros_custos(id)
+            ON UPDATE CASCADE ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    """)
+
+    # Se a tabela usuarios já existia, garantir as colunas/FKs
+    # 1) centro_custos_id
+    cur.execute("""
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'usuarios'
+           AND COLUMN_NAME = 'centro_custos_id'
+        LIMIT 1
+    """)
+    if cur.fetchone() is None:
+        cur.execute("ALTER TABLE usuarios ADD COLUMN centro_custos_id INT NULL")
+        # FK (se ainda não existir)
+        cur.execute("""
+            SELECT 1 FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'usuarios'
+               AND CONSTRAINT_NAME = 'fk_user_cc'
+               AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+            LIMIT 1
+        """)
+        if cur.fetchone() is None:
+            cur.execute("""
+                ALTER TABLE usuarios
+                ADD CONSTRAINT fk_user_cc
+                FOREIGN KEY (centro_custos_id) REFERENCES centros_custos(id)
+                ON UPDATE CASCADE ON DELETE SET NULL
+            """)
+
+    # 2) superintendencia_id
+    cur.execute("""
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'usuarios'
+           AND COLUMN_NAME = 'superintendencia_id'
+        LIMIT 1
+    """)
+    if cur.fetchone() is None:
+        cur.execute("ALTER TABLE usuarios ADD COLUMN superintendencia_id INT NULL")
+        cur.execute("""
+            SELECT 1 FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'usuarios'
+               AND CONSTRAINT_NAME = 'fk_user_sup'
+               AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+            LIMIT 1
+        """)
+        if cur.fetchone() is None:
+            cur.execute("""
+                ALTER TABLE usuarios
+                ADD CONSTRAINT fk_user_sup
+                FOREIGN KEY (superintendencia_id) REFERENCES superintendencias(id)
+                ON UPDATE CASCADE ON DELETE SET NULL
+            """)
 
     # --- acoes ---
     cur.execute("""
@@ -87,37 +148,30 @@ def init_db():
         CONSTRAINT fk_acoes_responsavel
             FOREIGN KEY (responsavel_id) REFERENCES usuarios(id)
             ON UPDATE CASCADE ON DELETE SET NULL
-        -- OBS: fk_acoes_cc será adicionada abaixo de forma condicional
+        -- fk_acoes_cc adicionada condicionalmente abaixo
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     """)
 
-    # --------- Ajustes condicionais (sem IF NOT EXISTS no SQL) ---------
-
-    # 1) Garante a coluna centro_custos_id em 'acoes'
+    # Garantir coluna/FK centro_custos em acoes
     cur.execute("""
-        SELECT 1
-          FROM INFORMATION_SCHEMA.COLUMNS
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
          WHERE TABLE_SCHEMA = DATABASE()
            AND TABLE_NAME = 'acoes'
            AND COLUMN_NAME = 'centro_custos_id'
         LIMIT 1
     """)
-    has_cc_col = cur.fetchone() is not None
-    if not has_cc_col:
+    if cur.fetchone() is None:
         cur.execute("ALTER TABLE acoes ADD COLUMN centro_custos_id INT NULL")
 
-    # 2) Garante a FK fk_acoes_cc em 'acoes'
     cur.execute("""
-        SELECT 1
-          FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+        SELECT 1 FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
          WHERE TABLE_SCHEMA = DATABASE()
            AND TABLE_NAME = 'acoes'
-           AND CONSTRAINT_TYPE = 'FOREIGN KEY'
            AND CONSTRAINT_NAME = 'fk_acoes_cc'
+           AND CONSTRAINT_TYPE = 'FOREIGN KEY'
         LIMIT 1
     """)
-    has_cc_fk = cur.fetchone() is not None
-    if not has_cc_fk:
+    if cur.fetchone() is None:
         cur.execute("""
             ALTER TABLE acoes
             ADD CONSTRAINT fk_acoes_cc
@@ -129,12 +183,12 @@ def init_db():
     # -------------------- Seeds mínimos --------------------
     # superintendência
     cur.execute("SELECT id FROM superintendencias LIMIT 1")
-    if not cur.fetchone():
+    if cur.fetchone() is None:
         cur.execute("INSERT INTO superintendencias (nome) VALUES (%s)", ("Operações",))
 
     # centro de custos
     cur.execute("SELECT id FROM centros_custos LIMIT 1")
-    if not cur.fetchone():
+    if cur.fetchone() is None:
         cur.execute(
             "INSERT INTO centros_custos (codigo, descricao) VALUES (%s, %s)",
             ("1.10.0052.13", "Manutenção - Empilhadeiras")
@@ -142,12 +196,12 @@ def init_db():
 
     # origem
     cur.execute("SELECT id FROM origens LIMIT 1")
-    if not cur.fetchone():
+    if cur.fetchone() is None:
         cur.execute("INSERT INTO origens (nome, descricao) VALUES (%s, %s)", ("Reunião mensal", "Reunião mensal"))
 
     # admin
     cur.execute("SELECT id FROM usuarios WHERE email=%s", ("admin@local",))
-    if not cur.fetchone():
+    if cur.fetchone() is None:
         cur.execute(
             "INSERT INTO usuarios (nome, email, senha_hash, ativo, perfil) VALUES (%s, %s, %s, %s, %s)",
             ("Administrador", "admin@local", generate_password_hash("Admin@123"), True, "admin")
