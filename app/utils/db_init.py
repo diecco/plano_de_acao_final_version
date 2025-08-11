@@ -6,7 +6,7 @@ def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # --- Tabela usuarios ---
+    # --- usuarios ---
     cur.execute("""
     CREATE TABLE IF NOT EXISTS usuarios (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -19,7 +19,32 @@ def init_db():
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     """)
 
-    # --- Tabela origens (opcional, caso já use no cadastro de ações) ---
+    # --- superintendencias ---
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS superintendencias (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nome VARCHAR(120) NOT NULL UNIQUE,
+        ativo BOOLEAN NOT NULL DEFAULT TRUE,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    """)
+
+    # --- centros_custos ---
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS centros_custos (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        codigo VARCHAR(32) NOT NULL UNIQUE,
+        descricao VARCHAR(160) NOT NULL,
+        superintendencia_id INT NULL,
+        ativo BOOLEAN NOT NULL DEFAULT TRUE,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT fk_cc_sup
+            FOREIGN KEY (superintendencia_id) REFERENCES superintendencias(id)
+            ON UPDATE CASCADE ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    """)
+
+    # --- origens (para o dropdown de origem da ação) ---
     cur.execute("""
     CREATE TABLE IF NOT EXISTS origens (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -29,14 +54,13 @@ def init_db():
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     """)
 
-    # --- Tabela acoes (mínimo necessário p/ dashboard e atualizações por prazo) ---
-    # status é VARCHAR para compatibilizar com valores no seu sistema:
-    # 'Não iniciada', 'Em andamento', 'Atrasada', 'Concluída'
+    # --- acoes ---
     cur.execute("""
     CREATE TABLE IF NOT EXISTS acoes (
         id INT AUTO_INCREMENT PRIMARY KEY,
         origem_id INT NULL,
         responsavel_id INT NULL,
+        centro_custos_id INT NULL,
         descricao TEXT NOT NULL,
         prazo DATE NOT NULL,
         status VARCHAR(20) NOT NULL DEFAULT 'Não iniciada',
@@ -48,16 +72,43 @@ def init_db():
             ON UPDATE CASCADE ON DELETE SET NULL,
         CONSTRAINT fk_acoes_responsavel
             FOREIGN KEY (responsavel_id) REFERENCES usuarios(id)
+            ON UPDATE CASCADE ON DELETE SET NULL,
+        CONSTRAINT fk_acoes_cc
+            FOREIGN KEY (centro_custos_id) REFERENCES centros_custos(id)
             ON UPDATE CASCADE ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     """)
 
-    # (Opcional) Semeia um registro de origem se a tabela estiver vazia
+    # Caso a tabela 'acoes' já existisse sem a coluna centro_custos_id, garante inclusão (MySQL 8+)
+    cur.execute("""
+    ALTER TABLE acoes
+    ADD COLUMN IF NOT EXISTS centro_custos_id INT NULL,
+    ADD CONSTRAINT IF NOT EXISTS fk_acoes_cc
+        FOREIGN KEY (centro_custos_id) REFERENCES centros_custos(id)
+        ON UPDATE CASCADE ON DELETE SET NULL;
+    """)
+
+    # --- seeds mínimos ---
+    # superintendência
+    cur.execute("SELECT id FROM superintendencias LIMIT 1")
+    if not cur.fetchone():
+        cur.execute("INSERT INTO superintendencias (nome) VALUES (%s)", ("Operações",))
+
+    # centro de custos
+    cur.execute("SELECT id FROM centros_custos LIMIT 1")
+    if not cur.fetchone():
+        # Ajuste o código/descrição conforme seu padrão
+        cur.execute(
+            "INSERT INTO centros_custos (codigo, descricao) VALUES (%s, %s)",
+            ("1.10.0052.13", "Manutenção - Empilhadeiras")
+        )
+
+    # origem
     cur.execute("SELECT id FROM origens LIMIT 1")
     if not cur.fetchone():
         cur.execute("INSERT INTO origens (nome) VALUES (%s)", ("Reunião mensal",))
 
-    # (Opcional) Semeia um admin se não existir
+    # admin
     cur.execute("SELECT id FROM usuarios WHERE email=%s", ("admin@local",))
     if not cur.fetchone():
         cur.execute(
