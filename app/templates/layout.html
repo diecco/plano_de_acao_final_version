@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block titulo %}Gestor de Planos de Ação{% endblock %}</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+
+    <style>
+        @font-face {
+            font-family: 'Azonix';
+            src: url("{{ url_for('static', filename='fonts/Azonix.woff2') }}") format('woff2'),
+                 url("{{ url_for('static', filename='fonts/Azonix.woff') }}") format('woff'),
+                 url("{{ url_for('static', filename='fonts/Azonix.otf') }}") format('opentype');
+            font-weight: normal;
+            font-style: normal;
+        }
+    
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Segoe UI", sans-serif;
+        }
+
+        .header-text {
+            font-family: 'Azonix', sans-serif;
+        }
+        .header {
+            position: fixed;
+            top: 0;
+            left: 220px;
+            right: 0;
+            height: 100px;
+            background-color: #ea6a23;
+            color:rgb(80,81,80);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: bold;
+            z-index: 1000;
+        }
+
+        .header .dropdown {
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+        }
+
+        /* Botão do dropdown com cor e contorno rgb(80,81,80) */
+        .header .dropdown .btn-outline-light {
+            color: rgb(80,81,80);
+            border-color: rgb(80,81,80);
+        }
+
+        /* Ícone também na cor rgb(80,81,80) */
+        .header .dropdown .btn-outline-light i {
+            color: rgb(80,81,80);
+        }
+
+        /* Efeito hover: fundo rgb(80,81,80) e ícone branco */
+        .header .dropdown .btn-outline-light:hover {
+            background-color: rgb(80,81,80);
+            color: white;
+            border-color: rgb(80,81,80);
+        }
+
+        .header .dropdown .btn-outline-light:hover i {
+            color: white;
+        }
+
+        .sidebar {
+            background-color: #ea6a23;
+            width: 220px;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            padding-top: 20px;
+            color: white;
+            z-index: 999;
+        }
+
+        .sidebar .logo {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .sidebar .logo img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .sidebar .nav-link {
+            color: #fff5ee;
+            padding: 12px 20px;
+            display: block;
+            font-weight: 500;
+        }
+
+        .sidebar .nav-link.active,
+        .sidebar .nav-link:hover {
+            background-color: #c64c11;
+            border-radius: 8px;
+            color: white;
+        }
+
+        .main-content {
+            margin-left: 220px;
+            padding: 110px 30px 30px 30px;
+        }
+
+        .main-content-login {
+            margin-left: 0;
+            padding: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: relative;
+                width: 100%;
+                height: auto;
+            }
+
+            .main-content,
+            .main-content-login {
+                margin-left: 0;
+            }
+
+            .header-text {
+            font-family: 'Azonix', sans-serif;
+        }
+        .header {
+                left: 0;
+            }
+        }
+
+        .botoes-acao {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+            align-items: center;
+        }
+
+        .btn-laranja {
+            background-color: #ea6a23;
+            color: white;
+            border: none;
+        }
+
+        .btn-laranja:hover {
+            background-color: #c64c11;
+            color: white;
+        }
+
+        .btn-verde {
+            background-color: forestgreen;
+            color: white;
+        }
+
+        .btn-verde:hover {
+            background-color: rgb(3,49,3);
+            color: white;
+        }
+
+        .btn-vermelho {
+            background-color:red;
+            color: white;
+        }
+
+        .btn-vermelho:hover {
+            background-color: rgb(161,10,10);
+        }
+
+        .btn-cinza {
+            background-color:rgb(80,81,80);
+            color: white;
+        }
+
+        .btn-cinza:hover {
+            background-color: rgb(120,120,120);
+        }
+
+        .table {
+            font-size: 0.85rem;
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th,
+        .table td {
+            padding: 0.5rem;
+            border: 1px solid #dee2e6;
+            vertical-align: middle;
+        }
+
+        .table thead th {
+            background-color: #ea6a23;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .table tbody td {
+            text-align: left;
+        }
+
+        .text-laranja {
+            color: #ea6a23;
+        }
+
+        .form-label {
+            color: #ea6a23;
+        }
+    </style>
+</head>
+<body>
+
+    {% if 'login' not in request.path and 'esqueci_senha' not in request.path and 'redefinir_senha' not in request.path %}
+    <div class="sidebar">
+    <div class="logo">
+        <a href="{{ url_for('main.dashboard') }}">
+            <img src="{{ url_for('static', filename='imagens/logo_trackplan.png') }}" alt="Logo" width="140">
+        </a>
+    </div>
+
+    <a href="/dashboard" class="nav-link {% if 'dashboard' in request.path %}active{% endif %}">Dashboard</a>
+    <a href="/cadastrar_acao" class="nav-link {% if 'cadastrar_acao' in request.path %}active{% endif %}">Nova ação</a>
+
+    {% if session['perfil'] == 'administrador' %}
+        <a href="/origens" class="nav-link {% if 'origens' in request.path %}active{% endif %}">Origens</a>
+        <a href="/superintendencias" class="nav-link {% if 'superintendencias' in request.path %}active{% endif %}">Superintendências</a>
+        <a href="/usuarios" class="nav-link {% if 'usuarios' in request.path %}active{% endif %}">Usuários</a>
+        <a href="/centros_custos" class="nav-link {% if 'centros_custos' in request.path %}active{% endif %}">Centro de Custos</a>
+    {% endif %}
+</div>
+
+    <div class="header">
+        <span class="header-text">ORGANIZE, ACOMPANHE, ENTREGUE.</span>
+        <div class="dropdown">
+            <button class="btn btn-outline-light dropdown-toggle d-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-person-circle"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="/alterar_senha">Alterar Senha</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-danger" href="/logout">Sair</a></li>
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="{% if 'login' in request.path %}main-content-login{% else %}main-content{% endif %}">
+        {% block conteudo %}{% endblock %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</body>
+</html>

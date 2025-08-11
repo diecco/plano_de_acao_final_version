@@ -1,0 +1,61 @@
+{% extends 'layout.html' %}
+
+{% block titulo %}Cadastro de Origens das Ações{% endblock %}
+
+{% block conteudo %}
+<h2 class="mb-4 text-center text-laranja">CADASTRO DE ORIGEM DE AÇÕES</h2>
+<hr>
+
+{% with messages = get_flashed_messages() %}
+    {% if messages %}
+        <div class="alert alert-success">{{ messages[0] }}</div>
+    {% endif %}
+{% endwith %}
+
+<form method="POST" class="mb-4">
+    <div class="mb-3">
+        <label for="descricao" class="form-label">Descrição da Origem</label>
+        <input type="text" class="form-control" id="descricao" name="descricao" required>
+    </div>
+    <div class="d-flex justify-content-between">
+        <button type="submit" class="btn btn-laranja">Salvar</button>
+        <a href="/dashboard" class="btn btn-cinza">Voltar</a>
+    </div>
+</form>
+
+<hr>
+
+<h4 class="mb-4 text-center text-laranja">ORIGENS CADASTRADAS</h4>
+<table class="table table-striped mt-3">
+    <thead>
+        <tr>
+            <th style="width: 60px;">ID</th>
+            <th>Descrição</th>
+            <th style="width: 180px;">Ações</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for origem in origens %}
+        <tr>
+            <td class="align-middle text-center">{{ origem.id }}</td>
+            <td class="align-middle">{{ origem.descricao }}</td>
+            <td class="align-middle text-center">
+                <div class="d-flex justify-content-center gap-2">
+                    {% if origem.ativo %}
+                        <a href="/editar_origem/{{ origem.id }}" class="btn btn-laranja">Editar</a>
+                        <form method="POST" action="/desabilitar_origem/{{ origem.id }}" style="display:inline;">
+                            <button type="submit" class="btn btn-vermelho">Desabilitar</button>
+                        </form>
+                    {% else %}
+                        <form method="POST" action="/habilitar_origem/{{ origem.id }}" style="display:inline;">
+                            <button type="submit" class="btn btn-verde">Habilitar</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+

@@ -1,0 +1,16 @@
+{% extends 'layout.html' %}
+
+{% block titulo %}Logout{% endblock %}
+
+{% block conteudo %}
+<div class="text-center mt-5">
+    <h3 class="text-laranja">Você saiu com sucesso.</h3>
+    <p>Redirecionando para a página de login...</p>
+</div>
+
+<script>
+    setTimeout(function() {
+        window.location.href = "/login";
+    }, 2000); // 5 segundos
+</script>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends 'layout.html' %}
+
+{% block titulo %}Painel do Administrador{% endblock %}
+
+{% block conteudo %}
+<h2 class="mb-4 text-center text-laranja">PAINEL DO ADMINISTRADOR</h2>
+
+<!-- Mensagens de feedback -->
+{% with messages = get_flashed_messages(with_categories=True) %}
+  {% if messages %}
+    {% for category, msg in messages %}
+      <div class="alert alert-{{ 'success' if category=='success' else 'danger' }} mt-3">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="row row-cols-1 row-cols-md-2 g-4 mt-3">
+    <div class="col">
+        <a href="/usuarios" class="btn btn-laranja w-100 p-4">Gerenciar Usuários</a>
+    </div>
+    <div class="col">
+        <a href="/centros_custos" class="btn btn-laranja w-100 p-4">Centros de Custos</a>
+    </div>
+    <div class="col">
+        <a href="/superintendencias" class="btn btn-laranja w-100 p-4">Superintendências</a>
+    </div>
+    <div class="col">
+        <a href="/origens" class="btn btn-laranja w-100 p-4">Origens de Ações</a>
+    </div>
+</div>
+
+<!-- Botão para testar envio manual dos relatórios -->
+<form action="{{ url_for('main.testar_relatorio') }}" method="post" class="mt-4" onsubmit="return confirm('Deseja realmente enviar os relatórios agora?');">
+  <button type="submit" class="btn btn-laranja w-100 p-3">
+    Enviar relatórios agora
+  </button>
+</form>
+
+<!-- Evitar duplo clique -->
+<script>
+  const formRelatorio = document.querySelector('form[action="{{ url_for("main.testar_relatorio") }}"]');
+  if (formRelatorio) {
+    formRelatorio.addEventListener('submit', () => {
+      const btn = formRelatorio.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      btn.textContent = 'Enviando...';
+    });
+  }
+</script>
+
+{% endblock %}

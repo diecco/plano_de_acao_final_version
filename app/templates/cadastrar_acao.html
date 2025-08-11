@@ -1,0 +1,60 @@
+{% extends 'layout.html' %}
+{% block conteudo %}
+
+<h2 class="mb-4 text-center text-laranja">CADASTRO DE AÇÕES</h2>
+<hr>
+
+<form method="POST" action="/cadastrar_acao">
+    <!-- Linha 1: Origem e Responsável -->
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <label for="origem_id" class="form-label">Origem da ação</label>
+            <select name="origem_id" id="origem_id" class="form-select" required>
+                <option value="">Selecione</option>
+                {% for origem in origens %}
+                    <option value="{{ origem.id }}">{{ origem.descricao }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label for="responsavel_id" class="form-label">Responsável</label>
+            <select name="responsavel_id" id="responsavel_id" class="form-select" required>
+                <option value="">Selecione</option>
+                {% for usuario in usuarios %}
+                    <option value="{{ usuario.id }}">{{ usuario.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Linha 2: Descrição -->
+    <div class="mb-3">
+        <label for="descricao" class="form-label">Descrição da Ação</label>
+        <textarea name="descricao" id="descricao" class="form-control" rows="4" required></textarea>
+    </div>
+
+    <!-- Linha 3: Prazo e Status -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <label for="prazo" class="form-label">Prazo</label>
+            <input type="date" name="prazo" id="prazo" class="form-control" required>
+        </div>
+        <div class="col-md-6">
+            <label for="status" class="form-label">Status</label>
+            <select name="status" id="status" class="form-select" required>
+                <option value="Não iniciada">Não iniciada</option>
+                <option value="Em andamento">Em andamento</option>
+                <option value="Concluída">Concluída</option>
+                <option value="Cancelada">Cancelada</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Botões -->
+    <div class="d-flex justify-content-between">
+        <button type="submit" class="btn btn-laranja">Salvar</button>
+        <a href="/dashboard" class="btn btn-cinza">Voltar</a>
+    </div>
+</form>
+
+{% endblock %}

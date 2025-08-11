@@ -1,0 +1,61 @@
+{% extends 'layout.html' %}
+
+{% block titulo %}Cadastro de Superintendências{% endblock %}
+
+{% block conteudo %}
+<h2 class="mb-4 text-center text-laranja">CADASTRO DE SUPERINTENDÊNCIAS</h2>
+<hr>
+
+{% with messages = get_flashed_messages() %}
+    {% if messages %}
+        <div class="alert alert-success">{{ messages[0] }}</div>
+    {% endif %}
+{% endwith %}
+
+<form method="POST" class="mb-4">
+    <div class="mb-3">
+        <label for="nome" class="form-label">Nome da Superintendência</label>
+        <input type="text" class="form-control" id="nome" name="nome" required>
+    </div>
+    <div class="d-flex justify-content-between">
+        <button type="submit" class="btn btn-laranja">Salvar</button>
+        <a href="/dashboard" class="btn btn-cinza">Voltar</a>
+    </div>
+</form>
+
+<hr>
+
+<h4 class="mb-4 text-center text-laranja">SUPERINTENDÊNCIAS CADASTRADAS</h4>
+<table class="table table-striped mt-3">
+    <thead>
+        <tr>
+            <th style="width: 60px;">ID</th>
+            <th>Nome</th>
+            <th style="width: 180px;">Ações</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in superintendencias %}
+        <tr>
+            <td class="align-middle text-center">{{ s.id }}</td>
+            <td class="align-middle">{{ s.nome }}</td>
+            <td class="align-middle text-center">
+                <div class="d-flex justify-content-center gap-2">
+                    <a href="/editar_superintendencia/{{ s.id }}" class="btn btn-laranja">Editar</a>
+                    {% if s.ativo %}
+                    <form action="/desabilitar_superintendencia/{{ s.id }}" method="post">
+                        <button type="submit" class="btn btn-vermelho">Desabilitar</button>
+                    </form>
+                    {% else %}
+                    <form action="/habilitar_superintendencia/{{ s.id }}" method="post">
+                        <button type="submit" class="btn btn-verde">Habilitar</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+

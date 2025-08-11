@@ -1,0 +1,28 @@
+{% extends 'layout.html' %}
+
+{% block titulo %}Alterar Senha{% endblock %}
+
+{% block conteudo %}
+<h2 class="mb-4 text-center text-laranja">ALTERAR SENHA</h2>
+<hr>
+
+<form method="POST">
+    <div class="mb-3">
+        <label for="senha_atual" class="form-label">Senha Atual</label>
+        <input type="password" class="form-control" id="senha_atual" name="senha_atual" required>
+    </div>
+    <div class="mb-3">
+        <label for="nova_senha" class="form-label">Nova Senha</label>
+        <input type="password" class="form-control" id="nova_senha" name="nova_senha" required>
+    </div>
+    <div class="mb-3">
+        <label for="confirmar_senha" class="form-label">Confirmar Nova Senha</label>
+        <input type="password" class="form-control" id="confirmar_senha" name="confirmar_senha" required>
+    </div>
+
+    <div class="d-flex justify-content-between">
+        <button type="submit" class="btn btn-laranja">Salvar</button>
+        <a href="/dashboard" class="btn btn-cinza">Cancelar</a>
+    </div>
+</form>
+{% endblock %}

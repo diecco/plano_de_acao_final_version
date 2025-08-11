@@ -1,0 +1,302 @@
+{% extends 'layout.html' %}
+{% block conteudo %}
+
+<h2 class="mb-4 text-center text-laranja">PAINEL DE CONTROLE</h2>
+<hr>
+
+<style>
+  #graficoStatus, #graficoOrigem { max-height: 300px; }
+
+  th.sortable { cursor: pointer; position: relative; user-select: none; white-space: nowrap; }
+  th.sortable .th-label { padding-right: 1.75rem; display: inline-block; }
+  th.sortable .sort-indicator { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: .85rem; opacity: .6; }
+  .filter-btn { border: 0; background: transparent; margin-left: .35rem; padding: 0 .15rem; line-height: 1; cursor: pointer; opacity: .8; }
+  .filter-btn:hover { opacity: 1; }
+  .filter-menu { position: absolute; z-index: 1100; background: #fff; border: 1px solid #ddd; border-radius: .5rem; padding: .5rem; min-width: 180px; box-shadow: 0 6px 18px rgba(0,0,0,.12); }
+  .filter-menu .form-select { font-size: .9rem; }
+</style>
+
+<form method="GET" class="mb-4">
+  <div class="row g-3 mb-2">
+    <div class="col-md-3">
+      <label for="responsavel" class="form-label">Responsável</label>
+      <select name="responsavel" id="responsavel" class="form-select">
+        <option value="">Todos</option>
+        {% for r in responsaveis %}
+          <option value="{{ r.id }}">{{ r.nome }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="superintendencia" class="form-label">Superintendência</label>
+      <select name="superintendencia" id="superintendencia" class="form-select">
+        <option value="">Todas</option>
+        {% for s in superintendencias %}
+          <option value="{{ s.id }}">{{ s.nome }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="centro_custos" class="form-label">Centro de Custos</label>
+      <select name="centro_custos" id="centro_custos" class="form-select">
+        <option value="">Todos</option>
+        {% for cc in centros_custos %}
+          <option value="{{ cc.id }}">{{ cc.codigo }} - {{ cc.descricao }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="origem" class="form-label">Origem</label>
+      <select name="origem" id="origem" class="form-select">
+        <option value="">Todas</option>
+        {% for o in origens %}
+          <option value="{{ o.id }}">{{ o.descricao }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="row g-3 align-items-end">
+    <div class="col-md-3">
+      <label for="status" class="form-label">Status</label>
+      <select name="status" id="status" class="form-select">
+        <option value="">Todos</option>
+        <option value="Não iniciada">Não iniciada</option>
+        <option value="Em andamento">Em andamento</option>
+        <option value="Concluída">Concluída</option>
+        <option value="Cancelada">Cancelada</option>
+        <option value="Vencida">Vencida</option>
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Período</label>
+      <div class="d-flex">
+        <input type="date" name="data_inicio" class="form-control me-1">
+        <input type="date" name="data_fim" class="form-control">
+      </div>
+    </div>
+    <div class="col-md-2 offset-md-3 text-end">
+      <button type="submit" class="btn btn-laranja w-100">Filtrar</button>
+    </div>
+  </div>
+</form>
+
+<hr>
+
+<h3 class="mb-4 text-center text-laranja">AÇÕES SOB MINHA RESPONSABILIDADE</h3>
+
+<div class="row mb-5">
+  <div class="col-md-6"><canvas id="graficoStatus" height="300"></canvas></div>
+  <div class="col-md-6"><canvas id="graficoOrigem" height="300"></canvas></div>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-bordered align-middle sortable-table" id="tabelaResp">
+    <thead class="table-light">
+      <tr>
+        <th class="sortable" data-type="text"><span class="th-label">Descrição</span><span class="sort-indicator">↕</span></th>
+        <th class="sortable with-filter" data-type="text" data-filter-col="responsavel"><span class="th-label">Responsável</span><button class="filter-btn" title="Filtrar">⏷</button><span class="sort-indicator">↕</span></th>
+        <th class="sortable with-filter" data-type="text" data-filter-col="criador"><span class="th-label">Criado por</span><button class="filter-btn" title="Filtrar">⏷</button><span class="sort-indicator">↕</span></th>
+        <th class="sortable" data-type="text"><span class="th-label">C. Custos</span><span class="sort-indicator">↕</span></th>
+        <th class="sortable with-filter" data-type="text" data-filter-col="origem"><span class="th-label">Origem</span><button class="filter-btn" title="Filtrar">⏷</button><span class="sort-indicator">↕</span></th>
+        <th class="sortable" data-type="date"><span class="th-label">Prazo</span><span class="sort-indicator">↕</span></th>
+        <th class="sortable with-filter" data-type="text" data-filter-col="status"><span class="th-label">Status</span><button class="filter-btn" title="Filtrar">⏷</button><span class="sort-indicator">↕</span></th>
+        <th><span class="th-label">Ações</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for acao in acoes %}
+      <tr>
+        <td>{{ acao.descricao }}</td>
+        <td data-filter="responsavel">{{ acao.nome_responsavel }}</td>
+        <td data-filter="criador">{{ acao.nome_criador }}</td>
+        <td>{{ acao.descricao_cc }}</td>
+        <td data-filter="origem">{{ acao.descricao_origem }}</td>
+        <td data-order="{{ acao.prazo.isoformat() }}">{{ acao.prazo.strftime('%d/%m/%Y') }}</td>
+        <td data-filter="status">{{ acao.status }}</td>
+        <td>
+          <div class="d-grid gap-1">
+            <a href="/editar_acao/{{ acao.id }}" class="btn btn-laranja">Editar</a>
+            <a href="/anexar_evidencia/{{ acao.id }}" class="btn btn-laranja">Anexar</a>
+            {% if acao.arquivo_evidencia %}
+              <a href="{{ url_for('static', filename='evidencias/' ~ acao.arquivo_evidencia) }}" target="_blank" class="btn btn-laranja">Consultar</a>
+            {% else %}
+              <button class="btn btn-laranja" disabled>Consultar</button>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="text-center">Nenhuma ação encontrada.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<hr class="my-4">
+
+<h3 class="mb-4 text-center text-laranja">AÇÕES CRIADAS POR MIM</h3>
+<div class="table-responsive">
+  <table class="table table-bordered align-middle sortable-table" id="tabelaCriadas">
+    <thead class="table-light">
+      <tr>
+        <th class="sortable" data-type="text"><span class="th-label">Descrição</span><span class="sort-indicator">↕</span></th>
+        <th class="sortable with-filter" data-type="text" data-filter-col="responsavel"><span class="th-label">Responsável</span><button class="filter-btn" title="Filtrar">⏷</button><span class="sort-indicator">↕</span></th>
+        <th class="sortable with-filter" data-type="text" data-filter-col="criador"><span class="th-label">Criado por</span><button class="filter-btn" title="Filtrar">⏷</button><span class="sort-indicator">↕</span></th>
+        <th class="sortable" data-type="text"><span class="th-label">C. Custos</span><span class="sort-indicator">↕</span></th>
+        <th class="sortable with-filter" data-type="text" data-filter-col="origem"><span class="th-label">Origem</span><button class="filter-btn" title="Filtrar">⏷</button><span class="sort-indicator">↕</span></th>
+        <th class="sortable" data-type="date"><span class="th-label">Prazo</span><span class="sort-indicator">↕</span></th>
+        <th class="sortable with-filter" data-type="text" data-filter-col="status"><span class="th-label">Status</span><button class="filter-btn" title="Filtrar">⏷</button><span class="sort-indicator">↕</span></th>
+        <th><span class="th-label">Ações</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for acao in acoes_criadas %}
+      <tr>
+        <td>{{ acao.descricao }}</td>
+        <td data-filter="responsavel">{{ acao.nome_responsavel }}</td>
+        <td data-filter="criador">{{ acao.nome_criador }}</td>
+        <td>{{ acao.descricao_cc }}</td>
+        <td data-filter="origem">{{ acao.descricao_origem }}</td>
+        <td data-order="{{ acao.prazo.isoformat() }}">{{ acao.prazo.strftime('%d/%m/%Y') }}</td>
+        <td data-filter="status">{{ acao.status }}</td>
+        <td>
+          <div class="d-grid gap-1">
+            <a href="/editar_acao/{{ acao.id }}" class="btn btn-laranja">Editar</a>
+            <a href="/anexar_evidencia/{{ acao.id }}" class="btn btn-laranja">Anexar</a>
+            {% if acao.arquivo_evidencia %}
+              <a href="{{ url_for('static', filename='evidencias/' ~ acao.arquivo_evidencia) }}" target="_blank" class="btn btn-laranja">Consultar</a>
+            {% else %}
+              <button class="btn btn-laranja" disabled>Consultar</button>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="text-center">Nenhuma ação criada por você.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Charts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const labelsStatus = JSON.parse('{{ labels_status | tojson | safe }}');
+  const dadosStatus  = JSON.parse('{{ dados_status  | tojson | safe }}');
+  const labelsOrigem = JSON.parse('{{ labels_origem | tojson | safe }}');
+  const dadosOrigem  = JSON.parse('{{ dados_origem  | tojson | safe }}');
+
+  const ctxStatus = document.getElementById('graficoStatus').getContext('2d');
+  const ctxOrigem = document.getElementById('graficoOrigem').getContext('2d');
+
+  new Chart(ctxStatus, {
+    type: 'bar',
+    data: { labels: labelsStatus, datasets: [{ label: 'Ações por Status', data: dadosStatus, backgroundColor: ['#007bff','#ffc107','#28a745','#dc3545'], borderWidth: 1 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: true, text: 'Por Status' } } }
+  });
+
+  new Chart(ctxOrigem, {
+    type: 'pie',
+    data: { labels: labelsOrigem, datasets: [{ label: 'Ações por Origem', data: dadosOrigem, backgroundColor: ['#f26719','#17a2b8','#6f42c1','#20c997','#fd7e14','#dc3545','#198754','#0d6efd'], borderWidth: 1 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, title: { display: true, text: 'Por Origem' } } }
+  });
+
+  // ---------- Ordenação e Filtro ----------
+  function parseCellValue(td, type) {
+    if (type === 'date') {
+      const iso = td.getAttribute('data-order');
+      return iso ? new Date(iso).getTime() : new Date(td.textContent.split('/').reverse().join('-')).getTime();
+    }
+    return td.textContent.trim().toLowerCase();
+  }
+
+  function sortTable(table, colIndex, type, direction) {
+    const tbody = table.tBodies[0];
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort((a, b) => {
+      const va = parseCellValue(a.children[colIndex], type);
+      const vb = parseCellValue(b.children[colIndex], type);
+      if (va < vb) return direction === 'asc' ? -1 : 1;
+      if (va > vb) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    rows.forEach(r => tbody.appendChild(r));
+  }
+
+  function buildFilterMenu(th, table, colIndex, key) {
+    document.querySelectorAll('.filter-menu').forEach(m => m.remove());
+
+    const menu = document.createElement('div');
+    menu.className = 'filter-menu';
+
+    const vals = new Set();
+    table.querySelectorAll('tbody tr').forEach(tr => {
+      const td = tr.children[colIndex];
+      vals.add((td.getAttribute('data-filter') ? td.textContent : td.textContent).trim());
+    });
+    const arr = Array.from(vals).filter(v => v.length).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+
+    menu.innerHTML = `
+      <div class="mb-2 fw-semibold">Filtrar por ${th.querySelector('.th-label').textContent}</div>
+      <select class="form-select mb-2 filter-select">
+        <option value="">(todos)</option>
+        ${arr.map(v => `<option value="${v.replace(/"/g,'&quot;')}">${v}</option>`).join('')}
+      </select>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-laranja aplicar">Aplicar</button>
+        <button type="button" class="btn btn-sm btn-secondary limpar">Limpar</button>
+      </div>
+    `;
+
+    document.body.appendChild(menu);
+    const rect = th.getBoundingClientRect();
+    menu.style.top = (window.scrollY + rect.bottom + 6) + 'px';
+    menu.style.left = (window.scrollX + rect.left) + 'px';
+
+    const select = menu.querySelector('.filter-select');
+
+    function applyFilter(val) {
+      table.querySelectorAll('tbody tr').forEach(tr => {
+        const txt = tr.children[colIndex].textContent.trim();
+        tr.style.display = (!val || txt === val) ? '' : 'none';
+      });
+    }
+
+    // ⬇️ Fecha o popover após ação
+    menu.querySelector('.aplicar').onclick = () => { applyFilter(select.value); menu.remove(); };
+    menu.querySelector('.limpar').onclick  = () => { select.value=''; applyFilter(''); menu.remove(); };
+
+    document.addEventListener('click', (e) => {
+      if (!menu.contains(e.target) && e.target !== th.querySelector('.filter-btn')) {
+        menu.remove();
+      }
+    }, { once: true });
+  }
+
+  document.querySelectorAll('.sortable-table').forEach(table => {
+    table.querySelectorAll('th').forEach((th, idx) => {
+      const type = th.getAttribute('data-type') || 'text';
+      const label = th.querySelector('.th-label');
+      if (label && th.classList.contains('sortable')) {
+        let dir = 'asc';
+        label.addEventListener('click', () => {
+          sortTable(table, idx, type, dir);
+          dir = (dir === 'asc' ? 'desc' : 'asc');
+          const ind = th.querySelector('.sort-indicator');
+          if (ind) ind.textContent = dir === 'asc' ? '↑' : '↓';
+        });
+      }
+      const filterBtn = th.querySelector('.filter-btn');
+      if (filterBtn && th.classList.contains('with-filter')) {
+        const key = th.getAttribute('data-filter-col');
+        filterBtn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          buildFilterMenu(th, table, idx, key);
+        });
+      }
+    });
+  });
+</script>
+
+{% endblock %}

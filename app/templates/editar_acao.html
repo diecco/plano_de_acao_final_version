@@ -1,0 +1,56 @@
+{% extends 'layout.html' %}
+{% block conteudo %}
+
+<h2 class="mb-4 text-center text-laranja">EDITAR AÇÃO</h2>
+<hr>
+
+<form method="POST" action="/editar_acao/{{ acao.id }}">
+    <div class="mb-3">
+        <label for="origem_id" class="form-label">Origem</label>
+        <select name="origem_id" id="origem_id" class="form-select" required>
+            {% for origem in origens %}
+                <option value="{{ origem.id }}" {% if origem.id == acao.origem_id %}selected{% endif %}>
+                    {{ origem.descricao }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label for="responsavel_id" class="form-label">Responsável</label>
+        <select name="responsavel_id" id="responsavel_id" class="form-select" required>
+            {% for usuario in usuarios %}
+                <option value="{{ usuario.id }}" {% if usuario.id == acao.responsavel_id %}selected{% endif %}>
+                    {{ usuario.nome }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label for="descricao" class="form-label">Descrição da Ação</label>
+        <textarea name="descricao" id="descricao" class="form-control" rows="4" required>{{ acao.descricao }}</textarea>
+    </div>
+
+    <div class="mb-3">
+        <label for="prazo" class="form-label">Prazo</label>
+        <input type="date" name="prazo" id="prazo" class="form-control" value="{{ acao.prazo.strftime('%Y-%m-%d') }}" required>
+    </div>
+
+    <div class="mb-3">
+        <label for="status" class="form-label">Status</label>
+        <select name="status" id="status" class="form-select" required>
+            <option value="Não iniciada" {% if acao.status == 'Não iniciada' %}selected{% endif %}>Não iniciada</option>
+            <option value="Em andamento" {% if acao.status == 'Em andamento' %}selected{% endif %}>Em andamento</option>
+            <option value="Concluída" {% if acao.status == 'Concluída' %}selected{% endif %}>Concluída</option>
+            <option value="Cancelada" {% if acao.status == 'Cancelada' %}selected{% endif %}>Cancelada</option>
+        </select>
+    </div>
+
+    <div class="d-flex justify-content-between">
+        <button type="submit" class="btn btn-laranja">Salvar</button>
+        <a href="/dashboard" class="btn btn-cinza">Voltar</a>
+    </div>
+</form>
+
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends 'layout.html' %}
+
+{% block titulo %}Editar Usuário{% endblock %}
+
+{% block conteudo %}
+
+<h2 class="mb-4 text-center text-laranja">EDITAR USUÁRIO</h2>
+<hr>
+
+<form method="POST">
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label for="nome" class="form-label">Nome</label>
+            <input type="text" class="form-control" id="nome" name="nome" value="{{ usuario.nome }}" required>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="email" name="email" value="{{ usuario.email }}" required>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label for="superintendencia_id" class="form-label">Superintendência</label>
+            <input type="text" class="form-control" id="superintendencia_nome" name="superintendencia_nome" disabled>
+            <input type="hidden" id="superintendencia_id" name="superintendencia_id" value="{{ usuario.superintendencia_id }}">
+        </div>
+        <div class="col-md-6 mb-3">
+            <label for="centro_custos_id" class="form-label">Centro de Custos</label>
+            <select class="form-select" id="centro_custos_id" name="centro_custos_id" required>
+                {% for c in centros_custos %}
+                <option value="{{ c.id }}" data-superintendencia-id="{{ c.superintendencia_id }}" data-superintendencia-nome="{{ c.superintendencia_nome }}"
+                    {% if usuario.centro_custos_id == c.id %}selected{% endif %}>
+                    {{ c.codigo }} - {{ c.descricao }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label for="perfil" class="form-label">Perfil</label>
+            <select class="form-select" id="perfil" name="perfil" required>
+                <option value="basico" {% if usuario.perfil == 'basico' %}selected{% endif %}>Básico</option>
+                <option value="intermediario" {% if usuario.perfil == 'intermediario' %}selected{% endif %}>Intermediário</option>
+                <option value="avancado" {% if usuario.perfil == 'avancado' %}selected{% endif %}>Avançado</option>
+                <option value="administrador" {% if usuario.perfil == 'administrador' %}selected{% endif %}>Administrador</option>
+            </select>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label for="ativo" class="form-label">Status</label>
+            <select class="form-select" id="ativo" name="ativo" required>
+                <option value="1" {% if usuario.ativo %}selected{% endif %}>Ativo</option>
+                <option value="0" {% if not usuario.ativo %}selected{% endif %}>Inativo</option>
+            </select>
+        </div>
+    </div>
+
+    <hr>
+    <div class="mb-3">
+        <label for="nova_senha" class="form-label">Redefinir Senha (opcional)</label>
+        <input type="password" class="form-control" id="nova_senha" name="nova_senha" placeholder="Digite nova senha se desejar alterar">
+    </div>
+
+    <div class="d-flex justify-content-between">
+        <button type="submit" class="btn btn-laranja">Salvar</button>
+        <a href="/usuarios" class="btn btn-cinza">Voltar</a>
+    </div>
+</form>
+
+<script>
+    function atualizarSuperintendencia() {
+        const selectCC = document.getElementById('centro_custos_id');
+        const selectedOption = selectCC.options[selectCC.selectedIndex];
+        const nome = selectedOption.getAttribute('data-superintendencia-nome');
+        const id = selectedOption.getAttribute('data-superintendencia-id');
+
+        document.getElementById('superintendencia_nome').value = nome;
+        document.getElementById('superintendencia_id').value = id;
+    }
+
+    document.getElementById('centro_custos_id').addEventListener('change', atualizarSuperintendencia);
+
+    // Atualiza ao carregar
+    window.addEventListener('DOMContentLoaded', atualizarSuperintendencia);
+</script>
+
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends 'layout.html' %}
+
+{% block titulo %}Recuperar Senha - Gestor de Planos de Ação{% endblock %}
+
+{% block conteudo %}
+<div class="container mt-10">
+    <div class="col-md-10 offset-md-3">
+        <div class="col-md-4">
+            <div class="text-center mb-4">
+                <img src="{{ url_for('static', filename='imagens/logo_tradimaq.png') }}" alt="Tradimaq" height="20">
+                <img src="{{ url_for('static', filename='imagens/logo_trackplan.png') }}" alt="TrackPlan" height="40">
+                <h4 class="text-laranja mt-3">RECUPERAÇÃO DE SENHA</h4>
+                <p class="text-muted">Informe seu e-mail cadastrado para redefinir sua senha</p>
+            </div>
+
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <div class="alert alert-info">
+                        {{ messages[0] }}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST">
+                <div class="mb-3">
+                    <label for="email" class="form-label text-center w-100">E-mail cadastrado</label>
+                    <input type="email" class="form-control" id="email" name="email" required>
+                </div>
+
+                <button type="submit" class="btn btn-laranja w-100">Enviar link de recuperação</button>
+            </form>
+
+            <div class="text-center mt-3">
+                <a href="/login" class="text-decoration-none text-laranja">Voltar para login</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
