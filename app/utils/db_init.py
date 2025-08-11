@@ -148,7 +148,7 @@ def init_db():
         CONSTRAINT fk_acoes_responsavel
             FOREIGN KEY (responsavel_id) REFERENCES usuarios(id)
             ON UPDATE CASCADE ON DELETE SET NULL
-        -- fk_acoes_cc adicionada condicionalmente abaixo
+        -- fk_acoes_cc / fk_acoes_criadopor adicionadas condicionalmente abaixo
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     """)
 
@@ -177,6 +177,35 @@ def init_db():
             ADD CONSTRAINT fk_acoes_cc
             FOREIGN KEY (centro_custos_id)
             REFERENCES centros_custos(id)
+            ON UPDATE CASCADE ON DELETE SET NULL
+        """)
+
+    # 3) Garante a coluna 'criado_por' em acoes
+    cur.execute("""
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'acoes'
+           AND COLUMN_NAME = 'criado_por'
+        LIMIT 1
+    """)
+    if cur.fetchone() is None:
+        cur.execute("ALTER TABLE acoes ADD COLUMN criado_por INT NULL")
+
+    # 4) Garante a FK criado_por -> usuarios(id)
+    cur.execute("""
+        SELECT 1 FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'acoes'
+           AND CONSTRAINT_NAME = 'fk_acoes_criadopor'
+           AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+        LIMIT 1
+    """)
+    if cur.fetchone() is None:
+        cur.execute("""
+            ALTER TABLE acoes
+            ADD CONSTRAINT fk_acoes_criadopor
+            FOREIGN KEY (criado_por)
+            REFERENCES usuarios(id)
             ON UPDATE CASCADE ON DELETE SET NULL
         """)
 
@@ -210,3 +239,4 @@ def init_db():
     conn.commit()
     cur.close()
     conn.close()
+
