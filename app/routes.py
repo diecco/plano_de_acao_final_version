@@ -203,12 +203,33 @@ def origens():
     cursor = conn.cursor(dictionary=True)
 
     if request.method == 'POST':
-        descricao = request.form['descricao']
-        cursor.execute("INSERT INTO origens (descricao) VALUES (%s)", (descricao,))
-        conn.commit()
-        flash('Origem cadastrada com sucesso!')
+        descricao = (request.form.get('descricao') or '').strip()
 
-    cursor.execute("SELECT * FROM origens")
+        if not descricao:
+            flash('Informe a descrição da origem.', 'danger')
+            conn.close()
+            return redirect('/origens')
+
+        try:
+            # produção exige `nome` NOT NULL + UNIQUE
+            cursor.execute(
+                "INSERT INTO origens (descricao, nome) VALUES (%s, %s)",
+                (descricao, descricao)
+            )
+            conn.commit()
+            flash('Origem cadastrada com sucesso!', 'success')
+
+        except Exception as e:
+            # Trata UNIQUE KEY 'nome' duplicado (1062)
+            msg = str(e)
+            if '1062' in msg or 'Duplicate entry' in msg:
+                flash('Já existe uma origem com esse nome/descrição.', 'warning')
+            else:
+                flash(f'Erro ao salvar origem: {e}', 'danger')
+            conn.rollback()
+
+    # LISTAGEM normal
+    cursor.execute("SELECT id, descricao, ativo FROM origens ORDER BY id DESC")
     origens = cursor.fetchall()
     conn.close()
 
@@ -225,13 +246,34 @@ def editar_origem(id):
     cursor = conn.cursor(dictionary=True)
 
     if request.method == 'POST':
-        nova_descricao = request.form['descricao']
-        cursor.execute("UPDATE origens SET descricao = %s WHERE id = %s", (nova_descricao, id))
-        conn.commit()
-        flash('Origem atualizada com sucesso!')
-        conn.close()
-        return redirect('/origens')
+        nova_descricao = (request.form.get('descricao') or '').strip()
+        if not nova_descricao:
+            flash('Informe a descrição.', 'danger')
+            conn.close()
+            return redirect(f'/editar_origem/{id}')
 
+        try:
+            # Atualiza `descricao` e `nome` juntos para respeitar NOT NULL + UNIQUE
+            cursor.execute(
+                "UPDATE origens SET descricao = %s, nome = %s WHERE id = %s",
+                (nova_descricao, nova_descricao, id)
+            )
+            conn.commit()
+            flash('Origem atualizada com sucesso!', 'success')
+            conn.close()
+            return redirect('/origens')
+
+        except Exception as e:
+            msg = str(e)
+            if '1062' in msg or 'Duplicate entry' in msg:
+                flash('Já existe outra origem com esse nome/descrição.', 'warning')
+            else:
+                flash(f'Erro ao atualizar origem: {e}', 'danger')
+            conn.rollback()
+            conn.close()
+            return redirect(f'/editar_origem/{id}')
+
+    # GET original
     cursor.execute("SELECT * FROM origens WHERE id = %s", (id,))
     origem = cursor.fetchone()
     conn.close()
