@@ -228,15 +228,32 @@ def init_db():
     if cur.fetchone() is None:
         cur.execute("INSERT INTO origens (nome, descricao) VALUES (%s, %s)", ("Reunião mensal", "Reunião mensal"))
 
-    # admin
+    # admin (perfil 'administrador')
     cur.execute("SELECT id FROM usuarios WHERE email=%s", ("admin@local",))
     if cur.fetchone() is None:
         cur.execute(
             "INSERT INTO usuarios (nome, email, senha_hash, ativo, perfil) VALUES (%s, %s, %s, %s, %s)",
-            ("Administrador", "admin@local", generate_password_hash("Admin@123"), True, "admin")
+            (
+                "Administrador",
+                "admin@local",
+                generate_password_hash("Admin@123", method="pbkdf2:sha256", salt_length=16),
+                True,
+                "administrador",
+            ),
         )
+    else:
+        # garante perfil correto e ativo caso já exista
+        cur.execute(
+            "UPDATE usuarios SET perfil=%s, ativo=1 WHERE email=%s",
+            ("administrador", "admin@local"),
+        )
+
+    # (opcional) se você criou 'administrador@local' manualmente, alinhar perfil e ativar:
+    cur.execute(
+        "UPDATE usuarios SET perfil='administrador', ativo=1 WHERE email=%s",
+        ("administrador@local",),
+    )
 
     conn.commit()
     cur.close()
     conn.close()
-
