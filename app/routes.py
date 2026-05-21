@@ -817,7 +817,7 @@ def usuarios():
                     acesso_procedimentos,
                     acesso_pcpm
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 1, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 1, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 nome,
                 matricula,
