@@ -1,0 +1,356 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Visualizar Movimentação{% endblock %}
+
+{% block conteudo %}
+
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h2 class="page-title mb-0">
+        <i class="bi bi-clipboard-check me-2"></i>
+        Visualizar Movimentação
+    </h2>
+
+    <a href="{{ url_for('main.pcpm_painel_movimentacoes') }}"
+       class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i>
+        Voltar
+    </a>
+</div>
+
+<hr>
+
+<!-- DADOS DA MOVIMENTAÇÃO -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+
+        <h5 class="text-laranja mb-3">
+            Dados da Movimentação
+        </h5>
+
+        <div class="row g-3">
+
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">
+                    Frota
+                </label>
+
+                <div class="form-control bg-light">
+                    {{ movimentacao.codigo_frota }}
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">
+                    Tipo de Equipamento
+                </label>
+
+                <div class="form-control bg-light">
+                    {{ movimentacao.tipo_tag }} - {{ movimentacao.tipo_equipamento }}
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">
+                    Marca / Modelo
+                </label>
+
+                <div class="form-control bg-light">
+                    {{ movimentacao.marca }} {{ movimentacao.modelo }}
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">
+                    Data / Hora
+                </label>
+
+                <div class="form-control bg-light">
+                    {{ movimentacao.criado_em_formatado }}
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">
+                    Tipo de Movimentação
+                </label>
+
+                <div class="form-control bg-light">
+
+                    {% if movimentacao.tipo_movimentacao == 'retirada' %}
+                        Retirada da área
+                    {% elif movimentacao.tipo_movimentacao == 'entrega' %}
+                        Entrega na área
+                    {% else %}
+                        {{ movimentacao.tipo_movimentacao }}
+                    {% endif %}
+
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">
+                    Motivo
+                </label>
+
+                <div class="form-control bg-light">
+                    {{ movimentacao.motivo_movimentacao or '-' }}
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">
+                    Horímetro
+                </label>
+
+                <div class="form-control bg-light">
+                    {{ movimentacao.horimetro }}
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">
+                    OS
+                </label>
+
+                <div class="form-control bg-light">
+                    {{ movimentacao.numero_os or '-' }}
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- RESPONSÁVEIS -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+
+        <h5 class="text-laranja mb-3">
+            Responsáveis
+        </h5>
+
+        <div class="row g-3">
+
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">
+                    Funcionário Tradimaq
+                </label>
+
+                <div class="form-control bg-light">
+                    {{ movimentacao.funcionario_nome }}
+                    {% if movimentacao.funcionario_matricula %}
+                        - {{ movimentacao.funcionario_matricula }}
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">
+                    Cliente / Operador
+                </label>
+
+                <div class="form-control bg-light">
+                    {{ movimentacao.cliente_nome }}
+
+                    {% if movimentacao.cliente_matricula %}
+                        - {{ movimentacao.cliente_matricula }}
+                    {% endif %}
+
+                    {% if movimentacao.cliente_empresa %}
+                        | {{ movimentacao.cliente_empresa }}
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- RELATO -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+
+        <h5 class="text-laranja mb-3">
+            Relato / Condições Encontradas
+        </h5>
+
+        <div class="border rounded p-3 bg-light">
+            {{ movimentacao.descricao_anomalia or 'Nenhum relato informado.' }}
+        </div>
+
+    </div>
+</div>
+
+<!-- CHECKLIST -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+
+        <h5 class="text-laranja mb-3">
+            Checklist Executado
+        </h5>
+
+        <div class="table-responsive">
+
+            <table class="table table-bordered align-middle">
+
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 60px;" class="text-center">
+                            #
+                        </th>
+
+                        <th>
+                            Item
+                        </th>
+
+                        <th style="width: 140px;" class="text-center">
+                            Resultado
+                        </th>
+
+                        <th>
+                            Observação
+                        </th>
+
+                        <th style="width: 120px;" class="text-center">
+                            Foto
+                        </th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for resposta in respostas %}
+                    <tr>
+
+                        <td class="text-center">
+                            {{ resposta.ordem_snapshot }}
+                        </td>
+
+                        <td>
+                            <strong>
+                                {{ resposta.item_snapshot }}
+                            </strong>
+
+                            {% if resposta.criterio_snapshot %}
+                                <br>
+
+                                <small class="text-muted">
+                                    {{ resposta.criterio_snapshot }}
+                                </small>
+                            {% endif %}
+                        </td>
+
+                        <td class="text-center">
+
+                            {% if resposta.resultado == 'OK' %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle"></i>
+                                    OK
+                                </span>
+
+                            {% elif resposta.resultado == 'NOK' %}
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-x-circle"></i>
+                                    NOK
+                                </span>
+
+                            {% else %}
+                                <span class="badge bg-secondary">
+                                    <i class="bi bi-dash-circle"></i>
+                                    NA
+                                </span>
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+                            {{ resposta.observacao or '-' }}
+                        </td>
+
+                        <td class="text-center">
+
+                            {% if resposta.foto_path %}
+                                <a href="{{ url_for('static', filename=resposta.foto_path) }}"
+                                   target="_blank"
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-camera"></i>
+                                    Ver
+                                </a>
+                            {% else %}
+                                <span class="text-muted">
+                                    -
+                                </span>
+                            {% endif %}
+
+                        </td>
+
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center">
+                            Nenhuma resposta encontrada.
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- GEOLOCALIZAÇÃO -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+
+        <h5 class="text-laranja mb-3">
+            Geolocalização
+        </h5>
+
+        <div class="row g-3">
+
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">
+                    Latitude
+                </label>
+
+                <div class="form-control bg-light">
+                    {{ movimentacao.latitude or '-' }}
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">
+                    Longitude
+                </label>
+
+                <div class="form-control bg-light">
+                    {{ movimentacao.longitude or '-' }}
+                </div>
+            </div>
+
+            <div class="col-md-4 d-flex align-items-end">
+
+                {% if movimentacao.latitude and movimentacao.longitude %}
+                    <a href="https://www.google.com/maps?q={{ movimentacao.latitude }},{{ movimentacao.longitude }}"
+                       target="_blank"
+                       class="btn btn-outline-primary w-100">
+
+                        <i class="bi bi-geo-alt"></i>
+                        Abrir no mapa
+                    </a>
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

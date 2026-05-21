@@ -1,0 +1,474 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Reconhecimentos Cadastrados{% endblock %}
+
+{% block conteudo %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-award me-2"></i>
+        Reconhecimentos Cadastrados
+    </h2>
+</div>
+<hr>
+
+<!-- FILTROS -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('main.listar_reconhecimento') }}">
+
+            <div class="row g-3 mb-2">
+
+                <div class="col-md-4">
+                    <label for="apoiador_id" class="form-label">Apoiador</label>
+                    <select id="apoiador_id" name="apoiador_id" class="form-select">
+                        <option value="">Todos</option>
+                        {% for u in usuarios %}
+                            <option value="{{ u.id }}" {% if filtros.get('apoiador_id') == u.id|string %}selected{% endif %}>
+                                {{ u.nome }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="id_reconhecido" class="form-label">Reconhecido</label>
+                    <select id="id_reconhecido" name="id_reconhecido" class="form-select">
+                        <option value="">Todos</option>
+                        {% for u in usuarios %}
+                            <option value="{{ u.id }}" {% if filtros.get('id_reconhecido') == u.id|string %}selected{% endif %}>
+                                {{ u.nome }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label for="data_inicio" class="form-label">Data inicial</label>
+                    <input type="date" id="data_inicio" name="data_inicio" class="form-control"
+                           value="{{ filtros.get('data_inicio', '') }}">
+                </div>
+
+                <div class="col-md-2">
+                    <label for="data_fim" class="form-label">Data final</label>
+                    <input type="date" id="data_fim" name="data_fim" class="form-control"
+                           value="{{ filtros.get('data_fim', '') }}">
+                </div>
+
+            </div>
+
+            <div class="row g-3 align-items-end">
+                <div class="col-md-6 offset-md-6">
+                    <div class="d-flex gap-2 justify-content-end flex-wrap">
+                        <button type="submit" class="btn btn-laranja" title="Filtrar">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+
+                        <a href="{{ url_for('main.listar_reconhecimento', limpar=1) }}" class="btn btn-cinza" title="Limpar">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+
+                        <a href="{{ url_for('main.lancar_reconhecimento') }}" class="btn btn-laranja" title="Novo Reconhecimento">
+                            <i class="bi bi-plus-circle"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<!-- TABELA -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle table-fixed" id="tabelaReconhecimentos">
+                <thead class="table-light">
+                    <tr>
+
+                        <th style="width: 220px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Apoiador</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_reconhecimento',
+                                           apoiador_id=filtros.get('apoiador_id',''),
+                                           id_reconhecido=filtros.get('id_reconhecido',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='apoiador', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_reconhecimento',
+                                           apoiador_id=filtros.get('apoiador_id',''),
+                                           id_reconhecido=filtros.get('id_reconhecido',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='apoiador', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 ps-1 text-muted" title="Filtrar"
+                                       href="#filtroHeaderApoiador" data-bs-toggle="collapse" role="button">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderApoiador" class="collapse mt-2">
+                                <select class="form-select form-select-sm"
+                                        onchange="aplicarFiltro('apoiador_id', this.value);">
+                                    <option value="">Todos</option>
+                                    {% for u in usuarios %}
+                                        <option value="{{ u.id }}" {% if filtros.get('apoiador_id') == u.id|string %}selected{% endif %}>
+                                            {{ u.nome }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </th>
+
+                        <th style="width: 220px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Reconhecido</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_reconhecimento',
+                                           apoiador_id=filtros.get('apoiador_id',''),
+                                           id_reconhecido=filtros.get('id_reconhecido',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='reconhecido', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_reconhecimento',
+                                           apoiador_id=filtros.get('apoiador_id',''),
+                                           id_reconhecido=filtros.get('id_reconhecido',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='reconhecido', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 ps-1 text-muted" title="Filtrar"
+                                       href="#filtroHeaderReconhecido" data-bs-toggle="collapse" role="button">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderReconhecido" class="collapse mt-2">
+                                <select class="form-select form-select-sm"
+                                        onchange="aplicarFiltro('id_reconhecido', this.value);">
+                                    <option value="">Todos</option>
+                                    {% for u in usuarios %}
+                                        <option value="{{ u.id }}" {% if filtros.get('id_reconhecido') == u.id|string %}selected{% endif %}>
+                                            {{ u.nome }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </th>
+
+                        <th style="width: 120px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Data</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_reconhecimento',
+                                           apoiador_id=filtros.get('apoiador_id',''),
+                                           id_reconhecido=filtros.get('id_reconhecido',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='data_reconhecimento', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_reconhecimento',
+                                           apoiador_id=filtros.get('apoiador_id',''),
+                                           id_reconhecido=filtros.get('id_reconhecido',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='data_reconhecimento', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Reconhecimento</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_reconhecimento',
+                                           apoiador_id=filtros.get('apoiador_id',''),
+                                           id_reconhecido=filtros.get('id_reconhecido',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='reconhecimento', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_reconhecimento',
+                                           apoiador_id=filtros.get('apoiador_id',''),
+                                           id_reconhecido=filtros.get('id_reconhecido',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='reconhecimento', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 120px;">
+                            <span class="th-label">Ações</span>
+                        </th>
+
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for rec in reconhecimentos %}
+                    <tr>
+                        <td class="td-truncate" title="{{ rec.nome_apoiador }}">
+                            {{ rec.nome_apoiador or '-' }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ rec.nome_reconhecido }}">
+                            {{ rec.nome_reconhecido or '-' }}
+                        </td>
+
+                        <td class="text-center">
+                            {{ rec.data_reconhecimento.strftime('%d/%m/%Y') if rec.data_reconhecimento and rec.data_reconhecimento.strftime else rec.data_reconhecimento }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ rec.reconhecimento }}">
+                            {{ rec.reconhecimento or '-' }}
+                        </td>
+
+                        <td class="text-center">
+                            {% if rec.criado_por == session.get('usuario_id') %}
+                                <div class="d-flex justify-content-center gap-2">
+
+                                    <button type="button"
+                                            class="btn-acao-icon"
+                                            title="Editar"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalEditarReconhecimento"
+                                            data-id="{{ rec.id }}"
+                                            data-apoiador-id="{{ rec.apoiador_id }}"
+                                            data-reconhecido-id="{{ rec.id_reconhecido }}"
+                                            data-data="{{ rec.data_reconhecimento.strftime('%Y-%m-%d') if rec.data_reconhecimento and rec.data_reconhecimento.strftime else rec.data_reconhecimento }}"
+                                            data-reconhecimento="{{ rec.reconhecimento|default('', true)|e }}">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+
+                                    <form method="POST"
+                                          action="{{ url_for('main.excluir_reconhecimento', id=rec.id) }}"
+                                          onsubmit="return confirm('Tem certeza que deseja excluir este reconhecimento?');"
+                                          style="display:inline;">
+                                        <button type="submit" class="btn-acao-icon" title="Excluir">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+
+                                </div>
+                            {% else %}
+                                <span class="text-muted">Sem permissão</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center">Nenhum reconhecimento encontrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if total_paginas %}
+<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+
+    <div class="text-muted small">
+        Exibindo página {{ page }} de {{ total_paginas }} — {{ total_registros }} registro(s)
+    </div>
+
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for('main.listar_reconhecimento',
+                       apoiador_id=filtros.get('apoiador_id',''),
+                       id_reconhecido=filtros.get('id_reconhecido',''),
+                       data_inicio=filtros.get('data_inicio',''),
+                       data_fim=filtros.get('data_fim',''),
+                       sort=filtros.get('sort','data_reconhecimento'),
+                       order=filtros.get('order','desc'),
+                       page=page-1) }}">
+                    Anterior
+                </a>
+            </li>
+
+            {% for p in range(1, total_paginas + 1) %}
+                {% if p == 1 or p == total_paginas or (p >= page - 2 and p <= page + 2) %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('main.listar_reconhecimento',
+                               apoiador_id=filtros.get('apoiador_id',''),
+                               id_reconhecido=filtros.get('id_reconhecido',''),
+                               data_inicio=filtros.get('data_inicio',''),
+                               data_fim=filtros.get('data_fim',''),
+                               sort=filtros.get('sort','data_reconhecimento'),
+                               order=filtros.get('order','desc'),
+                               page=p) }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                {% elif p == page - 3 or p == page + 3 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            <li class="page-item {% if page >= total_paginas %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for('main.listar_reconhecimento',
+                       apoiador_id=filtros.get('apoiador_id',''),
+                       id_reconhecido=filtros.get('id_reconhecido',''),
+                       data_inicio=filtros.get('data_inicio',''),
+                       data_fim=filtros.get('data_fim',''),
+                       sort=filtros.get('sort','data_reconhecimento'),
+                       order=filtros.get('order','desc'),
+                       page=page+1) }}">
+                    Próxima
+                </a>
+            </li>
+
+        </ul>
+    </nav>
+
+</div>
+{% endif %}
+
+
+<!-- MODAL EDITAR RECONHECIMENTO -->
+<div class="modal fade" id="modalEditarReconhecimento" tabindex="-1" aria-labelledby="modalEditarReconhecimentoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <form method="POST" id="formEditarReconhecimentoModal">
+                <input type="hidden" name="next" id="modal_next_reconhecimento">
+
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalEditarReconhecimentoLabel">
+                        <i class="bi bi-pencil-square"></i>
+                        Editar Reconhecimento
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="row g-3 mb-3">
+
+                        <div class="col-md-6">
+                            <label for="modal_apoiador_id" class="form-label">Apoiador</label>
+                            <select name="apoiador_id" id="modal_apoiador_id" class="form-select" required>
+                                <option value="">Selecione</option>
+                                {% for u in usuarios %}
+                                    <option value="{{ u.id }}">{{ u.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="modal_id_reconhecido" class="form-label">Reconhecido</label>
+                            <select name="id_reconhecido" id="modal_id_reconhecido" class="form-select" required>
+                                <option value="">Selecione</option>
+                                {% for u in usuarios %}
+                                    <option value="{{ u.id }}">{{ u.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                    </div>
+
+                    <div class="row g-3 mb-3">
+
+                        <div class="col-md-3">
+                            <label for="modal_data_reconhecimento" class="form-label">Data</label>
+                            <input type="date"
+                                   name="data_reconhecimento"
+                                   id="modal_data_reconhecimento"
+                                   class="form-control"
+                                   required>
+                        </div>
+
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="modal_reconhecimento" class="form-label">Reconhecimento</label>
+                        <textarea name="reconhecimento"
+                                  id="modal_reconhecimento"
+                                  class="form-control"
+                                  rows="5"
+                                  required></textarea>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" class="btn btn-laranja">Salvar</button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<script>
+function aplicarFiltro(param, value) {
+    const url = new URL(window.location.href);
+
+    if (value) {
+        url.searchParams.set(param, value);
+    } else {
+        url.searchParams.delete(param);
+    }
+
+    window.location.href = url.toString();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('modalEditarReconhecimento');
+    const form = document.getElementById('formEditarReconhecimentoModal');
+
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const id = button.getAttribute('data-id');
+
+            form.action = `/editar_reconhecimento/${id}`;
+
+            document.getElementById('modal_next_reconhecimento').value = window.location.href;
+            document.getElementById('modal_apoiador_id').value = button.getAttribute('data-apoiador-id') || '';
+            document.getElementById('modal_id_reconhecido').value = button.getAttribute('data-reconhecido-id') || '';
+            document.getElementById('modal_data_reconhecimento').value = button.getAttribute('data-data') || '';
+            document.getElementById('modal_reconhecimento').value = button.getAttribute('data-reconhecimento') || '';
+        });
+    }
+});
+</script>
+
+{% endblock %}

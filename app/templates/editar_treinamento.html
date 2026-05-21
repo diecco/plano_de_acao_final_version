@@ -1,0 +1,351 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Editar Treinamento{% endblock %}
+
+{% block conteudo %}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div style="width: 40px;"></div>
+
+    <div class="text-center flex-grow-1">
+        <h2 class="page-title">
+            <i class="bi bi-pencil-square me-2"></i>
+            Editar Treinamento
+        </h2>
+    </div>
+
+    <div style="width: 40px;"></div>
+</div>
+
+<div class="page-header-line"></div>
+<hr>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<form method="POST"
+      action="{{ url_for('main.editar_treinamento', id=treinamento.id) }}"
+      enctype="multipart/form-data">
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Dados do Treinamento</h5>
+
+            <div class="row g-3">
+
+                <div class="col-md-5">
+                    <label for="procedimento_id" class="form-label">Procedimento</label>
+                    <select class="form-select" id="procedimento_id" name="procedimento_id" required>
+                        {% for p in procedimentos %}
+                            <option value="{{ p.id }}"
+                                {% if p.id == treinamento.procedimento_id %}selected{% endif %}>
+                                {{ p.sigla }} {{ p.numero_documento }} - {{ p.titulo }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="procedimento_revisao_id" class="form-label">Revisão</label>
+                    <select class="form-select" id="procedimento_revisao_id" name="procedimento_revisao_id" required>
+                        {% for r in revisoes %}
+                            <option value="{{ r.id }}"
+                                {% if r.id == treinamento.procedimento_revisao_id %}selected{% endif %}>
+                                Revisão {{ r.numero_revisao }}{% if r.data_revisao %} - {{ r.data_revisao }}{% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="local_treinamento" class="form-label">Local</label>
+                    <input type="text"
+                           class="form-control"
+                           id="local_treinamento"
+                           name="local_treinamento"
+                           value="{{ treinamento.local_treinamento }}"
+                           required>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="data_treinamento" class="form-label">Data</label>
+                    <input type="date"
+                           class="form-control"
+                           id="data_treinamento"
+                           name="data_treinamento"
+                           value="{{ treinamento.data_treinamento }}"
+                           required>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="hora_inicio" class="form-label">Hora Início</label>
+                    <input type="time"
+                           class="form-control"
+                           id="hora_inicio"
+                           name="hora_inicio"
+                           value="{{ treinamento.hora_inicio }}"
+                           required>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="hora_fim" class="form-label">Hora Fim</label>
+                    <input type="time"
+                           class="form-control"
+                           id="hora_fim"
+                           name="hora_fim"
+                           value="{{ treinamento.hora_fim }}"
+                           required>
+                </div>
+
+                <div class="col-12">
+                    <label for="observacoes" class="form-label">Observações</label>
+                    <textarea class="form-control"
+                              id="observacoes"
+                              name="observacoes"
+                              rows="3">{{ treinamento.observacoes or '' }}</textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Participantes</h5>
+
+            <div class="row g-3 align-items-end">
+
+                <div class="col-md-4">
+                    <label for="matricula_select" class="form-label">Matrícula</label>
+                    <select class="form-select" id="matricula_select">
+                        <option value="">Selecione</option>
+                        {% for u in participantes_matricula %}
+                            <option value="{{ u.id }}"
+                                    data-nome="{{ u.nome }}"
+                                    data-matricula="{{ u.matricula or '' }}"
+                                    data-cargo="{{ u.nome_cargo or '' }}">
+                                {{ u.matricula or 'Sem matrícula' }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="nome_select" class="form-label">Nome</label>
+                    <select class="form-select" id="nome_select">
+                        <option value="">Selecione</option>
+                        {% for u in participantes_nome %}
+                            <option value="{{ u.id }}"
+                                    data-nome="{{ u.nome }}"
+                                    data-matricula="{{ u.matricula or '' }}"
+                                    data-cargo="{{ u.nome_cargo or '' }}">
+                                {{ u.nome }}{% if u.nome_cargo %} - {{ u.nome_cargo }}{% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-laranja w-100" id="btnAdicionarParticipante">
+                        Adicionar
+                    </button>
+                </div>
+
+            </div>
+
+            <div class="table-responsive mt-4">
+                <table class="table table-bordered align-middle mb-0" id="tabelaParticipantes">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 140px;">Matrícula</th>
+                            <th>Nome</th>
+                            <th style="width: 120px;">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if participantes_selecionados %}
+                            {% for p in participantes_selecionados %}
+                            <tr class="participante-row" data-id="{{ p.usuario_id }}">
+                                <td>{{ p.matricula or '-' }}</td>
+                                <td>
+                                    {{ p.nome }}{% if p.nome_cargo %} - {{ p.nome_cargo }}{% endif %}
+                                </td>
+                                <td>
+                                    <button type="button"
+                                            class="btn btn-vermelho btn-sm w-100"
+                                            onclick="removerLinha(this)">
+                                        Remover
+                                    </button>
+                                </td>
+                                <input type="hidden" name="participante_ids[]" value="{{ p.usuario_id }}">
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr id="linhaSemParticipantes">
+                                <td colspan="3" class="text-center text-muted">
+                                    Nenhum participante adicionado.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Evidência</h5>
+
+            <input type="file" name="evidencia_arquivo" class="form-control" accept=".pdf">
+
+            {% if treinamento.evidencia_arquivo %}
+                <div class="mt-3">
+                    <a href="{{ url_for('static', filename='evidencias_treinamentos/' ~ treinamento.evidencia_arquivo) }}"
+                       target="_blank">
+                        Ver arquivo atual
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2">
+        <a href="{{ url_for('main.listar_treinamentos') }}" class="btn btn-cinza">
+            Cancelar
+        </a>
+        <button type="submit" class="btn btn-laranja">
+            Salvar Alterações
+        </button>
+    </div>
+
+</form>
+
+<script>
+    function sincronizarSeletores(origem) {
+        const matriculaSelect = document.getElementById('matricula_select');
+        const nomeSelect = document.getElementById('nome_select');
+
+        if (origem === 'matricula') {
+            nomeSelect.value = matriculaSelect.value;
+        } else {
+            matriculaSelect.value = nomeSelect.value;
+        }
+    }
+
+    function atualizarLinhaVaziaParticipantes() {
+        const tbody = document.querySelector('#tabelaParticipantes tbody');
+        const linhas = tbody.querySelectorAll('tr.participante-row');
+        let linhaVazia = document.getElementById('linhaSemParticipantes');
+
+        if (linhas.length === 0) {
+            if (!linhaVazia) {
+                linhaVazia = document.createElement('tr');
+                linhaVazia.id = 'linhaSemParticipantes';
+                linhaVazia.innerHTML = `
+                    <td colspan="3" class="text-center text-muted">
+                        Nenhum participante adicionado.
+                    </td>
+                `;
+                tbody.appendChild(linhaVazia);
+            }
+        } else if (linhaVazia) {
+            linhaVazia.remove();
+        }
+    }
+
+    function participanteJaAdicionado(usuarioId) {
+        const linhas = document.querySelectorAll('#tabelaParticipantes tbody tr.participante-row');
+        return Array.from(linhas).some(linha => linha.dataset.id === String(usuarioId));
+    }
+
+    function adicionarParticipante() {
+        const matriculaSelect = document.getElementById('matricula_select');
+        const nomeSelect = document.getElementById('nome_select');
+
+        const usuarioId = nomeSelect.value || matriculaSelect.value;
+
+        if (!usuarioId) {
+            alert('Selecione um participante.');
+            return;
+        }
+
+        if (participanteJaAdicionado(usuarioId)) {
+            alert('Esse participante já foi adicionado.');
+            return;
+        }
+
+        const optionSelecionada = nomeSelect.value
+            ? nomeSelect.options[nomeSelect.selectedIndex]
+            : matriculaSelect.options[matriculaSelect.selectedIndex];
+
+        const matricula = optionSelecionada.getAttribute('data-matricula') || '';
+        const nome = optionSelecionada.getAttribute('data-nome') || '';
+        const cargo = optionSelecionada.getAttribute('data-cargo') || '';
+        const nomeCompleto = cargo ? `${nome} - ${cargo}` : nome;
+
+        const tbody = document.querySelector('#tabelaParticipantes tbody');
+        const tr = document.createElement('tr');
+        tr.classList.add('participante-row');
+        tr.dataset.id = usuarioId;
+
+        tr.innerHTML = `
+            <td>${matricula || '-'}</td>
+            <td>${nomeCompleto}</td>
+            <td>
+                <button type="button" class="btn btn-vermelho btn-sm w-100" onclick="removerLinha(this)">
+                    Remover
+                </button>
+            </td>
+            <input type="hidden" name="participante_ids[]" value="${usuarioId}">
+        `;
+
+        tbody.appendChild(tr);
+        atualizarLinhaVaziaParticipantes();
+
+        matriculaSelect.value = '';
+        nomeSelect.value = '';
+    }
+
+    function removerLinha(btn) {
+        const tr = btn.closest('tr');
+        if (tr) {
+            tr.remove();
+            atualizarLinhaVaziaParticipantes();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const matriculaSelect = document.getElementById('matricula_select');
+        const nomeSelect = document.getElementById('nome_select');
+        const btnAdicionar = document.getElementById('btnAdicionarParticipante');
+
+        if (matriculaSelect) {
+            matriculaSelect.addEventListener('change', function () {
+                sincronizarSeletores('matricula');
+            });
+        }
+
+        if (nomeSelect) {
+            nomeSelect.addEventListener('change', function () {
+                sincronizarSeletores('nome');
+            });
+        }
+
+        if (btnAdicionar) {
+            btnAdicionar.addEventListener('click', adicionarParticipante);
+        }
+
+        atualizarLinhaVaziaParticipantes();
+    });
+</script>
+
+{% endblock %}

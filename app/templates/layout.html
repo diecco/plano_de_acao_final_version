@@ -9,7 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
     <style>
         @font-face {
@@ -30,20 +30,22 @@
         .header-text {
             font-family: 'Azonix', sans-serif;
         }
+
         .header {
             position: fixed;
             top: 0;
-            left: 220px;
+            left: 260px;
             right: 0;
             height: 100px;
             background-color: #ea6a23;
-            color:rgb(80,81,80);
+            color: rgb(80,81,80);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 2rem;
             font-weight: bold;
             z-index: 1000;
+            transition: left 0.3s ease;
         }
 
         .header .dropdown {
@@ -53,18 +55,31 @@
             transform: translateY(-50%);
         }
 
-        /* Botão do dropdown com cor e contorno rgb(80,81,80) */
+        .header .btn-toggle-sidebar {
+            position: absolute;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            color: rgb(80,81,80);
+            border-color: rgb(80,81,80);
+            background-color: transparent;
+        }
+
+        .header .btn-toggle-sidebar:hover {
+            background-color: rgb(80,81,80);
+            color: white;
+            border-color: rgb(80,81,80);
+        }
+
         .header .dropdown .btn-outline-light {
             color: rgb(80,81,80);
             border-color: rgb(80,81,80);
         }
 
-        /* Ícone também na cor rgb(80,81,80) */
         .header .dropdown .btn-outline-light i {
             color: rgb(80,81,80);
         }
 
-        /* Efeito hover: fundo rgb(80,81,80) e ícone branco */
         .header .dropdown .btn-outline-light:hover {
             background-color: rgb(80,81,80);
             color: white;
@@ -77,7 +92,7 @@
 
         .sidebar {
             background-color: #ea6a23;
-            width: 220px;
+            width: 260px;
             height: 100vh;
             position: fixed;
             top: 0;
@@ -85,24 +100,50 @@
             padding-top: 20px;
             color: white;
             z-index: 999;
+            overflow-y: auto;
+            overflow-x: hidden;
+            transition: width 0.3s ease;
         }
 
         .sidebar .logo {
             display: flex;
             justify-content: center;
+            align-items: center;
             margin-bottom: 30px;
+            min-height: 60px;
+            transition: all 0.3s ease;
         }
 
-        .sidebar .logo img {
-            max-width: 100%;
+        .sidebar .logo a {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        .sidebar .logo-completa {
+            display: block;
+            width: 140px;
+            height: auto;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar .logo-icone {
+            display: none;
+            width: 34px;
             height: auto;
         }
 
         .sidebar .nav-link {
             color: #fff5ee;
-            padding: 12px 20px;
-            display: block;
+            padding: 8px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
             font-weight: 500;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            overflow: hidden;
         }
 
         .sidebar .nav-link.active,
@@ -112,14 +153,134 @@
             color: white;
         }
 
+        .sidebar .nav-link i {
+            width: 20px;
+            min-width: 20px;
+            text-align: center;
+            font-size: 1rem;
+            margin-right: 0 !important;
+        }
+
+        .sidebar .menu-text {
+            display: inline-block;
+            opacity: 1;
+            transition: opacity 0.2s ease;
+        }
+
         .main-content {
-            margin-left: 220px;
+            margin-left: 260px;
             padding: 110px 30px 30px 30px;
+            transition: all 0.3s ease;
         }
 
         .main-content-login {
             margin-left: 0;
             padding: 30px;
+        }
+
+        body.sidebar-collapsed .sidebar {
+            width: 72px;
+        }
+
+        body.sidebar-collapsed .header {
+            left: 72px;
+        }
+
+        body.sidebar-collapsed .main-content {
+            margin-left: 72px;
+        }
+
+        body.sidebar-collapsed .sidebar .logo {
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        body.sidebar-collapsed .sidebar .logo-completa {
+            display: none;
+        }
+
+        body.sidebar-collapsed .sidebar .logo-icone {
+            display: block;
+        }
+
+        body.sidebar-collapsed .sidebar .nav-link {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
+            gap: 0;
+            width: 100%;
+        }
+
+        body.sidebar-collapsed .sidebar .nav-link i {
+            width: 24px;
+            min-width: 24px;
+            text-align: center;
+            margin-right: 0 !important;
+        }
+
+        body.sidebar-collapsed .sidebar .menu-text {
+            display: none;
+            opacity: 0;
+        }
+
+        body.sidebar-collapsed .sidebar .collapse.show {
+            display: block !important;
+        }
+
+        body.sidebar-collapsed .sidebar .collapsing {
+            display: block !important;
+        }
+
+        body.sidebar-collapsed .sidebar .ps-3 {
+            padding-left: 0 !important;
+        }
+
+        body.sidebar-collapsed .sidebar .nav-link[data-bs-toggle="collapse"]::after {
+            display: none !important;
+        }
+
+        /* =========================
+        MODAL PADRÃO TRACKPLAN
+        ========================= */
+
+        .modal-content {
+            border: none;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .modal-header-trackplan {
+            background-color: #ea6a23;
+            border-bottom: none;
+            padding: 14px 20px;
+        }
+
+        .modal-header-trackplan .modal-title {
+            color: rgb(80, 81, 80);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-header-trackplan .modal-title i {
+            color: rgb(80, 81, 80);
+            font-size: 1.25rem;
+        }
+
+        .modal-header-trackplan .btn-close {
+            filter: none;
+            opacity: 0.75;
+        }
+
+        .modal-header-trackplan .btn-close:hover {
+            opacity: 1;
+        }
+
+        .modal-footer {
+            border-top: 1px solid #dee2e6;
+            background-color: #fff;
         }
 
         @media (max-width: 768px) {
@@ -134,11 +295,44 @@
                 margin-left: 0;
             }
 
-            .header-text {
-            font-family: 'Azonix', sans-serif;
-        }
-        .header {
-                left: 0;
+            .header {
+                left: 0 !important;
+            }
+
+            body.sidebar-collapsed .sidebar {
+                width: 100%;
+            }
+
+            body.sidebar-collapsed .main-content {
+                margin-left: 0;
+            }
+
+            body.sidebar-collapsed .sidebar .menu-text {
+                display: inline-block;
+                opacity: 1;
+            }
+
+            body.sidebar-collapsed .sidebar .collapse {
+                display: block !important;
+            }
+
+            body.sidebar-collapsed .sidebar .logo-completa {
+                display: block;
+            }
+
+            body.sidebar-collapsed .sidebar .logo-icone {
+                display: none;
+            }
+
+            body.sidebar-collapsed .sidebar .nav-link {
+                justify-content: flex-start;
+                padding-left: 20px;
+                padding-right: 20px;
+                gap: 10px;
+            }
+
+            body.sidebar-collapsed .sidebar .ps-3 {
+                padding-left: 1rem !important;
             }
         }
 
@@ -171,7 +365,7 @@
         }
 
         .btn-vermelho {
-            background-color:red;
+            background-color: red;
             color: white;
         }
 
@@ -180,12 +374,25 @@
         }
 
         .btn-cinza {
-            background-color:rgb(80,81,80);
+            background-color: rgb(80,81,80);
             color: white;
         }
 
         .btn-cinza:hover {
             background-color: rgb(120,120,120);
+        }
+
+        .btn-acao-icon {
+            background: none;
+            border: none;
+            color: #ea6a23;
+            padding: 6px;
+        }
+
+        .btn-acao-icon:hover {
+            color: #c64c11;
+            background-color: rgba(234, 106, 35, 0.1);
+            border-radius: 6px;
         }
 
         .table {
@@ -219,30 +426,751 @@
         .form-label {
             color: #ea6a23;
         }
+
+                /* Paginação padrão TrackPlan */
+        .pagination .page-item.active .page-link {
+            background-color: #EA6A23;
+            border-color: #EA6A23;
+            color: #fff;
+        }
+
+        .pagination .page-link {
+            color: #EA6A23;
+        }
+
+        .pagination .page-link:hover {
+            background-color: #fce3d6;
+            border-color: #EA6A23;
+            color: #EA6A23;
+        }
+
+        .pagination .page-item.disabled .page-link {
+            color: #ccc;
+        }
+
+        .template-wrapper {
+           border: 1px solid #ea6a23;
+            border-radius: 16px;
+            background-color: #fff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            padding: 20px;
+            margin-top: 18px;
+        }
+
+        .template-wrapper h2,
+        .template-wrapper h3 {
+            color: #ea6a23;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            text-align: center;
+            margin-bottom: 1.2rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #d9d9d9;
+        }
+
+        .card {
+            border-radius: 10px;
+        }
+
+        .campo-readonly {
+            background-color: #f8f9fa !important;
+            color: rgb(80,81,80);
+            cursor: not-allowed;
+        }
+
+        .bloco-placeholder {
+            border: 1px dashed #d9d9d9;
+            border-radius: 10px;
+            background-color: #fafafa;
+            color: rgb(120,120,120);
+            padding: 16px;
+            text-align: center;
+        }
+
+        .lista-busca {
+            display: none;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            background-color: #fff;
+            max-height: 280px;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .lista-busca.show {
+            display: block;
+        }
+
+        .lista-busca-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+        }
+
+        .lista-busca-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .badge-participante {
+            background-color: rgba(234, 106, 35, 0.12);
+            color: #ea6a23;
+            border: 1px solid rgba(234, 106, 35, 0.25);
+            font-weight: 600;
+        }
+
+        /* =========================
+        SUBMENU FLUTUANTE SIDEBAR RECOLHIDA
+        ========================= */
+
+        .sidebar-flyout {
+            display: none;
+            position: fixed;
+            left: 72px;
+            min-width: 230px;
+            background-color: #ffffff;
+            border: 1px solid rgba(234, 106, 35, 0.25);
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+            z-index: 2000;
+            padding: 8px;
+        }
+
+        .sidebar-flyout-title {
+            color: #ea6a23;
+            font-weight: 700;
+            font-size: 0.85rem;
+            padding: 8px 10px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 6px;
+        }
+
+        .sidebar-flyout a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: rgb(80,81,80);
+            text-decoration: none;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .sidebar-flyout a:hover {
+            background-color: rgba(234, 106, 35, 0.12);
+            color: #ea6a23;
+        }
+
+        body:not(.sidebar-collapsed) .sidebar-flyout {
+            display: none !important;
+        }
+
     </style>
 </head>
 <body>
 
     {% if 'login' not in request.path and 'esqueci_senha' not in request.path and 'redefinir_senha' not in request.path %}
     <div class="sidebar">
-    <div class="logo">
-        <a href="{{ url_for('main.dashboard') }}">
-            <img src="{{ url_for('static', filename='imagens/logo_trackplan.png') }}" alt="Logo" width="140">
+        <div class="logo">
+            <a href="{{ url_for('main.dashboard') }}">
+                <img class="logo-completa" src="{{ url_for('static', filename='imagens/logo_trackplan.png') }}" alt="Logo" width="140">
+                <img class="logo-icone" src="{{ url_for('static', filename='imagens/logo_trackplan_icone.png') }}" alt="Logo ícone">
+            </a>
+        </div>
+
+        {% if session.get('acesso_plano_acao') %}
+
+        <a class="nav-link {% if 'dashboard' in request.path or 'cadastrar_acao' in request.path or 'minhas_acoes' in request.path or 'acoes_criadas' in request.path %}active{% endif %}"
+        data-bs-toggle="collapse"
+        href="#planosAcao"
+        role="button"
+        title="Planos de Ação"
+        aria-expanded="{% if 'dashboard' in request.path or 'cadastrar_acao' in request.path or 'minhas_acoes' in request.path or 'acoes_criadas' in request.path %}true{% else %}false{% endif %}"
+        aria-controls="planosAcao"
+        data-flyout="flyoutPlanos">
+
+            <i class="bi bi-list-task"></i>
+            <span class="menu-text">Planos de Ação</span>
         </a>
-    </div>
 
-    <a href="/dashboard" class="nav-link {% if 'dashboard' in request.path %}active{% endif %}">Dashboard</a>
-    <a href="/cadastrar_acao" class="nav-link {% if 'cadastrar_acao' in request.path %}active{% endif %}">Nova ação</a>
+        <div class="collapse ps-3 {% if 'dashboard' in request.path or 'cadastrar_acao' in request.path or 'minhas_acoes' in request.path or 'acoes_criadas' in request.path %}show{% endif %}"
+            id="planosAcao">
 
-    {% if session['perfil'] == 'administrador' %}
-        <a href="/origens" class="nav-link {% if 'origens' in request.path %}active{% endif %}">Origens</a>
-        <a href="/superintendencias" class="nav-link {% if 'superintendencias' in request.path %}active{% endif %}">Superintendências</a>
-        <a href="/usuarios" class="nav-link {% if 'usuarios' in request.path %}active{% endif %}">Usuários</a>
-        <a href="/centros_custos" class="nav-link {% if 'centros_custos' in request.path %}active{% endif %}">Centro de Custos</a>
-    {% endif %}
+            <a href="/dashboard"
+            class="nav-link {% if 'dashboard' in request.path %}active{% endif %}"
+            title="Dashboard">
+                <i class="bi bi-speedometer2"></i>
+                <span class="menu-text">Dashboard</span>
+            </a>
+            
+            <a href="/cadastrar_acao"
+            class="nav-link {% if 'cadastrar_acao' in request.path %}active{% endif %}"
+            title="Nova Ação">
+                <i class="bi bi-plus-circle"></i>
+                <span class="menu-text">Nova ação</span>
+            </a>
+            
+            <a href="/minhas_acoes"
+            class="nav-link {% if 'minhas_acoes' in request.path %}active{% endif %}"
+            title="Minhas Ações">
+                <i class="bi bi-person-check"></i>
+                <span class="menu-text">Minhas ações</span>
+            </a>
+            
+            <a href="/acoes_criadas"
+            class="nav-link {% if 'acoes_criadas' in request.path %}active{% endif %}"
+            title="Ações que Criei">
+                <i class="bi bi-folder2-open"></i>
+                <span class="menu-text">Ações que criei</span>
+            </a>
+
+        </div>
+
+        <!-- FLYOUT LATERAL -->
+        <div class="sidebar-flyout" id="flyoutPlanos">
+            <div class="sidebar-flyout-title">
+                Planos de Ação
+            </div>
+
+            <a href="/dashboard">
+                <i class="bi bi-speedometer2"></i>
+                Dashboard
+            </a>
+
+            <a href="/cadastrar_acao">
+                <i class="bi bi-plus-circle"></i>
+                Nova ação
+            </a>
+
+            <a href="/minhas_acoes">
+                <i class="bi bi-person-check"></i>
+                Minhas ações
+            </a>
+
+            <a href="/acoes_criadas">
+                <i class="bi bi-folder2-open"></i>
+                Ações que criei
+            </a>
+        </div>
+
+        {% endif %}
+
+        {% if session.get('acesso_ssma') %}
+
+        {% set ssma_endpoints = [
+            'main.listar_hs',
+            'main.editar_hs',
+            'main.listar_recusa',
+            'main.editar_recusa',
+            'main.listar_apr',
+            'main.listar_ap',
+            'main.listar_ifs'
+        ] %}
+
+        <a class="nav-link {% if request.endpoint in ssma_endpoints %}active{% endif %}"
+           data-bs-toggle="collapse"
+           href="#ssma"
+           role="button"
+           title="SSMA"
+           aria-expanded="{% if request.endpoint in ssma_endpoints %}true{% else %}false{% endif %}"
+           aria-controls="ssma"
+           data-flyout="flyoutSSMA">
+            <i class="bi bi-shield-check"></i>
+            <span class="menu-text">SSMA</span>
+        </a>
+
+        <div class="collapse ps-3 {% if request.endpoint in ssma_endpoints %}show{% endif %}" id="ssma">
+
+            <a href="{{ url_for('main.listar_hs') }}"
+               class="nav-link {% if request.endpoint in ['main.listar_hs', 'main.editar_hs'] %}active{% endif %}">
+                <i class="bi bi-clock-history"></i>
+                <span class="menu-text">Horas de Segurança</span>
+            </a>
+
+            <a href="{{ url_for('main.listar_recusa') }}"
+               class="nav-link {% if request.endpoint in ['main.listar_recusa', 'main.editar_recusa'] %}active{% endif %}">
+                <i class="bi bi-exclamation-triangle"></i>
+                <span class="menu-text">Recusa à Tarefa</span>
+            </a>
+
+            <a href="{{ url_for('main.listar_apr') }}"
+               class="nav-link {% if request.endpoint == 'main.listar_apr' %}active{% endif %}">
+                <i class="bi bi-file-earmark-text"></i>
+                <span class="menu-text">APR</span>
+            </a>
+
+            <a href="{{ url_for('main.listar_ap') }}"
+               class="nav-link {% if request.endpoint == 'main.listar_ap' %}active{% endif %}">
+                <i class="bi bi-clipboard-check"></i>
+                <span class="menu-text">Auditoria de Padrão</span>
+            </a>
+
+            <a href="{{ url_for('main.listar_ifs') }}"
+               class="nav-link {% if request.endpoint == 'main.listar_ifs' %}active{% endif %}">
+                <i class="bi bi-shield-exclamation"></i>
+                <span class="menu-text">IFS</span>
+            </a>
+
+        </div>
+
+        <div class="sidebar-flyout" id="flyoutSSMA">
+            <div class="sidebar-flyout-title">SSMA</div>
+
+            <a href="{{ url_for('main.listar_hs') }}">
+                <i class="bi bi-clock-history"></i>
+                Horas de Segurança
+            </a>
+
+            <a href="{{ url_for('main.listar_recusa') }}">
+                <i class="bi bi-exclamation-triangle"></i>
+                Recusa à Tarefa
+            </a>
+
+            <a href="{{ url_for('main.listar_apr') }}">
+                <i class="bi bi-file-earmark-text"></i>
+                APR
+            </a>
+
+            <a href="{{ url_for('main.listar_ap') }}">
+                <i class="bi bi-clipboard-check"></i>
+                Auditoria de Padrão
+            </a>
+
+            <a href="{{ url_for('main.listar_ifs') }}">
+                <i class="bi bi-shield-exclamation"></i>
+                IFS
+            </a>
+        </div>
+
+        {% endif %}
+
+        {% if session.get('acesso_melhoria') %}
+
+        {% set melhorias_endpoints = [
+            'main.listar_melhorias',
+            'main.listar_melhoria',
+            'main.editar_melhoria'
+        ] %}
+
+        <a class="nav-link {% if request.endpoint in melhorias_endpoints %}active{% endif %}"
+           data-bs-toggle="collapse"
+           href="#melhorias"
+           role="button"
+           title="Melhorias"
+           aria-expanded="{% if request.endpoint in melhorias_endpoints %}true{% else %}false{% endif %}"
+           aria-controls="melhorias"
+           data-flyout="flyoutMelhorias">
+            <i class="bi bi-lightbulb"></i>
+            <span class="menu-text">Melhorias</span>
+        </a>
+
+        <div class="collapse ps-3 {% if request.endpoint in melhorias_endpoints %}show{% endif %}" id="melhorias">
+            <a href="{{ url_for('main.listar_melhorias') }}"
+               class="nav-link {% if request.endpoint in melhorias_endpoints %}active{% endif %}">
+                <i class="bi bi-lightbulb-fill"></i>
+                <span class="menu-text">Melhorias</span>
+            </a>
+        </div>
+
+        <div class="sidebar-flyout" id="flyoutMelhorias">
+            <div class="sidebar-flyout-title">Melhorias</div>
+
+            <a href="{{ url_for('main.listar_melhorias') }}">
+                <i class="bi bi-lightbulb-fill"></i>
+                Melhorias
+            </a>
+        </div>
+
+        {% endif %}
+
+        {% if session.get('acesso_gestao_pessoas') %}
+
+        {% set gestao_pessoas_endpoints = [
+            'main.listar_reconhecimento',
+            'main.editar_reconhecimento'
+        ] %}
+
+        <a class="nav-link {% if request.endpoint in gestao_pessoas_endpoints %}active{% endif %}"
+           data-bs-toggle="collapse"
+           href="#gestaoPessoas"
+           role="button"
+           title="Gestão de Pessoas"
+           aria-expanded="{% if request.endpoint in gestao_pessoas_endpoints %}true{% else %}false{% endif %}"
+           aria-controls="gestaoPessoas"
+           data-flyout="flyoutGestaoPessoas">
+            <i class="bi bi-people"></i>
+            <span class="menu-text">Gestão de Pessoas</span>
+        </a>
+
+        <div class="collapse ps-3 {% if request.endpoint in gestao_pessoas_endpoints %}show{% endif %}" id="gestaoPessoas">
+            <a href="{{ url_for('main.listar_reconhecimento') }}"
+               class="nav-link {% if request.endpoint in gestao_pessoas_endpoints %}active{% endif %}">
+                <i class="bi bi-award"></i>
+                <span class="menu-text">Reconhecimentos</span>
+            </a>
+        </div>
+
+        <div class="sidebar-flyout" id="flyoutGestaoPessoas">
+            <div class="sidebar-flyout-title">Gestão de Pessoas</div>
+
+            <a href="{{ url_for('main.listar_reconhecimento') }}">
+                <i class="bi bi-award"></i>
+                Reconhecimentos
+            </a>
+        </div>
+
+        {% endif %}
+        
+        {% if session.get('acesso_procedimentos') or session.get('perfil') == 'administrador' %}
+
+        {% set procedimentos_endpoints = [
+            'main.listar_procedimentos',
+            'main.listar_matrizes_capacitacao'
+        ] %}
+
+        <a class="nav-link {% if request.endpoint in procedimentos_endpoints %}active{% endif %}"
+        data-bs-toggle="collapse"
+        href="#procedimentos"
+        role="button"
+        title="Procedimentos"
+        aria-expanded="{% if request.endpoint in procedimentos_endpoints %}true{% else %}false{% endif %}"
+        aria-controls="procedimentos"
+        data-flyout="flyoutProcedimentos">
+            <i class="bi bi-journal-text"></i>
+            <span class="menu-text">Procedimentos</span>
+        </a>
+
+        <div class="collapse ps-3 {% if request.endpoint in procedimentos_endpoints %}show{% endif %}" id="procedimentos">
+
+            <a href="{{ url_for('main.listar_procedimentos') }}"
+            class="nav-link {% if request.endpoint == 'main.listar_procedimentos' %}active{% endif %}">
+                <i class="bi bi-file-earmark-text"></i>
+                <span class="menu-text">Procedimentos</span>
+            </a>
+
+            <a href="{{ url_for('main.listar_matrizes_capacitacao') }}"
+            class="nav-link {% if request.endpoint == 'main.listar_matrizes_capacitacao' %}active{% endif %}">
+                <i class="bi bi-diagram-3"></i>
+                <span class="menu-text">Matriz de Capacitação</span>
+            </a>
+
+        </div>
+
+        <div class="sidebar-flyout" id="flyoutProcedimentos">
+            <div class="sidebar-flyout-title">Procedimentos</div>
+
+            <a href="{{ url_for('main.listar_procedimentos') }}">
+                <i class="bi bi-file-earmark-text"></i>
+                Procedimentos
+            </a>
+
+            <a href="{{ url_for('main.listar_matrizes_capacitacao') }}">
+                <i class="bi bi-diagram-3"></i>
+                Matriz de Capacitação
+            </a>
+        </div>
+
+        {% endif %}
+
+
+        <div class="sidebar-flyout" id="flyoutTreinamentos">
+            <div class="sidebar-flyout-title">Gestão de Treinamentos</div>
+
+            <a href="{{ url_for('main.listar_treinamentos') }}">
+                <i class="bi bi-list-ul"></i>
+                Treinamentos
+            </a>
+
+            <a href="{{ url_for('main.relatorio_treinamentos_a_vencer') }}">
+                <i class="bi bi-clock-history"></i>
+                Treinamentos a vencer
+            </a>
+
+            <a href="{{ url_for('main.relatorio_treinamentos_pendentes') }}">
+                <i class="bi bi-exclamation-circle"></i>
+                Treinamentos pendentes
+            </a>
+
+            <a href="{{ url_for('main.relatorio_treinamentos_realizados') }}">
+                <i class="bi bi-check-circle"></i>
+                Treinamentos realizados
+            </a>
+
+            <a href="{{ url_for('main.relatorio_treinamentos_vencidos') }}">
+                <i class="bi bi-x-circle"></i>
+                Treinamentos vencidos
+            </a>
+        </div>
+
+        {% endif %}
+
+
+        {% if session.get('acesso_treinamentos') %}
+
+        {% set treinamentos_endpoints = [
+            'main.listar_treinamentos',
+            'main.relatorio_treinamentos_a_vencer',
+            'main.relatorio_treinamentos_pendentes',
+            'main.relatorio_treinamentos_realizados',
+            'main.relatorio_treinamentos_vencidos'
+        ] %}
+
+        <a class="nav-link {% if request.endpoint in treinamentos_endpoints %}active{% endif %}"
+           data-bs-toggle="collapse"
+           href="#treinamentos"
+           role="button"
+           title="Gestão de Treinamentos"
+           aria-expanded="{% if request.endpoint in treinamentos_endpoints %}true{% else %}false{% endif %}"
+           aria-controls="treinamentos"
+           data-flyout="flyoutTreinamentos">
+            <i class="bi bi-mortarboard"></i>
+            <span class="menu-text">Gestão de Treinamentos</span>
+        </a>
+
+        <div class="collapse ps-3 {% if request.endpoint in treinamentos_endpoints %}show{% endif %}" id="treinamentos">
+
+            <a href="{{ url_for('main.listar_treinamentos') }}"
+               class="nav-link {% if request.endpoint == 'main.listar_treinamentos' %}active{% endif %}">
+                <i class="bi bi-list-ul"></i>
+                <span class="menu-text">Treinamentos</span>
+            </a>
+
+            <a href="{{ url_for('main.relatorio_treinamentos_a_vencer') }}"
+               class="nav-link {% if request.endpoint == 'main.relatorio_treinamentos_a_vencer' %}active{% endif %}">
+                <i class="bi bi-clock-history"></i>
+                <span class="menu-text">Treinamentos a vencer</span>
+            </a>
+
+            <a href="{{ url_for('main.relatorio_treinamentos_pendentes') }}"
+               class="nav-link {% if request.endpoint == 'main.relatorio_treinamentos_pendentes' %}active{% endif %}">
+                <i class="bi bi-exclamation-circle"></i>
+                <span class="menu-text">Treinamentos pendentes</span>
+            </a>
+
+            <a href="{{ url_for('main.relatorio_treinamentos_realizados') }}"
+               class="nav-link {% if request.endpoint == 'main.relatorio_treinamentos_realizados' %}active{% endif %}">
+                <i class="bi bi-check-circle"></i>
+                <span class="menu-text">Treinamentos realizados</span>
+            </a>
+
+            <a href="{{ url_for('main.relatorio_treinamentos_vencidos') }}"
+               class="nav-link {% if request.endpoint == 'main.relatorio_treinamentos_vencidos' %}active{% endif %}">
+                <i class="bi bi-x-circle"></i>
+                <span class="menu-text">Treinamentos vencidos</span>
+            </a>
+
+        </div>
+
+{% if session.get('acesso_pcpm') or session.get('perfil') == 'administrador' %}
+
+{% set pcpm_endpoints = [
+    'main.pcpm_painel_movimentacoes',
+    'main.listar_pcpm_movimentacoes',
+    'main.pcpm_movimentacao',
+    'main.visualizar_pcpm_movimentacao',
+    'main.editar_pcpm_movimentacao'
+] %}
+
+<a class="nav-link {% if request.endpoint in pcpm_endpoints %}active{% endif %}"
+   data-bs-toggle="collapse"
+   href="#pcpm"
+   role="button"
+   title="PCP-M"
+   aria-expanded="{% if request.endpoint in pcpm_endpoints %}true{% else %}false{% endif %}"
+   aria-controls="pcpm"
+   data-flyout="flyoutPCPM">
+    <i class="bi bi-truck"></i>
+    <span class="menu-text">PCP-M</span>
+</a>
+
+<div class="collapse ps-3 {% if request.endpoint in pcpm_endpoints %}show{% endif %}" id="pcpm">
+
+    <a href="{{ url_for('main.pcpm_painel_movimentacoes') }}"
+       class="nav-link {% if request.endpoint == 'main.pcpm_painel_movimentacoes' %}active{% endif %}">
+        <i class="bi bi-speedometer2"></i>
+        <span class="menu-text">Painel de Movimentações</span>
+    </a>
+
+    <a href="{{ url_for('main.listar_pcpm_movimentacoes') }}"
+       class="nav-link {% if request.endpoint == 'main.listar_pcpm_movimentacoes' %}active{% endif %}">
+        <i class="bi bi-clock-history"></i>
+        <span class="menu-text">Histórico de Movimentações</span>
+    </a>
+
 </div>
 
+<div class="sidebar-flyout" id="flyoutPCPM">
+    <div class="sidebar-flyout-title">PCP-M</div>
+
+    <a href="{{ url_for('main.pcpm_painel_movimentacoes') }}">
+        <i class="bi bi-speedometer2"></i>
+        Painel de Movimentações
+    </a>
+
+    <a href="{{ url_for('main.listar_pcpm_movimentacoes') }}">
+        <i class="bi bi-clock-history"></i>
+        Histórico de Movimentações
+    </a>
+</div>
+
+{% endif %}
+
+{% if session['perfil'] == 'administrador' %}
+
+{% set administracao_endpoints = [
+    'main.superintendencias',
+    'main.centros_custos',
+    'main.origens',
+    'main.listar_usuarios',
+    'main.causas_recusas',
+    'main.cadastrar_hs',
+    'main.cargos',
+    'main.funcoes',
+    'main.instrutores',
+    'main.matriz_capacitacao'
+] %}
+
+<a class="nav-link {% if request.endpoint in administracao_endpoints %}active{% endif %}"
+   data-bs-toggle="collapse"
+   href="#administracao"
+   role="button"
+   title="Administração"
+   aria-expanded="{% if request.endpoint in administracao_endpoints %}true{% else %}false{% endif %}"
+   aria-controls="administracao"
+   data-flyout="flyoutAdministracao">
+    <i class="bi bi-gear"></i>
+    <span class="menu-text">Administração</span>
+</a>
+
+<div class="collapse ps-3 {% if request.endpoint in administracao_endpoints %}show{% endif %}" id="administracao">
+
+    <a href="/superintendencias" class="nav-link {% if request.endpoint == 'main.superintendencias' %}active{% endif %}">
+        <i class="bi bi-diagram-3"></i>
+        <span class="menu-text">Superintendências</span>
+    </a>
+
+    <a href="/centros_custos" class="nav-link {% if request.endpoint == 'main.centros_custos' %}active{% endif %}">
+        <i class="bi bi-building"></i>
+        <span class="menu-text">Centros de Custos</span>
+    </a>
+
+    <a href="/origens" class="nav-link {% if request.endpoint == 'main.origens' %}active{% endif %}">
+        <i class="bi bi-tags"></i>
+        <span class="menu-text">Origens</span>
+    </a>
+
+    <a href="/listar_usuarios" class="nav-link {% if request.endpoint == 'main.listar_usuarios' %}active{% endif %}">
+        <i class="bi bi-people"></i>
+        <span class="menu-text">Usuários</span>
+    </a>
+
+    <a href="/causas_recusa" class="nav-link {% if request.endpoint == 'main.causas_recusas' %}active{% endif %}">
+        <i class="bi bi-exclamation-diamond"></i>
+        <span class="menu-text">Causas de Recusa</span>
+    </a>
+
+    <a href="/cadastrar_hs" class="nav-link {% if request.endpoint == 'main.cadastrar_hs' %}active{% endif %}">
+        <i class="bi bi-shield-plus"></i>
+        <span class="menu-text">Temas HS</span>
+    </a>
+
+    <a href="/cargos" class="nav-link {% if request.endpoint == 'main.cargos' %}active{% endif %}">
+        <i class="bi bi-person-badge"></i>
+        <span class="menu-text">Cargos</span>
+    </a>
+
+    <a href="/funcoes" class="nav-link {% if request.endpoint == 'main.funcoes' %}active{% endif %}">
+        <i class="bi bi-diagram-2"></i>
+        <span class="menu-text">Funções</span>
+    </a>
+
+        <a href="/setores" class="nav-link {% if request.endpoint == 'main.setores' %}active{% endif %}">
+        <i class="bi bi-building-fill"></i>
+        <span class="menu-text">Setores</span>
+    </a>
+
+    <a href="/instrutores" class="nav-link {% if request.endpoint == 'main.instrutores' %}active{% endif %}">
+        <i class="bi bi-person-video3"></i>
+        <span class="menu-text">Instrutores</span>
+    </a>
+
+    <a href="/matriz_capacitacao" class="nav-link {% if request.endpoint == 'main.matriz_capacitacao' %}active{% endif %}">
+        <i class="bi bi-table"></i>
+        <span class="menu-text">Matriz</span>
+    </a>
+
+</div>
+
+<!-- FLYOUT ADMINISTRAÇÃO -->
+<div class="sidebar-flyout" id="flyoutAdministracao">
+    <div class="sidebar-flyout-title">Administração</div>
+
+    <a href="/superintendencias">
+        <i class="bi bi-diagram-3"></i>
+        Superintendências
+    </a>
+
+    <a href="/centros_custos">
+        <i class="bi bi-building"></i>
+        Centros de Custos
+    </a>
+
+    <a href="/origens">
+        <i class="bi bi-tags"></i>
+        Origens
+    </a>
+
+    <a href="/usuarios">
+        <i class="bi bi-people"></i>
+        Usuários
+    </a>
+
+    <a href="/causas_recusa">
+        <i class="bi bi-exclamation-diamond"></i>
+        Causas de Recusa
+    </a>
+
+    <a href="/cadastrar_hs">
+        <i class="bi bi-shield-plus"></i>
+        Temas HS
+    </a>
+
+    <a href="/cargos">
+        <i class="bi bi-person-badge"></i>
+        Cargos
+    </a>
+
+    <a href="/funcoes">
+        <i class="bi bi-diagram-2"></i>
+        Funções
+    </a>
+
+        <a href="/setores">
+        <i class="bi bi-building-fill"></i>
+        Setores
+    </a>
+
+    <a href="/instrutores">
+        <i class="bi bi-person-video3"></i>
+        Instrutores
+    </a>
+
+    <a href="/matriz_capacitacao">
+        <i class="bi bi-table"></i>
+        Matriz
+    </a>
+</div>
+
+{% endif %}
+    </div>
+
     <div class="header">
+        <button id="toggleSidebar" class="btn btn-outline-light btn-toggle-sidebar" type="button" aria-label="Recolher ou expandir menu">
+            <i class="bi bi-list"></i>
+        </button>
+
         <span class="header-text">ORGANIZE, ACOMPANHE, ENTREGUE.</span>
         <div class="dropdown">
             <button class="btn btn-outline-light dropdown-toggle d-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -257,11 +1185,137 @@
     </div>
     {% endif %}
 
-    <div class="{% if 'login' in request.path %}main-content-login{% else %}main-content{% endif %}">
+<div class="{% if 'login' in request.path %}main-content-login{% else %}main-content{% endif %}">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="container mt-2">
+          {% for category, message in messages %}
+            <div class="alert alert-{{ 'success' if category == 'success' else 'warning' }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        </div>
+        <script>
+          setTimeout(function () {
+            var alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function (alert) {
+              var bsAlert = new bootstrap.Alert(alert);
+              bsAlert.close();
+            });
+          }, 5000);
+        </script>
+      {% endif %}
+    {% endwith %}
+
+    {% set _is_auth_page = ('login' in request.path) or ('esqueci_senha' in request.path) or ('redefinir_senha' in request.path) %}
+    {% set _wrap = (not _is_auth_page) and not (no_global_card | default(false)) %}
+
+    {% if _wrap %}<div class="template-wrapper">{% endif %}
         {% block conteudo %}{% endblock %}
-    </div>
+    {% if _wrap %}</div>{% endif %}
+</div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        (function () {
+            const isAuthPage =
+                window.location.pathname.includes('login') ||
+                window.location.pathname.includes('esqueci_senha') ||
+                window.location.pathname.includes('redefinir_senha');
+
+            if (isAuthPage) return;
+
+            const body = document.body;
+            const toggleBtn = document.getElementById('toggleSidebar');
+
+            if (localStorage.getItem('trackplan_sidebar') === 'collapsed') {
+                body.classList.add('sidebar-collapsed');
+            }
+
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', function () {
+                    body.classList.toggle('sidebar-collapsed');
+
+                    if (body.classList.contains('sidebar-collapsed')) {
+                        localStorage.setItem('trackplan_sidebar', 'collapsed');
+                    } else {
+                        localStorage.setItem('trackplan_sidebar', 'expanded');
+                    }
+                });
+            }
+        })();
+    </script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const triggers = document.querySelectorAll('[data-flyout]');
+        let activeFlyout = null;
+        let hideTimer = null;
+
+        function hideFlyout() {
+            if (activeFlyout) {
+                activeFlyout.style.display = 'none';
+                activeFlyout = null;
+            }
+        }
+
+        function showFlyout(trigger) {
+            if (!document.body.classList.contains('sidebar-collapsed')) {
+                hideFlyout();
+                return;
+            }
+
+            const flyoutId = trigger.getAttribute('data-flyout');
+            const flyout = document.getElementById(flyoutId);
+
+            if (!flyout) return;
+
+            clearTimeout(hideTimer);
+            hideFlyout();
+
+            const rect = trigger.getBoundingClientRect();
+
+            flyout.style.top = `${rect.top}px`;
+            flyout.style.display = 'block';
+
+            activeFlyout = flyout;
+        }
+
+        triggers.forEach(trigger => {
+            const flyoutId = trigger.getAttribute('data-flyout');
+            const flyout = document.getElementById(flyoutId);
+
+            trigger.addEventListener('mouseenter', function () {
+                showFlyout(trigger);
+            });
+
+            trigger.addEventListener('mouseleave', function () {
+                hideTimer = setTimeout(hideFlyout, 250);
+            });
+
+            if (flyout) {
+                flyout.addEventListener('mouseenter', function () {
+                    clearTimeout(hideTimer);
+                });
+
+                flyout.addEventListener('mouseleave', function () {
+                    hideTimer = setTimeout(hideFlyout, 250);
+                });
+            }
+        });
+
+        document.addEventListener('click', function (event) {
+            if (
+                activeFlyout &&
+                !activeFlyout.contains(event.target) &&
+                !event.target.closest('[data-flyout]')
+            ) {
+                hideFlyout();
+            }
+        });
+    });
+    </script>
 </body>
 </html>

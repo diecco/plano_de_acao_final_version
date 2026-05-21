@@ -1,0 +1,328 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Modelos de Checklist{% endblock %}
+
+{% block conteudo %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-card-checklist me-2"></i>
+        Modelos de Checklist
+    </h2>
+</div>
+
+<hr>
+
+<!-- FILTROS E AÇÕES -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('main.pcpm_checklist_modelos') }}">
+            <div class="row g-3 align-items-end">
+
+                <div class="col-md-4">
+                    <label for="tipo_equipamento_id" class="form-label">Tipo de Equipamento</label>
+                    <select class="form-select" id="tipo_equipamento_id" name="tipo_equipamento_id">
+                        <option value="">Todos</option>
+                        {% for tipo in tipos_equipamento %}
+                            <option value="{{ tipo.id }}"
+                                    {% if filtros.get('tipo_equipamento_id') == tipo.id|string %}selected{% endif %}>
+                                {{ tipo.tag }} - {{ tipo.nome }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="nome" class="form-label">Nome do Modelo</label>
+                    <input type="text"
+                           class="form-control"
+                           id="nome"
+                           name="nome"
+                           value="{{ filtros.get('nome', '') }}"
+                           placeholder="Ex: Checklist padrão">
+                </div>
+
+                <div class="col-md-4">
+                    <div class="d-flex gap-2 justify-content-end flex-wrap">
+                        <button type="submit" class="btn btn-laranja" title="Filtrar">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+
+                        <a href="{{ url_for('main.pcpm_checklist_modelos', limpar=1) }}"
+                           class="btn btn-cinza"
+                           title="Limpar filtros">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+
+                        <button type="button"
+                                class="btn btn-laranja"
+                                title="Novo modelo"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modalCadastrarModeloChecklist">
+                            <i class="bi bi-plus-circle"></i>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- TABELA -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle table-fixed">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 80px;" class="text-center">ID</th>
+                        <th style="width: 220px;">Tipo de Equipamento</th>
+                        <th>Modelo</th>
+                        <th style="width: 120px;" class="text-center">Status</th>
+                        <th style="width: 180px;" class="text-center">Ações</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for modelo in modelos %}
+                    <tr>
+                        <td class="text-center">
+                            {{ modelo.id }}
+                        </td>
+
+                        <td>
+                            {{ modelo.tipo_tag }} - {{ modelo.tipo_nome }}
+                        </td>
+
+                        <td>
+                            {{ modelo.nome }}
+                        </td>
+
+                        <td class="text-center">
+                            {% if modelo.ativo %}
+                                <span class="badge bg-success">Ativo</span>
+                            {% else %}
+                                <span class="badge bg-danger">Inativo</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <div class="d-flex justify-content-center gap-2">
+
+                                <a href="{{ url_for('main.pcpm_checklist_itens', modelo_id=modelo.id) }}"
+                                   class="btn-acao-icon"
+                                   title="Gerenciar itens">
+                                    <i class="bi bi-list-check"></i>
+                                </a>
+
+                                <button type="button"
+                                        class="btn-acao-icon"
+                                        title="Editar"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalEditarModeloChecklist"
+                                        data-id="{{ modelo.id }}"
+                                        data-tipo-id="{{ modelo.tipo_equipamento_id }}"
+                                        data-nome="{{ modelo.nome }}">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+
+                                {% if modelo.ativo %}
+                                <form method="POST"
+                                      action="{{ url_for('main.inativar_pcpm_checklist_modelo', id=modelo.id) }}"
+                                      onsubmit="return confirm('Deseja inativar este modelo de checklist?');">
+                                    <button type="submit" class="btn-acao-icon" title="Inativar">
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
+                                </form>
+                                {% else %}
+                                <form method="POST"
+                                      action="{{ url_for('main.ativar_pcpm_checklist_modelo', id=modelo.id) }}"
+                                      onsubmit="return confirm('Deseja ativar este modelo de checklist?');">
+                                    <button type="submit" class="btn-acao-icon" title="Ativar">
+                                        <i class="bi bi-check-circle"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center">
+                            Nenhum modelo de checklist cadastrado.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CADASTRAR -->
+<div class="modal fade"
+     id="modalCadastrarModeloChecklist"
+     tabindex="-1"
+     aria-labelledby="modalCadastrarModeloChecklistLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('main.cadastrar_pcpm_checklist_modelo') }}">
+
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalCadastrarModeloChecklistLabel">
+                        <i class="bi bi-plus-circle"></i>
+                        Novo Modelo de Checklist
+                    </h5>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Fechar">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="mb-3">
+                        <label for="cad_tipo_equipamento_id" class="form-label">Tipo de Equipamento</label>
+                        <select class="form-select"
+                                id="cad_tipo_equipamento_id"
+                                name="tipo_equipamento_id"
+                                required>
+                            <option value="">Selecione</option>
+                            {% for tipo in tipos_equipamento %}
+                                <option value="{{ tipo.id }}">
+                                    {{ tipo.tag }} - {{ tipo.nome }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="cad_nome" class="form-label">Nome do Modelo</label>
+                        <input type="text"
+                               name="nome"
+                               id="cad_nome"
+                               class="form-control"
+                               maxlength="150"
+                               required
+                               placeholder="Ex: Checklist padrão de empilhadeira">
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">
+                        Voltar
+                    </button>
+
+                    <button type="submit" class="btn btn-laranja">
+                        Salvar
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL EDITAR -->
+<div class="modal fade"
+     id="modalEditarModeloChecklist"
+     tabindex="-1"
+     aria-labelledby="modalEditarModeloChecklistLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST"
+                  action="{{ url_for('main.editar_pcpm_checklist_modelo', id=0) }}"
+                  id="formEditarModeloChecklist"
+                  data-action-template="{{ url_for('main.editar_pcpm_checklist_modelo', id=0) }}">
+
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalEditarModeloChecklistLabel">
+                        <i class="bi bi-pencil-square"></i>
+                        Editar Modelo de Checklist
+                    </h5>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Fechar">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="mb-3">
+                        <label for="edit_tipo_equipamento_id" class="form-label">Tipo de Equipamento</label>
+                        <select class="form-select"
+                                id="edit_tipo_equipamento_id"
+                                name="tipo_equipamento_id"
+                                required>
+                            <option value="">Selecione</option>
+                            {% for tipo in tipos_equipamento %}
+                                <option value="{{ tipo.id }}">
+                                    {{ tipo.tag }} - {{ tipo.nome }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_nome" class="form-label">Nome do Modelo</label>
+                        <input type="text"
+                               name="nome"
+                               id="edit_nome"
+                               class="form-control"
+                               maxlength="150"
+                               required>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">
+                        Voltar
+                    </button>
+
+                    <button type="submit" class="btn btn-laranja">
+                        Salvar alterações
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modalEditar = document.getElementById('modalEditarModeloChecklist');
+
+    if (modalEditar) {
+        modalEditar.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+
+            const id = button.getAttribute('data-id');
+            const tipoId = button.getAttribute('data-tipo-id');
+            const nome = button.getAttribute('data-nome');
+
+            const form = document.getElementById('formEditarModeloChecklist');
+            const actionTemplate = form.getAttribute('data-action-template');
+
+            form.action = actionTemplate.replace('/0', '/' + id);
+
+            document.getElementById('edit_tipo_equipamento_id').value = tipoId;
+            document.getElementById('edit_nome').value = nome;
+        });
+    }
+});
+</script>
+
+{% endblock %}

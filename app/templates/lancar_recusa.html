@@ -1,0 +1,103 @@
+{% extends 'layout.html' %}
+
+{% block titulo %}Lançamento de Recusa à Tarefa{% endblock %}
+
+{% block conteudo %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        Lançar Recusa à Tarefa
+    </h2>
+</div>
+<hr>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<form method="POST" action="/lancar_recusa">
+
+    <!-- Linha 1: Data, Hora, Pessoa e Local -->
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <label for="data" class="form-label">Data da Recusa</label>
+            <input type="date" name="data" id="data" class="form-control" required>
+        </div>
+
+        <div class="col-md-2">
+            <label for="hora" class="form-label">Hora da Recusa</label>
+            <input type="time" name="hora" id="hora" class="form-control" required>
+        </div>
+
+        <div class="col-md-4">
+            <label for="usuario_id" class="form-label">Pessoa que Recusou</label>
+            <select name="usuario_id" id="usuario_id" class="form-select" required>
+                <option value="">Selecione</option>
+                {% for u in usuarios %}
+                    <option value="{{ u.id }}">{{ u.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-3">
+            <label for="local" class="form-label">Área / Local</label>
+            <input type="text" name="local" id="local" class="form-control" required>
+        </div>
+    </div>
+
+    <!-- Linha 2: Classificação, Potencial e Causa -->
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <label for="classificacao" class="form-label">Classificação</label>
+            <select name="classificacao" id="classificacao" class="form-select" required>
+                <option value="">Selecione</option>
+                <option value="CONDIÇÃO ABAIXO DO PADRÃO">CONDIÇÃO ABAIXO DO PADRÃO</option>
+                <option value="ATO ABAIXO DO PADRÃO">ATO ABAIXO DO PADRÃO</option>
+                <option value="PROCEDIMENTO ABAIXO DO PADRÃO">PROCEDIMENTO ABAIXO DO PADRÃO</option>
+            </select>
+        </div>
+
+        <div class="col-md-4">
+            <label for="potencial" class="form-label">Potencial de Severidade</label>
+            <select name="potencial" id="potencial" class="form-select" required>
+                <option value="">Selecione</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+            </select>
+        </div>
+
+        <div class="col-md-4">
+            <label for="causa_id" class="form-label">Causa da Recusa</label>
+            <select name="causa_id" id="causa_id" class="form-select" required>
+                <option value="">Selecione</option>
+                {% for c in causas %}
+                    <option value="{{ c.id }}">{{ c.descricao }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Linha 3: Descrição -->
+    <div class="mb-4">
+        <label for="descricao" class="form-label">Descrição da Recusa</label>
+        <textarea name="descricao" id="descricao" class="form-control" rows="4" required></textarea>
+    </div>
+
+    <!-- Botões -->
+    <div class="d-flex justify-content-between">
+        <button type="submit" class="btn btn-laranja">Salvar</button>
+        <a href="/listar_recusa" class="btn btn-cinza">Voltar</a>
+    </div>
+
+</form>
+
+{% endblock %}

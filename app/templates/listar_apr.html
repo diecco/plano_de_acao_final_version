@@ -1,0 +1,1045 @@
+{% extends "layout.html" %}
+
+{% block titulo %}APR - Análise Preliminar de Riscos{% endblock %}
+
+{% block conteudo %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-file-earmark-pdf me-2"></i>
+        APR - Análise Preliminar de Riscos
+    </h2>
+</div>
+<hr>
+
+<!-- FILTROS -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('main.listar_apr') }}" id="formFiltrosAPR">
+
+            <div class="row g-3 align-items-end">
+
+                <div class="col-md-3 position-relative">
+                    <label for="filtro_emitente_busca" class="form-label">Emitente</label>
+
+                    <input type="hidden"
+                           name="emitente_id"
+                           id="filtro_emitente_id"
+                           value="{{ filtros.get('emitente_id', '') }}">
+
+                    <input type="text"
+                           class="form-control"
+                           id="filtro_emitente_busca"
+                           placeholder="Digite matrícula ou nome..."
+                           autocomplete="off">
+
+                    <div id="listaFiltroEmitentes"
+                         class="list-group position-absolute w-100 shadow-sm"
+                         style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+                    </div>
+                </div>
+
+                <div class="col-md-3 position-relative">
+                    <label for="filtro_aprovador_busca" class="form-label">Aprovador</label>
+
+                    <input type="hidden"
+                           name="aprovador_id"
+                           id="filtro_aprovador_id"
+                           value="{{ filtros.get('aprovador_id', '') }}">
+
+                    <input type="text"
+                           class="form-control"
+                           id="filtro_aprovador_busca"
+                           placeholder="Digite matrícula ou nome..."
+                           autocomplete="off">
+
+                    <div id="listaFiltroAprovadores"
+                         class="list-group position-absolute w-100 shadow-sm"
+                         style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+                    </div>
+                </div>
+
+                <div class="col-md-2">
+                    <label for="data_inicio" class="form-label">Data inicial</label>
+                    <input type="date"
+                           id="data_inicio"
+                           name="data_inicio"
+                           class="form-control"
+                           value="{{ filtros.get('data_inicio', '') }}">
+                </div>
+
+                <div class="col-md-2">
+                    <label for="data_fim" class="form-label">Data final</label>
+                    <input type="date"
+                           id="data_fim"
+                           name="data_fim"
+                           class="form-control"
+                           value="{{ filtros.get('data_fim', '') }}">
+                </div>
+
+                <div class="col-md-2">
+                    <div class="d-flex gap-2 justify-content-end flex-wrap">
+                        <button type="submit" class="btn btn-laranja" title="Filtrar">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+
+                        <a href="{{ url_for('main.listar_apr', limpar=1) }}" class="btn btn-cinza" title="Limpar">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+
+                        <button type="button"
+                                class="btn btn-laranja"
+                                title="Nova APR"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modalCadastrarAPR">
+                            <i class="bi bi-plus-circle"></i>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<!-- TABELA -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle table-fixed" id="tabelaAPR">
+                <thead class="table-light">
+                    <tr>
+
+                        <th style="width: 120px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Data</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_apr',
+                                           emitente_id=filtros.get('emitente_id',''),
+                                           aprovador_id=filtros.get('aprovador_id',''),
+                                           area_setor=filtros.get('area_setor',''),
+                                           atividade=filtros.get('atividade',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='data_apr', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_apr',
+                                           emitente_id=filtros.get('emitente_id',''),
+                                           aprovador_id=filtros.get('aprovador_id',''),
+                                           area_setor=filtros.get('area_setor',''),
+                                           atividade=filtros.get('atividade',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='data_apr', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 ps-1 text-muted" title="Filtrar"
+                                       href="#filtroHeaderDataAPR" data-bs-toggle="collapse" role="button" aria-expanded="false">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderDataAPR" class="collapse mt-2">
+                                <div class="d-flex flex-column gap-1">
+                                    <input type="date"
+                                           class="form-control form-control-sm"
+                                           value="{{ filtros.get('data_inicio', '') }}"
+                                           title="Data inicial"
+                                           onchange="aplicarFiltroAPR('data_inicio', this.value);">
+                                    <input type="date"
+                                           class="form-control form-control-sm"
+                                           value="{{ filtros.get('data_fim', '') }}"
+                                           title="Data final"
+                                           onchange="aplicarFiltroAPR('data_fim', this.value);">
+                                </div>
+                            </div>
+                        </th>
+
+                        <th style="width: 220px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Área/Setor</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_apr',
+                                           emitente_id=filtros.get('emitente_id',''),
+                                           aprovador_id=filtros.get('aprovador_id',''),
+                                           area_setor=filtros.get('area_setor',''),
+                                           atividade=filtros.get('atividade',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='area_setor', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_apr',
+                                           emitente_id=filtros.get('emitente_id',''),
+                                           aprovador_id=filtros.get('aprovador_id',''),
+                                           area_setor=filtros.get('area_setor',''),
+                                           atividade=filtros.get('atividade',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='area_setor', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 ps-1 text-muted" title="Filtrar"
+                                       href="#filtroHeaderAreaAPR" data-bs-toggle="collapse" role="button" aria-expanded="false">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderAreaAPR" class="collapse mt-2">
+                                <div class="input-group input-group-sm">
+                                    <input type="text"
+                                           id="filtroHeaderAreaInputAPR"
+                                           class="form-control form-control-sm"
+                                           value="{{ filtros.get('area_setor', '') }}"
+                                           placeholder="Filtrar área/setor..."
+                                           onkeydown="if(event.key === 'Enter') aplicarFiltroAPR('area_setor', this.value);">
+                                    <button type="button"
+                                            class="btn btn-outline-secondary"
+                                            title="Aplicar filtro"
+                                            onclick="aplicarFiltroAPR('area_setor', document.getElementById('filtroHeaderAreaInputAPR').value);">
+                                        <i class="bi bi-check2"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </th>
+
+                        <th>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Atividade</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_apr',
+                                           emitente_id=filtros.get('emitente_id',''),
+                                           aprovador_id=filtros.get('aprovador_id',''),
+                                           area_setor=filtros.get('area_setor',''),
+                                           atividade=filtros.get('atividade',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='atividade', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_apr',
+                                           emitente_id=filtros.get('emitente_id',''),
+                                           aprovador_id=filtros.get('aprovador_id',''),
+                                           area_setor=filtros.get('area_setor',''),
+                                           atividade=filtros.get('atividade',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='atividade', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 ps-1 text-muted" title="Filtrar"
+                                       href="#filtroHeaderAtividadeAPR" data-bs-toggle="collapse" role="button" aria-expanded="false">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderAtividadeAPR" class="collapse mt-2">
+                                <div class="input-group input-group-sm">
+                                    <input type="text"
+                                           id="filtroHeaderAtividadeInputAPR"
+                                           class="form-control form-control-sm"
+                                           value="{{ filtros.get('atividade', '') }}"
+                                           placeholder="Filtrar atividade..."
+                                           onkeydown="if(event.key === 'Enter') aplicarFiltroAPR('atividade', this.value);">
+                                    <button type="button"
+                                            class="btn btn-outline-secondary"
+                                            title="Aplicar filtro"
+                                            onclick="aplicarFiltroAPR('atividade', document.getElementById('filtroHeaderAtividadeInputAPR').value);">
+                                        <i class="bi bi-check2"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </th>
+
+                        <th style="width: 220px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Emitente</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_apr',
+                                           emitente_id=filtros.get('emitente_id',''),
+                                           aprovador_id=filtros.get('aprovador_id',''),
+                                           area_setor=filtros.get('area_setor',''),
+                                           atividade=filtros.get('atividade',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='emitente_nome', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_apr',
+                                           emitente_id=filtros.get('emitente_id',''),
+                                           aprovador_id=filtros.get('aprovador_id',''),
+                                           area_setor=filtros.get('area_setor',''),
+                                           atividade=filtros.get('atividade',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='emitente_nome', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 ps-1 text-muted" title="Filtrar"
+                                       href="#filtroHeaderEmitenteAPR" data-bs-toggle="collapse" role="button" aria-expanded="false">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderEmitenteAPR" class="collapse mt-2">
+                                <select class="form-select form-select-sm"
+                                        onchange="aplicarFiltroAPR('emitente_id', this.value);">
+                                    <option value="">Todos</option>
+                                    {% for u in usuarios %}
+                                        <option value="{{ u.id }}" {% if filtros.get('emitente_id') == u.id|string %}selected{% endif %}>
+                                            {% if u.matricula %}{{ u.matricula }} - {% endif %}{{ u.nome }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </th>
+
+                        <th style="width: 220px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Aprovador</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_apr',
+                                           emitente_id=filtros.get('emitente_id',''),
+                                           aprovador_id=filtros.get('aprovador_id',''),
+                                           area_setor=filtros.get('area_setor',''),
+                                           atividade=filtros.get('atividade',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='aprovador_nome', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_apr',
+                                           emitente_id=filtros.get('emitente_id',''),
+                                           aprovador_id=filtros.get('aprovador_id',''),
+                                           area_setor=filtros.get('area_setor',''),
+                                           atividade=filtros.get('atividade',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='aprovador_nome', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 ps-1 text-muted" title="Filtrar"
+                                       href="#filtroHeaderAprovadorAPR" data-bs-toggle="collapse" role="button" aria-expanded="false">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderAprovadorAPR" class="collapse mt-2">
+                                <select class="form-select form-select-sm"
+                                        onchange="aplicarFiltroAPR('aprovador_id', this.value);">
+                                    <option value="">Todos</option>
+                                    {% for u in usuarios %}
+                                        <option value="{{ u.id }}" {% if filtros.get('aprovador_id') == u.id|string %}selected{% endif %}>
+                                            {% if u.matricula %}{{ u.matricula }} - {% endif %}{{ u.nome }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </th>
+
+                        <th style="width: 120px;" class="text-center">
+                            <span class="th-label">Ações</span>
+                        </th>
+
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for apr in aprs %}
+                    <tr>
+
+                        <td class="text-center">
+                            {{ apr.data_apr.strftime('%d/%m/%Y') if apr.data_apr and apr.data_apr.strftime else apr.data_apr }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ apr.area_setor }}">
+                            {{ apr.area_setor or '-' }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ apr.atividade }}">
+                            {{ apr.atividade or '-' }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ apr.emitente_nome }}">
+                            {{ apr.emitente_nome or '-' }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ apr.aprovador_nome }}">
+                            {{ apr.aprovador_nome or '-' }}
+                        </td>
+
+                        
+                        <td class="text-center">
+    <div class="d-flex justify-content-center gap-2">
+
+        {% if apr.arquivo_pdf %}
+            <a href="{{ url_for('static', filename='aprs/' ~ apr.arquivo_pdf) }}"
+               target="_blank"
+               class="btn-acao-icon"
+               title="Visualizar APR">
+                <i class="bi bi-file-earmark-pdf"></i>
+            </a>
+        {% endif %}
+
+        {% if apr.criado_por == session.get('usuario_id') or session.get('perfil') == 'administrador' %}
+
+            <button type="button"
+                    class="btn-acao-icon"
+                    title="Editar"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalEditarAPR"
+                    data-id="{{ apr.id }}"
+                    data-data="{{ apr.data_apr.strftime('%Y-%m-%d') if apr.data_apr and apr.data_apr.strftime else apr.data_apr }}"
+                    data-area="{{ apr.area_setor|default('', true)|e }}"
+                    data-atividade="{{ apr.atividade|default('', true)|e }}"
+                    data-emitente-id="{{ apr.emitente_id }}"
+                    data-aprovador-id="{{ apr.aprovador_id }}"
+                    data-arquivo="{{ apr.arquivo_pdf|default('', true)|e }}">
+                <i class="bi bi-pencil-square"></i>
+            </button>
+
+            <form method="POST"
+                  action="{{ url_for('main.excluir_apr', id=apr.id) }}"
+                  onsubmit="return confirm('Tem certeza que deseja excluir esta APR?');"
+                  style="display:inline;">
+                <button type="submit" class="btn-acao-icon" title="Excluir">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </form>
+
+        {% endif %}
+
+    </div>
+</td>
+
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center">
+                            Nenhuma APR cadastrada.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if total_paginas %}
+<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+
+    <div class="text-muted small">
+        Exibindo página {{ page }} de {{ total_paginas }} — {{ total_registros }} registro(s)
+    </div>
+
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for('main.listar_apr',
+                       emitente_id=filtros.get('emitente_id',''),
+                       aprovador_id=filtros.get('aprovador_id',''),
+                       area_setor=filtros.get('area_setor',''),
+                       atividade=filtros.get('atividade',''),
+                       data_inicio=filtros.get('data_inicio',''),
+                       data_fim=filtros.get('data_fim',''),
+                       sort=filtros.get('sort','data_apr'),
+                       order=filtros.get('order','desc'),
+                       page=page-1) }}">
+                    Anterior
+                </a>
+            </li>
+
+            {% for p in range(1, total_paginas + 1) %}
+                {% if p == 1 or p == total_paginas or (p >= page - 2 and p <= page + 2) %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('main.listar_apr',
+                               emitente_id=filtros.get('emitente_id',''),
+                               aprovador_id=filtros.get('aprovador_id',''),
+                               area_setor=filtros.get('area_setor',''),
+                               atividade=filtros.get('atividade',''),
+                               data_inicio=filtros.get('data_inicio',''),
+                               data_fim=filtros.get('data_fim',''),
+                               sort=filtros.get('sort','data_apr'),
+                               order=filtros.get('order','desc'),
+                               page=p) }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                {% elif p == page - 3 or p == page + 3 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            <li class="page-item {% if page >= total_paginas %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for('main.listar_apr',
+                       emitente_id=filtros.get('emitente_id',''),
+                       aprovador_id=filtros.get('aprovador_id',''),
+                       area_setor=filtros.get('area_setor',''),
+                       atividade=filtros.get('atividade',''),
+                       data_inicio=filtros.get('data_inicio',''),
+                       data_fim=filtros.get('data_fim',''),
+                       sort=filtros.get('sort','data_apr'),
+                       order=filtros.get('order','desc'),
+                       page=page+1) }}">
+                    Próxima
+                </a>
+            </li>
+
+        </ul>
+    </nav>
+
+</div>
+{% endif %}
+
+<!-- MODAL CADASTRAR APR -->
+<div class="modal fade" id="modalCadastrarAPR" tabindex="-1" aria-labelledby="modalCadastrarAPRLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <form method="POST"
+                  action="{{ url_for('main.cadastrar_apr') }}"
+                  enctype="multipart/form-data"
+                  id="formCadastrarAPR">
+
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalCadastrarAPRLabel">
+                        <i class="bi bi-file-earmark-pdf"></i>
+                        Cadastrar APR
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="row g-3">
+
+                        <div class="col-md-4">
+                            <label for="data_apr" class="form-label">Data</label>
+                            <input type="date"
+                                   name="data_apr"
+                                   id="data_apr"
+                                   class="form-control"
+                                   required>
+                        </div>
+
+                        <div class="col-md-8">
+                            <label for="area_setor" class="form-label">Área/Setor</label>
+                            <input type="text"
+                                   name="area_setor"
+                                   id="area_setor"
+                                   class="form-control"
+                                   placeholder="Informe a área ou setor"
+                                   required>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="atividade" class="form-label">Atividade</label>
+                            <input type="text"
+                                   name="atividade"
+                                   id="atividade"
+                                   class="form-control"
+                                   placeholder="Informe a atividade relacionada"
+                                   required>
+                        </div>
+
+                        <div class="col-md-6 position-relative">
+                            <label for="emitente_busca" class="form-label">Emitente</label>
+
+                            <input type="hidden"
+                                   name="emitente_id"
+                                   id="emitente_id"
+                                   required>
+
+                            <input type="text"
+                                   class="form-control"
+                                   id="emitente_busca"
+                                   placeholder="Digite matrícula ou nome..."
+                                   autocomplete="off"
+                                   required>
+
+                            <div id="listaEmitentes"
+                                 class="list-group position-absolute w-100 shadow-sm"
+                                 style="z-index: 1060; display: none; max-height: 240px; overflow-y: auto;">
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 position-relative">
+                            <label for="aprovador_busca" class="form-label">Aprovador</label>
+
+                            <input type="hidden"
+                                   name="aprovador_id"
+                                   id="aprovador_id"
+                                   required>
+
+                            <input type="text"
+                                   class="form-control"
+                                   id="aprovador_busca"
+                                   placeholder="Digite matrícula ou nome..."
+                                   autocomplete="off"
+                                   required>
+
+                            <div id="listaAprovadores"
+                                 class="list-group position-absolute w-100 shadow-sm"
+                                 style="z-index: 1060; display: none; max-height: 240px; overflow-y: auto;">
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="arquivo_pdf" class="form-label">Anexo PDF</label>
+                            <input type="file"
+                                   name="arquivo_pdf"
+                                   id="arquivo_pdf"
+                                   class="form-control"
+                                   accept="application/pdf"
+                                   required>
+                            <div class="form-text">
+                                Anexe somente arquivos em PDF.
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">
+                        Voltar
+                    </button>
+
+                    <button type="submit" class="btn btn-laranja">
+                        Salvar
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+
+<!-- MODAL EDITAR APR -->
+<div class="modal fade" id="modalEditarAPR" tabindex="-1" aria-labelledby="modalEditarAPRLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <form method="POST"
+                  action="{{ url_for('main.editar_apr', id=0) }}"
+                  enctype="multipart/form-data"
+                  id="formEditarAPR"
+                  data-action-template="{{ url_for('main.editar_apr', id=0) }}">
+
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalEditarAPRLabel">
+                        <i class="bi bi-pencil-square"></i>
+                        Editar APR
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="row g-3">
+
+                        <div class="col-md-4">
+                            <label for="editar_data_apr" class="form-label">Data</label>
+                            <input type="date"
+                                   name="data_apr"
+                                   id="editar_data_apr"
+                                   class="form-control"
+                                   required>
+                        </div>
+
+                        <div class="col-md-8">
+                            <label for="editar_area_setor" class="form-label">Área/Setor</label>
+                            <input type="text"
+                                   name="area_setor"
+                                   id="editar_area_setor"
+                                   class="form-control"
+                                   placeholder="Informe a área ou setor"
+                                   required>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="editar_atividade" class="form-label">Atividade</label>
+                            <input type="text"
+                                   name="atividade"
+                                   id="editar_atividade"
+                                   class="form-control"
+                                   placeholder="Informe a atividade relacionada"
+                                   required>
+                        </div>
+
+                        <div class="col-md-6 position-relative">
+                            <label for="editar_emitente_busca" class="form-label">Emitente</label>
+
+                            <input type="hidden"
+                                   name="emitente_id"
+                                   id="editar_emitente_id"
+                                   required>
+
+                            <input type="text"
+                                   class="form-control"
+                                   id="editar_emitente_busca"
+                                   placeholder="Digite matrícula ou nome..."
+                                   autocomplete="off"
+                                   required>
+
+                            <div id="listaEditarEmitentes"
+                                 class="list-group position-absolute w-100 shadow-sm"
+                                 style="z-index: 1060; display: none; max-height: 240px; overflow-y: auto;">
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 position-relative">
+                            <label for="editar_aprovador_busca" class="form-label">Aprovador</label>
+
+                            <input type="hidden"
+                                   name="aprovador_id"
+                                   id="editar_aprovador_id"
+                                   required>
+
+                            <input type="text"
+                                   class="form-control"
+                                   id="editar_aprovador_busca"
+                                   placeholder="Digite matrícula ou nome..."
+                                   autocomplete="off"
+                                   required>
+
+                            <div id="listaEditarAprovadores"
+                                 class="list-group position-absolute w-100 shadow-sm"
+                                 style="z-index: 1060; display: none; max-height: 240px; overflow-y: auto;">
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="editar_arquivo_pdf" class="form-label">Substituir PDF</label>
+                            <input type="file"
+                                   name="arquivo_pdf"
+                                   id="editar_arquivo_pdf"
+                                   class="form-control"
+                                   accept="application/pdf">
+                            <div class="form-text">
+                                Deixe em branco para manter o arquivo atual. Anexe somente arquivos em PDF.
+                            </div>
+                            <div id="arquivoAtualAPR" class="form-text mt-1"></div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">
+                        Voltar
+                    </button>
+
+                    <button type="submit" class="btn btn-laranja">
+                        Salvar alterações
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<script id="usuarios-data-apr" type="application/json">
+    {{ usuarios | tojson }}
+</script>
+
+<script>
+const usuariosDisponiveisAPR = JSON.parse(
+    document.getElementById('usuarios-data-apr').textContent
+);
+
+function normalizarTextoAPR(texto) {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+}
+
+function formatarUsuarioAPR(usuario) {
+    const matricula = usuario.matricula || 'Sem matrícula';
+    const nome = usuario.nome || '';
+    return `${matricula} - ${nome}`;
+}
+
+function configurarBuscaUsuarioAPR(inputId, hiddenId, listaId) {
+    const input = document.getElementById(inputId);
+    const hidden = document.getElementById(hiddenId);
+    const lista = document.getElementById(listaId);
+
+    if (!input || !hidden || !lista) return;
+
+    input.addEventListener('input', function () {
+        const termo = normalizarTextoAPR(input.value);
+
+        hidden.value = '';
+        lista.innerHTML = '';
+        lista.style.display = 'none';
+
+        if (termo.length < 2) {
+            return;
+        }
+
+        const resultados = usuariosDisponiveisAPR
+            .filter(u => {
+                const textoBusca = normalizarTextoAPR(`${u.matricula || ''} ${u.nome || ''}`);
+                return textoBusca.includes(termo);
+            })
+            .slice(0, 12);
+
+        if (resultados.length === 0) {
+            lista.innerHTML = `
+                <div class="list-group-item text-muted">
+                    Nenhum funcionário encontrado.
+                </div>
+            `;
+            lista.style.display = 'block';
+            return;
+        }
+
+        resultados.forEach(usuario => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'list-group-item list-group-item-action text-start';
+
+            item.innerHTML = `
+                <strong>${usuario.matricula || '-'}</strong><br>
+                <small>${usuario.nome || ''}</small>
+            `;
+
+            item.addEventListener('click', function () {
+                input.value = formatarUsuarioAPR(usuario);
+                hidden.value = usuario.id;
+                lista.style.display = 'none';
+            });
+
+            lista.appendChild(item);
+        });
+
+        lista.style.display = 'block';
+    });
+
+    input.addEventListener('blur', function () {
+        setTimeout(function () {
+            lista.style.display = 'none';
+        }, 200);
+    });
+}
+
+function preencherFiltrosSelecionadosAPR() {
+    const emitenteId = document.getElementById('filtro_emitente_id')?.value;
+    const aprovadorId = document.getElementById('filtro_aprovador_id')?.value;
+
+    if (emitenteId) {
+        const emitente = usuariosDisponiveisAPR.find(u => String(u.id) === String(emitenteId));
+        if (emitente) {
+            document.getElementById('filtro_emitente_busca').value = formatarUsuarioAPR(emitente);
+        }
+    }
+
+    if (aprovadorId) {
+        const aprovador = usuariosDisponiveisAPR.find(u => String(u.id) === String(aprovadorId));
+        if (aprovador) {
+            document.getElementById('filtro_aprovador_busca').value = formatarUsuarioAPR(aprovador);
+        }
+    }
+}
+
+function validarFiltrosDigitaveisAPR() {
+    const campos = [
+        {
+            input: document.getElementById('filtro_emitente_busca'),
+            hidden: document.getElementById('filtro_emitente_id')
+        },
+        {
+            input: document.getElementById('filtro_aprovador_busca'),
+            hidden: document.getElementById('filtro_aprovador_id')
+        }
+    ];
+
+    campos.forEach(campo => {
+        if (campo.input && campo.hidden && !campo.hidden.value) {
+            campo.input.value = '';
+        }
+    });
+}
+
+function validarPDFInputAPR(inputId, event, obrigatorio = false) {
+    const arquivo = document.getElementById(inputId);
+
+    if (!arquivo || !arquivo.files || arquivo.files.length === 0) {
+        if (obrigatorio) {
+            event.preventDefault();
+            alert('Anexe o arquivo PDF.');
+            return false;
+        }
+
+        return true;
+    }
+
+    const file = arquivo.files[0];
+
+    if (file.type !== 'application/pdf') {
+        event.preventDefault();
+        alert('Anexe somente arquivos em PDF.');
+        arquivo.value = '';
+        return false;
+    }
+
+    return true;
+}
+
+function validarPDFAPR(event) {
+    return validarPDFInputAPR('arquivo_pdf', event, true);
+}
+
+function validarPDFEdicaoAPR(event) {
+    return validarPDFInputAPR('editar_arquivo_pdf', event, false);
+}
+
+function preencherUsuarioSelecionadoAPR(usuarioId, inputId, hiddenId) {
+    const input = document.getElementById(inputId);
+    const hidden = document.getElementById(hiddenId);
+
+    if (!input || !hidden) return;
+
+    hidden.value = usuarioId || '';
+    input.value = '';
+
+    if (!usuarioId) return;
+
+    const usuario = usuariosDisponiveisAPR.find(u => String(u.id) === String(usuarioId));
+
+    if (usuario) {
+        input.value = formatarUsuarioAPR(usuario);
+    }
+}
+
+function configurarModalEdicaoAPR() {
+    const modalEditarAPR = document.getElementById('modalEditarAPR');
+    const formEditarAPR = document.getElementById('formEditarAPR');
+
+    if (!modalEditarAPR || !formEditarAPR) return;
+
+    modalEditarAPR.addEventListener('show.bs.modal', function (event) {
+        const botao = event.relatedTarget;
+
+        if (!botao) return;
+
+        const id = botao.getAttribute('data-id') || '';
+        const actionTemplate = formEditarAPR.getAttribute('data-action-template') || formEditarAPR.action;
+
+        formEditarAPR.action = actionTemplate.replace(/\/0(?=\/?$|\?)/, `/${id}`);
+
+        document.getElementById('editar_data_apr').value = botao.getAttribute('data-data') || '';
+        document.getElementById('editar_area_setor').value = botao.getAttribute('data-area') || '';
+        document.getElementById('editar_atividade').value = botao.getAttribute('data-atividade') || '';
+
+        preencherUsuarioSelecionadoAPR(
+            botao.getAttribute('data-emitente-id'),
+            'editar_emitente_busca',
+            'editar_emitente_id'
+        );
+
+        preencherUsuarioSelecionadoAPR(
+            botao.getAttribute('data-aprovador-id'),
+            'editar_aprovador_busca',
+            'editar_aprovador_id'
+        );
+
+        const arquivoAtual = botao.getAttribute('data-arquivo') || '';
+        const arquivoAtualAPR = document.getElementById('arquivoAtualAPR');
+        const inputArquivo = document.getElementById('editar_arquivo_pdf');
+
+        if (inputArquivo) {
+            inputArquivo.value = '';
+        }
+
+        if (arquivoAtualAPR) {
+            arquivoAtualAPR.textContent = arquivoAtual
+                ? `Arquivo atual: ${arquivoAtual}`
+                : 'Nenhum arquivo PDF vinculado.';
+        }
+    });
+}
+
+
+function aplicarFiltroAPR(param, value) {
+    const url = new URL(window.location.href);
+
+    if (value) {
+        url.searchParams.set(param, value);
+    } else {
+        url.searchParams.delete(param);
+    }
+
+    url.searchParams.delete('page');
+    window.location.href = url.toString();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    configurarBuscaUsuarioAPR('filtro_emitente_busca', 'filtro_emitente_id', 'listaFiltroEmitentes');
+    configurarBuscaUsuarioAPR('filtro_aprovador_busca', 'filtro_aprovador_id', 'listaFiltroAprovadores');
+
+    configurarBuscaUsuarioAPR('emitente_busca', 'emitente_id', 'listaEmitentes');
+    configurarBuscaUsuarioAPR('aprovador_busca', 'aprovador_id', 'listaAprovadores');
+
+    configurarBuscaUsuarioAPR('editar_emitente_busca', 'editar_emitente_id', 'listaEditarEmitentes');
+    configurarBuscaUsuarioAPR('editar_aprovador_busca', 'editar_aprovador_id', 'listaEditarAprovadores');
+
+    preencherFiltrosSelecionadosAPR();
+    configurarModalEdicaoAPR();
+
+    const formFiltrosAPR = document.getElementById('formFiltrosAPR');
+    if (formFiltrosAPR) {
+        formFiltrosAPR.addEventListener('submit', validarFiltrosDigitaveisAPR);
+    }
+
+    const formCadastrarAPR = document.getElementById('formCadastrarAPR');
+    if (formCadastrarAPR) {
+        formCadastrarAPR.addEventListener('submit', validarPDFAPR);
+    }
+
+    const formEditarAPR = document.getElementById('formEditarAPR');
+    if (formEditarAPR) {
+        formEditarAPR.addEventListener('submit', validarPDFEdicaoAPR);
+    }
+
+    const dataAPR = document.getElementById('data_apr');
+    if (dataAPR && !dataAPR.value) {
+        dataAPR.valueAsDate = new Date();
+    }
+});
+</script>
+
+{% endblock %}

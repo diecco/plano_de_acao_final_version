@@ -1,0 +1,517 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Matriz de Capacitação{% endblock %}
+
+{% block conteudo %}
+
+<style>
+    .btn-matriz {
+        min-width: 140px;
+        height: 38px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+    }
+
+    .coluna-acoes {
+        width: 1%;
+        white-space: nowrap;
+    }
+
+    .bloco-matriz-interno {
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background-color: #f8f9fa;
+    }
+
+    .cabecalho-camada-titulo {
+        color: #ea6a23;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .acoes-direita {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .tabela-matriz td,
+    .tabela-matriz th {
+        vertical-align: middle;
+    }
+
+    .toggle-camada {
+        background: none;
+        border: none;
+        padding: 0;
+        color: #ea6a23;
+        display: inline-flex;
+        align-items: center;
+        cursor: pointer;
+    }
+
+    .toggle-camada:hover {
+        color: #c64c11;
+    }
+
+    .icone-toggle {
+        transition: transform 0.2s ease;
+        font-size: 1.1rem;
+    }
+
+    .icone-toggle.rotacionado {
+        transform: rotate(180deg);
+    }
+</style>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const ids = ["camadaCargo", "camadaFuncao", "camadaSetor"];
+        const storageKey = "matriz_capacitacao_estado";
+
+        function lerEstado() {
+            try {
+                return JSON.parse(localStorage.getItem(storageKey)) || {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function salvarEstado(estado) {
+            localStorage.setItem(storageKey, JSON.stringify(estado));
+        }
+
+        const estado = lerEstado();
+
+        ids.forEach(function (id) {
+            const target = document.getElementById(id);
+            const btn = document.querySelector(`[data-bs-target="#${id}"]`);
+            const icon = btn ? btn.querySelector(".icone-toggle") : null;
+
+            if (!target) return;
+
+            if (estado[id] === true) {
+                target.classList.add("show");
+                if (icon) icon.classList.add("rotacionado");
+                if (btn) btn.setAttribute("aria-expanded", "true");
+            } else {
+                target.classList.remove("show");
+                if (icon) icon.classList.remove("rotacionado");
+                if (btn) btn.setAttribute("aria-expanded", "false");
+            }
+
+            target.addEventListener("show.bs.collapse", function () {
+                const atual = lerEstado();
+                atual[id] = true;
+                salvarEstado(atual);
+                if (icon) icon.classList.add("rotacionado");
+                if (btn) btn.setAttribute("aria-expanded", "true");
+            });
+
+            target.addEventListener("hide.bs.collapse", function () {
+                const atual = lerEstado();
+                atual[id] = false;
+                salvarEstado(atual);
+                if (icon) icon.classList.remove("rotacionado");
+                if (btn) btn.setAttribute("aria-expanded", "false");
+            });
+        });
+    });
+</script>
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+
+    <div style="width: 40px;"></div>
+
+    <div class="text-center flex-grow-1">
+        <h2 class="page-title">
+            <i class="bi bi-grid-3x3-gap-fill me-2"></i>
+            Matriz de Capacitação
+        </h2>
+    </div>
+
+    <div style="width: 40px;"></div>
+
+</div>
+
+<div class="page-header-line"></div>
+<hr>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('main.matriz_capacitacao') }}">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-6 col-lg-6">
+                    <label class="form-label fw-semibold">Cargo</label>
+                    <select name="cargo_id" class="form-select" onchange="this.form.submit()">
+                        <option value="">Selecione um cargo</option>
+                        {% for cargo in cargos %}
+                            <option value="{{ cargo.id }}" {% if cargo_id == cargo.id %}selected{% endif %}>
+                                {{ cargo.nome }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-6 col-lg-6">
+                    <div class="acoes-direita">
+                        <a href="{{ url_for('main.matriz_capacitacao') }}" class="btn btn-cinza btn-matriz">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Limpar
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if cargo_id %}
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <h5 class="cabecalho-camada-titulo mb-3">
+            1. Procedimentos obrigatórios por cargo
+            <button class="toggle-camada"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#camadaCargo"
+                    aria-expanded="false"
+                    aria-controls="camadaCargo">
+                <i class="bi bi-chevron-up icone-toggle"></i>
+            </button>
+        </h5>
+
+        <div class="collapse" id="camadaCargo">
+            <form method="POST" action="{{ url_for('main.salvar_procedimento_cargo') }}" class="mb-3">
+                <input type="hidden" name="cargo_id" value="{{ cargo_id }}">
+
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-8">
+                        <label class="form-label">Procedimento</label>
+                        <select name="procedimento_id" class="form-select" required>
+                            <option value="">Selecione</option>
+                            {% for p in procedimentos_cargo_disponiveis %}
+                                <option value="{{ p.id }}">{{ p.sigla }} - {{ p.numero_documento }} - {{ p.titulo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="acoes-direita">
+                            <button class="btn btn-laranja btn-matriz" type="submit">
+                                <i class="bi bi-plus-circle me-1"></i> Adicionar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            <div class="table-responsive">
+                <table class="table tabela-matriz">
+                    <thead>
+                        <tr>
+                            <th>Procedimento</th>
+                            <th class="coluna-acoes">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in procedimentos_cargo %}
+                        <tr>
+                            <td>{{ item.sigla }} - {{ item.numero_documento }} - {{ item.titulo }}</td>
+                            <td class="coluna-acoes">
+                                <form method="POST" action="{{ url_for('main.excluir_procedimento_cargo', id=item.id) }}">
+                                    <input type="hidden" name="cargo_id" value="{{ cargo_id }}">
+                                    <button 
+                                        class="btn btn-sm btn-acao-icon"
+                                        type="submit"
+                                        data-bs-toggle="tooltip"
+                                        title="Excluir"
+                                    >
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="2" class="text-center text-muted">Nenhum procedimento vinculado ao cargo.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <h5 class="cabecalho-camada-titulo mb-3">
+            2. Funções por cargo
+            <button class="toggle-camada"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#camadaFuncao"
+                    aria-expanded="false"
+                    aria-controls="camadaFuncao">
+                <i class="bi bi-chevron-up icone-toggle"></i>
+            </button>
+        </h5>
+
+        <div class="collapse" id="camadaFuncao">
+            <form method="POST" action="{{ url_for('main.adicionar_funcao_cargo') }}" class="mb-3">
+                <input type="hidden" name="cargo_id" value="{{ cargo_id }}">
+
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-8">
+                        <label class="form-label">Função</label>
+                        <select name="funcao_id" class="form-select" required>
+                            <option value="">Selecione</option>
+                            {% for f in funcoes_disponiveis %}
+                                <option value="{{ f.id }}">{{ f.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="acoes-direita">
+                            <button class="btn btn-laranja btn-matriz" type="submit">
+                                <i class="bi bi-plus-circle me-1"></i> Adicionar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            {% for funcao in funcoes_vinculadas %}
+            <div class="bloco-matriz-interno">
+                <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-3">
+                    <strong>{{ funcao.nome }}</strong>
+
+                    <div class="acoes-direita">
+                        <form method="POST" action="{{ url_for('main.remover_funcao_cargo', id=funcao.id) }}">
+                            <input type="hidden" name="cargo_id" value="{{ cargo_id }}">
+                            <button 
+                                class="btn btn-sm btn-acao-icon"
+                                type="submit"
+                                data-bs-toggle="tooltip"
+                                title="Excluir"
+                            >
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <form method="POST" action="{{ url_for('main.adicionar_procedimento_funcao') }}" class="mb-3">
+                    <input type="hidden" name="cargo_id" value="{{ cargo_id }}">
+                    <input type="hidden" name="funcao_id" value="{{ funcao.funcao_id }}">
+
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-8">
+                            <label class="form-label">Procedimento</label>
+                            <select name="procedimento_id" class="form-select" required>
+                                <option value="">Selecione</option>
+                                {% for p in procedimentos_funcao_disponiveis %}
+                                    <option value="{{ p.id }}">{{ p.sigla }} - {{ p.numero_documento }} - {{ p.titulo }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="acoes-direita">
+                                <button class="btn btn-laranja btn-matriz" type="submit">
+                                    <i class="bi bi-plus-circle me-1"></i> Adicionar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="table tabela-matriz mb-0">
+                        <thead>
+                            <tr>
+                                <th>Procedimento</th>
+                                <th class="coluna-acoes">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in funcao.procedimentos %}
+                            <tr>
+                                <td>{{ p.sigla }} - {{ p.numero_documento }} - {{ p.titulo }}</td>
+                                <td class="coluna-acoes">
+                                    <form method="POST" action="{{ url_for('main.remover_procedimento_funcao', id=p.id) }}">
+                                        <input type="hidden" name="cargo_id" value="{{ cargo_id }}">
+                                        <button 
+                                            class="btn btn-sm btn-acao-icon"
+                                            type="submit"
+                                            data-bs-toggle="tooltip"
+                                            title="Excluir"
+                                        >
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="2" class="text-center text-muted">Nenhum procedimento vinculado a esta função.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center text-muted">
+                Nenhuma função vinculada ao cargo.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <h5 class="cabecalho-camada-titulo mb-3">
+            3. Setores por cargo
+            <button class="toggle-camada"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#camadaSetor"
+                    aria-expanded="false"
+                    aria-controls="camadaSetor">
+                <i class="bi bi-chevron-up icone-toggle"></i>
+            </button>
+        </h5>
+
+        <div class="collapse" id="camadaSetor">
+            <form method="POST" action="{{ url_for('main.adicionar_setor_cargo') }}" class="mb-3">
+                <input type="hidden" name="cargo_id" value="{{ cargo_id }}">
+
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-8">
+                        <label class="form-label">Setor</label>
+                        <select name="setor_id" class="form-select" required>
+                            <option value="">Selecione</option>
+                            {% for s in setores_disponiveis %}
+                                <option value="{{ s.id }}">{{ s.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="acoes-direita">
+                            <button class="btn btn-laranja btn-matriz" type="submit">
+                                <i class="bi bi-plus-circle me-1"></i> Adicionar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            {% for setor in setores_vinculados %}
+            <div class="bloco-matriz-interno">
+                <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-3">
+                    <strong>{{ setor.nome }}</strong>
+
+                    <div class="acoes-direita">
+                        <form method="POST" action="{{ url_for('main.remover_setor_cargo', id=setor.id) }}">
+                            <input type="hidden" name="cargo_id" value="{{ cargo_id }}">
+                            <button 
+                                class="btn btn-sm btn-acao-icon"
+                                type="submit"
+                                data-bs-toggle="tooltip"
+                                title="Excluir"
+                            >
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <form method="POST" action="{{ url_for('main.adicionar_procedimento_setor') }}" class="mb-3">
+                    <input type="hidden" name="cargo_id" value="{{ cargo_id }}">
+                    <input type="hidden" name="setor_id" value="{{ setor.setor_id }}">
+
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-8">
+                            <label class="form-label">Procedimento</label>
+                            <select name="procedimento_id" class="form-select" required>
+                                <option value="">Selecione</option>
+                                {% for p in procedimentos_setor_disponiveis %}
+                                    <option value="{{ p.id }}">{{ p.sigla }} - {{ p.numero_documento }} - {{ p.titulo }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="acoes-direita">
+                                <button class="btn btn-laranja btn-matriz" type="submit">
+                                    <i class="bi bi-plus-circle me-1"></i> Adicionar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="table tabela-matriz mb-0">
+                        <thead>
+                            <tr>
+                                <th>Procedimento</th>
+                                <th class="coluna-acoes">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in setor.procedimentos %}
+                            <tr>
+                                <td>{{ p.sigla }} - {{ p.numero_documento }} - {{ p.titulo }}</td>
+                                <td class="coluna-acoes">
+                                    <form method="POST" action="{{ url_for('main.remover_procedimento_setor', id=p.id) }}">
+                                        <input type="hidden" name="cargo_id" value="{{ cargo_id }}">
+                                        <button 
+                                            class="btn btn-sm btn-acao-icon"
+                                            type="submit"
+                                            data-bs-toggle="tooltip"
+                                            title="Excluir"
+                                        >
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="2" class="text-center text-muted">Nenhum procedimento vinculado a este setor.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center text-muted">
+                Nenhum setor vinculado ao cargo.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="bloco-placeholder">
+    Selecione um cargo para começar a montar a matriz.
+</div>
+{% endif %}
+
+{% endblock %}

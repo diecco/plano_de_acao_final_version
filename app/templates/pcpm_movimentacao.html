@@ -1,0 +1,574 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Movimentação de Máquinas{% endblock %}
+
+{% block conteudo %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-arrow-left-right me-2"></i>
+        Movimentação de Máquinas
+    </h2>
+</div>
+
+<hr>
+
+<!-- SELEÇÃO DO EQUIPAMENTO -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+
+        <form method="GET" action="{{ url_for('main.pcpm_movimentacao') }}">
+
+            <div class="row g-3 align-items-end">
+
+                <div class="col-md-10">
+                    <label for="equipamento_id" class="form-label">Equipamento</label>
+                    <select class="form-select"
+                            id="equipamento_id"
+                            name="equipamento_id"
+                            required>
+                        <option value="">Selecione o equipamento</option>
+
+                        {% for equipamento in equipamentos %}
+                            <option value="{{ equipamento.id }}"
+                                    {% if equipamento_selecionado and equipamento_selecionado.id == equipamento.id %}selected{% endif %}>
+                                {{ equipamento.codigo_frota }} - {{ equipamento.tipo_nome }} - {{ equipamento.marca }} {{ equipamento.modelo }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button type="submit"
+                                class="btn btn-laranja"
+                                title="Carregar checklist">
+                            <i class="bi bi-plus-circle"></i>
+                        </button>
+
+                        <a href="{{ url_for('main.pcpm_movimentacao') }}"
+                           class="btn btn-cinza"
+                           title="Limpar formulário">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+{% if equipamento_selecionado %}
+
+<form method="POST"
+      action="{{ url_for('main.salvar_pcpm_movimentacao') }}"
+      enctype="multipart/form-data"
+      id="formMovimentacao">
+
+    <input type="hidden" name="equipamento_id" value="{{ equipamento_selecionado.id }}">
+    <input type="hidden" name="latitude" id="latitude">
+    <input type="hidden" name="longitude" id="longitude">
+
+    <!-- DADOS DA MOVIMENTAÇÃO -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+
+            <h5 class="text-laranja mb-3">Dados da Movimentação</h5>
+
+            <div class="row g-3">
+
+                <div class="col-md-4">
+
+    <label for="tipo_movimentacao" class="form-label">
+        Tipo de movimentação
+    </label>
+
+    <select name="tipo_movimentacao"
+            id="tipo_movimentacao"
+            class="form-select"
+            required>
+
+        {% if tipo_movimentacao_permitido == 'retirada' %}
+
+            <option value="retirada" selected>
+                Retirada da área
+            </option>
+
+        {% elif tipo_movimentacao_permitido == 'entrega' %}
+
+            <option value="entrega" selected>
+                Entrega na área
+            </option>
+
+        {% else %}
+
+            <option value="">
+                Selecione
+            </option>
+
+            <option value="retirada">
+                Retirada da área
+            </option>
+
+            <option value="entrega">
+                Entrega na área
+            </option>
+
+        {% endif %}
+
+    </select>
+
+    {% if equipamento_selecionado %}
+
+        <div class="form-text">
+
+            Status atual:
+
+            {% if equipamento_selecionado.status_localizacao == 'area' %}
+
+                <strong class="text-dark">
+                    Na área
+                </strong>
+
+            {% elif equipamento_selecionado.status_localizacao == 'tradimaq' %}
+
+                <strong class="text-dark">
+                    Em posse da Tradimaq
+                </strong>
+
+            {% else %}
+
+                <strong class="text-dark">
+                    Sem histórico definido
+                </strong>
+
+            {% endif %}
+
+        </div>
+
+    {% endif %}
+
+</div>
+
+                <div class="col-md-4">
+                    <label for="motivo_movimentacao" class="form-label">Motivo</label>
+                    <select class="form-select"
+                            id="motivo_movimentacao"
+                            name="motivo_movimentacao"
+                            required>
+                        <option value="">Selecione</option>
+                        <option value="manutencao_corretiva">Manutenção corretiva</option>
+                        <option value="manutencao_preventiva">Manutenção preventiva</option>
+                        <option value="manutencao_preditiva">Manutenção preditiva</option>
+                        <option value="substituicao_reserva">Substituição por reserva</option>
+                        <option value="outros">Outros</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Data</label>
+                    <input type="text"
+                           class="form-control"
+                           value="{{ data_atual }}"
+                           readonly>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="horimetro" class="form-label">Horímetro</label>
+                    <input type="number"
+                           name="horimetro"
+                           id="horimetro"
+                           class="form-control"
+                           min="0"
+                           step="0.1"
+                           required>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="numero_os" class="form-label">OS Fluig / TOTVS</label>
+                    <input type="text"
+                           name="numero_os"
+                           id="numero_os"
+                           class="form-control"
+                           maxlength="50"
+                           placeholder="Informe a OS, se houver">
+                </div>
+
+                <!-- FUNCIONÁRIO TRADIMAQ -->
+                <div class="col-md-6 position-relative">
+                    <label for="funcionario_busca" class="form-label">Funcionário Tradimaq</label>
+
+                    <input type="hidden"
+                           name="funcionario_id"
+                           id="funcionario_id"
+                           required>
+
+                    <input type="text"
+                           class="form-control"
+                           id="funcionario_busca"
+                           placeholder="Digite matrícula ou nome..."
+                           autocomplete="off"
+                           required>
+
+                    <div id="listaFuncionarios"
+                         class="list-group position-absolute w-100 shadow-sm"
+                         style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+                    </div>
+                </div>
+
+                <!-- CLIENTE / OPERADOR -->
+                <div class="col-md-6 position-relative">
+                    <label for="cliente_busca" class="form-label">Cliente / Operador</label>
+
+                    <input type="hidden"
+                           name="cliente_id"
+                           id="cliente_id"
+                           required>
+
+                    <input type="text"
+                           class="form-control"
+                           id="cliente_busca"
+                           placeholder="Digite matrícula ou nome..."
+                           autocomplete="off"
+                           required>
+
+                    <div id="listaClientes"
+                         class="list-group position-absolute w-100 shadow-sm"
+                         style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <label for="descricao_anomalia" class="form-label">Relato / Condições Encontradas</label>
+                    <textarea name="descricao_anomalia"
+                              id="descricao_anomalia"
+                              class="form-control"
+                              rows="4"
+                              required
+                              placeholder="Descreva o relato do operador, as condições encontradas e a análise inicial."></textarea>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <!-- CHECKLIST DINÂMICO -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+
+            <h5 class="text-laranja mb-3">Checklist</h5>
+
+            {% for item in itens_checklist %}
+
+                <div class="border rounded-3 p-3 mb-3 bg-white">
+
+                    <input type="hidden"
+                           name="checklist_item_ids[]"
+                           value="{{ item.id }}">
+
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+
+                        <div>
+                            <strong>{{ item.item }}</strong>
+                        </div>
+
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#criterio{{ item.id }}"
+                                title="Ver critério">
+                            <i class="bi bi-info-circle"></i>
+                        </button>
+
+                    </div>
+
+                    <div class="collapse mb-3" id="criterio{{ item.id }}">
+                        <div class="alert alert-light border small mb-0">
+                            {{ item.criterio }}
+                        </div>
+                    </div>
+
+                    <div class="row g-2 align-items-center">
+
+                        <div class="col-md-5">
+                            <div class="d-flex gap-2">
+
+                                <input type="radio"
+                                       class="btn-check"
+                                       name="resultado_{{ item.id }}"
+                                       id="ok_{{ item.id }}"
+                                       value="OK"
+                                       required>
+                                <label class="btn btn-outline-success flex-fill py-2"
+                                       for="ok_{{ item.id }}">
+                                    ✓
+                                </label>
+
+                                <input type="radio"
+                                       class="btn-check"
+                                       name="resultado_{{ item.id }}"
+                                       id="nok_{{ item.id }}"
+                                       value="NOK"
+                                       required>
+                                <label class="btn btn-outline-danger flex-fill py-2"
+                                       for="nok_{{ item.id }}">
+                                    ✕
+                                </label>
+
+                                <input type="radio"
+                                       class="btn-check"
+                                       name="resultado_{{ item.id }}"
+                                       id="na_{{ item.id }}"
+                                       value="NA"
+                                       required>
+                                <label class="btn btn-outline-secondary flex-fill py-2"
+                                       for="na_{{ item.id }}">
+                                    —
+                                </label>
+
+                            </div>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="btn btn-outline-secondary w-100 py-2">
+                                <i class="bi bi-camera"></i>
+                                <input type="file"
+                                       name="foto_{{ item.id }}"
+                                       accept="image/*"
+                                       capture="environment"
+                                       hidden>
+                            </label>
+                        </div>
+
+                        <div class="col-md-5">
+                            <textarea name="observacao_{{ item.id }}"
+                                      class="form-control form-control-sm"
+                                      rows="2"
+                                      placeholder="Observação do item, se necessário"></textarea>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            {% else %}
+
+                <div class="alert alert-warning">
+                    Nenhum item de checklist cadastrado para este tipo de equipamento.
+                </div>
+
+            {% endfor %}
+
+        </div>
+    </div>
+
+    <!-- BOTÕES -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <a href="{{ url_for('main.pcpm_movimentacao') }}" class="btn btn-cinza">
+            Cancelar
+        </a>
+
+        <button type="submit" class="btn btn-laranja">
+            <i class="bi bi-save"></i>
+            Salvar Movimentação
+        </button>
+
+    </div>
+
+</form>
+
+{% endif %}
+
+<script id="funcionarios-data" type="application/json">
+    {{ funcionarios | tojson }}
+</script>
+
+<script id="clientes-data" type="application/json">
+    {{ pessoas | tojson }}
+</script>
+
+<script>
+const funcionariosDisponiveisPCPM = JSON.parse(
+    document.getElementById('funcionarios-data').textContent
+);
+
+const clientesDisponiveisPCPM = JSON.parse(
+    document.getElementById('clientes-data').textContent
+);
+
+function normalizarTextoPCPM(texto) {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+}
+
+function formatarFuncionarioPCPM(funcionario) {
+    const matricula = funcionario.matricula || 'Sem matrícula';
+    const nome = funcionario.nome || '';
+    return `${matricula} - ${nome}`;
+}
+
+function formatarClientePCPM(cliente) {
+    const matricula = cliente.matricula || 'Sem matrícula';
+    const nome = cliente.nome || '';
+    const empresa = cliente.empresa_nome || '';
+    return `${matricula} - ${nome} - ${empresa}`;
+}
+
+function configurarBuscaPCPM(inputId, hiddenId, listaId, dados, tipo) {
+    const input = document.getElementById(inputId);
+    const hidden = document.getElementById(hiddenId);
+    const lista = document.getElementById(listaId);
+
+    if (!input || !hidden || !lista) return;
+
+    input.addEventListener('input', function () {
+        const termo = normalizarTextoPCPM(input.value);
+
+        hidden.value = '';
+        lista.innerHTML = '';
+        lista.style.display = 'none';
+
+        if (termo.length < 2) {
+            return;
+        }
+
+        const resultados = dados.filter(item => {
+            const textoBusca = normalizarTextoPCPM(
+                `${item.matricula || ''} ${item.nome || ''} ${item.empresa_nome || ''}`
+            );
+
+            return textoBusca.includes(termo);
+        }).slice(0, 12);
+
+        if (resultados.length === 0) {
+            lista.innerHTML = `
+                <div class="list-group-item text-muted">
+                    Nenhum registro encontrado.
+                </div>
+            `;
+            lista.style.display = 'block';
+            return;
+        }
+
+        resultados.forEach(item => {
+            const botao = document.createElement('button');
+            botao.type = 'button';
+            botao.className = 'list-group-item list-group-item-action text-start';
+
+            if (tipo === 'funcionario') {
+                botao.innerHTML = `
+                    <strong>${item.matricula || '-'}</strong><br>
+                    <small>${item.nome || ''}</small>
+                `;
+            } else {
+                botao.innerHTML = `
+                    <strong>${item.matricula || '-'}</strong><br>
+                    <small>${item.nome || ''}</small><br>
+                    <span class="badge bg-secondary">${item.empresa_nome || ''}</span>
+                `;
+            }
+
+            botao.addEventListener('click', function () {
+                input.value = tipo === 'funcionario'
+                    ? formatarFuncionarioPCPM(item)
+                    : formatarClientePCPM(item);
+
+                hidden.value = item.id;
+                lista.style.display = 'none';
+            });
+
+            lista.appendChild(botao);
+        });
+
+        lista.style.display = 'block';
+    });
+
+    input.addEventListener('blur', function () {
+        setTimeout(function () {
+            lista.style.display = 'none';
+        }, 200);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    configurarBuscaPCPM(
+        'funcionario_busca',
+        'funcionario_id',
+        'listaFuncionarios',
+        funcionariosDisponiveisPCPM,
+        'funcionario'
+    );
+
+    configurarBuscaPCPM(
+        'cliente_busca',
+        'cliente_id',
+        'listaClientes',
+        clientesDisponiveisPCPM,
+        'cliente'
+    );
+
+    const form = document.getElementById('formMovimentacao');
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function (position) {
+                const latitude = document.getElementById('latitude');
+                const longitude = document.getElementById('longitude');
+
+                if (latitude && longitude) {
+                    latitude.value = position.coords.latitude;
+                    longitude.value = position.coords.longitude;
+                }
+            },
+            function () {
+                alert('Ative a localização do dispositivo para registrar a movimentação.');
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+    } else {
+        alert('Este dispositivo não suporta geolocalização.');
+    }
+
+    if (form) {
+        form.addEventListener('submit', function (event) {
+            const latitude = document.getElementById('latitude')?.value;
+            const longitude = document.getElementById('longitude')?.value;
+            const funcionarioId = document.getElementById('funcionario_id')?.value;
+            const clienteId = document.getElementById('cliente_id')?.value;
+
+            if (!latitude || !longitude) {
+                event.preventDefault();
+                alert('Não foi possível capturar a geolocalização. Ative a localização e tente novamente.');
+                return false;
+            }
+
+            if (!funcionarioId) {
+                event.preventDefault();
+                alert('Selecione um funcionário válido da lista.');
+                return false;
+            }
+
+            if (!clienteId) {
+                event.preventDefault();
+                alert('Selecione um cliente/operador válido da lista.');
+                return false;
+            }
+        });
+    }
+
+});
+</script>
+
+{% endblock %}

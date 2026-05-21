@@ -1,0 +1,413 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Itens do Checklist{% endblock %}
+
+{% block conteudo %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-list-check me-2"></i>
+        Itens do Checklist
+    </h2>
+</div>
+
+<hr>
+
+<!-- DADOS DO MODELO -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+
+        <div class="row g-3 align-items-center">
+
+            <div class="col-md-4">
+                <strong>Tipo de Equipamento:</strong><br>
+                {{ modelo.tipo_tag }} - {{ modelo.tipo_nome }}
+            </div>
+
+            <div class="col-md-5">
+                <strong>Modelo:</strong><br>
+                {{ modelo.nome }}
+            </div>
+
+            <div class="col-md-3 text-end">
+                <button type="button"
+                        class="btn btn-laranja"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalCadastrarItemChecklist">
+                    <i class="bi bi-plus-circle"></i>
+                    Novo Item
+                </button>
+
+                <a href="{{ url_for('main.pcpm_checklist_modelos') }}"
+                   class="btn btn-cinza">
+                    Voltar
+                </a>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- TABELA -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+
+        <div class="table-responsive">
+
+            <table class="table table-bordered align-middle table-fixed">
+
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 90px;" class="text-center">Ordem</th>
+                        <th style="width: 220px;">Item</th>
+                        <th>Critério / Verificação</th>
+                        <th style="width: 120px;" class="text-center">Foto NOK</th>
+                        <th style="width: 150px;" class="text-center">Obs. NOK</th>
+                        <th style="width: 120px;" class="text-center">Status</th>
+                        <th style="width: 140px;" class="text-center">Ações</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for item in itens %}
+                    <tr>
+                        <td class="text-center">
+                            {{ item.ordem }}
+                        </td>
+
+                        <td>
+                            {{ item.item }}
+                        </td>
+
+                        <td>
+                            {{ item.criterio }}
+                        </td>
+
+                        <td class="text-center">
+                            {% if item.exige_foto_nok %}
+                                <span class="badge bg-success">Sim</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Não</span>
+                            {% endif %}
+                        </td>
+
+                        <td class="text-center">
+                            {% if item.exige_observacao_nok %}
+                                <span class="badge bg-success">Sim</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Não</span>
+                            {% endif %}
+                        </td>
+
+                        <td class="text-center">
+                            {% if item.ativo %}
+                                <span class="badge bg-success">Ativo</span>
+                            {% else %}
+                                <span class="badge bg-danger">Inativo</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <div class="d-flex justify-content-center gap-2">
+
+                                <button type="button"
+                                        class="btn-acao-icon"
+                                        title="Editar"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalEditarItemChecklist"
+                                        data-id="{{ item.id }}"
+                                        data-ordem="{{ item.ordem }}"
+                                        data-item="{{ item.item }}"
+                                        data-criterio="{{ item.criterio }}"
+                                        data-exige-foto-nok="{{ item.exige_foto_nok }}"
+                                        data-exige-observacao-nok="{{ item.exige_observacao_nok }}">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+
+                                {% if item.ativo %}
+                                <form method="POST"
+                                      action="{{ url_for('main.inativar_pcpm_checklist_item', id=item.id) }}"
+                                      onsubmit="return confirm('Deseja inativar este item?');">
+                                    <button type="submit"
+                                            class="btn-acao-icon"
+                                            title="Inativar">
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
+                                </form>
+                                {% else %}
+                                <form method="POST"
+                                      action="{{ url_for('main.ativar_pcpm_checklist_item', id=item.id) }}"
+                                      onsubmit="return confirm('Deseja ativar este item?');">
+                                    <button type="submit"
+                                            class="btn-acao-icon"
+                                            title="Ativar">
+                                        <i class="bi bi-check-circle"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center">
+                            Nenhum item cadastrado para este modelo.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- MODAL CADASTRAR -->
+<div class="modal fade"
+     id="modalCadastrarItemChecklist"
+     tabindex="-1"
+     aria-labelledby="modalCadastrarItemChecklistLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-lg">
+
+        <div class="modal-content">
+
+            <form method="POST"
+                  action="{{ url_for('main.cadastrar_pcpm_checklist_item', modelo_id=modelo.id) }}">
+
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalCadastrarItemChecklistLabel">
+                        <i class="bi bi-plus-circle"></i>
+                        Novo Item do Checklist
+                    </h5>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Fechar">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="row g-3">
+
+                        <div class="col-md-2">
+                            <label for="cad_ordem" class="form-label">Ordem</label>
+                            <input type="number"
+                                   name="ordem"
+                                   id="cad_ordem"
+                                   class="form-control"
+                                   min="1"
+                                   required>
+                        </div>
+
+                        <div class="col-md-10">
+                            <label for="cad_item" class="form-label">Item</label>
+                            <input type="text"
+                                   name="item"
+                                   id="cad_item"
+                                   class="form-control"
+                                   maxlength="150"
+                                   required
+                                   placeholder="Ex: Freio">
+                        </div>
+
+                        <div class="col-12">
+                            <label for="cad_criterio" class="form-label">Critério / Verificação</label>
+                            <textarea name="criterio"
+                                      id="cad_criterio"
+                                      class="form-control"
+                                      rows="3"
+                                      required
+                                      placeholder="Descreva o que deve ser verificado"></textarea>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="cad_exige_foto_nok" class="form-label">Exigir foto quando NOK?</label>
+                            <select class="form-select"
+                                    id="cad_exige_foto_nok"
+                                    name="exige_foto_nok">
+                                <option value="1" selected>Sim</option>
+                                <option value="0">Não</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="cad_exige_observacao_nok" class="form-label">Exigir observação quando NOK?</label>
+                            <select class="form-select"
+                                    id="cad_exige_observacao_nok"
+                                    name="exige_observacao_nok">
+                                <option value="1" selected>Sim</option>
+                                <option value="0">Não</option>
+                            </select>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-cinza"
+                            data-bs-dismiss="modal">
+                        Voltar
+                    </button>
+
+                    <button type="submit"
+                            class="btn btn-laranja">
+                        Salvar
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- MODAL EDITAR -->
+<div class="modal fade"
+     id="modalEditarItemChecklist"
+     tabindex="-1"
+     aria-labelledby="modalEditarItemChecklistLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-lg">
+
+        <div class="modal-content">
+
+            <form method="POST"
+                  action="{{ url_for('main.editar_pcpm_checklist_item', id=0) }}"
+                  id="formEditarItemChecklist"
+                  data-action-template="{{ url_for('main.editar_pcpm_checklist_item', id=0) }}">
+
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalEditarItemChecklistLabel">
+                        <i class="bi bi-pencil-square"></i>
+                        Editar Item do Checklist
+                    </h5>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Fechar">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="row g-3">
+
+                        <div class="col-md-2">
+                            <label for="edit_ordem" class="form-label">Ordem</label>
+                            <input type="number"
+                                   name="ordem"
+                                   id="edit_ordem"
+                                   class="form-control"
+                                   min="1"
+                                   required>
+                        </div>
+
+                        <div class="col-md-10">
+                            <label for="edit_item" class="form-label">Item</label>
+                            <input type="text"
+                                   name="item"
+                                   id="edit_item"
+                                   class="form-control"
+                                   maxlength="150"
+                                   required>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="edit_criterio" class="form-label">Critério / Verificação</label>
+                            <textarea name="criterio"
+                                      id="edit_criterio"
+                                      class="form-control"
+                                      rows="3"
+                                      required></textarea>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="edit_exige_foto_nok" class="form-label">Exigir foto quando NOK?</label>
+                            <select class="form-select"
+                                    id="edit_exige_foto_nok"
+                                    name="exige_foto_nok">
+                                <option value="1">Sim</option>
+                                <option value="0">Não</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="edit_exige_observacao_nok" class="form-label">Exigir observação quando NOK?</label>
+                            <select class="form-select"
+                                    id="edit_exige_observacao_nok"
+                                    name="exige_observacao_nok">
+                                <option value="1">Sim</option>
+                                <option value="0">Não</option>
+                            </select>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-cinza"
+                            data-bs-dismiss="modal">
+                        Voltar
+                    </button>
+
+                    <button type="submit"
+                            class="btn btn-laranja">
+                        Salvar alterações
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modalEditar = document.getElementById('modalEditarItemChecklist');
+
+    if (modalEditar) {
+        modalEditar.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+
+            const id = button.getAttribute('data-id');
+            const ordem = button.getAttribute('data-ordem');
+            const item = button.getAttribute('data-item');
+            const criterio = button.getAttribute('data-criterio');
+            const exigeFotoNok = button.getAttribute('data-exige-foto-nok');
+            const exigeObservacaoNok = button.getAttribute('data-exige-observacao-nok');
+
+            const form = document.getElementById('formEditarItemChecklist');
+            const actionTemplate = form.getAttribute('data-action-template');
+
+            form.action = actionTemplate.replace('/0', '/' + id);
+
+            document.getElementById('edit_ordem').value = ordem;
+            document.getElementById('edit_item').value = item;
+            document.getElementById('edit_criterio').value = criterio;
+            document.getElementById('edit_exige_foto_nok').value = exigeFotoNok;
+            document.getElementById('edit_exige_observacao_nok').value = exigeObservacaoNok;
+        });
+    }
+});
+</script>
+
+{% endblock %}

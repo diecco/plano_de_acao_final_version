@@ -1,0 +1,848 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Horas de Segurança{% endblock %}
+
+{% block conteudo %}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div style="width: 40px;"></div>
+
+    <div class="text-center flex-grow-1">
+        <h2 class="page-title">
+            <i class="bi bi-shield-check me-2"></i>
+            Horas de Segurança Realizadas
+        </h2>
+    </div>
+
+    <div style="width: 40px;"></div>
+</div>
+
+<div class="page-header-line"></div>
+<hr>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('main.listar_hs') }}">
+
+            <div class="bloco-filtros">
+
+                <div class="row g-3 mb-2">
+
+                    <div class="col-md-4">
+                        <label for="auditor_id" class="form-label">Auditor</label>
+                        <select name="auditor_id" id="auditor_id" class="form-select">
+                            <option value="">Todos</option>
+                            {% for u in usuarios %}
+                                <option value="{{ u.id }}" {% if filtros.get('auditor_id') == u.id|string %}selected{% endif %}>
+                                    {{ u.nome }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="tema_id" class="form-label">Tema</label>
+                        <select name="tema_id" id="tema_id" class="form-select">
+                            <option value="">Todos</option>
+                            {% for t in temas %}
+                                <option value="{{ t.id }}" {% if filtros.get('tema_id') == t.id|string %}selected{% endif %}>
+                                    {{ t.nome }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="resultado_nc" class="form-label">NC</label>
+                        <select name="resultado_nc" id="resultado_nc" class="form-select">
+                            <option value="">Todos</option>
+                            <option value="sim" {% if filtros.get('resultado_nc') == 'sim' %}selected{% endif %}>Sim</option>
+                            <option value="nao" {% if filtros.get('resultado_nc') == 'nao' %}selected{% endif %}>Não</option>
+                        </select>
+                    </div>
+
+                </div>
+
+                <div class="row g-3 align-items-end">
+
+                    <div class="col-md-3">
+                        <label for="data_inicio" class="form-label">Data inicial</label>
+                        <input type="date"
+                               name="data_inicio"
+                               id="data_inicio"
+                               class="form-control"
+                               value="{{ filtros.get('data_inicio', '') }}">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="data_fim" class="form-label">Data final</label>
+                        <input type="date"
+                               name="data_fim"
+                               id="data_fim"
+                               class="form-control"
+                               value="{{ filtros.get('data_fim', '') }}">
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="d-flex gap-2 justify-content-end flex-wrap">
+                            <button type="submit" class="btn btn-laranja" title="Filtrar">
+                                <i class="bi bi-funnel"></i>
+                            </button>
+
+                            <a href="{{ url_for('main.listar_hs', limpar=1) }}" class="btn btn-cinza" title="Limpar">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </a>
+
+                            <a href="{{ url_for('main.lancar_hs') }}" class="btn btn-laranja" title="Nova Hora de Segurança">
+                                <i class="bi bi-plus-circle"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle table-fixed" id="tabelaHS">
+                <thead class="table-light">
+                    <tr>
+
+                        <th style="width: 70px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">ID</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_hs',
+                                           auditor_id=filtros.get('auditor_id',''),
+                                           tema_id=filtros.get('tema_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           resultado_nc=filtros.get('resultado_nc',''),
+                                           sort='id', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_hs',
+                                           auditor_id=filtros.get('auditor_id',''),
+                                           tema_id=filtros.get('tema_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           resultado_nc=filtros.get('resultado_nc',''),
+                                           sort='id', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 120px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Data</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_hs',
+                                           auditor_id=filtros.get('auditor_id',''),
+                                           tema_id=filtros.get('tema_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           resultado_nc=filtros.get('resultado_nc',''),
+                                           sort='data', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_hs',
+                                           auditor_id=filtros.get('auditor_id',''),
+                                           tema_id=filtros.get('tema_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           resultado_nc=filtros.get('resultado_nc',''),
+                                           sort='data', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 220px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Auditor</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_hs',
+                                           auditor_id=filtros.get('auditor_id',''),
+                                           tema_id=filtros.get('tema_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           resultado_nc=filtros.get('resultado_nc',''),
+                                           sort='auditor', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_hs',
+                                           auditor_id=filtros.get('auditor_id',''),
+                                           tema_id=filtros.get('tema_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           resultado_nc=filtros.get('resultado_nc',''),
+                                           sort='auditor', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 ps-1 text-muted" title="Filtrar"
+                                       href="#filtroHeaderAuditor" data-bs-toggle="collapse" role="button" aria-expanded="false">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderAuditor" class="collapse mt-2">
+                                <select class="form-select form-select-sm"
+                                        onchange="aplicarFiltro('auditor_id', this.value);">
+                                    <option value="">Todos</option>
+                                    {% for u in usuarios %}
+                                        <option value="{{ u.id }}" {% if filtros.get('auditor_id') == u.id|string %}selected{% endif %}>
+                                            {{ u.nome }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </th>
+
+                        <th style="width: 300px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Tema</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_hs',
+                                           auditor_id=filtros.get('auditor_id',''),
+                                           tema_id=filtros.get('tema_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           resultado_nc=filtros.get('resultado_nc',''),
+                                           sort='tema', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_hs',
+                                           auditor_id=filtros.get('auditor_id',''),
+                                           tema_id=filtros.get('tema_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           resultado_nc=filtros.get('resultado_nc',''),
+                                           sort='tema', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 ps-1 text-muted" title="Filtrar"
+                                       href="#filtroHeaderTema" data-bs-toggle="collapse" role="button" aria-expanded="false">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderTema" class="collapse mt-2">
+                                <select class="form-select form-select-sm"
+                                        onchange="aplicarFiltro('tema_id', this.value);">
+                                    <option value="">Todos</option>
+                                    {% for t in temas %}
+                                        <option value="{{ t.id }}" {% if filtros.get('tema_id') == t.id|string %}selected{% endif %}>
+                                            {{ t.nome }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </th>
+
+                        <th style="width: 120px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">NC</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_hs',
+                                           auditor_id=filtros.get('auditor_id',''),
+                                           tema_id=filtros.get('tema_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           resultado_nc=filtros.get('resultado_nc',''),
+                                           sort='possui_nc', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_hs',
+                                           auditor_id=filtros.get('auditor_id',''),
+                                           tema_id=filtros.get('tema_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           resultado_nc=filtros.get('resultado_nc',''),
+                                           sort='possui_nc', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 ps-1 text-muted" title="Filtrar"
+                                       href="#filtroHeaderNc" data-bs-toggle="collapse" role="button" aria-expanded="false">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderNc" class="collapse mt-2">
+                                <select class="form-select form-select-sm"
+                                        onchange="aplicarFiltro('resultado_nc', this.value);">
+                                    <option value="">Todos</option>
+                                    <option value="sim" {% if filtros.get('resultado_nc') == 'sim' %}selected{% endif %}>Sim</option>
+                                    <option value="nao" {% if filtros.get('resultado_nc') == 'nao' %}selected{% endif %}>Não</option>
+                                </select>
+                            </div>
+                        </th>
+
+                        <th style="width: 120px;">
+                            <span class="th-label">Ações</span>
+                        </th>
+
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for hs in registros %}
+                    <tr>
+                        <td class="text-center">{{ hs.id }}</td>
+
+                        <td class="text-center">
+                            {{ hs.data.strftime('%d/%m/%Y') if hs.data else '' }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ hs.nome_auditor }}">
+                            {{ hs.nome_auditor or '-' }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ hs.nome_tema }}">
+                            {{ hs.nome_tema or '-' }}
+                        </td>
+
+                        <td class="text-center">
+                            {% if hs.possui_nc %}
+                                <span class="text-danger fw-semibold">Sim</span>
+                            {% else %}
+                                <span class="text-success fw-semibold">Não</span>
+                            {% endif %}
+                        </td>
+
+                        <td class="text-center">
+                            {% if hs.id_auditor == session.get('usuario_id') %}
+                                <div class="d-flex justify-content-center gap-2">
+
+                                    <button type="button"
+                                            class="btn-acao-icon"
+                                            title="Editar"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalEditarHS"
+                                            data-id="{{ hs.id }}"
+                                            data-data="{{ hs.data_iso or '' }}"
+                                            data-hora="{{ hs.hora or '' }}"
+                                            data-local="{{ hs.local|default('', true)|e }}"
+                                            data-tema-id="{{ hs.id_tema }}"
+                                            data-auditor-id="{{ hs.id_auditor }}"
+                                            data-participantes="{{ hs.participantes|default('', true)|e }}"
+                                            data-next="{{ request.full_path }}">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+
+                                    <form method="POST"
+                                          action="{{ url_for('main.excluir_hs', id=hs.id) }}"
+                                          onsubmit="return confirm('Tem certeza que deseja excluir esta Hora de Segurança?');"
+                                          style="display:inline;">
+                                        <button type="submit"
+                                                class="btn-acao-icon"
+                                                title="Excluir">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+
+                                </div>
+                            {% else %}
+                                <span class="text-muted">Sem permissão</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center">Nenhum registro encontrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if total_paginas %}
+<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+
+    <div class="text-muted small">
+        Exibindo página {{ page }} de {{ total_paginas }} — {{ total_registros }} registro(s)
+    </div>
+
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for('main.listar_hs',
+                       auditor_id=filtros.get('auditor_id',''),
+                       tema_id=filtros.get('tema_id',''),
+                       data_inicio=filtros.get('data_inicio',''),
+                       data_fim=filtros.get('data_fim',''),
+                       resultado_nc=filtros.get('resultado_nc',''),
+                       sort=filtros.get('sort','data'),
+                       order=filtros.get('order','desc'),
+                       page=page-1) }}">
+                    Anterior
+                </a>
+            </li>
+
+            {% for p in range(1, total_paginas + 1) %}
+                {% if p == 1 or p == total_paginas or (p >= page - 2 and p <= page + 2) %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('main.listar_hs',
+                               auditor_id=filtros.get('auditor_id',''),
+                               tema_id=filtros.get('tema_id',''),
+                               data_inicio=filtros.get('data_inicio',''),
+                               data_fim=filtros.get('data_fim',''),
+                               resultado_nc=filtros.get('resultado_nc',''),
+                               sort=filtros.get('sort','data'),
+                               order=filtros.get('order','desc'),
+                               page=p) }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                {% elif p == page - 3 or p == page + 3 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            <li class="page-item {% if page >= total_paginas %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for('main.listar_hs',
+                       auditor_id=filtros.get('auditor_id',''),
+                       tema_id=filtros.get('tema_id',''),
+                       data_inicio=filtros.get('data_inicio',''),
+                       data_fim=filtros.get('data_fim',''),
+                       resultado_nc=filtros.get('resultado_nc',''),
+                       sort=filtros.get('sort','data'),
+                       order=filtros.get('order','desc'),
+                       page=page+1) }}">
+                    Próxima
+                </a>
+            </li>
+
+        </ul>
+    </nav>
+
+</div>
+{% endif %}
+
+<style>
+    #modalEditarHS .modal-body {
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+
+    #modalEditarHS .modal-header,
+    #modalEditarHS .modal-footer {
+        position: sticky;
+        z-index: 1055;
+        background: #fff;
+    }
+
+    #modalEditarHS .modal-header {
+        top: 0;
+    }
+
+    #modalEditarHS .modal-footer {
+        bottom: 0;
+    }
+
+    #modalEditarHS .accordion-button:not(.collapsed) {
+        color: var(--bs-body-color);
+        background-color: rgba(234, 106, 35, 0.08);
+        box-shadow: none;
+    }
+
+    #modalEditarHS .accordion-button:focus {
+        box-shadow: none;
+        border-color: rgba(234, 106, 35, 0.35);
+    }
+
+    #modalEditarHS .badge-resultado-hs {
+        min-width: 44px;
+    }
+</style>
+
+<!-- MODAL EDITAR HORA DE SEGURANÇA -->
+<div class="modal fade" id="modalEditarHS" tabindex="-1" aria-labelledby="modalEditarHSLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <form method="POST" id="formEditarHSModal">
+                <input type="hidden" name="next" id="modal_next_hs">
+                <input type="hidden" name="id_tema" id="modal_id_tema_hidden">
+
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalEditarHSLabel">
+                        <i class="bi bi-pencil-square"></i>
+                        Editar Hora de Segurança
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <label for="modal_data_hs" class="form-label">Data</label>
+                            <input type="date" name="data" id="modal_data_hs" class="form-control" required>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label for="modal_hora_hs" class="form-label">Hora</label>
+                            <input type="time" name="hora" id="modal_hora_hs" class="form-control" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="modal_local_hs" class="form-label">Local</label>
+                            <input type="text" name="local" id="modal_local_hs" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="modal_id_tema_hs" class="form-label">Tema</label>
+                            <select id="modal_id_tema_hs" class="form-select" disabled>
+                                <option value="">Selecione</option>
+                                {% for t in temas %}
+                                    <option value="{{ t.id }}">{{ t.nome }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">
+                                A edição rápida mantém o tema original da Hora de Segurança.
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="modal_id_auditor_hs" class="form-label">Auditor</label>
+                            <select name="id_auditor" id="modal_id_auditor_hs" class="form-select" required
+                                    {% if session.get('perfil') != 'administrador' %}disabled{% endif %}>
+                                <option value="">Selecione</option>
+                                {% for u in usuarios %}
+                                    <option value="{{ u.id }}">{{ u.nome }}</option>
+                                {% endfor %}
+                            </select>
+
+                            {% if session.get('perfil') != 'administrador' %}
+                                <input type="hidden" name="id_auditor" id="modal_id_auditor_hidden">
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Participantes</label>
+
+                        <div class="alert alert-light border mb-2">
+                            A edição rápida não altera os participantes. Os participantes atuais serão preservados ao salvar.
+                        </div>
+
+                        <div id="modal_participantes_hidden_container"></div>
+                    </div>
+
+                    <hr>
+
+                    <h6 class="text-laranja fw-semibold mb-3">
+                        <i class="bi bi-list-check me-1"></i>
+                        Itens de Verificação
+                    </h6>
+
+                    <div id="modal_itens_hs">
+                        <div class="alert alert-light border mb-0">
+                            Nenhum item de verificação encontrado para este registro.
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" class="btn btn-laranja">Salvar</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<script id="itens-hs-data" type="application/json">
+    {{ itens_por_registro | tojson }}
+</script>
+
+<script>
+const itensPorRegistroHS = JSON.parse(
+    document.getElementById('itens-hs-data').textContent
+);
+
+function aplicarFiltro(param, value) {
+    const url = new URL(window.location.href);
+
+    if (value) {
+        url.searchParams.set(param, value);
+    } else {
+        url.searchParams.delete(param);
+    }
+
+    window.location.href = url.toString();
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function obterClasseResultadoHS(resultado) {
+    if (resultado === 'NC') return 'bg-danger';
+    if (resultado === 'NA') return 'bg-secondary';
+    return 'bg-success';
+}
+
+function renderizarItensHS(registroId) {
+    const container = document.getElementById('modal_itens_hs');
+    const itens = itensPorRegistroHS[String(registroId)] || [];
+
+    if (!itens.length) {
+        container.innerHTML = `
+            <div class="alert alert-light border mb-0">
+                Nenhum item de verificação encontrado para este registro.
+            </div>
+        `;
+        return;
+    }
+
+    let html = '<div class="accordion" id="accordionItensHSModal">';
+
+    itens.forEach((item, index) => {
+        const resultado = item.resultado || 'C';
+        const isC = resultado === 'C' || resultado === 'OK';
+        const isNC = resultado === 'NC';
+        const isNA = resultado === 'NA';
+        const itemId = item.id_item;
+        const collapseId = `collapseItemHS_${itemId}`;
+        const headingId = `headingItemHS_${itemId}`;
+        const classeResultado = obterClasseResultadoHS(resultado);
+
+        html += `
+            <div class="accordion-item item-hs-modal" data-item-id="${itemId}">
+                <h2 class="accordion-header" id="${headingId}">
+                    <button class="accordion-button ${index === 0 || isNC ? '' : 'collapsed'}"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#${collapseId}"
+                            aria-expanded="${index === 0 || isNC ? 'true' : 'false'}"
+                            aria-controls="${collapseId}">
+                        <div class="d-flex align-items-center justify-content-between gap-3 w-100 pe-3">
+                            <span class="fw-semibold text-start">
+                                ${index + 1}. ${escapeHtml(item.texto)}
+                            </span>
+                            <span class="badge badge-resultado-hs ${classeResultado}" id="badge_resultado_${itemId}">
+                                ${escapeHtml(resultado)}
+                            </span>
+                        </div>
+                    </button>
+                </h2>
+
+                <div id="${collapseId}"
+                     class="accordion-collapse collapse ${index === 0 || isNC ? 'show' : ''}"
+                     aria-labelledby="${headingId}"
+                     data-bs-parent="#accordionItensHSModal">
+                    <div class="accordion-body">
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-12">
+                                <label class="form-label d-block">Resultado</label>
+
+                                <div class="d-flex gap-4 flex-wrap">
+                                    <div class="form-check">
+                                        <input class="form-check-input resultado-hs-modal"
+                                               type="radio"
+                                               name="resultado_${itemId}"
+                                               id="modal_resultado_c_${itemId}"
+                                               value="C"
+                                               ${isC ? 'checked' : ''}>
+                                        <label class="form-check-label" for="modal_resultado_c_${itemId}">
+                                            C
+                                        </label>
+                                    </div>
+
+                                    <div class="form-check">
+                                        <input class="form-check-input resultado-hs-modal"
+                                               type="radio"
+                                               name="resultado_${itemId}"
+                                               id="modal_resultado_nc_${itemId}"
+                                               value="NC"
+                                               ${isNC ? 'checked' : ''}>
+                                        <label class="form-check-label" for="modal_resultado_nc_${itemId}">
+                                            NC
+                                        </label>
+                                    </div>
+
+                                    <div class="form-check">
+                                        <input class="form-check-input resultado-hs-modal"
+                                               type="radio"
+                                               name="resultado_${itemId}"
+                                               id="modal_resultado_na_${itemId}"
+                                               value="NA"
+                                               ${isNA ? 'checked' : ''}>
+                                        <label class="form-check-label" for="modal_resultado_na_${itemId}">
+                                            NA
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 campos-nc-modal" style="${isNC ? '' : 'display:none;'}">
+                            <div class="col-md-4">
+                                <label for="modal_desvio_${itemId}" class="form-label">Desvio</label>
+                                <textarea name="desvio_${itemId}"
+                                          id="modal_desvio_${itemId}"
+                                          class="form-control campo-nc"
+                                          rows="2">${escapeHtml(item.descricao_desvio || '')}</textarea>
+                            </div>
+
+                            <div class="col-md-5">
+                                <label for="modal_acao_${itemId}" class="form-label">Ação</label>
+                                <textarea name="acao_${itemId}"
+                                          id="modal_acao_${itemId}"
+                                          class="form-control campo-nc"
+                                          rows="2">${escapeHtml(item.descricao_acao || '')}</textarea>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label for="modal_prazo_${itemId}" class="form-label">Prazo</label>
+                                <input type="date"
+                                       name="prazo_${itemId}"
+                                       id="modal_prazo_${itemId}"
+                                       class="form-control campo-nc"
+                                       value="${escapeHtml(item.prazo_acao || '')}">
+                            </div>
+                        </div>
+
+                        <div class="alert alert-light border mt-3 mb-0 campos-ok-modal" style="${isNC ? 'display:none;' : ''}">
+                            Marque o item como <strong>NC</strong> para abrir os campos de Desvio, Ação e Prazo.
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+
+    container.innerHTML = html;
+    atualizarObrigatoriedadeCamposNC();
+}
+function atualizarObrigatoriedadeCamposNC() {
+    document.querySelectorAll('.item-hs-modal').forEach(card => {
+        const selecionado = card.querySelector('.resultado-hs-modal:checked');
+        const resultado = selecionado ? selecionado.value : 'C';
+        const selecionadoNC = resultado === 'NC';
+        const camposNC = card.querySelector('.campos-nc-modal');
+        const camposOK = card.querySelector('.campos-ok-modal');
+        const badge = card.querySelector('.badge-resultado-hs');
+
+        if (badge) {
+            badge.textContent = resultado;
+            badge.classList.remove('bg-success', 'bg-danger', 'bg-secondary');
+            badge.classList.add(obterClasseResultadoHS(resultado));
+        }
+
+        if (selecionadoNC) {
+            camposNC.style.display = '';
+            if (camposOK) camposOK.style.display = 'none';
+            card.querySelectorAll('.campo-nc').forEach(campo => campo.required = true);
+        } else {
+            camposNC.style.display = 'none';
+            if (camposOK) camposOK.style.display = '';
+            card.querySelectorAll('.campo-nc').forEach(campo => {
+                campo.required = false;
+                campo.value = '';
+            });
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('modalEditarHS');
+    const form = document.getElementById('formEditarHSModal');
+
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const id = button.getAttribute('data-id');
+            const temaId = button.getAttribute('data-tema-id');
+            const auditorId = button.getAttribute('data-auditor-id');
+            const participantes = (button.getAttribute('data-participantes') || '')
+                .split(',')
+                .map(valor => valor.trim())
+                .filter(Boolean);
+
+            form.action = `/editar_hs/${id}`;
+
+            document.getElementById('modal_next_hs').value = button.getAttribute('data-next') || '';
+            document.getElementById('modal_data_hs').value = button.getAttribute('data-data') || '';
+            document.getElementById('modal_hora_hs').value = (button.getAttribute('data-hora') || '').substring(0, 5);
+            document.getElementById('modal_local_hs').value = button.getAttribute('data-local') || '';
+
+            document.getElementById('modal_id_tema_hs').value = temaId || '';
+            document.getElementById('modal_id_tema_hidden').value = temaId || '';
+
+            document.getElementById('modal_id_auditor_hs').value = auditorId || '';
+
+            const auditorHidden = document.getElementById('modal_id_auditor_hidden');
+            if (auditorHidden) {
+                auditorHidden.value = auditorId || '';
+            }
+
+            const participantesHiddenContainer = document.getElementById('modal_participantes_hidden_container');
+            participantesHiddenContainer.innerHTML = '';
+
+            participantes.forEach(participanteId => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'participantes';
+                input.value = participanteId;
+                participantesHiddenContainer.appendChild(input);
+            });
+
+            renderizarItensHS(id);
+        });
+
+        modal.addEventListener('change', function (event) {
+            if (event.target.classList.contains('resultado-hs-modal')) {
+                atualizarObrigatoriedadeCamposNC();
+            }
+        });
+    }
+});
+</script>
+
+{% endblock %}

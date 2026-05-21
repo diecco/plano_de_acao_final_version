@@ -1,0 +1,299 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Tipos de Equipamento{% endblock %}
+
+{% block conteudo %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-truck me-2"></i>
+        Tipos de Equipamento
+    </h2>
+</div>
+
+<hr>
+
+<!-- CARD SUPERIOR -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-end">
+            <button type="button"
+                    class="btn btn-laranja"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalCadastrarTipoEquipamento">
+                <i class="bi bi-plus-circle"></i>
+                Novo Tipo
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- TABELA -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle table-fixed">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 100px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">ID</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar crescente"
+                                       href="{{ url_for('main.tipos_equipamento', sort='id', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar decrescente"
+                                       href="{{ url_for('main.tipos_equipamento', sort='id', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 140px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">TAG</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar crescente"
+                                       href="{{ url_for('main.tipos_equipamento', sort='tag', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar decrescente"
+                                       href="{{ url_for('main.tipos_equipamento', sort='tag', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Nome</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar crescente"
+                                       href="{{ url_for('main.tipos_equipamento', sort='nome', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar decrescente"
+                                       href="{{ url_for('main.tipos_equipamento', sort='nome', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 140px;" class="text-center">Status</th>
+                        <th style="width: 140px;" class="text-center">Ações</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for tipo in tipos_equipamento %}
+                    <tr>
+                        <td class="text-center">{{ tipo.id }}</td>
+
+                        <td class="text-center">
+                            <span class="badge bg-dark">
+                                {{ tipo.tag }}
+                            </span>
+                        </td>
+
+                        <td>{{ tipo.nome }}</td>
+
+                        <td class="text-center">
+                            {% if tipo.ativo %}
+                                <span class="badge bg-success">Ativo</span>
+                            {% else %}
+                                <span class="badge bg-danger">Inativo</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <div class="d-flex justify-content-center gap-2">
+                                <button type="button"
+                                        class="btn-acao-icon"
+                                        title="Editar"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalEditarTipoEquipamento"
+                                        data-id="{{ tipo.id }}"
+                                        data-tag="{{ tipo.tag }}"
+                                        data-nome="{{ tipo.nome }}">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+
+                                {% if tipo.ativo %}
+                                <form method="POST"
+                                      action="{{ url_for('main.inativar_tipo_equipamento', id=tipo.id) }}"
+                                      onsubmit="return confirm('Deseja inativar este tipo de equipamento?');">
+                                    <button type="submit" class="btn-acao-icon" title="Inativar">
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
+                                </form>
+                                {% else %}
+                                <form method="POST"
+                                      action="{{ url_for('main.ativar_tipo_equipamento', id=tipo.id) }}"
+                                      onsubmit="return confirm('Deseja ativar este tipo de equipamento?');">
+                                    <button type="submit" class="btn-acao-icon" title="Ativar">
+                                        <i class="bi bi-check-circle"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center">
+                            Nenhum tipo de equipamento cadastrado.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CADASTRAR -->
+<div class="modal fade"
+     id="modalCadastrarTipoEquipamento"
+     tabindex="-1"
+     aria-labelledby="modalCadastrarTipoEquipamentoLabel"
+     aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('main.cadastrar_tipo_equipamento') }}">
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalCadastrarTipoEquipamentoLabel">
+                        <i class="bi bi-plus-circle"></i>
+                        Novo Tipo de Equipamento
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="tag" class="form-label">TAG</label>
+                        <input type="text"
+                               name="tag"
+                               id="tag"
+                               class="form-control text-uppercase"
+                               maxlength="10"
+                               required
+                               placeholder="Ex: TDE"
+                               oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '')">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="nome" class="form-label">Nome</label>
+                        <input type="text"
+                               name="nome"
+                               id="nome"
+                               class="form-control"
+                               maxlength="100"
+                               required
+                               placeholder="Ex: Empilhadeira">
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">
+                        Voltar
+                    </button>
+                    <button type="submit" class="btn btn-laranja">
+                        Salvar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL EDITAR -->
+<div class="modal fade"
+     id="modalEditarTipoEquipamento"
+     tabindex="-1"
+     aria-labelledby="modalEditarTipoEquipamentoLabel"
+     aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST"
+                  action="{{ url_for('main.editar_tipo_equipamento', id=0) }}"
+                  id="formEditarTipoEquipamento"
+                  data-action-template="{{ url_for('main.editar_tipo_equipamento', id=0) }}">
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalEditarTipoEquipamentoLabel">
+                        <i class="bi bi-pencil-square"></i>
+                        Editar Tipo de Equipamento
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editar_tag" class="form-label">TAG</label>
+                        <input type="text"
+                               name="tag"
+                               id="editar_tag"
+                               class="form-control text-uppercase"
+                               maxlength="10"
+                               required
+                               oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '')">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="editar_nome" class="form-label">Nome</label>
+                        <input type="text"
+                               name="nome"
+                               id="editar_nome"
+                               class="form-control"
+                               maxlength="100"
+                               required>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">
+                        Voltar
+                    </button>
+                    <button type="submit" class="btn btn-laranja">
+                        Salvar alterações
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modalEditar = document.getElementById('modalEditarTipoEquipamento');
+
+    if (modalEditar) {
+        modalEditar.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+
+            const id = button.getAttribute('data-id');
+            const tag = button.getAttribute('data-tag');
+            const nome = button.getAttribute('data-nome');
+
+            const form = document.getElementById('formEditarTipoEquipamento');
+            const actionTemplate = form.getAttribute('data-action-template');
+
+            form.action = actionTemplate.replace('/0', '/' + id);
+
+            document.getElementById('editar_tag').value = tag;
+            document.getElementById('editar_nome').value = nome;
+        });
+    }
+});
+</script>
+
+{% endblock %}

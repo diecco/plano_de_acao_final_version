@@ -17,6 +17,19 @@
         <label for="descricao" class="form-label">Descrição da Origem</label>
         <input type="text" class="form-control" id="descricao" name="descricao" required>
     </div>
+
+    <div class="mb-3">
+        <label for="centro_custos_id" class="form-label">Centro de Custo</label>
+        <select class="form-select" id="centro_custos_id" name="centro_custos_id" required>
+            <option value="">Selecione...</option>
+            {% for centro in centros_custos %}
+                <option value="{{ centro.id }}">
+                    {{ centro.codigo }} - {{ centro.descricao }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
     <div class="d-flex justify-content-between">
         <button type="submit" class="btn btn-laranja">Salvar</button>
         <a href="/dashboard" class="btn btn-cinza">Voltar</a>
@@ -31,6 +44,7 @@
         <tr>
             <th style="width: 60px;">ID</th>
             <th>Descrição</th>
+            <th>Centro de Custo</th>
             <th style="width: 180px;">Ações</th>
         </tr>
     </thead>
@@ -39,6 +53,13 @@
         <tr>
             <td class="align-middle text-center">{{ origem.id }}</td>
             <td class="align-middle">{{ origem.descricao }}</td>
+            <td class="align-middle">
+                {% if origem.codigo_cc and origem.descricao_cc %}
+                    {{ origem.codigo_cc }} - {{ origem.descricao_cc }}
+                {% else %}
+                    -
+                {% endif %}
+            </td>
             <td class="align-middle text-center">
                 <div class="d-flex justify-content-center gap-2">
                     {% if origem.ativo %}
@@ -58,4 +79,3 @@
     </tbody>
 </table>
 {% endblock %}
-

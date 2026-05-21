@@ -1,0 +1,278 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Listar Funcionários{% endblock %}
+
+{% block conteudo %}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+
+    <div style="width: 40px;"></div>
+
+    <div class="text-center flex-grow-1">
+        <h2 class="page-title">
+            <i class="bi bi-people me-2"></i>
+            Funcionários Cadastrados
+        </h2>
+    </div>
+
+    <div style="width: 40px;"></div>
+
+</div>
+
+<div class="page-header-line"></div>
+<hr>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('main.listar_usuarios') }}">
+            <div class="row g-3">
+
+                <div class="col-md-3">
+                    <label for="filtro_status" class="form-label">Status</label>
+                    <select class="form-select" id="filtro_status" name="status">
+                        <option value="">Todos</option>
+                        <option value="1" {% if filtros.get('status') == '1' %}selected{% endif %}>Ativo</option>
+                        <option value="0" {% if filtros.get('status') == '0' %}selected{% endif %}>Inativo</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="filtro_acesso" class="form-label">Acesso ao Sistema</label>
+                    <select class="form-select" id="filtro_acesso" name="tem_acesso_sistema">
+                        <option value="">Todos</option>
+                        <option value="1" {% if filtros.get('tem_acesso_sistema') == '1' %}selected{% endif %}>Sim</option>
+                        <option value="0" {% if filtros.get('tem_acesso_sistema') == '0' %}selected{% endif %}>Não</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="filtro_instrutor" class="form-label">Pode ser Instrutor</label>
+                    <select class="form-select" id="filtro_instrutor" name="pode_ser_instrutor">
+                        <option value="">Todos</option>
+                        <option value="1" {% if filtros.get('pode_ser_instrutor') == '1' %}selected{% endif %}>Sim</option>
+                        <option value="0" {% if filtros.get('pode_ser_instrutor') == '0' %}selected{% endif %}>Não</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="filtro_centro_custo" class="form-label">Centro de Custos</label>
+                    <select class="form-select" id="filtro_centro_custo" name="centro_custos_id">
+                        <option value="">Todos</option>
+                        {% for cc in centros_custos %}
+                            <option value="{{ cc.id }}" {% if filtros.get('centro_custos_id') == cc.id|string %}selected{% endif %}>
+                                {{ cc.codigo }} - {{ cc.descricao }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="d-flex justify-content-end align-items-center mt-4 gap-2">
+                <a href="{{ url_for('main.listar_usuarios') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>
+                    Limpar
+                </a>
+
+                <a href="{{ url_for('main.usuarios') }}" class="btn btn-cinza">
+                    <i class="bi bi-plus-circle me-1"></i>
+                    Novo Funcionário
+                </a>
+
+                <button type="submit" class="btn btn-laranja">
+                    <i class="bi bi-funnel me-1"></i>
+                    Aplicar Filtros
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-bordered align-middle table-fixed" id="tabelaUsuarios">
+        <thead class="table-light">
+            <tr>
+                <th style="width: 220px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="th-label">Nome</span>
+                        <span class="btn-group btn-group-sm">
+                            <a class="btn btn-link p-0 px-1 text-muted"
+                               href="{{ url_for('main.listar_usuarios',
+                                   status=filtros.get('status',''),
+                                   tem_acesso_sistema=filtros.get('tem_acesso_sistema',''),
+                                   pode_ser_instrutor=filtros.get('pode_ser_instrutor',''),
+                                   centro_custos_id=filtros.get('centro_custos_id',''),
+                                   sort='nome', order='asc') }}"
+                               title="Ordenar crescente">
+                                <i class="bi bi-caret-up-fill"></i>
+                            </a>
+                            <a class="btn btn-link p-0 px-1 text-muted"
+                               href="{{ url_for('main.listar_usuarios',
+                                   status=filtros.get('status',''),
+                                   tem_acesso_sistema=filtros.get('tem_acesso_sistema',''),
+                                   pode_ser_instrutor=filtros.get('pode_ser_instrutor',''),
+                                   centro_custos_id=filtros.get('centro_custos_id',''),
+                                   sort='nome', order='desc') }}"
+                               title="Ordenar decrescente">
+                                <i class="bi bi-caret-down-fill"></i>
+                            </a>
+                        </span>
+                    </div>
+                </th>
+
+                <th style="width: 120px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="th-label">Matrícula</span>
+                    </div>
+                </th>
+
+                <th style="width: 240px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="th-label">E-mail</span>
+                        <span class="btn-group btn-group-sm">
+                            <a class="btn btn-link p-0 px-1 text-muted"
+                               href="{{ url_for('main.listar_usuarios',
+                                   status=filtros.get('status',''),
+                                   tem_acesso_sistema=filtros.get('tem_acesso_sistema',''),
+                                   pode_ser_instrutor=filtros.get('pode_ser_instrutor',''),
+                                   centro_custos_id=filtros.get('centro_custos_id',''),
+                                   sort='email', order='asc') }}"
+                               title="Ordenar crescente">
+                                <i class="bi bi-caret-up-fill"></i>
+                            </a>
+                            <a class="btn btn-link p-0 px-1 text-muted"
+                               href="{{ url_for('main.listar_usuarios',
+                                   status=filtros.get('status',''),
+                                   tem_acesso_sistema=filtros.get('tem_acesso_sistema',''),
+                                   pode_ser_instrutor=filtros.get('pode_ser_instrutor',''),
+                                   centro_custos_id=filtros.get('centro_custos_id',''),
+                                   sort='email', order='desc') }}"
+                               title="Ordenar decrescente">
+                                <i class="bi bi-caret-down-fill"></i>
+                            </a>
+                        </span>
+                    </div>
+                </th>
+
+                <th style="width: 180px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="th-label">Cargo</span>
+                        <span class="btn-group btn-group-sm">
+                            <a class="btn btn-link p-0 px-1 text-muted"
+                               href="{{ url_for('main.listar_usuarios',
+                                   status=filtros.get('status',''),
+                                   tem_acesso_sistema=filtros.get('tem_acesso_sistema',''),
+                                   pode_ser_instrutor=filtros.get('pode_ser_instrutor',''),
+                                   centro_custos_id=filtros.get('centro_custos_id',''),
+                                   sort='cargo', order='asc') }}"
+                               title="Ordenar crescente">
+                                <i class="bi bi-caret-up-fill"></i>
+                            </a>
+                            <a class="btn btn-link p-0 px-1 text-muted"
+                               href="{{ url_for('main.listar_usuarios',
+                                   status=filtros.get('status',''),
+                                   tem_acesso_sistema=filtros.get('tem_acesso_sistema',''),
+                                   pode_ser_instrutor=filtros.get('pode_ser_instrutor',''),
+                                   centro_custos_id=filtros.get('centro_custos_id',''),
+                                   sort='cargo', order='desc') }}"
+                               title="Ordenar decrescente">
+                                <i class="bi bi-caret-down-fill"></i>
+                            </a>
+                        </span>
+                    </div>
+                </th>
+
+                <th style="width: 220px;">Centro de Custos</th>
+                <th style="width: 180px;">Superintendência</th>
+
+                <th style="width: 110px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="th-label">Status</span>
+                        <span class="btn-group btn-group-sm">
+                            <a class="btn btn-link p-0 ps-1 text-muted"
+                               title="Filtrar"
+                               href="#filtroHeaderStatus" data-bs-toggle="collapse">
+                                <i class="bi bi-funnel"></i>
+                            </a>
+                        </span>
+                    </div>
+                    <div id="filtroHeaderStatus" class="collapse mt-2">
+                        <select class="form-select form-select-sm"
+                                onchange="aplicarFiltroSelect('status', this.value)">
+                            <option value="">Todos</option>
+                            <option value="1" {% if filtros.get('status') == '1' %}selected{% endif %}>Ativo</option>
+                            <option value="0" {% if filtros.get('status') == '0' %}selected{% endif %}>Inativo</option>
+                        </select>
+                    </div>
+                </th>
+
+                <th style="width: 120px;">Ações</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for u in usuarios %}
+            <tr>
+                <td class="td-truncate" title="{{ u.nome }}">{{ u.nome }}</td>
+                <td class="td-truncate" title="{{ u.matricula or '' }}">{{ u.matricula or '-' }}</td>
+                <td class="td-truncate" title="{{ u.email or '' }}">{{ u.email or '-' }}</td>
+                <td class="td-truncate" title="{{ u.nome_cargo or '' }}">{{ u.nome_cargo or '-' }}</td>
+                <td class="td-truncate" title="{{ (u.codigo_cc or '') ~ ' - ' ~ (u.descricao_cc or '') }}">
+                    {% if u.codigo_cc %}
+                        {{ u.codigo_cc }} - {{ u.descricao_cc }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td class="td-truncate" title="{{ u.nome_superintendencia or '' }}">{{ u.nome_superintendencia or '-' }}</td>
+                <td class="text-center">
+                    {% if u.ativo %}
+                        <span class="badge bg-success">Ativo</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Inativo</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="d-grid gap-1">
+                        <a href="{{ url_for('main.editar_usuario', id=u.id) }}"
+                           class="btn btn-laranja btn-sm">
+                            Editar
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" class="text-center">Nenhum funcionário cadastrado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    function aplicarFiltroSelect(param, value) {
+        const url = new URL(window.location.href);
+
+        if (value && value.trim() !== "") {
+            url.searchParams.set(param, value.trim());
+        } else {
+            url.searchParams.delete(param);
+        }
+
+        window.location.href = url.toString();
+    }
+</script>
+
+{% endblock %}

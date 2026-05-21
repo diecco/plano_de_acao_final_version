@@ -1,0 +1,85 @@
+{% extends 'layout.html' %}
+
+{% block titulo %}Editar Recusa à Tarefa{% endblock %}
+
+{% block conteudo %}
+<h2 class="mb-4 text-center text-laranja">EDITAR RECUSA À TAREFA</h2>
+<hr>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<form method="POST">
+  <div class="row mb-3">
+    <div class="col-md-3">
+      <label for="data" class="form-label">Data</label>
+      <input type="date" name="data" id="data" class="form-control" value="{{ recusa.data_recusa or '' }}" required>
+    </div>
+    <div class="col-md-2">
+      <label for="hora" class="form-label">Hora</label>
+      <input type="time" name="hora" id="hora" class="form-control" value="{{ recusa.hora_recusa or '' }}" required>
+    </div>
+    <div class="col-md-4">
+      <label for="usuario_id" class="form-label">Pessoa que recusou</label>
+      <select name="usuario_id" id="usuario_id" class="form-select" required>
+        {% for u in usuarios %}
+          <option value="{{ u.id }}" {% if recusa.usuario_id == u.id %}selected{% endif %}>
+            {{ u.nome }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="local" class="form-label">Área/Local</label>
+      <input type="text" name="local" id="local" class="form-control" value="{{ recusa.local }}">
+    </div>
+  </div>
+
+  <div class="row mb-3">
+    <div class="col-md-4">
+      <label for="classificacao" class="form-label">Classificação</label>
+      <select name="classificacao" id="classificacao" class="form-select" required>
+        <option value="CONDIÇÃO ABAIXO DO PADRÃO" {% if recusa.classificacao == "CONDIÇÃO ABAIXO DO PADRÃO" %}selected{% endif %}>CONDIÇÃO ABAIXO DO PADRÃO</option>
+        <option value="ATO ABAIXO DO PADRÃO" {% if recusa.classificacao == "ATO ABAIXO DO PADRÃO" %}selected{% endif %}>ATO ABAIXO DO PADRÃO</option>
+        <option value="PROCEDIMENTO ABAIXO DO PADRÃO" {% if recusa.classificacao == "PROCEDIMENTO ABAIXO DO PADRÃO" %}selected{% endif %}>PROCEDIMENTO ABAIXO DO PADRÃO</option>
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label for="potencial" class="form-label">Potencial de Severidade</label>
+      <select name="potencial" id="potencial" class="form-select" required>
+        <option value="A" {% if recusa.potencial == "A" %}selected{% endif %}>A</option>
+        <option value="B" {% if recusa.potencial == "B" %}selected{% endif %}>B</option>
+        <option value="C" {% if recusa.potencial == "C" %}selected{% endif %}>C</option>
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label for="causa_id" class="form-label">Causa</label>
+      <select name="causa_id" id="causa_id" class="form-select" required>
+        {% for c in causas %}
+          <option value="{{ c.id }}" {% if recusa.causa_id == c.id %}selected{% endif %}>
+            {{ c.descricao }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label for="descricao" class="form-label">Descrição da Recusa</label>
+    <textarea name="descricao" id="descricao" class="form-control" rows="4" required>{{ recusa.descricao }}</textarea>
+  </div>
+
+<div class="d-flex justify-content-between mt-3">
+  <a href="{{ url_for('main.listar_recusa') }}" class="btn btn-cinza">Voltar</a>
+  <button type="submit" class="btn btn-laranja">Salvar</button>
+</div>
+</form>
+{% endblock %}

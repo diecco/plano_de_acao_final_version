@@ -1,0 +1,633 @@
+{% extends 'layout.html' %}
+
+{% block titulo %}Lançamento da Hora de Segurança{% endblock %}
+
+{% block conteudo %}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div style="width: 40px;"></div>
+
+    <div class="text-center flex-grow-1">
+        <h2 class="page-title">
+            <i class="bi bi-shield-check me-2"></i>
+            Registrar Hora de Segurança
+        </h2>
+    </div>
+
+    <div style="width: 40px;"></div>
+</div>
+
+<div class="page-header-line"></div>
+<hr>
+
+<form method="POST" action="/lancar_hs" id="formLancarHS">
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">
+                <i class="bi bi-clipboard-data me-2"></i>
+                Dados Gerais
+            </h5>
+
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Data</label>
+                    <input type="date" name="data" id="data" class="form-control" required>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Hora</label>
+                    <input type="time" name="hora" id="hora" class="form-control" required>
+                </div>
+
+                <input type="hidden" name="turno" id="turno">
+
+                <div class="col-md-7">
+                    <label class="form-label">Local</label>
+                    <input type="text" name="local" id="local" class="form-control">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Tema</label>
+                    <select name="id_tema" id="id_tema" class="form-select" required>
+                        <option value="">Selecione</option>
+                        {% for tema in temas %}
+                            <option value="{{ tema.id }}" {% if request.args.get('id_tema') == tema.id|string %}selected{% endif %}>
+                                {{ tema.nome }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Auditor</label>
+                    <input type="text"
+                           class="form-control campo-readonly"
+                           value="{{ session.get('nome') }}"
+                           readonly>
+                    <input type="hidden" name="id_auditor" value="{{ session.get('usuario_id') }}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="text-laranja m-0">
+                    <i class="bi bi-people me-2"></i>
+                    Participantes
+                </h5>
+
+                <button type="button"
+                        class="btn btn-laranja"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalParticipantes">
+                    <i class="bi bi-plus-circle me-1"></i>
+                    Participantes
+                </button>
+            </div>
+
+            <div id="resumoParticipantes" class="d-flex flex-wrap gap-2 mb-2"></div>
+
+            <small class="text-muted" id="contadorParticipantes">
+                Nenhum participante selecionado.
+            </small>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">
+                <i class="bi bi-list-check me-2"></i>
+                Itens de Verificação
+            </h5>
+
+            {% if itens %}
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 28%;">Item</th>
+                            <th style="width: 12%;">Resultado</th>
+                            <th style="width: 24%;">Desvio</th>
+                            <th style="width: 24%;">Ação</th>
+                            <th style="width: 12%;">Prazo</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for item in itens %}
+                        <tr>
+                            <td>{{ item.texto }}</td>
+
+                            <td>
+                                <select name="resultado_{{ item.id }}"
+                                        class="form-select resultado-select"
+                                        data-id="{{ item.id }}"
+                                        required>
+                                    <option value="">Selecione</option>
+                                    <option value="C">C</option>
+                                    <option value="NC">NC</option>
+                                    <option value="NA">NA</option>
+                                </select>
+                            </td>
+
+                            <td>
+                                <input type="text"
+                                       name="desvio_{{ item.id }}"
+                                       id="desvio_{{ item.id }}"
+                                       class="form-control"
+                                       disabled>
+                            </td>
+
+                            <td>
+                                <div id="acao_wrap_{{ item.id }}" class="d-none">
+                                    <input type="text"
+                                           name="acao_{{ item.id }}"
+                                           id="acao_{{ item.id }}"
+                                           class="form-control">
+                                </div>
+                            </td>
+
+                            <td>
+                                <div id="prazo_wrap_{{ item.id }}" class="d-none">
+                                    <input type="date"
+                                           name="prazo_{{ item.id }}"
+                                           id="prazo_{{ item.id }}"
+                                           class="form-control">
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+                <div class="bloco-placeholder">
+                    Selecione um tema para carregar os itens de verificação.
+                </div>
+            {% endif %}
+
+            <div class="d-flex justify-content-between gap-2 mt-3">
+                <a href="/dashboard" class="btn btn-cinza" id="btnVoltarHS">Voltar</a>
+                <button type="submit" class="btn btn-laranja">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalParticipantes" tabindex="-1" aria-labelledby="modalParticipantesLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalParticipantesLabel">
+                        <i class="bi bi-people"></i>
+                        Selecionar Participantes
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="row g-3 align-items-end mb-3">
+                        <div class="col-md-10">
+                            <label for="buscarParticipante" class="form-label">Buscar participante</label>
+                            <input type="text"
+                                   id="buscarParticipante"
+                                   class="form-control"
+                                   placeholder="Digite o nome do participante..."
+                                   autocomplete="off">
+                        </div>
+
+                        <div class="col-md-2">
+                            <button type="button"
+                                    class="btn btn-cinza w-100"
+                                    id="btnLimparBuscaParticipante"
+                                    title="Limpar busca">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="areaResultadosParticipantes" class="mb-4" style="display: none;">
+                        <h6 class="text-laranja mb-2">
+                            <i class="bi bi-search me-1"></i>
+                            Resultados da busca
+                        </h6>
+
+                        <div class="table-responsive">
+                            <table class="table table-bordered align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th style="width: 80px;">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbodyResultadosParticipantes"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="areaSemResultadosParticipantes" class="alert alert-light border mb-4" style="display: none;">
+                        Nenhum participante encontrado para a busca informada.
+                    </div>
+
+                    <h6 class="text-laranja mb-2">
+                        <i class="bi bi-check2-circle me-1"></i>
+                        Participantes selecionados
+                    </h6>
+
+                    <div id="listaSelecionados" class="d-flex flex-wrap gap-2"></div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</form>
+
+<script id="participantes-data" type="application/json">
+    {{ usuarios | tojson }}
+</script>
+
+<script>
+const HS_DRAFT_KEY = "trackplan_hs_draft";
+
+const participantesDisponiveis = JSON.parse(
+    document.getElementById("participantes-data").textContent
+);
+
+let participantesSelecionados = [];
+
+function normalizarTexto(texto) {
+    return String(texto || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+}
+
+function definirTurnoAutomaticamente() {
+    const hora = document.getElementById("hora")?.value;
+    const turno = document.getElementById("turno");
+
+    if (!hora || !turno) {
+        if (turno) turno.value = "";
+        return;
+    }
+
+    const h = parseInt(hora.split(":")[0], 10);
+
+    if (h >= 0 && h < 12) {
+        turno.value = "Manhã";
+    } else if (h >= 12 && h < 18) {
+        turno.value = "Tarde";
+    } else {
+        turno.value = "Noite";
+    }
+}
+
+function toggleCamposNC(id) {
+    const select = document.querySelector(`[name="resultado_${id}"]`);
+    const desvio = document.getElementById(`desvio_${id}`);
+    const acaoWrap = document.getElementById(`acao_wrap_${id}`);
+    const prazoWrap = document.getElementById(`prazo_wrap_${id}`);
+    const acao = document.getElementById(`acao_${id}`);
+    const prazo = document.getElementById(`prazo_${id}`);
+
+    if (!select || !desvio || !acaoWrap || !prazoWrap) return;
+
+    if (select.value === "NC") {
+        desvio.disabled = false;
+        acaoWrap.classList.remove("d-none");
+        prazoWrap.classList.remove("d-none");
+    } else {
+        desvio.value = "";
+        desvio.disabled = true;
+        acaoWrap.classList.add("d-none");
+        prazoWrap.classList.add("d-none");
+
+        if (acao) acao.value = "";
+        if (prazo) prazo.value = "";
+    }
+}
+
+function atualizarParticipantes() {
+    const resumo = document.getElementById("resumoParticipantes");
+    const contador = document.getElementById("contadorParticipantes");
+    const form = document.getElementById("formLancarHS");
+
+    resumo.innerHTML = "";
+    form.querySelectorAll(".input-participante-hidden").forEach(el => el.remove());
+
+    if (participantesSelecionados.length === 0) {
+        contador.textContent = "Nenhum participante selecionado.";
+        return;
+    }
+
+    contador.textContent = `${participantesSelecionados.length} participante(s) selecionado(s).`;
+
+    participantesSelecionados.forEach(p => {
+        const badge = document.createElement("span");
+        badge.className = "badge badge-participante";
+        badge.innerHTML = `
+            ${p.nome}
+            <button type="button"
+                    class="btn-close btn-close-white ms-2"
+                    style="font-size: 0.6rem;"
+                    onclick="removerParticipante('${p.id}')">
+            </button>
+        `;
+        resumo.appendChild(badge);
+
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = "participantes";
+        input.value = p.id;
+        input.className = "input-participante-hidden";
+        form.appendChild(input);
+    });
+}
+
+function atualizarListaSelecionadosModal() {
+    const lista = document.getElementById("listaSelecionados");
+    lista.innerHTML = "";
+
+    if (participantesSelecionados.length === 0) {
+        lista.innerHTML = `<span class="text-muted small">Nenhum participante selecionado.</span>`;
+        return;
+    }
+
+    participantesSelecionados.forEach(p => {
+        const badge = document.createElement("span");
+        badge.className = "badge badge-participante";
+        badge.innerHTML = `
+            ${p.nome}
+            <button type="button"
+                    class="btn-close btn-close-white ms-2"
+                    style="font-size: 0.6rem;"
+                    onclick="removerParticipante('${p.id}')">
+            </button>
+        `;
+        lista.appendChild(badge);
+    });
+}
+
+function participanteJaSelecionado(id) {
+    return participantesSelecionados.some(p => String(p.id) === String(id));
+}
+
+function adicionarParticipante(id, nome) {
+    if (participanteJaSelecionado(id)) return;
+
+    participantesSelecionados.push({
+        id: String(id),
+        nome: nome
+    });
+
+    atualizarParticipantes();
+    atualizarListaSelecionadosModal();
+    renderizarResultadosParticipantes();
+    salvarDraftHS();
+}
+
+function removerParticipante(id) {
+    participantesSelecionados = participantesSelecionados.filter(p => String(p.id) !== String(id));
+
+    atualizarParticipantes();
+    atualizarListaSelecionadosModal();
+    renderizarResultadosParticipantes();
+    salvarDraftHS();
+}
+
+function renderizarResultadosParticipantes() {
+    const busca = document.getElementById("buscarParticipante");
+    const tbody = document.getElementById("tbodyResultadosParticipantes");
+    const areaResultados = document.getElementById("areaResultadosParticipantes");
+    const areaSemResultados = document.getElementById("areaSemResultadosParticipantes");
+
+    const termo = normalizarTexto(busca.value);
+
+    tbody.innerHTML = "";
+    areaResultados.style.display = "none";
+    areaSemResultados.style.display = "none";
+
+    if (termo.length < 2) {
+        return;
+    }
+
+    const resultados = participantesDisponiveis
+        .filter(u => {
+            const textoBusca = normalizarTexto(`${u.nome || ""}`);
+            return textoBusca.includes(termo);
+        })
+        .slice(0, 20);
+
+    if (resultados.length === 0) {
+        areaSemResultados.style.display = "";
+        return;
+    }
+
+    areaResultados.style.display = "";
+
+    resultados.forEach(usuario => {
+        const jaSelecionado = participanteJaSelecionado(usuario.id);
+
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+            <td>${usuario.nome || "-"}</td>
+            <td class="text-center">
+                <button type="button"
+                        class="btn-acao-icon"
+                        title="${jaSelecionado ? "Participante já selecionado" : "Adicionar participante"}"
+                        ${jaSelecionado ? "disabled" : ""}
+                        onclick='adicionarParticipante(${JSON.stringify(String(usuario.id))}, ${JSON.stringify(usuario.nome || "")})'>
+                    <i class="bi ${jaSelecionado ? "bi-check-circle" : "bi-plus-circle"}"></i>
+                </button>
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+    });
+}
+
+function limparBuscaParticipantes() {
+    const busca = document.getElementById("buscarParticipante");
+    const tbody = document.getElementById("tbodyResultadosParticipantes");
+    const areaResultados = document.getElementById("areaResultadosParticipantes");
+    const areaSemResultados = document.getElementById("areaSemResultadosParticipantes");
+
+    busca.value = "";
+    tbody.innerHTML = "";
+    areaResultados.style.display = "none";
+    areaSemResultados.style.display = "none";
+}
+
+function coletarDraftHS() {
+    const draft = {
+        data: document.getElementById("data")?.value || "",
+        hora: document.getElementById("hora")?.value || "",
+        turno: document.getElementById("turno")?.value || "",
+        local: document.getElementById("local")?.value || "",
+        id_tema: document.getElementById("id_tema")?.value || "",
+        participantes: participantesSelecionados,
+        itens: {}
+    };
+
+    document.querySelectorAll(".resultado-select").forEach(el => {
+        const id = el.dataset.id;
+
+        draft.itens[id] = {
+            resultado: el.value,
+            desvio: document.getElementById(`desvio_${id}`)?.value || "",
+            acao: document.getElementById(`acao_${id}`)?.value || "",
+            prazo: document.getElementById(`prazo_${id}`)?.value || ""
+        };
+    });
+
+    return draft;
+}
+
+function salvarDraftHS() {
+    try {
+        definirTurnoAutomaticamente();
+        sessionStorage.setItem(HS_DRAFT_KEY, JSON.stringify(coletarDraftHS()));
+    } catch (e) {
+        console.error("Erro ao salvar rascunho da HS:", e);
+    }
+}
+
+function restaurarDraftHS() {
+    try {
+        const raw = sessionStorage.getItem(HS_DRAFT_KEY);
+        if (!raw) return;
+
+        const draft = JSON.parse(raw);
+
+        if (draft.data) document.getElementById("data").value = draft.data;
+        if (draft.hora) document.getElementById("hora").value = draft.hora;
+        if (draft.local) document.getElementById("local").value = draft.local;
+
+        if (Array.isArray(draft.participantes)) {
+            participantesSelecionados = draft.participantes;
+        }
+
+        definirTurnoAutomaticamente();
+        atualizarParticipantes();
+        atualizarListaSelecionadosModal();
+
+        if (draft.itens) {
+            Object.keys(draft.itens).forEach(id => {
+                const item = draft.itens[id];
+
+                const resultado = document.querySelector(`[name="resultado_${id}"]`);
+                const desvio = document.getElementById(`desvio_${id}`);
+                const acao = document.getElementById(`acao_${id}`);
+                const prazo = document.getElementById(`prazo_${id}`);
+
+                if (resultado) resultado.value = item.resultado || "";
+
+                toggleCamposNC(id);
+
+                if (desvio) desvio.value = item.desvio || "";
+                if (acao) acao.value = item.acao || "";
+                if (prazo) prazo.value = item.prazo || "";
+            });
+        }
+    } catch (e) {
+        console.error("Erro ao restaurar rascunho da HS:", e);
+    }
+}
+
+function limparDraftHS() {
+    sessionStorage.removeItem(HS_DRAFT_KEY);
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const buscarParticipante = document.getElementById("buscarParticipante");
+    const btnLimparBuscaParticipante = document.getElementById("btnLimparBuscaParticipante");
+    const modalParticipantes = document.getElementById("modalParticipantes");
+
+    if (buscarParticipante) {
+        buscarParticipante.addEventListener("input", renderizarResultadosParticipantes);
+    }
+
+    if (btnLimparBuscaParticipante) {
+        btnLimparBuscaParticipante.addEventListener("click", limparBuscaParticipantes);
+    }
+
+    if (modalParticipantes) {
+        modalParticipantes.addEventListener("show.bs.modal", function () {
+            limparBuscaParticipantes();
+            atualizarListaSelecionadosModal();
+
+            setTimeout(function () {
+                buscarParticipante.focus();
+            }, 300);
+        });
+    }
+
+    document.querySelectorAll(".resultado-select").forEach(el => {
+        el.addEventListener("change", function () {
+            toggleCamposNC(this.dataset.id);
+            salvarDraftHS();
+        });
+    });
+
+    document.getElementById("data").addEventListener("input", salvarDraftHS);
+
+    document.getElementById("hora").addEventListener("input", function () {
+        definirTurnoAutomaticamente();
+        salvarDraftHS();
+    });
+
+    document.getElementById("local").addEventListener("input", salvarDraftHS);
+
+    document.querySelectorAll('input[id^="desvio_"], input[id^="acao_"], input[id^="prazo_"]').forEach(el => {
+        el.addEventListener("input", salvarDraftHS);
+        el.addEventListener("change", salvarDraftHS);
+    });
+
+    document.getElementById("id_tema").addEventListener("change", function () {
+        salvarDraftHS();
+
+        const url = new URL(window.location.href);
+
+        if (this.value) {
+            url.searchParams.set("id_tema", this.value);
+        } else {
+            url.searchParams.delete("id_tema");
+        }
+
+        window.location.href = url.toString();
+    });
+
+    document.getElementById("formLancarHS").addEventListener("submit", function () {
+        definirTurnoAutomaticamente();
+        limparDraftHS();
+    });
+
+    const btnVoltarHS = document.getElementById("btnVoltarHS");
+    if (btnVoltarHS) {
+        btnVoltarHS.addEventListener("click", limparDraftHS);
+    }
+
+    definirTurnoAutomaticamente();
+
+    document.querySelectorAll(".resultado-select").forEach(el => {
+        toggleCamposNC(el.dataset.id);
+    });
+
+    restaurarDraftHS();
+    atualizarParticipantes();
+    atualizarListaSelecionadosModal();
+});
+</script>
+
+{% endblock %}

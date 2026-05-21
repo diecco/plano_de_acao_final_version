@@ -1,0 +1,674 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Movimentação de Máquinas{% endblock %}
+
+{% block conteudo %}
+
+<style>
+    .app-container {
+        max-width: 520px;
+        margin: 0 auto;
+        padding-bottom: 90px;
+    }
+
+    .app-card {
+        border: 0;
+        border-radius: 16px;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+        margin-bottom: 16px;
+    }
+
+    .app-section-title {
+        color: #EA6A23;
+        font-weight: 700;
+        font-size: 1rem;
+        margin-bottom: 12px;
+    }
+
+    .app-action-btn {
+        height: 42px;
+        min-width: 42px;
+        border-radius: 10px;
+    }
+
+    .check-item {
+        border: 1px solid #e5e5e5;
+        border-radius: 14px;
+        padding: 12px;
+        margin-bottom: 12px;
+        background: #fff;
+    }
+
+    .check-title {
+        font-weight: 700;
+        font-size: 0.95rem;
+        margin-bottom: 8px;
+    }
+
+    .resultado-btn {
+        min-width: 58px;
+        height: 44px;
+        border-radius: 12px !important;
+        font-size: 1.15rem;
+        font-weight: 700;
+    }
+
+    .foto-btn {
+        height: 44px;
+        border-radius: 12px;
+        font-size: 1.1rem;
+    }
+
+    .assinatura-card {
+        border: 1px solid #e5e5e5;
+        border-radius: 14px;
+        padding: 12px;
+        background: #fff;
+        height: 100%;
+    }
+
+    .assinatura-label {
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 8px;
+    }
+
+    .assinatura-dados {
+        font-size: 0.85rem;
+        color: #555;
+        margin-top: 8px;
+        min-height: 48px;
+    }
+
+    .bottom-save-bar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #fff;
+        border-top: 1px solid #ddd;
+        padding: 12px;
+        z-index: 1050;
+    }
+
+    .bottom-save-bar .inner {
+        max-width: 520px;
+        margin: 0 auto;
+    }
+</style>
+
+<div class="app-container">
+
+    <div class="page-header">
+        <h2 class="page-title">
+            <i class="bi bi-arrow-left-right me-2"></i>
+            Movimentação
+        </h2>
+    </div>
+
+    <hr>
+
+    <!-- EQUIPAMENTO -->
+    <div class="card app-card">
+        <div class="card-body">
+
+            <label for="equipamento_id" class="form-label fw-bold">Equipamento</label>
+
+            <form method="GET" action="{{ url_for('main.pcpm_movimentacao_app') }}">
+                <div class="d-flex gap-2">
+                    <select class="form-select"
+                            id="equipamento_id"
+                            name="equipamento_id"
+                            required>
+                        <option value="">Selecione</option>
+
+                        {% for equipamento in equipamentos %}
+                            <option value="{{ equipamento.id }}"
+                                    {% if equipamento_selecionado and equipamento_selecionado.id == equipamento.id %}selected{% endif %}>
+                                {{ equipamento.codigo_frota }} - {{ equipamento.tipo_nome }}
+                            </option>
+                        {% endfor %}
+                    </select>
+
+                    <button type="submit"
+                            class="btn btn-laranja app-action-btn"
+                            title="Carregar checklist">
+                        <i class="bi bi-plus-circle"></i>
+                    </button>
+
+                    <a href="{{ url_for('main.pcpm_movimentacao_app') }}"
+                       class="btn btn-cinza app-action-btn"
+                       title="Limpar">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </a>
+                </div>
+            </form>
+
+        </div>
+    </div>
+
+    {% if equipamento_selecionado %}
+
+    <form method="POST"
+          action="{{ url_for('main.salvar_pcpm_movimentacao') }}"
+          enctype="multipart/form-data"
+          id="formMovimentacaoApp">
+
+        <input type="hidden" name="equipamento_id" value="{{ equipamento_selecionado.id }}">
+        <input type="hidden" name="latitude" id="latitude">
+        <input type="hidden" name="longitude" id="longitude">
+        <input type="hidden" name="rfid_funcionario" id="rfid_funcionario">
+        <input type="hidden" name="rfid_cliente" id="rfid_cliente">
+        <input type="hidden" name="cliente_id" id="cliente_id">
+
+        <!-- DADOS DA MOVIMENTAÇÃO -->
+        <div class="card app-card">
+            <div class="card-body">
+
+                <div class="app-section-title">
+                    Dados da Movimentação
+                </div>
+
+                <div class="row g-3">
+
+                    <div class="col-6">
+                        <label for="tipo_movimentacao" class="form-label">Tipo</label>
+                        <select class="form-select"
+                                id="tipo_movimentacao"
+                                name="tipo_movimentacao"
+                                required>
+                            <option value="">Selecione</option>
+                            <option value="retirada">Retirada</option>
+                            <option value="entrega">Entrega</option>
+                            <option value="substituicao">Substituição</option>
+                        </select>
+                    </div>
+
+                    <div class="col-6">
+                        <label for="motivo_movimentacao" class="form-label">Motivo</label>
+                        <select class="form-select"
+                                id="motivo_movimentacao"
+                                name="motivo_movimentacao"
+                                required>
+                            <option value="">Selecione</option>
+                            <option value="manutencao_corretiva">Corretiva</option>
+                            <option value="manutencao_preventiva">Preventiva</option>
+                            <option value="manutencao_preditiva">Preditiva</option>
+                            <option value="substituicao_reserva">Reserva</option>
+                            <option value="outros">Outros</option>
+                        </select>
+                    </div>
+
+                    <div class="col-6">
+                        <label class="form-label">Data</label>
+                        <input type="text"
+                               class="form-control"
+                               value="{{ data_atual }}"
+                               readonly>
+                    </div>
+
+                    <div class="col-6">
+                        <label for="horimetro" class="form-label">Horímetro</label>
+                        <input type="number"
+                               name="horimetro"
+                               id="horimetro"
+                               class="form-control"
+                               min="0"
+                               step="0.1"
+                               required>
+                    </div>
+
+                    <div class="col-12">
+                        <label for="numero_os" class="form-label">OS Fluig / TOTVS</label>
+                        <input type="text"
+                               name="numero_os"
+                               id="numero_os"
+                               class="form-control"
+                               maxlength="50"
+                               placeholder="Informe a OS, se houver">
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+        <!-- RELATO -->
+        <div class="card app-card">
+            <div class="card-body">
+
+                <div class="app-section-title">
+                    Relato / Observações
+                </div>
+
+                <textarea name="descricao_anomalia"
+                          id="descricao_anomalia"
+                          class="form-control"
+                          rows="5"
+                          required
+                          placeholder="Descreva o relato do operador e as condições encontradas..."></textarea>
+
+            </div>
+        </div>
+
+        <!-- CHECKLIST -->
+        <div class="card app-card">
+            <div class="card-body">
+
+                <div class="app-section-title">
+                    Checklist
+                </div>
+
+                {% if modelo_checklist %}
+                    <div class="alert alert-light border small">
+                        <strong>Modelo:</strong> {{ modelo_checklist.nome }}
+                    </div>
+                {% endif %}
+
+                {% for item in itens_checklist %}
+
+                    <div class="check-item">
+
+                        <input type="hidden"
+                               name="checklist_item_ids[]"
+                               value="{{ item.id }}">
+
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+
+                            <div class="check-title">
+                                {{ item.item }}
+                            </div>
+
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#criterio{{ item.id }}"
+                                    title="Detalhes">
+                                <i class="bi bi-info-circle"></i>
+                            </button>
+
+                        </div>
+
+                        <div class="collapse mb-2"
+                             id="criterio{{ item.id }}">
+                            <div class="alert alert-light border small mb-2">
+                                {{ item.criterio }}
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center gap-2">
+
+                            <div class="d-flex gap-2">
+
+                                <input type="radio"
+                                       class="btn-check"
+                                       name="resultado_{{ item.id }}"
+                                       id="ok_{{ item.id }}"
+                                       value="OK"
+                                       required>
+                                <label class="btn btn-outline-success resultado-btn"
+                                       for="ok_{{ item.id }}">
+                                    ✓
+                                </label>
+
+                                <input type="radio"
+                                       class="btn-check"
+                                       name="resultado_{{ item.id }}"
+                                       id="nok_{{ item.id }}"
+                                       value="NOK"
+                                       required>
+                                <label class="btn btn-outline-danger resultado-btn"
+                                       for="nok_{{ item.id }}">
+                                    ✕
+                                </label>
+
+                                <input type="radio"
+                                       class="btn-check"
+                                       name="resultado_{{ item.id }}"
+                                       id="na_{{ item.id }}"
+                                       value="NA"
+                                       required>
+                                <label class="btn btn-outline-secondary resultado-btn"
+                                       for="na_{{ item.id }}">
+                                    —
+                                </label>
+
+                            </div>
+
+                            <label class="btn btn-outline-secondary foto-btn">
+                                <i class="bi bi-camera"></i>
+                                <input type="file"
+                                       name="foto_{{ item.id }}"
+                                       accept="image/*"
+                                       capture="environment"
+                                       hidden>
+                            </label>
+
+                        </div>
+
+                        <textarea name="observacao_{{ item.id }}"
+                                  class="form-control form-control-sm mt-2"
+                                  rows="2"
+                                  placeholder="Observação do item, se necessário"></textarea>
+
+                    </div>
+
+                {% else %}
+
+                    <div class="alert alert-warning">
+                        Nenhum item de checklist cadastrado para este tipo de equipamento.
+                    </div>
+
+                {% endfor %}
+
+            </div>
+        </div>
+
+        <!-- ASSINATURAS NFC -->
+        <div class="card app-card">
+            <div class="card-body">
+
+                <div class="app-section-title">
+                    Assinaturas
+                </div>
+
+                <div class="row g-3">
+
+                    <div class="col-6">
+                        <div class="assinatura-card">
+                            <div class="assinatura-label">
+                                Tradimaq
+                            </div>
+
+                            <button type="button"
+                                    class="btn btn-laranja w-100"
+                                    onclick="simularLeituraNFC('funcionario')">
+                                <i class="bi bi-broadcast-pin"></i>
+                                Ler NFC
+                            </button>
+
+                            <div class="assinatura-dados" id="dados_funcionario">
+                                Aguardando leitura...
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-6">
+                        <div class="assinatura-card">
+                            <div class="assinatura-label">
+                                Cliente
+                            </div>
+
+                            <button type="button"
+                                    class="btn btn-laranja w-100"
+                                    onclick="simularLeituraNFC('cliente')">
+                                <i class="bi bi-broadcast-pin"></i>
+                                Ler NFC
+                            </button>
+
+                            <div class="assinatura-dados" id="dados_cliente">
+                                Aguardando leitura...
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+        <!-- FOTOS GERAIS -->
+        <div class="card app-card">
+            <div class="card-body">
+
+                <div class="app-section-title">
+                    Evidências Gerais
+                </div>
+
+                <label class="btn btn-outline-secondary w-100 py-3">
+                    <i class="bi bi-camera"></i>
+                    Adicionar fotos gerais
+                    <input type="file"
+                           name="fotos_gerais"
+                           accept="image/*"
+                           capture="environment"
+                           multiple
+                           hidden>
+                </label>
+
+            </div>
+        </div>
+
+        <div class="bottom-save-bar">
+            <div class="inner d-flex gap-2">
+                <a href="{{ url_for('main.pcpm_movimentacao_app') }}"
+                   class="btn btn-cinza w-50">
+                    Cancelar
+                </a>
+
+                <button type="submit"
+                        class="btn btn-laranja w-50">
+                    Salvar
+                </button>
+            </div>
+        </div>
+
+    </form>
+
+    {% endif %}
+
+</div>
+
+<!-- MODAL CADASTRO RÁPIDO CLIENTE -->
+<div class="modal fade"
+     id="modalCadastroRapidoCliente"
+     tabindex="-1"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+            <div class="modal-header modal-header-trackplan">
+                <h5 class="modal-title">
+                    Cadastro Rápido do Cliente
+                </h5>
+
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal">
+                </button>
+            </div>
+
+            <div class="modal-body">
+
+                <input type="hidden" id="cad_rapido_rfid">
+
+                <div class="mb-3">
+                    <label class="form-label">RFID</label>
+                    <input type="text"
+                           id="cad_rapido_rfid_visual"
+                           class="form-control"
+                           readonly>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Matrícula</label>
+                    <input type="text"
+                           id="cad_rapido_matricula"
+                           class="form-control">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Nome</label>
+                    <input type="text"
+                           id="cad_rapido_nome"
+                           class="form-control">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Empresa</label>
+                    <select id="cad_rapido_empresa_id"
+                            class="form-select">
+                        <option value="">Selecione</option>
+                        {% for empresa in empresas %}
+                            <option value="{{ empresa.id }}">
+                                {{ empresa.nome }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Setor/Área</label>
+                    <input type="text"
+                           id="cad_rapido_setor_area"
+                           class="form-control">
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="button"
+                        class="btn btn-cinza"
+                        data-bs-dismiss="modal">
+                    Voltar
+                </button>
+
+                <button type="button"
+                        class="btn btn-laranja"
+                        onclick="salvarClienteRapidoSimulado()">
+                    Salvar e Assinar
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+function capturarGeolocalizacao() {
+    if (!navigator.geolocation) {
+        alert('Este dispositivo não suporta geolocalização.');
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        function (position) {
+            const latitude = document.getElementById('latitude');
+            const longitude = document.getElementById('longitude');
+
+            if (latitude && longitude) {
+                latitude.value = position.coords.latitude;
+                longitude.value = position.coords.longitude;
+            }
+        },
+        function () {
+            alert('Ative a localização do dispositivo para registrar a movimentação.');
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        }
+    );
+}
+
+function simularLeituraNFC(tipo) {
+    const rfid = prompt('Simulação NFC: informe o RFID lido');
+
+    if (!rfid) return;
+
+    if (tipo === 'funcionario') {
+        document.getElementById('rfid_funcionario').value = rfid;
+        document.getElementById('dados_funcionario').innerHTML = `
+            <strong>RFID:</strong><br>${rfid}
+        `;
+        return;
+    }
+
+    if (tipo === 'cliente') {
+        /*
+          No app Android real:
+          1. ler NFC;
+          2. consultar API /pcpm/api/pessoa_por_rfid;
+          3. se existir, preencher cliente_id e dados;
+          4. se não existir, abrir cadastro rápido.
+        */
+
+        document.getElementById('cad_rapido_rfid').value = rfid;
+        document.getElementById('cad_rapido_rfid_visual').value = rfid;
+
+        const modal = new bootstrap.Modal(document.getElementById('modalCadastroRapidoCliente'));
+        modal.show();
+    }
+}
+
+function salvarClienteRapidoSimulado() {
+    const rfid = document.getElementById('cad_rapido_rfid').value;
+    const matricula = document.getElementById('cad_rapido_matricula').value;
+    const nome = document.getElementById('cad_rapido_nome').value;
+    const empresaId = document.getElementById('cad_rapido_empresa_id').value;
+    const setorArea = document.getElementById('cad_rapido_setor_area').value;
+
+    if (!rfid || !matricula || !nome || !empresaId || !setorArea) {
+        alert('Preencha todos os dados do cadastro rápido.');
+        return;
+    }
+
+    /*
+      No app Android real:
+      - salvar localmente se estiver offline;
+      - ou enviar para API se estiver online;
+      - receber cliente_id;
+      - preencher hidden cliente_id.
+    */
+
+    document.getElementById('rfid_cliente').value = rfid;
+    document.getElementById('cliente_id').value = 'TEMP';
+
+    document.getElementById('dados_cliente').innerHTML = `
+        <strong>${nome}</strong><br>
+        Matrícula: ${matricula}
+    `;
+
+    bootstrap.Modal.getInstance(document.getElementById('modalCadastroRapidoCliente')).hide();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    capturarGeolocalizacao();
+
+    const form = document.getElementById('formMovimentacaoApp');
+
+    if (form) {
+        form.addEventListener('submit', function (event) {
+            const latitude = document.getElementById('latitude')?.value;
+            const longitude = document.getElementById('longitude')?.value;
+            const rfidFuncionario = document.getElementById('rfid_funcionario')?.value;
+            const rfidCliente = document.getElementById('rfid_cliente')?.value;
+
+            if (!latitude || !longitude) {
+                event.preventDefault();
+                alert('Não foi possível capturar a geolocalização.');
+                return false;
+            }
+
+            if (!rfidFuncionario) {
+                event.preventDefault();
+                alert('Faça a leitura NFC do funcionário Tradimaq.');
+                return false;
+            }
+
+            if (!rfidCliente) {
+                event.preventDefault();
+                alert('Faça a leitura NFC do cliente/operador.');
+                return false;
+            }
+        });
+    }
+});
+</script>
+
+{% endblock %}  

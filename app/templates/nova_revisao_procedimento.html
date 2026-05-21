@@ -1,0 +1,220 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Nova Revisão do Procedimento{% endblock %}
+
+{% block conteudo %}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+
+    <div style="width: 40px;"></div>
+
+    <div class="text-center flex-grow-1">
+        <h2 class="page-title">
+            <i class="bi bi-arrow-repeat me-2"></i>
+            Nova Revisão do Procedimento
+        </h2>
+    </div>
+
+    <div style="width: 40px;"></div>
+
+</div>
+
+<div class="page-header-line"></div>
+<hr>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <h5 class="text-laranja mb-3">Dados do Procedimento</h5>
+
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Tipo de Documento</label>
+                <input type="text"
+                       class="form-control"
+                       value="{{ procedimento.sigla }} - {{ procedimento.descricao_tipo if procedimento.descricao_tipo else '' }}"
+                       readonly>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">Número</label>
+                <input type="text"
+                       class="form-control"
+                       value="{{ procedimento.numero_documento }}"
+                       readonly>
+            </div>
+
+            <div class="col-md-7">
+                <label class="form-label">Título</label>
+                <input type="text"
+                       class="form-control"
+                       value="{{ procedimento.titulo }}"
+                       readonly>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <h5 class="text-laranja mb-3">Revisão Vigente</h5>
+
+        <div class="row g-3">
+            <div class="col-md-2">
+                <label class="form-label">Revisão Atual</label>
+                <input type="text"
+                       class="form-control"
+                       value="{% if revisao_vigente and revisao_vigente.numero_revisao is not none %}{{ '%02d'|format(revisao_vigente.numero_revisao) }}{% endif %}"
+                       readonly>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Data da Revisão</label>
+                <input type="text"
+                       class="form-control"
+                       value="{% if revisao_vigente and revisao_vigente.data_revisao %}{{ revisao_vigente.data_revisao.strftime('%d/%m/%Y') if revisao_vigente.data_revisao.strftime is defined else revisao_vigente.data_revisao }}{% endif %}"
+                       readonly>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Elaborado por</label>
+                <input type="text"
+                       class="form-control"
+                       value="{{ revisao_vigente.elaborado_por if revisao_vigente and revisao_vigente.elaborado_por else '' }}"
+                       readonly>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Aprovado por</label>
+                <input type="text"
+                       class="form-control"
+                       value="{{ revisao_vigente.aprovado_por if revisao_vigente and revisao_vigente.aprovado_por else '' }}"
+                       readonly>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Requer Treinamento?</label>
+                <input type="text"
+                       class="form-control"
+                       value="{% if revisao_vigente %}{{ 'Sim' if revisao_vigente.requer_treinamento else 'Não' }}{% endif %}"
+                       readonly>
+            </div>
+
+            <div class="col-md-8 d-flex align-items-end">
+                {% if revisao_vigente and revisao_vigente.arquivo_pdf %}
+                    <a href="{{ url_for('static', filename='evidencias/' ~ revisao_vigente.arquivo_pdf) }}"
+                       target="_blank"
+                       class="btn btn-cinza">
+                        <i class="bi bi-file-earmark-pdf me-1"></i> Visualizar PDF vigente
+                    </a>
+                {% endif %}
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Observações</label>
+                <textarea class="form-control" rows="3" readonly>{% if revisao_vigente and revisao_vigente.observacoes %}{{ revisao_vigente.observacoes }}{% endif %}</textarea>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="POST"
+      enctype="multipart/form-data"
+      action="{{ url_for('main.nova_revisao_procedimento', id=procedimento.id) }}">
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Cadastrar Nova Revisão</h5>
+
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label for="numero_revisao" class="form-label">Nova Revisão</label>
+                    <input type="number"
+                           class="form-control"
+                           id="numero_revisao"
+                           name="numero_revisao"
+                           min="0"
+                           step="1"
+                           value="{{ proxima_revisao if proxima_revisao is not none else '' }}"
+                           required>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="data_revisao" class="form-label">Data da Revisão</label>
+                    <input type="date"
+                           class="form-control"
+                           id="data_revisao"
+                           name="data_revisao"
+                           required>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="elaborado_por" class="form-label">Elaborado por</label>
+                    <input type="text"
+                           class="form-control"
+                           id="elaborado_por"
+                           name="elaborado_por">
+                </div>
+
+                <div class="col-md-4">
+                    <label for="aprovado_por" class="form-label">Aprovado por</label>
+                    <input type="text"
+                           class="form-control"
+                           id="aprovado_por"
+                           name="aprovado_por">
+                </div>
+
+                <div class="col-md-6">
+                    <label for="arquivo_pdf" class="form-label">Arquivo PDF</label>
+                    <input type="file"
+                           class="form-control"
+                           id="arquivo_pdf"
+                           name="arquivo_pdf"
+                           accept=".pdf">
+                </div>
+
+                <div class="col-md-6 d-flex align-items-end">
+                    <div class="form-check mb-2">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               value="1"
+                               id="requer_treinamento"
+                               name="requer_treinamento">
+                        <label class="form-check-label" for="requer_treinamento">
+                            Esta revisão requer treinamento
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <label for="observacoes" class="form-label">Observações</label>
+                    <textarea class="form-control"
+                              id="observacoes"
+                              name="observacoes"
+                              rows="4"></textarea>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end mt-4 gap-2">
+                <a href="{{ url_for('main.listar_procedimentos') }}" class="btn btn-cinza">
+                    Cancelar
+                </a>
+                <button type="submit" class="btn btn-laranja">
+                    Salvar Nova Revisão
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+
+{% endblock %}

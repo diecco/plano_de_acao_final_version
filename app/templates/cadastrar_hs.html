@@ -1,0 +1,181 @@
+{% extends 'layout.html' %}
+
+{% block titulo %}Cadastro de Hora de Segurança{% endblock %}
+
+{% block conteudo %}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+
+    <div style="width: 40px;"></div>
+
+    <div class="text-center flex-grow-1">
+        <h2 class="page-title">
+            <i class="bi bi-shield-check me-2"></i>
+            Cadastro de Hora de Segurança
+        </h2>
+    </div>
+
+    <div style="width: 40px;"></div>
+
+</div>
+
+<div class="page-header-line"></div>
+<hr>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <h5 class="text-laranja mb-3">Cadastrar Tema</h5>
+
+        <form method="POST" action="/cadastrar_hs/tema">
+            <div class="mb-3">
+                <label for="nome_tema" class="form-label">Nome do Tema</label>
+                <input type="text" class="form-control" id="nome_tema" name="nome_tema" required>
+            </div>
+
+            <div class="row g-2 mt-3">
+                <div class="col-md-6 d-grid">
+                    <button type="submit" class="btn btn-laranja">Salvar</button>
+                </div>
+                <div class="col-md-6 d-grid">
+                    <a href="/dashboard" class="btn btn-cinza">Voltar</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <h5 class="text-laranja mb-3">Temas Cadastrados</h5>
+
+        <div class="table-responsive">
+            <table class="table table-striped mt-3 align-middle">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">ID</th>
+                        <th>Nome</th>
+                        <th style="width: 120px;">Status</th>
+                        <th style="width: 260px;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tema in temas %}
+                    <tr>
+                        <td class="text-center">{{ tema.id }}</td>
+                        <td>{{ tema.nome }}</td>
+                        <td class="text-center">
+                            {% if tema.status == 1 %}
+                                <span class="badge bg-success">Ativo</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inativo</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div class="row g-2">
+                                <div class="col-6 d-grid">
+                                    <a href="/cadastrar_hs?id_tema={{ tema.id }}" class="btn btn-cinza">Selecionar</a>
+                                </div>
+                                <div class="col-6 d-grid">
+                                    {% if tema.status == 1 %}
+                                        <a href="/desabilitar_hs/tema/{{ tema.id }}" class="btn btn-vermelho">Desabilitar</a>
+                                    {% else %}
+                                        <a href="/habilitar_hs/tema/{{ tema.id }}" class="btn btn-verde">Habilitar</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if tema_atual %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <h5 class="text-laranja mb-3">Tema Atual: {{ tema_atual.nome }}</h5>
+
+        <form method="POST" action="/cadastrar_hs/item" class="mb-4">
+            <input type="hidden" name="id_tema" value="{{ tema_atual.id }}">
+
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label for="texto" class="form-label">Descrição do Item</label>
+                    <input type="text" class="form-control" id="texto" name="texto" required>
+                </div>
+
+                <div class="col-md-2">
+                    <label for="ordem" class="form-label">Ordem</label>
+                    <input type="number" class="form-control" id="ordem" name="ordem" min="1">
+                </div>
+
+                <div class="col-md-2 d-grid align-items-end">
+                    <label class="form-label invisible">Ação</label>
+                    <button type="submit" class="btn btn-laranja">Adicionar</button>
+                </div>
+            </div>
+        </form>
+
+        <h5 class="text-laranja">Itens do Tema</h5>
+
+        <div class="table-responsive">
+            <table class="table table-striped mt-3 align-middle">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">ID</th>
+                        <th>Descrição</th>
+                        <th style="width: 80px;">Ordem</th>
+                        <th style="width: 120px;">Status</th>
+                        <th style="width: 260px;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in itens_tema %}
+                    <tr>
+                        <td class="text-center">{{ item.id }}</td>
+                        <td>{{ item.texto }}</td>
+                        <td class="text-center">{{ item.ordem }}</td>
+                        <td class="text-center">
+                            {% if item.status == 1 %}
+                                <span class="badge bg-success">Ativo</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inativo</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div class="row g-2">
+                                <div class="col-6 d-grid">
+                                    <a href="/editar_hs/item/{{ item.id }}" class="btn btn-laranja">Editar</a>
+                                </div>
+                                <div class="col-6 d-grid">
+                                    {% if item.status == 1 %}
+                                        <a href="/desabilitar_hs/item/{{ item.id }}" class="btn btn-vermelho">Desabilitar</a>
+                                    {% else %}
+                                        <a href="/habilitar_hs/item/{{ item.id }}" class="btn btn-verde">Habilitar</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

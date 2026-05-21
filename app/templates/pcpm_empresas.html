@@ -1,0 +1,408 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Empresas{% endblock %}
+
+{% block conteudo %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-buildings me-2"></i>
+        Empresas
+    </h2>
+</div>
+
+<hr>
+
+<!-- CARD SUPERIOR -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+
+        <div class="d-flex justify-content-end">
+
+            <button type="button"
+                    class="btn btn-laranja"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalCadastrarEmpresaPCPM">
+
+                <i class="bi bi-plus-circle"></i>
+                Nova Empresa
+            </button>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- TABELA -->
+<div class="card shadow-sm border-0">
+
+    <div class="card-body">
+
+        <div class="table-responsive">
+
+            <table class="table table-bordered align-middle table-fixed">
+
+                <thead class="table-light">
+
+                    <tr>
+
+                        <th style="width: 100px;">
+                            <div class="d-flex justify-content-between align-items-center">
+
+                                <span class="th-label">ID</span>
+
+                                <span class="btn-group btn-group-sm">
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar crescente"
+                                       href="{{ url_for('main.pcpm_empresas', sort='id', order='asc') }}">
+
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar decrescente"
+                                       href="{{ url_for('main.pcpm_empresas', sort='id', order='desc') }}">
+
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+
+                                </span>
+
+                            </div>
+                        </th>
+
+                        <th>
+                            <div class="d-flex justify-content-between align-items-center">
+
+                                <span class="th-label">Nome</span>
+
+                                <span class="btn-group btn-group-sm">
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar crescente"
+                                       href="{{ url_for('main.pcpm_empresas', sort='nome', order='asc') }}">
+
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar decrescente"
+                                       href="{{ url_for('main.pcpm_empresas', sort='nome', order='desc') }}">
+
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+
+                                </span>
+
+                            </div>
+                        </th>
+
+                        <th style="width: 140px;" class="text-center">
+                            Status
+                        </th>
+
+                        <th style="width: 140px;" class="text-center">
+                            Ações
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for empresa in empresas %}
+
+                    <tr>
+
+                        <td class="text-center">
+                            {{ empresa.id }}
+                        </td>
+
+                        <td>
+                            {{ empresa.nome }}
+                        </td>
+
+                        <td class="text-center">
+
+                            {% if empresa.ativo %}
+
+                                <span class="badge bg-success">
+                                    Ativo
+                                </span>
+
+                            {% else %}
+
+                                <span class="badge bg-danger">
+                                    Inativo
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+
+                            <div class="d-flex justify-content-center gap-2">
+
+                                <!-- EDITAR -->
+                                <button type="button"
+                                        class="btn-acao-icon"
+                                        title="Editar"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalEditarEmpresaPCPM"
+                                        data-id="{{ empresa.id }}"
+                                        data-nome="{{ empresa.nome }}">
+
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+
+                                <!-- ATIVAR / INATIVAR -->
+                                {% if empresa.ativo %}
+
+                                <form method="POST"
+                                      action="{{ url_for('main.inativar_pcpm_empresa', id=empresa.id) }}"
+                                      onsubmit="return confirm('Deseja inativar esta empresa?');">
+
+                                    <button type="submit"
+                                            class="btn-acao-icon"
+                                            title="Inativar">
+
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
+
+                                </form>
+
+                                {% else %}
+
+                                <form method="POST"
+                                      action="{{ url_for('main.ativar_pcpm_empresa', id=empresa.id) }}"
+                                      onsubmit="return confirm('Deseja ativar esta empresa?');">
+
+                                    <button type="submit"
+                                            class="btn-acao-icon"
+                                            title="Ativar">
+
+                                        <i class="bi bi-check-circle"></i>
+                                    </button>
+
+                                </form>
+
+                                {% endif %}
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                    {% else %}
+
+                    <tr>
+                        <td colspan="4" class="text-center">
+                            Nenhuma empresa cadastrada.
+                        </td>
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- MODAL CADASTRAR -->
+<div class="modal fade"
+     id="modalCadastrarEmpresaPCPM"
+     tabindex="-1"
+     aria-labelledby="modalCadastrarEmpresaPCPMLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog">
+
+        <div class="modal-content">
+
+            <form method="POST"
+                  action="{{ url_for('main.cadastrar_pcpm_empresa') }}">
+
+                <div class="modal-header modal-header-trackplan">
+
+                    <h5 class="modal-title"
+                        id="modalCadastrarEmpresaPCPMLabel">
+
+                        <i class="bi bi-plus-circle"></i>
+                        Nova Empresa
+                    </h5>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Fechar">
+                    </button>
+
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="mb-3">
+
+                        <label for="nome"
+                               class="form-label">
+
+                            Nome
+                        </label>
+
+                        <input type="text"
+                               name="nome"
+                               id="nome"
+                               class="form-control"
+                               maxlength="150"
+                               required
+                               placeholder="Ex: Gerdau">
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+
+                    <button type="button"
+                            class="btn btn-cinza"
+                            data-bs-dismiss="modal">
+
+                        Voltar
+                    </button>
+
+                    <button type="submit"
+                            class="btn btn-laranja">
+
+                        Salvar
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- MODAL EDITAR -->
+<div class="modal fade"
+     id="modalEditarEmpresaPCPM"
+     tabindex="-1"
+     aria-labelledby="modalEditarEmpresaPCPMLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog">
+
+        <div class="modal-content">
+
+            <form method="POST"
+                  action="{{ url_for('main.editar_pcpm_empresa', id=0) }}"
+                  id="formEditarEmpresaPCPM"
+                  data-action-template="{{ url_for('main.editar_pcpm_empresa', id=0) }}">
+
+                <div class="modal-header modal-header-trackplan">
+
+                    <h5 class="modal-title"
+                        id="modalEditarEmpresaPCPMLabel">
+
+                        <i class="bi bi-pencil-square"></i>
+                        Editar Empresa
+                    </h5>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Fechar">
+                    </button>
+
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="mb-3">
+
+                        <label for="editar_nome"
+                               class="form-label">
+
+                            Nome
+                        </label>
+
+                        <input type="text"
+                               name="nome"
+                               id="editar_nome"
+                               class="form-control"
+                               maxlength="150"
+                               required>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+
+                    <button type="button"
+                            class="btn btn-cinza"
+                            data-bs-dismiss="modal">
+
+                        Voltar
+                    </button>
+
+                    <button type="submit"
+                            class="btn btn-laranja">
+
+                        Salvar alterações
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    const modalEditar = document.getElementById('modalEditarEmpresaPCPM');
+
+    if (modalEditar) {
+
+        modalEditar.addEventListener('show.bs.modal', function (event) {
+
+            const button = event.relatedTarget;
+
+            const id = button.getAttribute('data-id');
+            const nome = button.getAttribute('data-nome');
+
+            const form = document.getElementById('formEditarEmpresaPCPM');
+
+            const actionTemplate = form.getAttribute('data-action-template');
+
+            form.action = actionTemplate.replace('/0', '/' + id);
+
+            document.getElementById('editar_nome').value = nome;
+
+        });
+
+    }
+
+});
+
+</script>
+
+{% endblock %}

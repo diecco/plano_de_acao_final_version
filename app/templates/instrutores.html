@@ -1,0 +1,218 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Instrutores Externos{% endblock %}
+
+{% block conteudo %}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+
+    <div style="width: 40px;"></div>
+
+    <div class="text-center flex-grow-1">
+        <h2 class="page-title">
+            <i class="bi bi-person-badge me-2"></i>
+            Instrutores Externos
+        </h2>
+    </div>
+
+    <div style="width: 40px;"></div>
+
+</div>
+
+<div class="page-header-line"></div>
+<hr>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- CADASTRO -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <h5 class="text-laranja mb-3">Cadastro de Instrutor</h5>
+
+        <form method="POST" action="{{ url_for('main.instrutores') }}">
+            <div class="row g-3">
+
+                <div class="col-md-4">
+                    <label class="form-label">Nome</label>
+                    <input type="text" name="nome" class="form-control" required>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Empresa</label>
+                    <input type="text" name="empresa" class="form-control">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">E-mail</label>
+                    <input type="email" name="email" class="form-control">
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Telefone</label>
+                    <input type="text" name="telefone" class="form-control">
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label">Observações</label>
+                    <textarea name="observacoes" class="form-control" rows="2"></textarea>
+                </div>
+
+            </div>
+
+            <div class="d-flex justify-content-end mt-3">
+                <button type="submit" class="btn btn-laranja">
+                    <i class="bi bi-save me-1"></i>
+                    Salvar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- LISTA -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+
+        <h5 class="text-laranja mb-3">Instrutores Cadastrados</h5>
+
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle mb-0">
+
+                <thead class="table-light">
+                    <tr>
+                        <th>Nome</th>
+                        <th>Empresa</th>
+                        <th>E-mail</th>
+                        <th>Telefone</th>
+                        <th>Status</th>
+                        <th style="width: 160px;">Ações</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for i in instrutores %}
+                    <tr>
+
+                        <td>{{ i.nome }}</td>
+                        <td>{{ i.empresa or '-' }}</td>
+                        <td>{{ i.email or '-' }}</td>
+                        <td>{{ i.telefone or '-' }}</td>
+
+                        <td class="text-center">
+                            {% if i.ativo %}
+                                <span class="badge bg-success">Ativo</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inativo</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <div class="d-flex gap-2">
+
+                                <button class="btn btn-sm btn-laranja"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalEditar{{ i.id }}">
+                                    Editar
+                                </button>
+
+                                <form method="POST"
+                                      action="{{ url_for('main.alternar_instrutor', id=i.id) }}">
+                                    <button type="submit"
+                                            class="btn btn-sm {{ 'btn-vermelho' if i.ativo else 'btn-success' }}">
+                                        {{ 'Inativar' if i.ativo else 'Ativar' }}
+                                    </button>
+                                </form>
+
+                            </div>
+                        </td>
+
+                    </tr>
+
+                    <!-- MODAL EDITAR -->
+                    <div class="modal fade" id="modalEditar{{ i.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+
+                                <form method="POST"
+                                      action="{{ url_for('main.editar_instrutor', id=i.id) }}">
+
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Editar Instrutor</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+
+                                    <div class="modal-body">
+
+                                        <div class="mb-2">
+                                            <label>Nome</label>
+                                            <input type="text" name="nome" class="form-control"
+                                                   value="{{ i.nome or '' }}" required>
+                                        </div>
+
+                                        <div class="mb-2">
+                                            <label>Empresa</label>
+                                            <input type="text" name="empresa" class="form-control"
+                                                   value="{{ i.empresa or '' }}">
+                                        </div>
+
+                                        <div class="mb-2">
+                                            <label>E-mail</label>
+                                            <input type="email" name="email" class="form-control"
+                                                   value="{{ i.email or '' }}">
+                                        </div>
+
+                                        <div class="mb-2">
+                                            <label>Telefone</label>
+                                            <input type="text" name="telefone" class="form-control"
+                                                   value="{{ i.telefone or '' }}">
+                                        </div>
+
+                                        <div class="mb-2">
+                                            <label>Observações</label>
+                                            <textarea name="observacoes" class="form-control"
+                                                      rows="2">{{ i.observacoes or '' }}</textarea>
+                                        </div>
+
+                                    </div>
+
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">
+                                            Cancelar
+                                        </button>
+                                        <button type="submit" class="btn btn-laranja">
+                                            Salvar
+                                        </button>
+                                    </div>
+
+                                </form>
+
+                            </div>
+                        </div>
+                    </div>
+
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center">
+                            Nenhum instrutor cadastrado.
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

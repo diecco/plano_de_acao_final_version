@@ -1,89 +1,564 @@
-{% extends 'layout.html' %}
+{% extends "layout.html" %}
 
-{% block titulo %}Editar Usuário{% endblock %}
+{% block titulo %}Editar Funcionário{% endblock %}
 
 {% block conteudo %}
 
-<h2 class="mb-4 text-center text-laranja">EDITAR USUÁRIO</h2>
+<div class="d-flex align-items-center justify-content-between mb-4">
+
+    <div style="width: 40px;"></div>
+
+    <div class="text-center flex-grow-1">
+        <h2 class="page-title">
+            <i class="bi bi-pencil-square me-2"></i>
+            Editar Funcionário
+        </h2>
+    </div>
+
+    <div style="width: 40px;"></div>
+
+</div>
+
+<div class="page-header-line"></div>
 <hr>
 
-<form method="POST">
-    <div class="row">
-        <div class="col-md-6 mb-3">
-            <label for="nome" class="form-label">Nome</label>
-            <input type="text" class="form-control" id="nome" name="nome" value="{{ usuario.nome }}" required>
-        </div>
-        <div class="col-md-6 mb-3">
-            <label for="email" class="form-label">Email</label>
-            <input type="email" class="form-control" id="email" name="email" value="{{ usuario.email }}" required>
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<form method="POST" action="{{ url_for('main.editar_usuario', id=usuario.id) }}">
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Dados Básicos</h5>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="nome" class="form-label">Nome</label>
+                    <input type="text"
+                           class="form-control"
+                           id="nome"
+                           name="nome"
+                           value="{{ usuario.nome or '' }}"
+                           required>
+                </div>
+
+                <div class="col-md-2">
+                    <label for="matricula" class="form-label">Matrícula</label>
+                    <input type="text"
+                           class="form-control"
+                           id="matricula"
+                           name="matricula"
+                           value="{{ usuario.matricula or '' }}"
+                           maxlength="6"
+                           pattern="\d{6}"
+                           inputmode="numeric"
+                           oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0,6)"
+                           placeholder="000123"
+                           required>
+                </div>
+
+                <div class="col-md-2">
+                    <label for="uid_rfid" class="form-label">RFID</label>
+                    <input type="text"
+                        class="form-control"
+                        id="uid_rfid"
+                        name="uid_rfid"
+                        value="{{ usuario.uid_rfid or '' }}"
+                        placeholder="Aproxime o crachá">
+                </div>
+
+                <div class="col-md-4">
+                    <label for="email" class="form-label">E-mail</label>
+                    <input type="email"
+                           class="form-control"
+                           id="email"
+                           name="email"
+                           value="{{ usuario.email or '' }}">
+                </div>
+
+                <div class="col-md-4">
+                    <label for="centro_custos_id" class="form-label">Centro de Custos</label>
+                    <select class="form-select"
+                            id="centro_custos_id"
+                            name="centro_custos_id"
+                            required>
+                        <option value="">Selecione</option>
+                        {% for c in centros_custos %}
+                            <option value="{{ c.id }}"
+                                    data-super-id="{{ c.superintendencia_id }}"
+                                    data-super-nome="{{ c.superintendencia_nome }}"
+                                    {% if usuario.centro_custos_id == c.id %}selected{% endif %}>
+                                {{ c.codigo }} - {{ c.descricao }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="superintendencia_nome" class="form-label">Superintendência</label>
+                    <input type="text"
+                           class="form-control"
+                           id="superintendencia_nome"
+                           value="{{ usuario.nome_superintendencia or '' }}"
+                           readonly>
+                    <input type="hidden"
+                           name="superintendencia_id"
+                           id="superintendencia_id"
+                           value="{{ usuario.superintendencia_id or '' }}">
+                </div>
+
+                <div class="col-md-4">
+                    <label for="cargo_id" class="form-label">Cargo</label>
+                    <select class="form-select" id="cargo_id" name="cargo_id">
+                        <option value="">Selecione</option>
+                        {% for cargo in cargos %}
+                            <option value="{{ cargo.id }}"
+                                    {% if usuario.cargo_id == cargo.id %}selected{% endif %}>
+                                {{ cargo.nome }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="ativo" class="form-label">Status</label>
+                    <select class="form-select" id="ativo" name="ativo">
+                        <option value="1" {% if usuario.ativo %}selected{% endif %}>Ativo</option>
+                        <option value="0" {% if not usuario.ativo %}selected{% endif %}>Inativo</option>
+                    </select>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-md-6 mb-3">
-            <label for="superintendencia_id" class="form-label">Superintendência</label>
-            <input type="text" class="form-control" id="superintendencia_nome" name="superintendencia_nome" disabled>
-            <input type="hidden" id="superintendencia_id" name="superintendencia_id" value="{{ usuario.superintendencia_id }}">
-        </div>
-        <div class="col-md-6 mb-3">
-            <label for="centro_custos_id" class="form-label">Centro de Custos</label>
-            <select class="form-select" id="centro_custos_id" name="centro_custos_id" required>
-                {% for c in centros_custos %}
-                <option value="{{ c.id }}" data-superintendencia-id="{{ c.superintendencia_id }}" data-superintendencia-nome="{{ c.superintendencia_nome }}"
-                    {% if usuario.centro_custos_id == c.id %}selected{% endif %}>
-                    {{ c.codigo }} - {{ c.descricao }}
-                </option>
-                {% endfor %}
-            </select>
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Habilitações Operacionais</h5>
+
+            <div class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    <label for="funcao_temp" class="form-label">Função</label>
+                    <select class="form-select" id="funcao_temp">
+                        <option value="">Selecione</option>
+                        {% for funcao in funcoes %}
+                            <option value="{{ funcao.id }}">{{ funcao.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-5">
+                    <label for="setor_temp" class="form-label">Setor</label>
+                    <select class="form-select" id="setor_temp">
+                        <option value="">Selecione</option>
+                        {% for setor in setores %}
+                            <option value="{{ setor.id }}">{{ setor.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-laranja w-100" id="btnAdicionarHabilitacao">
+                        <i class="bi bi-plus-circle me-1"></i>
+                        Adicionar
+                    </button>
+                </div>
+
+                <div class="col-12">
+                    <div class="alert alert-light border mb-0">
+                        Cadastre aqui as combinações de <strong>função + setor</strong> para as quais o funcionário está habilitado.
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive mt-4">
+                <table class="table table-bordered align-middle mb-0" id="tabelaHabilitacoes">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Função</th>
+                            <th>Setor</th>
+                            <th style="width: 120px;">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if habilitacoes and habilitacoes|length > 0 %}
+                            {% for h in habilitacoes %}
+                            <tr class="habilitacao-row"
+                                data-funcao-id="{{ h.funcao_id }}"
+                                data-setor-id="{{ h.setor_id }}">
+                                <td>{{ h.nome_funcao }}</td>
+                                <td>{{ h.nome_setor }}</td>
+                                <td>
+                                    <button type="button" class="btn btn-vermelho btn-sm w-100 btn-remover-habilitacao">
+                                        Remover
+                                    </button>
+                                </td>
+                                <input type="hidden" name="funcao_ids[]" value="{{ h.funcao_id }}">
+                                <input type="hidden" name="setor_ids[]" value="{{ h.setor_id }}">
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr id="linhaSemHabilitacoes">
+                                <td colspan="3" class="text-center text-muted">
+                                    Nenhuma habilitação adicionada.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-md-6 mb-3">
-            <label for="perfil" class="form-label">Perfil</label>
-            <select class="form-select" id="perfil" name="perfil" required>
-                <option value="basico" {% if usuario.perfil == 'basico' %}selected{% endif %}>Básico</option>
-                <option value="intermediario" {% if usuario.perfil == 'intermediario' %}selected{% endif %}>Intermediário</option>
-                <option value="avancado" {% if usuario.perfil == 'avancado' %}selected{% endif %}>Avançado</option>
-                <option value="administrador" {% if usuario.perfil == 'administrador' %}selected{% endif %}>Administrador</option>
-            </select>
-        </div>
-        <div class="col-md-6 mb-3">
-            <label for="ativo" class="form-label">Status</label>
-            <select class="form-select" id="ativo" name="ativo" required>
-                <option value="1" {% if usuario.ativo %}selected{% endif %}>Ativo</option>
-                <option value="0" {% if not usuario.ativo %}selected{% endif %}>Inativo</option>
-            </select>
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Acesso e Papéis Especiais</h5>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="tem_acesso_sistema" class="form-label">Possui acesso ao TrackPlan?</label>
+                    <select class="form-select" id="tem_acesso_sistema" name="tem_acesso_sistema">
+                        <option value="1" {% if usuario.tem_acesso_sistema %}selected{% endif %}>Sim</option>
+                        <option value="0" {% if not usuario.tem_acesso_sistema %}selected{% endif %}>Não</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="pode_ser_instrutor" class="form-label">Pode ser instrutor?</label>
+                    <select class="form-select" id="pode_ser_instrutor" name="pode_ser_instrutor">
+                        <option value="0" {% if not usuario.pode_ser_instrutor %}selected{% endif %}>Não</option>
+                        <option value="1" {% if usuario.pode_ser_instrutor %}selected{% endif %}>Sim</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4 campo-acesso-sistema">
+                    <label for="responsavel_revisao_padrao" class="form-label">Responsável por revisão de padrão?</label>
+                    <select class="form-select" id="responsavel_revisao_padrao" name="responsavel_revisao_padrao">
+                        <option value="0" {% if not usuario.responsavel_revisao_padrao %}selected{% endif %}>Não</option>
+                        <option value="1" {% if usuario.responsavel_revisao_padrao %}selected{% endif %}>Sim</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6 campo-acesso-sistema">
+                    <label for="perfil" class="form-label">Perfil</label>
+                    <select class="form-select" id="perfil" name="perfil">
+                        <option value="">Selecione</option>
+                        <option value="basico" {% if usuario.perfil == 'basico' %}selected{% endif %}>Básico</option>
+                        <option value="intermediario" {% if usuario.perfil == 'intermediario' %}selected{% endif %}>Intermediário</option>
+                        <option value="avancado" {% if usuario.perfil == 'avancado' %}selected{% endif %}>Avançado</option>
+                        <option value="administrador" {% if usuario.perfil == 'administrador' %}selected{% endif %}>Administrador</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6 campo-acesso-sistema">
+                    <label for="nova_senha" class="form-label">Nova Senha</label>
+                    <input type="password"
+                        class="form-control"
+                        id="nova_senha"
+                        name="nova_senha">
+                    <small class="text-muted">Preencha apenas se desejar redefinir a senha.</small>
+                </div>
+
+                <div class="col-12 campo-acesso-sistema">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                            type="checkbox"
+                            id="precisa_alterar_senha"
+                            name="precisa_alterar_senha"
+                            value="1"
+                            {% if usuario.precisa_alterar_senha %}checked{% endif %}>
+                        <label class="form-check-label" for="precisa_alterar_senha">
+                            Exigir alteração de senha no próximo acesso
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="alert alert-light border mb-0">
+                        O responsável por revisão de padrão será usado automaticamente nas solicitações geradas pela Auditoria de Padrão.
+                        Apenas um funcionário ativo poderá assumir esse papel.
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <hr>
-    <div class="mb-3">
-        <label for="nova_senha" class="form-label">Redefinir Senha (opcional)</label>
-        <input type="password" class="form-control" id="nova_senha" name="nova_senha" placeholder="Digite nova senha se desejar alterar">
+    <div class="card shadow-sm border-0 mb-4 campo-acesso-sistema">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Permissões de Acesso</h5>
+
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="acesso_plano_acao"
+                               name="acesso_plano_acao"
+                               value="1"
+                               {% if usuario.acesso_plano_acao %}checked{% endif %}>
+                        <label class="form-check-label" for="acesso_plano_acao">
+                            Planos de Ação
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="acesso_ssma"
+                               name="acesso_ssma"
+                               value="1"
+                               {% if usuario.acesso_ssma %}checked{% endif %}>
+                        <label class="form-check-label" for="acesso_ssma">
+                            SSMA
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="acesso_melhoria"
+                               name="acesso_melhoria"
+                               value="1"
+                               {% if usuario.acesso_melhoria %}checked{% endif %}>
+                        <label class="form-check-label" for="acesso_melhoria">
+                            Melhorias
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="acesso_gestao_pessoas"
+                               name="acesso_gestao_pessoas"
+                               value="1"
+                               {% if usuario.acesso_gestao_pessoas %}checked{% endif %}>
+                        <label class="form-check-label" for="acesso_gestao_pessoas">
+                            Gestão de Pessoas
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="acesso_treinamentos"
+                               name="acesso_treinamentos"
+                               value="1"
+                               {% if usuario.acesso_treinamentos %}checked{% endif %}>
+                        <label class="form-check-label" for="acesso_treinamentos">
+                            Gestão de Treinamentos
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                            type="checkbox"
+                            id="acesso_procedimentos"
+                            name="acesso_procedimentos"
+                            value="1"
+                            {% if usuario.acesso_procedimentos %}checked{% endif %}>
+                        <label class="form-check-label" for="acesso_procedimentos">
+                            Procedimentos
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                            type="checkbox"
+                            id="acesso_pcpm"
+                            name="acesso_pcpm"
+                            value="1"
+                            {% if usuario.acesso_pcpm %}checked{% endif %}>
+                        <label class="form-check-label" for="acesso_pcpm">
+                            PCP-M
+                        </label>
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
     </div>
 
-    <div class="d-flex justify-content-between">
-        <button type="submit" class="btn btn-laranja">Salvar</button>
-        <a href="/usuarios" class="btn btn-cinza">Voltar</a>
+    <div class="d-flex justify-content-end gap-2">
+        <a href="{{ url_for('main.listar_usuarios') }}" class="btn btn-cinza">
+            Cancelar
+        </a>
+        <button type="submit" class="btn btn-laranja">
+            Salvar Alterações
+        </button>
     </div>
+
 </form>
 
 <script>
-    function atualizarSuperintendencia() {
-        const selectCC = document.getElementById('centro_custos_id');
-        const selectedOption = selectCC.options[selectCC.selectedIndex];
-        const nome = selectedOption.getAttribute('data-superintendencia-nome');
-        const id = selectedOption.getAttribute('data-superintendencia-id');
+    const centroCustos = document.getElementById('centro_custos_id');
+    const superNome = document.getElementById('superintendencia_nome');
+    const superId = document.getElementById('superintendencia_id');
 
-        document.getElementById('superintendencia_nome').value = nome;
-        document.getElementById('superintendencia_id').value = id;
+    if (centroCustos) {
+        centroCustos.addEventListener('change', function () {
+            const selected = this.options[this.selectedIndex];
+            superNome.value = selected.getAttribute('data-super-nome') || '';
+            superId.value = selected.getAttribute('data-super-id') || '';
+        });
     }
 
-    document.getElementById('centro_custos_id').addEventListener('change', atualizarSuperintendencia);
+    function alternarCamposAcessoSistema() {
+        const temAcesso = document.getElementById('tem_acesso_sistema');
+        const blocos = document.querySelectorAll('.campo-acesso-sistema');
+        const perfil = document.getElementById('perfil');
+        const email = document.getElementById('email');
 
-    // Atualiza ao carregar
-    window.addEventListener('DOMContentLoaded', atualizarSuperintendencia);
+        const mostrar = temAcesso && temAcesso.value === '1';
+
+        blocos.forEach(bloco => {
+            bloco.style.display = mostrar ? '' : 'none';
+        });
+
+        if (perfil) {
+            perfil.required = mostrar;
+            if (!mostrar) perfil.value = '';
+        }
+
+        if (email) {
+            email.required = mostrar;
+        }
+    }
+
+    function atualizarLinhaVazia() {
+        const tbody = document.querySelector('#tabelaHabilitacoes tbody');
+        const linhas = tbody.querySelectorAll('tr.habilitacao-row');
+        let linhaVazia = document.getElementById('linhaSemHabilitacoes');
+
+        if (linhas.length === 0) {
+            if (!linhaVazia) {
+                linhaVazia = document.createElement('tr');
+                linhaVazia.id = 'linhaSemHabilitacoes';
+                linhaVazia.innerHTML = `
+                    <td colspan="3" class="text-center text-muted">
+                        Nenhuma habilitação adicionada.
+                    </td>
+                `;
+                tbody.appendChild(linhaVazia);
+            }
+        } else if (linhaVazia) {
+            linhaVazia.remove();
+        }
+    }
+
+    function criarInputHidden(name, value) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        return input;
+    }
+
+    function adicionarHabilitacao(funcaoId, funcaoNome, setorId, setorNome) {
+        const tbody = document.querySelector('#tabelaHabilitacoes tbody');
+
+        const existente = Array.from(tbody.querySelectorAll('tr.habilitacao-row')).some(row => {
+            return row.dataset.funcaoId === String(funcaoId) && row.dataset.setorId === String(setorId);
+        });
+
+        if (existente) {
+            alert('Essa combinação de função e setor já foi adicionada.');
+            return;
+        }
+
+        const tr = document.createElement('tr');
+        tr.classList.add('habilitacao-row');
+        tr.dataset.funcaoId = funcaoId;
+        tr.dataset.setorId = setorId;
+
+        tr.innerHTML = `
+            <td>${funcaoNome}</td>
+            <td>${setorNome}</td>
+            <td>
+                <button type="button" class="btn btn-vermelho btn-sm w-100 btn-remover-habilitacao">
+                    Remover
+                </button>
+            </td>
+        `;
+
+        tr.appendChild(criarInputHidden('funcao_ids[]', funcaoId));
+        tr.appendChild(criarInputHidden('setor_ids[]', setorId));
+
+        tbody.appendChild(tr);
+        atualizarLinhaVazia();
+
+        tr.querySelector('.btn-remover-habilitacao').addEventListener('click', function () {
+            tr.remove();
+            atualizarLinhaVazia();
+        });
+    }
+
+    function ativarBotoesRemoverExistentes() {
+        document.querySelectorAll('.btn-remover-habilitacao').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const tr = btn.closest('tr');
+                if (tr) {
+                    tr.remove();
+                    atualizarLinhaVazia();
+                }
+            });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        alternarCamposAcessoSistema();
+
+        const temAcesso = document.getElementById('tem_acesso_sistema');
+        if (temAcesso) {
+            temAcesso.addEventListener('change', alternarCamposAcessoSistema);
+        }
+
+        ativarBotoesRemoverExistentes();
+        atualizarLinhaVazia();
+
+        const btnAdicionar = document.getElementById('btnAdicionarHabilitacao');
+        const funcaoTemp = document.getElementById('funcao_temp');
+        const setorTemp = document.getElementById('setor_temp');
+
+        if (btnAdicionar) {
+            btnAdicionar.addEventListener('click', function () {
+                const funcaoId = funcaoTemp.value;
+                const setorId = setorTemp.value;
+
+                const funcaoNome = funcaoTemp.options[funcaoTemp.selectedIndex]?.text || '';
+                const setorNome = setorTemp.options[setorTemp.selectedIndex]?.text || '';
+
+                if (!funcaoId || !setorId) {
+                    alert('Selecione a função e o setor para adicionar a habilitação.');
+                    return;
+                }
+
+                adicionarHabilitacao(funcaoId, funcaoNome, setorId, setorNome);
+
+                funcaoTemp.value = '';
+                setorTemp.value = '';
+            });
+        }
+    });
 </script>
 
 {% endblock %}

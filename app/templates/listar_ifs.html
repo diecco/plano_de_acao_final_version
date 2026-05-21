@@ -1,0 +1,593 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Inspeções de Frente de Serviço{% endblock %}
+
+{% block conteudo %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-clipboard2-check me-2"></i>
+        Inspeções de Frente de Serviço
+    </h2>
+</div>
+<hr>
+
+<!-- FILTROS -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('main.listar_ifs') }}" id="formFiltrosIFS">
+
+            <div class="row g-3 align-items-end">
+
+                <div class="col-md-4 position-relative">
+                    <label for="profissional_sesmt_busca" class="form-label">Profissional do SESMT</label>
+
+                    <input type="hidden"
+                           name="profissional_sesmt_id"
+                           id="profissional_sesmt_id"
+                           value="{{ filtros.get('profissional_sesmt_id', '') }}">
+
+                    <input type="text"
+                           class="form-control"
+                           id="profissional_sesmt_busca"
+                           placeholder="Digite matrícula ou nome..."
+                           autocomplete="off">
+
+                    <div id="listaProfissionaisSESMT"
+                         class="list-group position-absolute w-100 shadow-sm"
+                         style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+                    </div>
+                </div>
+
+                <div class="col-md-2">
+                    <label for="data_inicio" class="form-label">Data inicial</label>
+                    <input type="date"
+                           id="data_inicio"
+                           name="data_inicio"
+                           class="form-control"
+                           value="{{ filtros.get('data_inicio', '') }}">
+                </div>
+
+                <div class="col-md-2">
+                    <label for="data_fim" class="form-label">Data final</label>
+                    <input type="date"
+                           id="data_fim"
+                           name="data_fim"
+                           class="form-control"
+                           value="{{ filtros.get('data_fim', '') }}">
+                </div>
+
+                <div class="col-md-4">
+                    <div class="d-flex gap-2 justify-content-end flex-wrap">
+                        <button type="submit" class="btn btn-laranja" title="Filtrar">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+
+                        <a href="{{ url_for('main.listar_ifs', limpar=1) }}" class="btn btn-cinza" title="Limpar">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+
+                        <a href="{{ url_for('main.lancar_ifs') }}" class="btn btn-laranja" title="Nova IFS">
+                            <i class="bi bi-plus-circle"></i>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<!-- TABELA -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle table-fixed" id="tabelaIFS">
+                <thead class="table-light">
+                    <tr>
+
+                        <th style="width: 120px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Data</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 ps-1 text-muted"
+                                       title="Filtrar"
+                                       href="#filtroHeaderDataIFS"
+                                       data-bs-toggle="collapse"
+                                       role="button">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_ifs',
+                                           profissional_sesmt_id=filtros.get('profissional_sesmt_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='data_inspecao',
+                                           order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_ifs',
+                                           profissional_sesmt_id=filtros.get('profissional_sesmt_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='data_inspecao',
+                                           order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderDataIFS" class="collapse mt-2">
+                                <div class="d-flex flex-column gap-1">
+                                    <input type="date"
+                                           class="form-control form-control-sm"
+                                           value="{{ filtros.get('data_inicio', '') }}"
+                                           onchange="aplicarFiltroIFS('data_inicio', this.value);">
+
+                                    <input type="date"
+                                           class="form-control form-control-sm"
+                                           value="{{ filtros.get('data_fim', '') }}"
+                                           onchange="aplicarFiltroIFS('data_fim', this.value);">
+                                </div>
+                            </div>
+                        </th>
+
+                        <th style="width: 110px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Hora</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_ifs',
+                                           profissional_sesmt_id=filtros.get('profissional_sesmt_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='hora_inspecao',
+                                           order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_ifs',
+                                           profissional_sesmt_id=filtros.get('profissional_sesmt_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='hora_inspecao',
+                                           order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 260px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Profissional SESMT</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 ps-1 text-muted"
+                                       title="Filtrar"
+                                       href="#filtroHeaderProfissionalIFS"
+                                       data-bs-toggle="collapse"
+                                       role="button">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_ifs',
+                                           profissional_sesmt_id=filtros.get('profissional_sesmt_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='profissional_sesmt',
+                                           order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_ifs',
+                                           profissional_sesmt_id=filtros.get('profissional_sesmt_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='profissional_sesmt',
+                                           order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderProfissionalIFS" class="collapse mt-2">
+                                <select class="form-select form-select-sm"
+                                        onchange="aplicarFiltroIFS('profissional_sesmt_id', this.value);">
+                                    <option value="">Todos</option>
+                                    {% for u in usuarios %}
+                                        <option value="{{ u.id }}" {% if filtros.get('profissional_sesmt_id') == u.id|string %}selected{% endif %}>
+                                            {% if u.matricula %}{{ u.matricula }} - {% endif %}{{ u.nome }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </th>
+
+                        <th>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Atividade / OS</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_ifs',
+                                           profissional_sesmt_id=filtros.get('profissional_sesmt_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='descricao_atividade_os',
+                                           order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_ifs',
+                                           profissional_sesmt_id=filtros.get('profissional_sesmt_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='descricao_atividade_os',
+                                           order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 120px;" class="text-center">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Itens</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_ifs',
+                                           profissional_sesmt_id=filtros.get('profissional_sesmt_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='total_itens_avaliados',
+                                           order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_ifs',
+                                           profissional_sesmt_id=filtros.get('profissional_sesmt_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='total_itens_avaliados',
+                                           order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 120px;" class="text-center">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">NC</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_ifs',
+                                           profissional_sesmt_id=filtros.get('profissional_sesmt_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='total_nao_conformidades',
+                                           order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_ifs',
+                                           profissional_sesmt_id=filtros.get('profissional_sesmt_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='total_nao_conformidades',
+                                           order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 120px;" class="text-center">
+                            <span class="th-label">Ações</span>
+                        </th>
+
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for ifs in inspecoes %}
+                    <tr>
+
+                        <td class="text-center">
+                            {{ ifs.data_inspecao.strftime('%d/%m/%Y') if ifs.data_inspecao and ifs.data_inspecao.strftime else ifs.data_inspecao }}
+                        </td>
+
+                        <td class="text-center">
+                            {{ ifs.hora_inspecao.strftime('%H:%M') if ifs.hora_inspecao and ifs.hora_inspecao.strftime else ifs.hora_inspecao }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ ifs.profissional_sesmt_nome }}">
+                            {{ ifs.profissional_sesmt_nome or '-' }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ ifs.descricao_atividade_os }}">
+                            {{ ifs.descricao_atividade_os or '-' }}
+                        </td>
+
+                        <td class="text-center">
+                            <span class="badge bg-secondary">
+                                {{ ifs.total_itens_avaliados or 0 }}
+                            </span>
+                        </td>
+
+                        <td class="text-center">
+                            {% if ifs.total_nao_conformidades and ifs.total_nao_conformidades > 0 %}
+                                <span class="badge bg-danger">
+                                    {{ ifs.total_nao_conformidades }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-success">
+                                    0
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-2">
+
+                                {% if ifs.criado_por == session.get('usuario_id') or session.get('perfil') == 'administrador' %}
+
+                                    <a href="{{ url_for('main.editar_ifs', id=ifs.id) }}"
+                                       class="btn-acao-icon"
+                                       title="Editar">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
+
+                                    <form method="POST"
+                                          action="{{ url_for('main.excluir_ifs', id=ifs.id) }}"
+                                          onsubmit="return confirm('Tem certeza que deseja excluir esta IFS?');"
+                                          style="display:inline;">
+                                        <button type="submit" class="btn-acao-icon" title="Excluir">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+
+                                {% else %}
+                                    <span class="text-muted small">Sem permissão</span>
+                                {% endif %}
+
+                            </div>
+                        </td>
+
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center">
+                            Nenhuma Inspeção de Frente de Serviço encontrada.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if total_paginas %}
+<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+
+    <div class="text-muted small">
+        Exibindo página {{ page }} de {{ total_paginas }} — {{ total_registros }} registro(s)
+    </div>
+
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for('main.listar_ifs',
+                       profissional_sesmt_id=filtros.get('profissional_sesmt_id',''),
+                       data_inicio=filtros.get('data_inicio',''),
+                       data_fim=filtros.get('data_fim',''),
+                       sort=filtros.get('sort','data_inspecao'),
+                       order=filtros.get('order','desc'),
+                       page=page-1) }}">
+                    Anterior
+                </a>
+            </li>
+
+            {% for p in range(1, total_paginas + 1) %}
+                {% if p == 1 or p == total_paginas or (p >= page - 2 and p <= page + 2) %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('main.listar_ifs',
+                               profissional_sesmt_id=filtros.get('profissional_sesmt_id',''),
+                               data_inicio=filtros.get('data_inicio',''),
+                               data_fim=filtros.get('data_fim',''),
+                               sort=filtros.get('sort','data_inspecao'),
+                               order=filtros.get('order','desc'),
+                               page=p) }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                {% elif p == page - 3 or p == page + 3 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            <li class="page-item {% if page >= total_paginas %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for('main.listar_ifs',
+                       profissional_sesmt_id=filtros.get('profissional_sesmt_id',''),
+                       data_inicio=filtros.get('data_inicio',''),
+                       data_fim=filtros.get('data_fim',''),
+                       sort=filtros.get('sort','data_inspecao'),
+                       order=filtros.get('order','desc'),
+                       page=page+1) }}">
+                    Próxima
+                </a>
+            </li>
+
+        </ul>
+    </nav>
+
+</div>
+{% endif %}
+
+<script id="usuarios-data-ifs" type="application/json">
+    {{ usuarios | tojson }}
+</script>
+
+<script>
+const usuariosDisponiveisIFS = JSON.parse(
+    document.getElementById('usuarios-data-ifs').textContent
+);
+
+function normalizarTextoIFS(texto) {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+}
+
+function formatarUsuarioIFS(usuario) {
+    const matricula = usuario.matricula || 'Sem matrícula';
+    const nome = usuario.nome || '';
+    return `${matricula} - ${nome}`;
+}
+
+function configurarBuscaUsuarioIFS(inputId, hiddenId, listaId) {
+    const input = document.getElementById(inputId);
+    const hidden = document.getElementById(hiddenId);
+    const lista = document.getElementById(listaId);
+
+    if (!input || !hidden || !lista) return;
+
+    input.addEventListener('input', function () {
+        const termo = normalizarTextoIFS(input.value);
+
+        hidden.value = '';
+        lista.innerHTML = '';
+        lista.style.display = 'none';
+
+        if (termo.length < 2) {
+            return;
+        }
+
+        const resultados = usuariosDisponiveisIFS
+            .filter(u => {
+                const textoBusca = normalizarTextoIFS(`${u.matricula || ''} ${u.nome || ''}`);
+                return textoBusca.includes(termo);
+            })
+            .slice(0, 12);
+
+        if (resultados.length === 0) {
+            lista.innerHTML = `
+                <div class="list-group-item text-muted">
+                    Nenhum funcionário encontrado.
+                </div>
+            `;
+            lista.style.display = 'block';
+            return;
+        }
+
+        resultados.forEach(usuario => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'list-group-item list-group-item-action text-start';
+
+            item.innerHTML = `
+                <strong>${usuario.matricula || '-'}</strong><br>
+                <small>${usuario.nome || ''}</small>
+            `;
+
+            item.addEventListener('click', function () {
+                input.value = formatarUsuarioIFS(usuario);
+                hidden.value = usuario.id;
+                lista.style.display = 'none';
+            });
+
+            lista.appendChild(item);
+        });
+
+        lista.style.display = 'block';
+    });
+
+    input.addEventListener('blur', function () {
+        setTimeout(function () {
+            lista.style.display = 'none';
+        }, 200);
+    });
+}
+
+function preencherFiltroProfissionalIFS() {
+    const profissionalId = document.getElementById('profissional_sesmt_id')?.value;
+
+    if (profissionalId) {
+        const usuario = usuariosDisponiveisIFS.find(u => String(u.id) === String(profissionalId));
+
+        if (usuario) {
+            document.getElementById('profissional_sesmt_busca').value = formatarUsuarioIFS(usuario);
+        }
+    }
+}
+
+function validarFiltrosDigitaveisIFS() {
+    const input = document.getElementById('profissional_sesmt_busca');
+    const hidden = document.getElementById('profissional_sesmt_id');
+
+    if (input && hidden && !hidden.value) {
+        input.value = '';
+    }
+}
+
+function aplicarFiltroIFS(param, value) {
+    const url = new URL(window.location.href);
+
+    if (value) {
+        url.searchParams.set(param, value);
+    } else {
+        url.searchParams.delete(param);
+    }
+
+    url.searchParams.delete('page');
+    window.location.href = url.toString();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    configurarBuscaUsuarioIFS(
+        'profissional_sesmt_busca',
+        'profissional_sesmt_id',
+        'listaProfissionaisSESMT'
+    );
+
+    preencherFiltroProfissionalIFS();
+
+    const formFiltrosIFS = document.getElementById('formFiltrosIFS');
+
+    if (formFiltrosIFS) {
+        formFiltrosIFS.addEventListener('submit', validarFiltrosDigitaveisIFS);
+    }
+});
+</script>
+
+{% endblock %}

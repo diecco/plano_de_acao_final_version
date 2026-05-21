@@ -1,0 +1,367 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Listar Procedimentos{% endblock %}
+
+{% block conteudo %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-file-earmark-text me-2"></i>
+        Procedimentos
+    </h2>
+</div>
+<hr>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- FILTROS -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('main.listar_procedimentos') }}">
+
+            <div class="row g-3 align-items-end">
+
+                <div class="col-md-6">
+                    <label for="tipo_documento_id" class="form-label">Tipo de Documento</label>
+                    <select name="tipo_documento_id" id="tipo_documento_id" class="form-select">
+                        <option value="">Todos</option>
+                        {% for tipo in tipos_documento %}
+                            <option value="{{ tipo.id }}"
+                                {% if filtros.get('tipo_documento_id') == tipo.id|string %}selected{% endif %}>
+                                {{ tipo.sigla }} - {{ tipo.descricao }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select name="status" id="status" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="ativo" {% if filtros.get('status') == 'ativo' %}selected{% endif %}>Ativo</option>
+                        <option value="inativo" {% if filtros.get('status') == 'inativo' %}selected{% endif %}>Inativo</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="d-flex gap-2 justify-content-end flex-wrap">
+                        <button type="submit" class="btn btn-laranja" title="Filtrar">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+
+                        <a href="{{ url_for('main.listar_procedimentos') }}" class="btn btn-cinza" title="Limpar">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+                                <a href="{{ url_for('main.procedimentos') }}" class="btn btn-laranja" title="Cadastrar Novo Procedimento">
+                            <i class="bi bi-plus-circle"></i>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<!-- TABELA -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+
+            <table class="table table-bordered align-middle table-fixed" id="tabelaProcedimentos">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 110px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Tipo</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_procedimentos',
+                                           tipo_documento_id=filtros.get('tipo_documento_id',''),
+                                           status=filtros.get('status',''),
+                                           sort='sigla', order='asc') }}"
+                                       title="Ordenar crescente">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_procedimentos',
+                                           tipo_documento_id=filtros.get('tipo_documento_id',''),
+                                           status=filtros.get('status',''),
+                                           sort='sigla', order='desc') }}"
+                                       title="Ordenar decrescente">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 ps-1 text-muted"
+                                       title="Filtrar"
+                                       href="#filtroHeaderTipo" data-bs-toggle="collapse">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderTipo" class="collapse mt-2">
+                                <select class="form-select form-select-sm"
+                                        onchange="aplicarFiltroSelect('tipo_documento_id', this.value)">
+                                    <option value="">Todos</option>
+                                    {% for tipo in tipos_documento %}
+                                        <option value="{{ tipo.id }}"
+                                            {% if filtros.get('tipo_documento_id') == tipo.id|string %}selected{% endif %}>
+                                            {{ tipo.sigla }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </th>
+
+                        <th style="width: 110px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Número</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_procedimentos',
+                                           tipo_documento_id=filtros.get('tipo_documento_id',''),
+                                           status=filtros.get('status',''),
+                                           sort='numero_documento', order='asc') }}"
+                                       title="Ordenar crescente">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_procedimentos',
+                                           tipo_documento_id=filtros.get('tipo_documento_id',''),
+                                           status=filtros.get('status',''),
+                                           sort='numero_documento', order='desc') }}"
+                                       title="Ordenar decrescente">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Título</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_procedimentos',
+                                           tipo_documento_id=filtros.get('tipo_documento_id',''),
+                                           status=filtros.get('status',''),
+                                           sort='titulo', order='asc') }}"
+                                       title="Ordenar crescente">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_procedimentos',
+                                           tipo_documento_id=filtros.get('tipo_documento_id',''),
+                                           status=filtros.get('status',''),
+                                           sort='titulo', order='desc') }}"
+                                       title="Ordenar decrescente">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 110px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Revisão</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_procedimentos',
+                                           tipo_documento_id=filtros.get('tipo_documento_id',''),
+                                           status=filtros.get('status',''),
+                                           sort='numero_revisao', order='asc') }}"
+                                       title="Ordenar crescente">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_procedimentos',
+                                           tipo_documento_id=filtros.get('tipo_documento_id',''),
+                                           status=filtros.get('status',''),
+                                           sort='numero_revisao', order='desc') }}"
+                                       title="Ordenar decrescente">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 130px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Data Revisão</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_procedimentos',
+                                           tipo_documento_id=filtros.get('tipo_documento_id',''),
+                                           status=filtros.get('status',''),
+                                           sort='data_revisao', order='asc') }}"
+                                       title="Ordenar crescente">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_procedimentos',
+                                           tipo_documento_id=filtros.get('tipo_documento_id',''),
+                                           status=filtros.get('status',''),
+                                           sort='data_revisao', order='desc') }}"
+                                       title="Ordenar decrescente">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 140px;">
+                            <span class="th-label">Treinamento</span>
+                        </th>
+
+                        <th style="width: 120px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Status</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 ps-1 text-muted"
+                                       title="Filtrar"
+                                       href="#filtroHeaderStatus" data-bs-toggle="collapse">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderStatus" class="collapse mt-2">
+                                <select class="form-select form-select-sm"
+                                        onchange="aplicarFiltroSelect('status', this.value)">
+                                    <option value="">Todos</option>
+                                    <option value="ativo" {% if filtros.get('status') == 'ativo' %}selected{% endif %}>Ativo</option>
+                                    <option value="inativo" {% if filtros.get('status') == 'inativo' %}selected{% endif %}>Inativo</option>
+                                </select>
+                            </div>
+                        </th>
+
+                        <th style="width: 150px;">
+                            <span class="th-label">Ações</span>
+                        </th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for procedimento in procedimentos %}
+                    <tr>
+                        <td class="text-center">{{ procedimento.sigla }}</td>
+
+                        <td class="text-center">{{ procedimento.numero_documento }}</td>
+
+                        <td class="td-truncate" title="{{ procedimento.titulo }}">
+                            {{ procedimento.titulo or '-' }}
+                        </td>
+
+                        <td class="text-center">
+                            {% if procedimento.numero_revisao is not none %}
+                                {{ "%02d"|format(procedimento.numero_revisao) }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <td class="text-center">
+                            {% if procedimento.data_revisao %}
+                                {% if procedimento.data_revisao.strftime is defined %}
+                                    {{ procedimento.data_revisao.strftime('%d/%m/%Y') }}
+                                {% else %}
+                                    {{ procedimento.data_revisao }}
+                                {% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <td class="text-center">
+                            {% if procedimento.requer_treinamento %}
+                                <span class="badge bg-warning text-dark">Sim</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Não</span>
+                            {% endif %}
+                        </td>
+
+                        <td class="text-center">
+                            {% if procedimento.ativo %}
+                                <span class="badge bg-success">Ativo</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inativo</span>
+                            {% endif %}
+                        </td>
+
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-2">
+
+                                <a href="{{ url_for('main.editar_procedimento', id=procedimento.id) }}"
+                                   class="btn-acao-icon"
+                                   title="Editar">
+                                    <i class="bi bi-pencil-square"></i>
+                                </a>
+
+                                {% if procedimento.arquivo_pdf %}
+                                    <a href="{{ url_for('static', filename='evidencias/' ~ procedimento.arquivo_pdf) }}"
+                                       target="_blank"
+                                       class="btn-acao-icon"
+                                       title="PDF vigente">
+                                        <i class="bi bi-file-earmark-pdf"></i>
+                                    </a>
+                                {% endif %}
+
+                                {% if procedimento.ativo %}
+                                    <form method="POST"
+                                          action="{{ url_for('main.desativar_procedimento', id=procedimento.id) }}"
+                                          onsubmit="return confirm('Tem certeza que deseja desativar este procedimento?');"
+                                          style="display:inline;">
+                                        <button type="submit" class="btn-acao-icon" title="Desativar">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <form method="POST"
+                                          action="{{ url_for('main.reativar_procedimento', id=procedimento.id) }}"
+                                          style="display:inline;">
+                                        <button type="submit" class="btn-acao-icon" title="Reativar">
+                                            <i class="bi bi-arrow-clockwise"></i>
+                                        </button>
+                                    </form>
+                                {% endif %}
+
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center">Nenhum procedimento cadastrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    function aplicarFiltroSelect(param, value) {
+        const url = new URL(window.location.href);
+
+        if (value && value.trim() !== "") {
+            url.searchParams.set(param, value.trim());
+        } else {
+            url.searchParams.delete(param);
+        }
+
+        window.location.href = url.toString();
+    }
+</script>
+
+{% endblock %}

@@ -1,0 +1,131 @@
+{% extends 'layout.html' %}
+
+{% block titulo %}Lançamento 3P’s - Parar, Processar e Prosseguir{% endblock %}
+
+{% block conteudo %}
+<h2 class="mb-4 text-center text-laranja">LANÇAR 3P’s - PARAR, PROCESSAR E PROSSEGUIR</h2>
+<hr>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<form method="POST" action="/lancar_tresp">
+  <div class="row mb-3">
+    <div class="col-md-3">
+      <label for="data" class="form-label">Data</label>
+      <input type="date" name="data" id="data" class="form-control" value="{{ hoje }}" required>
+    </div>
+    <div class="col-md-4">
+      <label for="usuario_id" class="form-label">Nome</label>
+      <select name="usuario_id" id="usuario_id" class="form-select" required>
+        <option value="">Selecione</option>
+        {% for u in usuarios %}
+          <option value="{{ u.id }}">{{ u.nome }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-5">
+      <label for="area" class="form-label">Área</label>
+      <input type="text" name="area" id="area" class="form-control" required>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label for="atividade" class="form-label">Atividade</label>
+    <input type="text" name="atividade" id="atividade" class="form-control" required>
+  </div>
+
+  <hr>
+  <h5 class="text-laranja">Perguntas de Verificação</h5>
+
+  <table class="table table-bordered align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Pergunta</th>
+        <th class="text-center">Sim</th>
+        <th class="text-center">Não</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set perguntas = {
+        "pausa_tarefa": "Foi realizada uma pausa antes de iniciar a tarefa?",
+        "riscos_avaliados": "Todos os riscos foram avaliados?",
+        "riscos_ambiente": "Foram avaliados os riscos do ambiente ao redor da atividade?",
+        "observacao_total": "Foi realizada a observação total: olhe para cima, abaixo, para trás e para dentro do ambiente?",
+        "passo_a_passo": "O passo a passo da atividade está descrito e os riscos foram colocados na balança?",
+        "hipoteses_risco": "Todas as hipóteses de risco foram levantadas? E SE?",
+        "atividade_segura": "Com base na escala de risco, a atividade está segura para ser realizada?",
+        "atividade_realizada": "ATIVIDADE FOI REALIZADA?"
+      } %}
+      {% for campo, texto in perguntas.items() %}
+      <tr>
+        <td>{{ texto }}</td>
+        <td class="text-center">
+          <input class="form-check-input" type="radio" name="{{ campo }}" id="{{ campo }}_sim" value="Sim" required>
+        </td>
+        <td class="text-center">
+          <input class="form-check-input" type="radio" name="{{ campo }}" id="{{ campo }}_nao" value="Não">
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="mb-3">
+    <label for="aprendizados" class="form-label">Oportunidades / Aprendizados</label>
+    <textarea name="aprendizados" id="aprendizados" class="form-control" rows="3"></textarea>
+  </div>
+
+  <div class="d-flex justify-content-end">
+    <button type="submit" class="btn btn-laranja">Salvar 3P</button>
+  </div>
+</form>
+
+<hr class="mt-5">
+
+<h4 class="mb-4 text-center text-laranja">REGISTROS 3P’s</h4>
+
+<div class="table-responsive">
+  <table class="table table-striped mt-3 sortable-table" id="tabelaTresp">
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Nome</th>
+        <th>Área</th>
+        <th>Atividade</th>
+        <th>Atividade Realizada?</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in registros %}
+      <tr>
+        <td>{{ r.data }}</td>
+        <td>{{ r.usuario_nome }}</td>
+        <td>{{ r.area }}</td>
+        <td>{{ r.atividade }}</td>
+        <td>{{ r.atividade_realizada }}</td>
+        <td class="align-middle text-center">
+          <div class="d-flex justify-content-center gap-2">
+            <a href="/editar_tresp/{{ r.id }}" class="btn btn-laranja btn-sm">Editar</a>
+            <form method="POST" action="/excluir_tresp/{{ r.id }}"
+                  onsubmit="return confirm('Tem certeza que deseja excluir este registro 3P?');">
+              <button type="submit" class="btn btn-vermelho btn-sm">Excluir</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends 'layout.html' %}
+
+{% block titulo %}Editar Item de Verificação{% endblock %}
+
+{% block conteudo %}
+<h2 class="mb-4 text-center text-laranja">EDITAR ITEM DE VERIFICAÇÃO</h2>
+<hr>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<form method="POST">
+    <input type="hidden" name="id_tema" value="{{ item.id_tema }}">
+    <div class="mb-3">
+        <label for="texto" class="form-label">Descrição do Item</label>
+        <input type="text" class="form-control" id="texto" name="texto" value="{{ item.texto }}" required>
+    </div>
+    <div class="mb-3">
+        <label for="ordem" class="form-label">Ordem</label>
+        <input type="number" class="form-control" id="ordem" name="ordem" value="{{ item.ordem }}">
+    </div>
+    <div class="d-flex justify-content-between">
+        <button type="submit" class="btn btn-laranja">Salvar</button>
+        <a href="{{ url_for('main.cadastrar_hs', id_tema=item.id_tema) }}" class="btn btn-cinza">Voltar</a>
+    </div>
+</form>
+{% endblock %}

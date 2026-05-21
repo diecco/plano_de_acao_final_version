@@ -1,0 +1,221 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Relatório de Treinamentos a Vencer{% endblock %}
+
+{% block conteudo %}
+
+<style>
+    .tabela-relatorio {
+        table-layout: fixed;
+        width: 100%;
+    }
+
+    .tabela-relatorio th,
+    .tabela-relatorio td {
+        vertical-align: middle !important;
+        padding: 0.5rem 0.45rem;
+    }
+
+    .col-matricula { width: 90px; text-align: center; }
+    .col-nome { width: 175px; text-align: left; word-break: break-word; }
+    .col-cargo { width: 175px; text-align: left; word-break: break-word; }
+    .col-sigla { width: 90px; text-align: center; }
+    .col-numero { width: 90px; text-align: center; }
+    .col-titulo { width: 200px; text-align: left; word-break: break-word; }
+    .col-revisao { width: 90px; text-align: center; }
+    .col-data { width: 90px; text-align: center; }
+    .col-validade { width: 90px; text-align: center; }
+    .col-dias { width: 90px; text-align: center; font-weight: 600; }
+
+    .dias-alerta {
+        color: #ea6a23;
+        font-weight: bold;
+    }
+
+    .bloco-filtros {
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 1rem;
+        background-color: #f8f9fa;
+    }
+</style>
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div style="width: 40px;"></div>
+
+    <div class="text-center flex-grow-1">
+        <h2 class="page-title">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Relatório de Treinamentos a Vencer
+        </h2>
+    </div>
+
+    <div style="width: 40px;"></div>
+</div>
+
+<div class="page-header-line"></div>
+<hr>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('main.relatorio_treinamentos_a_vencer') }}">
+
+            <div class="bloco-filtros">
+
+                <div class="row g-2 align-items-end mb-2">
+
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold mb-1">Matrícula</label>
+                        <select name="usuario_ids" id="selectMatriculas" class="form-select">
+                            <option value="">Selecione...</option>
+                            <option value="__TODOS__" {% if selecionar_todos %}selected{% endif %}>Selecionar todos</option>
+                            {% for u in usuarios %}
+                                <option value="{{ u.id }}" {% if not selecionar_todos and u.id in usuario_ids %}selected{% endif %}>
+                                    {{ u.matricula }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold mb-1">Nome</label>
+                        <select id="selectNomes" class="form-select">
+                            <option value="">Selecione...</option>
+                            <option value="__TODOS__" {% if selecionar_todos %}selected{% endif %}>Selecionar todos</option>
+                            {% for u in usuarios %}
+                                <option value="{{ u.id }}" {% if not selecionar_todos and u.id in usuario_ids %}selected{% endif %}>
+                                    {{ u.nome }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold mb-1">Cargo</label>
+                        <select name="cargo_id" class="form-select">
+                            <option value="">Todos</option>
+                            {% for cargo in cargos %}
+                                <option value="{{ cargo.id }}" {% if cargo_id == cargo.id %}selected{% endif %}>
+                                    {{ cargo.nome }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-6"></div>
+
+                    <div class="col-md-6">
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button type="submit" class="btn btn-laranja" title="Filtrar">
+                                <i class="bi bi-funnel"></i>
+                            </button>
+
+                            <a href="{{ url_for('main.relatorio_treinamentos_a_vencer') }}" class="btn btn-cinza" title="Limpar">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </a>
+                            <a href="#"
+                            class="btn btn-verde"
+                            title="Exportar Excel"
+                            onclick="event.preventDefault(); document.getElementById('formExportarExcel').submit();">
+                                <i class="bi bi-file-earmark-excel"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </form>
+                <form method="GET"
+            action="{{ url_for('main.exportar_treinamentos_a_vencer_excel') }}"
+            id="formExportarExcel"
+            style="display:none;">
+
+            <input type="hidden" name="cargo_id" value="{{ cargo_id or '' }}">
+
+            {% if selecionar_todos %}
+                <input type="hidden" name="usuario_ids" value="__TODOS__">
+            {% elif usuario_ids %}
+                {% for id in usuario_ids %}
+                    <input type="hidden" name="usuario_ids" value="{{ id }}">
+                {% endfor %}
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+
+        <div class="table-responsive">
+            <table class="table tabela-relatorio">
+                <thead>
+                    <tr>
+                        <th class="col-matricula">Matrícula</th>
+                        <th class="col-nome">Nome</th>
+                        <th class="col-cargo">Cargo</th>
+                        <th class="col-sigla">Sigla</th>
+                        <th class="col-numero">Nº Doc</th>
+                        <th class="col-titulo">Título</th>
+                        <th class="col-revisao">Revisão</th>
+                        <th class="col-data">Data</th>
+                        <th class="col-validade">Validade</th>
+                        <th class="col-dias">Dias</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for item in registros %}
+                    <tr>
+                        <td class="col-matricula text-center">{{ item.matricula or '-' }}</td>
+                        <td class="col-nome">{{ item.nome or '-' }}</td>
+                        <td class="col-cargo">{{ item.cargo_nome or '-' }}</td>
+                        <td class="col-sigla text-center">{{ item.sigla or '-' }}</td>
+                        <td class="col-numero text-center">{{ item.numero_documento or '-' }}</td>
+                        <td class="col-titulo">{{ item.titulo or '-' }}</td>
+                        <td class="col-revisao text-center">{{ item.revisao or '-' }}</td>
+                        <td class="col-data text-center">{{ item.data_realizacao_fmt or '-' }}</td>
+                        <td class="col-validade text-center">{{ item.validade_fmt or '-' }}</td>
+                        <td class="col-dias text-center">
+                            {% if item.dias_para_vencer is not none %}
+                                <span class="dias-alerta">{{ item.dias_para_vencer }}</span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted">
+                            Nenhum treinamento a vencer encontrado.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const selectMatriculas = document.getElementById('selectMatriculas');
+    const selectNomes = document.getElementById('selectNomes');
+
+    function syncSelects(source, target) {
+        target.value = source.value;
+    }
+
+    selectMatriculas.addEventListener('change', () => {
+        syncSelects(selectMatriculas, selectNomes);
+    });
+
+    selectNomes.addEventListener('change', () => {
+        syncSelects(selectNomes, selectMatriculas);
+    });
+</script>
+
+{% endblock %}

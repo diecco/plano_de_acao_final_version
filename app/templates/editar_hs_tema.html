@@ -1,0 +1,30 @@
+{% extends 'layout.html' %}
+
+{% block titulo %}Editar Tema da Hora de Segurança{% endblock %}
+
+{% block conteudo %}
+<h2 class="mb-4 text-center text-laranja">EDITAR TEMA</h2>
+<hr>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<form method="POST">
+    <div class="mb-3">
+        <label for="nome_tema" class="form-label">Nome do Tema</label>
+        <input type="text" class="form-control" id="nome_tema" name="nome_tema" value="{{ tema.nome }}" required>
+    </div>
+    <div class="d-flex justify-content-between">
+        <button type="submit" class="btn btn-laranja">Salvar</button>
+        <a href="{{ url_for('main.cadastrar_hs') }}" class="btn btn-cinza">Voltar</a>
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,371 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-lightbulb me-2"></i>
+        Melhorias Cadastradas
+    </h2>
+</div>
+<hr>
+
+<!-- FILTROS -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('main.listar_melhorias') }}">
+
+            <div class="row g-3 mb-2">
+
+                <div class="col-md-4">
+                    <label for="executante" class="form-label">Executante</label>
+                    <select class="form-select" id="executante" name="executante">
+                        <option value="">Todos</option>
+                        {% for usuario in usuarios %}
+                            <option value="{{ usuario.id }}" {% if filtros.get('executante') == usuario.id|string %}selected{% endif %}>
+                                {{ usuario.nome }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="centro_custo" class="form-label">Centro de Custo</label>
+                    <select class="form-select" id="centro_custo" name="centro_custo">
+                        <option value="">Todos</option>
+                        {% for cc in centros_custos %}
+                            <option value="{{ cc.id }}" {% if filtros.get('centro_custo') == cc.id|string %}selected{% endif %}>
+                                {{ cc.codigo }} - {{ cc.descricao }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="criado_por_mim" class="form-label">Criado por mim</label>
+                    <select class="form-select" id="criado_por_mim" name="criado_por_mim">
+                        <option value="">Todos</option>
+                        <option value="sim" {% if filtros.get('criado_por_mim') == 'sim' %}selected{% endif %}>Sim</option>
+                        <option value="nao" {% if filtros.get('criado_por_mim') == 'nao' %}selected{% endif %}>Não</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="row g-3 align-items-end">
+
+                <div class="col-md-3">
+                    <label for="data_inicio" class="form-label">Data inicial</label>
+                    <input type="date"
+                           class="form-control"
+                           id="data_inicio"
+                           name="data_inicio"
+                           value="{{ filtros.get('data_inicio', '') }}">
+                </div>
+
+                <div class="col-md-3">
+                    <label for="data_fim" class="form-label">Data final</label>
+                    <input type="date"
+                           class="form-control"
+                           id="data_fim"
+                           name="data_fim"
+                           value="{{ filtros.get('data_fim', '') }}">
+                </div>
+
+                <div class="col-md-6">
+                    <div class="d-flex gap-2 justify-content-end flex-wrap">
+                        <button type="submit" class="btn btn-laranja" title="Filtrar">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+
+                        <a href="{{ url_for('main.listar_melhorias', limpar=1) }}" class="btn btn-cinza" title="Limpar">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+
+                        <a href="{{ url_for('main.lancar_melhoria') }}" class="btn btn-laranja" title="Nova Melhoria">
+                            <i class="bi bi-plus-circle"></i>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<!-- TABELA -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+
+            <table class="table table-bordered align-middle table-fixed" id="tabelaMelhorias">
+                <thead class="table-light">
+                    <tr>
+
+                        <th style="width: 120px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Data</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_melhorias',
+                                           executante=filtros.get('executante',''),
+                                           centro_custo=filtros.get('centro_custo',''),
+                                           criado_por_mim=filtros.get('criado_por_mim',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='data', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_melhorias',
+                                           executante=filtros.get('executante',''),
+                                           centro_custo=filtros.get('centro_custo',''),
+                                           criado_por_mim=filtros.get('criado_por_mim',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='data', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 220px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Executante</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_melhorias',
+                                           executante=filtros.get('executante',''),
+                                           centro_custo=filtros.get('centro_custo',''),
+                                           criado_por_mim=filtros.get('criado_por_mim',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='executante', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_melhorias',
+                                           executante=filtros.get('executante',''),
+                                           centro_custo=filtros.get('centro_custo',''),
+                                           criado_por_mim=filtros.get('criado_por_mim',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='executante', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 ps-1 text-muted" title="Filtrar"
+                                       href="#filtroHeaderExecutante" data-bs-toggle="collapse" role="button">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderExecutante" class="collapse mt-2">
+                                <select class="form-select form-select-sm" onchange="aplicarFiltro('executante', this.value);">
+                                    <option value="">Todos</option>
+                                    {% for usuario in usuarios %}
+                                        <option value="{{ usuario.id }}" {% if filtros.get('executante') == usuario.id|string %}selected{% endif %}>
+                                            {{ usuario.nome }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </th>
+
+                        <th style="width: 260px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Centro de Custo</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_melhorias',
+                                           executante=filtros.get('executante',''),
+                                           centro_custo=filtros.get('centro_custo',''),
+                                           criado_por_mim=filtros.get('criado_por_mim',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='centro_custo', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_melhorias',
+                                           executante=filtros.get('executante',''),
+                                           centro_custo=filtros.get('centro_custo',''),
+                                           criado_por_mim=filtros.get('criado_por_mim',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='centro_custo', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 ps-1 text-muted" title="Filtrar"
+                                       href="#filtroHeaderCc" data-bs-toggle="collapse" role="button">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderCc" class="collapse mt-2">
+                                <select class="form-select form-select-sm" onchange="aplicarFiltro('centro_custo', this.value);">
+                                    <option value="">Todos</option>
+                                    {% for cc in centros_custos %}
+                                        <option value="{{ cc.id }}" {% if filtros.get('centro_custo') == cc.id|string %}selected{% endif %}>
+                                            {{ cc.codigo }} - {{ cc.descricao }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </th>
+
+                        <th>
+                            <span class="th-label">Título</span>
+                        </th>
+
+                        <th style="width: 120px;">
+                            <span class="th-label">Ações</span>
+                        </th>
+
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for m in melhorias %}
+                    <tr>
+                        <td class="text-center">
+                            {{ m.data.strftime('%d/%m/%Y') if m.data and m.data.strftime else m.data }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ m.nome_executante }}">
+                            {{ m.nome_executante or '-' }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ m.codigo_cc }} - {{ m.descricao_cc }}">
+                            {{ m.codigo_cc }} - {{ m.descricao_cc }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ m.titulo }}">
+                            {{ m.titulo or '-' }}
+                        </td>
+
+                        <td class="text-center">
+                            {% if m.criado_por == session.get('usuario_id') %}
+                                <div class="d-flex justify-content-center gap-2">
+                                    <a href="{{ url_for('main.editar_melhoria', id=m.id) }}"
+                                       class="btn-acao-icon"
+                                       title="Editar">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
+
+                                    <a href="{{ url_for('main.excluir_melhoria', id=m.id) }}"
+                                       class="btn-acao-icon"
+                                       title="Excluir"
+                                       onclick="return confirm('Tem certeza que deseja excluir esta melhoria?');">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            {% else %}
+                                <span class="text-muted">Sem permissão</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center">Nenhuma melhoria encontrada.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+</div>
+
+{% if total_paginas %}
+<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+
+    <div class="text-muted small">
+        Exibindo página {{ page }} de {{ total_paginas }} — {{ total_registros }} registro(s)
+    </div>
+
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for('main.listar_melhorias',
+                       executante=filtros.get('executante',''),
+                       centro_custo=filtros.get('centro_custo',''),
+                       criado_por_mim=filtros.get('criado_por_mim',''),
+                       data_inicio=filtros.get('data_inicio',''),
+                       data_fim=filtros.get('data_fim',''),
+                       sort=filtros.get('sort','data'),
+                       order=filtros.get('order','desc'),
+                       page=page-1) }}">
+                    Anterior
+                </a>
+            </li>
+
+            {% for p in range(1, total_paginas + 1) %}
+                {% if p == 1 or p == total_paginas or (p >= page - 2 and p <= page + 2) %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('main.listar_melhorias',
+                               executante=filtros.get('executante',''),
+                               centro_custo=filtros.get('centro_custo',''),
+                               criado_por_mim=filtros.get('criado_por_mim',''),
+                               data_inicio=filtros.get('data_inicio',''),
+                               data_fim=filtros.get('data_fim',''),
+                               sort=filtros.get('sort','data'),
+                               order=filtros.get('order','desc'),
+                               page=p) }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                {% elif p == page - 3 or p == page + 3 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            <li class="page-item {% if page >= total_paginas %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for('main.listar_melhorias',
+                       executante=filtros.get('executante',''),
+                       centro_custo=filtros.get('centro_custo',''),
+                       criado_por_mim=filtros.get('criado_por_mim',''),
+                       data_inicio=filtros.get('data_inicio',''),
+                       data_fim=filtros.get('data_fim',''),
+                       sort=filtros.get('sort','data'),
+                       order=filtros.get('order','desc'),
+                       page=page+1) }}">
+                    Próxima
+                </a>
+            </li>
+
+        </ul>
+    </nav>
+
+</div>
+{% endif %}
+
+<script>
+function aplicarFiltro(param, value) {
+    const url = new URL(window.location.href);
+
+    if (value) {
+        url.searchParams.set(param, value);
+    } else {
+        url.searchParams.delete(param);
+    }
+
+    window.location.href = url.toString();
+}
+</script>
+
+{% endblock %}

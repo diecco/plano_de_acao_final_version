@@ -1,0 +1,774 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Lançar Treinamento Realizado{% endblock %}
+
+{% block conteudo %}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+
+    <div style="width: 40px;"></div>
+
+    <div class="text-center flex-grow-1">
+        <h2 class="page-title">
+            <i class="bi bi-journal-check me-2"></i>
+            Lançar Treinamento Realizado
+        </h2>
+    </div>
+
+    <div style="width: 40px;"></div>
+
+</div>
+
+<div class="page-header-line"></div>
+<hr>
+
+<form method="POST"
+      action="{{ url_for('main.treinamentos_realizados') }}"
+      enctype="multipart/form-data"
+      id="formTreinamentoRealizado">
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">
+                <i class="bi bi-clipboard-data me-2"></i>
+                Dados do Treinamento
+            </h5>
+
+            <div class="row g-3">
+
+                <div class="col-md-5 position-relative">
+                    <label for="procedimento_busca" class="form-label">Procedimento</label>
+
+                    <input type="hidden" id="procedimento_id" name="procedimento_id" required>
+
+                    <input type="text"
+                           class="form-control"
+                           id="procedimento_busca"
+                           placeholder="Digite a sigla, número ou nome do procedimento..."
+                           autocomplete="off"
+                           required>
+
+                    <div id="listaProcedimentos"
+                         class="list-group position-absolute w-100 shadow-sm"
+                         style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="procedimento_revisao_id" class="form-label">Revisão</label>
+                    <select class="form-select" id="procedimento_revisao_id" name="procedimento_revisao_id" required>
+                        <option value="">Selecione o procedimento primeiro</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="local_treinamento" class="form-label">Local</label>
+                    <input type="text"
+                           class="form-control"
+                           id="local_treinamento"
+                           name="local_treinamento"
+                           maxlength="150"
+                           required>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="data_treinamento" class="form-label">Data</label>
+                    <input type="date"
+                           class="form-control"
+                           id="data_treinamento"
+                           name="data_treinamento"
+                           required>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="hora_inicio" class="form-label">Hora Início</label>
+                    <input type="time"
+                           class="form-control"
+                           id="hora_inicio"
+                           name="hora_inicio"
+                           required>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="hora_fim" class="form-label">Hora Fim</label>
+                    <input type="time"
+                           class="form-control"
+                           id="hora_fim"
+                           name="hora_fim"
+                           required>
+                </div>
+
+                <div class="col-12">
+                    <label for="observacoes" class="form-label">Observações</label>
+                    <textarea class="form-control"
+                              id="observacoes"
+                              name="observacoes"
+                              rows="3"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">
+                <i class="bi bi-person-badge me-2"></i>
+                Instrutor
+            </h5>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="tipo_instrutor" class="form-label">Tipo de Instrutor</label>
+                    <select class="form-select" id="tipo_instrutor" name="tipo_instrutor" required>
+                        <option value="interno" selected>Interno</option>
+                        <option value="externo">Externo</option>
+                    </select>
+                </div>
+
+                <div class="col-md-8 campo-instrutor-interno">
+                    <label for="instrutor_usuario_id" class="form-label">Instrutor Interno</label>
+                    <select class="form-select" id="instrutor_usuario_id" name="instrutor_usuario_id">
+                        <option value="">Selecione</option>
+                        {% for i in instrutores_internos %}
+                            <option value="{{ i.id }}">{{ i.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-8 campo-instrutor-externo" style="display: none;">
+                    <label for="instrutor_externo_id" class="form-label">Instrutor Externo</label>
+                    <select class="form-select" id="instrutor_externo_id" name="instrutor_externo_id">
+                        <option value="">Selecione</option>
+                        {% for i in instrutores_externos %}
+                            <option value="{{ i.id }}">
+                                {{ i.nome }}{% if i.empresa %} - {{ i.empresa }}{% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h5 class="text-laranja mb-0">
+                    <i class="bi bi-people me-2"></i>
+                    Participantes
+                </h5>
+
+                <button type="button"
+                        class="btn btn-laranja"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalSelecionarParticipantes">
+                    <i class="bi bi-plus-circle me-1"></i>
+                    Participantes
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle mb-0" id="tabelaParticipantes">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 140px;">Matrícula</th>
+                            <th>Participante</th>
+                            <th style="width: 90px;">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr id="linhaSemParticipantes">
+                            <td colspan="3" class="text-center text-muted">
+                                Nenhum participante adicionado.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="alert alert-light border mt-3 mb-0">
+                Selecione todos os participantes que efetivamente realizaram o treinamento.
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">
+                <i class="bi bi-paperclip me-2"></i>
+                Evidência
+            </h5>
+
+            <input type="file"
+                   id="evidencia_arquivo"
+                   name="evidencia_arquivo"
+                   class="d-none"
+                   accept=".pdf">
+
+            <div class="d-flex align-items-center justify-content-between border rounded p-3">
+                <div>
+                    <div class="fw-semibold">Arquivo da evidência</div>
+                    <div id="nomeArquivoEvidencia" class="text-muted small">
+                        Nenhum arquivo selecionado.
+                    </div>
+                </div>
+
+                <button type="button"
+                        id="btnSelecionarEvidencia"
+                        class="btn-acao-icon"
+                        title="Selecionar evidência">
+                    <i class="bi bi-paperclip fs-5"></i>
+                </button>
+            </div>
+
+            <div class="form-text mt-2">
+                Anexe aqui a lista de presença ou outra evidência em PDF.
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between gap-2">
+        <a href="{{ url_for('main.listar_treinamentos') }}" class="btn btn-cinza">
+            Voltar
+        </a>
+
+        <button type="submit" class="btn btn-laranja">
+            Salvar
+        </button>
+    </div>
+
+</form>
+
+<!-- MODAL SELECIONAR PARTICIPANTES -->
+<div class="modal fade" id="modalSelecionarParticipantes" tabindex="-1" aria-labelledby="modalSelecionarParticipantesLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <div class="modal-header modal-header-trackplan">
+                <h5 class="modal-title" id="modalSelecionarParticipantesLabel">
+                    <i class="bi bi-people"></i>
+                    Selecionar Participantes
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <div class="modal-body">
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-md-10">
+                        <label for="buscaParticipanteModal" class="form-label">Buscar participante</label>
+                        <input type="text"
+                               id="buscaParticipanteModal"
+                               class="form-control"
+                               placeholder="Digite nome, matrícula ou cargo...">
+                    </div>
+
+                    <div class="col-md-2">
+                        <button type="button"
+                                class="btn btn-cinza w-100"
+                                id="btnLimparBuscaParticipante">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="areaResultadosParticipantes" class="mb-4" style="display: none;">
+                    <h6 class="text-laranja mb-2">
+                        <i class="bi bi-search me-1"></i>
+                        Resultados da busca
+                    </h6>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 130px;">Matrícula</th>
+                                    <th>Nome</th>
+                                    <th style="width: 260px;">Cargo</th>
+                                    <th style="width: 80px;">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyResultadosParticipantes"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="areaSemResultadosParticipantes" class="alert alert-light border mb-4" style="display: none;">
+                    Nenhum participante encontrado para a busca informada.
+                </div>
+
+                <div>
+                    <h6 class="text-laranja mb-2">
+                        <i class="bi bi-check2-circle me-1"></i>
+                        Participantes selecionados
+                    </h6>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 130px;">Matrícula</th>
+                                    <th>Nome</th>
+                                    <th style="width: 260px;">Cargo</th>
+                                    <th style="width: 80px;">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyParticipantesSelecionadosModal">
+                                <tr id="linhaSemSelecionadosModal">
+                                    <td colspan="4" class="text-center text-muted">
+                                        Nenhum participante selecionado.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">
+                    Fechar
+                </button>
+
+                <button type="button" class="btn btn-laranja" id="btnSalvarParticipantesModal">
+                    Salvar
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script id="revisoes-data" type="application/json">
+    {{ revisoes_por_procedimento | tojson }}
+</script>
+
+<script id="procedimentos-data" type="application/json">
+    {{ procedimentos | tojson }}
+</script>
+
+<script id="participantes-data" type="application/json">
+    {{ participantes_nome | tojson }}
+</script>
+
+<script>
+    const revisoesPorProcedimento = JSON.parse(
+        document.getElementById('revisoes-data').textContent
+    );
+
+    const procedimentosDisponiveis = JSON.parse(
+        document.getElementById('procedimentos-data').textContent
+    );
+
+    const participantesDisponiveis = JSON.parse(
+        document.getElementById('participantes-data').textContent
+    );
+
+    let participantesSelecionadosModal = [];
+
+    function normalizarTexto(texto) {
+        return String(texto || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function carregarRevisoes() {
+        const procedimentoInput = document.getElementById('procedimento_id');
+        const revisaoSelect = document.getElementById('procedimento_revisao_id');
+        const procedimentoId = procedimentoInput.value;
+
+        revisaoSelect.innerHTML = '';
+
+        if (!procedimentoId || !revisoesPorProcedimento[procedimentoId]) {
+            revisaoSelect.innerHTML = '<option value="">Selecione o procedimento primeiro</option>';
+            return;
+        }
+
+        revisaoSelect.innerHTML = '<option value="">Selecione</option>';
+
+        revisoesPorProcedimento[procedimentoId].forEach(revisao => {
+            const option = document.createElement('option');
+            option.value = revisao.id;
+            option.textContent = `Revisão ${revisao.numero_revisao} - ${revisao.data_revisao}`;
+            revisaoSelect.appendChild(option);
+        });
+    }
+
+    function renderizarProcedimentosBusca() {
+        const inputBusca = document.getElementById('procedimento_busca');
+        const inputId = document.getElementById('procedimento_id');
+        const lista = document.getElementById('listaProcedimentos');
+        const revisaoSelect = document.getElementById('procedimento_revisao_id');
+
+        const termo = normalizarTexto(inputBusca.value);
+
+        inputId.value = '';
+        lista.innerHTML = '';
+        lista.style.display = 'none';
+
+        if (revisaoSelect) {
+            revisaoSelect.innerHTML = '<option value="">Selecione o procedimento primeiro</option>';
+        }
+
+        if (termo.length < 2) {
+            return;
+        }
+
+        const resultados = procedimentosDisponiveis
+            .filter(p => {
+                const texto = normalizarTexto(`${p.sigla || ''} ${p.numero_documento || ''} ${p.titulo || ''}`);
+                return texto.includes(termo);
+            })
+            .slice(0, 12);
+
+        if (resultados.length === 0) {
+            lista.innerHTML = `
+                <div class="list-group-item text-muted">
+                    Nenhum procedimento encontrado.
+                </div>
+            `;
+            lista.style.display = 'block';
+            return;
+        }
+
+        resultados.forEach(p => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'list-group-item list-group-item-action text-start';
+            item.innerHTML = `
+                <strong>${p.sigla || ''} - ${p.numero_documento || ''}</strong><br>
+                <small>${p.titulo || ''}</small>
+            `;
+
+            item.addEventListener('click', function () {
+                inputId.value = p.id;
+                inputBusca.value = `${p.sigla || ''} - ${p.numero_documento || ''} - ${p.titulo || ''}`;
+                lista.style.display = 'none';
+                carregarRevisoes();
+            });
+
+            lista.appendChild(item);
+        });
+
+        lista.style.display = 'block';
+    }
+
+    function alternarInstrutor() {
+        const tipo = document.getElementById('tipo_instrutor').value;
+        const campoInterno = document.querySelector('.campo-instrutor-interno');
+        const campoExterno = document.querySelector('.campo-instrutor-externo');
+        const internoSelect = document.getElementById('instrutor_usuario_id');
+        const externoSelect = document.getElementById('instrutor_externo_id');
+
+        if (tipo === 'interno') {
+            campoInterno.style.display = '';
+            campoExterno.style.display = 'none';
+            internoSelect.required = true;
+            externoSelect.required = false;
+            externoSelect.value = '';
+        } else {
+            campoInterno.style.display = 'none';
+            campoExterno.style.display = '';
+            internoSelect.required = false;
+            externoSelect.required = true;
+            internoSelect.value = '';
+        }
+    }
+
+    function atualizarLinhaVaziaParticipantes() {
+        const tbody = document.querySelector('#tabelaParticipantes tbody');
+        const linhas = tbody.querySelectorAll('tr.participante-row');
+        const linhaVazia = document.getElementById('linhaSemParticipantes');
+
+        if (linhaVazia) {
+            linhaVazia.style.display = linhas.length > 0 ? 'none' : '';
+        }
+    }
+
+    function obterParticipantesTabelaPrincipal() {
+        return Array.from(document.querySelectorAll('#tabelaParticipantes tbody tr.participante-row')).map(row => {
+            return {
+                id: String(row.dataset.usuarioId),
+                matricula: row.dataset.matricula || '',
+                nome: row.dataset.nome || '',
+                nome_cargo: row.dataset.cargo || ''
+            };
+        });
+    }
+
+    function adicionarParticipanteTabelaPrincipal(participante) {
+        const tbody = document.querySelector('#tabelaParticipantes tbody');
+
+        const existente = Array.from(tbody.querySelectorAll('tr.participante-row')).some(row => {
+            return row.dataset.usuarioId === String(participante.id);
+        });
+
+        if (existente) {
+            return;
+        }
+
+        const descricaoNome = participante.nome_cargo
+            ? `${participante.nome} - ${participante.nome_cargo}`
+            : participante.nome;
+
+        const tr = document.createElement('tr');
+        tr.classList.add('participante-row');
+        tr.dataset.usuarioId = participante.id;
+        tr.dataset.matricula = participante.matricula || '';
+        tr.dataset.nome = participante.nome || '';
+        tr.dataset.cargo = participante.nome_cargo || '';
+
+        tr.innerHTML = `
+            <td>${participante.matricula || '-'}</td>
+            <td>${descricaoNome}</td>
+            <td class="text-center">
+                <button type="button"
+                        class="btn-acao-icon btn-remover-participante"
+                        title="Remover participante">
+                    <i class="bi bi-trash"></i>
+                </button>
+                <input type="hidden" name="participante_ids[]" value="${participante.id}">
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+        atualizarLinhaVaziaParticipantes();
+
+        tr.querySelector('.btn-remover-participante').addEventListener('click', function () {
+            tr.remove();
+            atualizarLinhaVaziaParticipantes();
+        });
+    }
+
+    function participanteJaSelecionado(usuarioId) {
+        return participantesSelecionadosModal.some(p => String(p.id) === String(usuarioId));
+    }
+
+    function adicionarParticipanteModal(participante) {
+        if (participanteJaSelecionado(participante.id)) {
+            return;
+        }
+
+        participantesSelecionadosModal.push({
+            id: String(participante.id),
+            matricula: participante.matricula || '',
+            nome: participante.nome || '',
+            nome_cargo: participante.nome_cargo || participante.cargo || ''
+        });
+
+        renderizarSelecionadosModal();
+        renderizarResultadosParticipantes();
+    }
+
+    function removerParticipanteModal(usuarioId) {
+        participantesSelecionadosModal = participantesSelecionadosModal.filter(p => String(p.id) !== String(usuarioId));
+        renderizarSelecionadosModal();
+        renderizarResultadosParticipantes();
+    }
+
+    function renderizarSelecionadosModal() {
+        const tbody = document.getElementById('tbodyParticipantesSelecionadosModal');
+
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        if (participantesSelecionadosModal.length === 0) {
+            tbody.innerHTML = `
+                <tr id="linhaSemSelecionadosModal">
+                    <td colspan="4" class="text-center text-muted">
+                        Nenhum participante selecionado.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        participantesSelecionadosModal.forEach(participante => {
+            const tr = document.createElement('tr');
+
+            tr.innerHTML = `
+                <td>${participante.matricula || '-'}</td>
+                <td>${participante.nome || '-'}</td>
+                <td>${participante.nome_cargo || '-'}</td>
+                <td class="text-center">
+                    <button type="button"
+                            class="btn-acao-icon"
+                            title="Remover participante"
+                            onclick="removerParticipanteModal('${participante.id}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            `;
+
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderizarResultadosParticipantes() {
+        const busca = document.getElementById('buscaParticipanteModal');
+        const tbody = document.getElementById('tbodyResultadosParticipantes');
+        const areaResultados = document.getElementById('areaResultadosParticipantes');
+        const areaSemResultados = document.getElementById('areaSemResultadosParticipantes');
+
+        if (!busca || !tbody || !areaResultados || !areaSemResultados) return;
+
+        const termo = normalizarTexto(busca.value);
+
+        tbody.innerHTML = '';
+        areaResultados.style.display = 'none';
+        areaSemResultados.style.display = 'none';
+
+        if (termo.length < 2) {
+            return;
+        }
+
+        const resultados = participantesDisponiveis
+            .filter(p => {
+                const textoBusca = normalizarTexto(`${p.matricula || ''} ${p.nome || ''} ${p.nome_cargo || ''}`);
+                return textoBusca.includes(termo);
+            })
+            .slice(0, 20);
+
+        if (resultados.length === 0) {
+            areaSemResultados.style.display = '';
+            return;
+        }
+
+        areaResultados.style.display = '';
+
+        resultados.forEach(participante => {
+            const jaSelecionado = participanteJaSelecionado(participante.id);
+
+            const tr = document.createElement('tr');
+
+            tr.innerHTML = `
+                <td>${participante.matricula || '-'}</td>
+                <td>${participante.nome || '-'}</td>
+                <td>${participante.nome_cargo || '-'}</td>
+                <td class="text-center">
+                    <button type="button"
+                            class="btn-acao-icon"
+                            title="${jaSelecionado ? 'Participante já selecionado' : 'Adicionar participante'}"
+                            ${jaSelecionado ? 'disabled' : ''}
+                            onclick='adicionarParticipanteModal(${JSON.stringify(participante)})'>
+                        <i class="bi ${jaSelecionado ? 'bi-check-circle' : 'bi-plus-circle'}"></i>
+                    </button>
+                </td>
+            `;
+
+            tbody.appendChild(tr);
+        });
+    }
+
+    function salvarParticipantesModal() {
+        const tbodyPrincipal = document.querySelector('#tabelaParticipantes tbody');
+
+        tbodyPrincipal.querySelectorAll('tr.participante-row').forEach(row => row.remove());
+
+        participantesSelecionadosModal.forEach(participante => {
+            adicionarParticipanteTabelaPrincipal(participante);
+        });
+
+        atualizarLinhaVaziaParticipantes();
+
+        const modalElement = document.getElementById('modalSelecionarParticipantes');
+        const modalInstance = bootstrap.Modal.getInstance(modalElement);
+
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+    }
+
+    function limparBuscaParticipantes() {
+        const busca = document.getElementById('buscaParticipanteModal');
+        const tbody = document.getElementById('tbodyResultadosParticipantes');
+        const areaResultados = document.getElementById('areaResultadosParticipantes');
+        const areaSemResultados = document.getElementById('areaSemResultadosParticipantes');
+
+        if (busca) busca.value = '';
+        if (tbody) tbody.innerHTML = '';
+        if (areaResultados) areaResultados.style.display = 'none';
+        if (areaSemResultados) areaSemResultados.style.display = 'none';
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const procedimentoBusca = document.getElementById('procedimento_busca');
+        const listaProcedimentos = document.getElementById('listaProcedimentos');
+        const tipoInstrutor = document.getElementById('tipo_instrutor');
+
+        const modalParticipantes = document.getElementById('modalSelecionarParticipantes');
+        const buscaParticipanteModal = document.getElementById('buscaParticipanteModal');
+        const btnSalvarParticipantesModal = document.getElementById('btnSalvarParticipantesModal');
+        const btnLimparBuscaParticipante = document.getElementById('btnLimparBuscaParticipante');
+
+        const evidenciaInput = document.getElementById('evidencia_arquivo');
+        const btnSelecionarEvidencia = document.getElementById('btnSelecionarEvidencia');
+        const nomeArquivoEvidencia = document.getElementById('nomeArquivoEvidencia');
+
+        if (procedimentoBusca) {
+            procedimentoBusca.addEventListener('input', renderizarProcedimentosBusca);
+
+            procedimentoBusca.addEventListener('blur', function () {
+                setTimeout(function () {
+                    if (listaProcedimentos) {
+                        listaProcedimentos.style.display = 'none';
+                    }
+                }, 200);
+            });
+        }
+
+        if (tipoInstrutor) {
+            tipoInstrutor.addEventListener('change', alternarInstrutor);
+            alternarInstrutor();
+        }
+
+        if (modalParticipantes) {
+            modalParticipantes.addEventListener('show.bs.modal', function () {
+                participantesSelecionadosModal = obterParticipantesTabelaPrincipal();
+                limparBuscaParticipantes();
+                renderizarSelecionadosModal();
+
+                setTimeout(function () {
+                    if (buscaParticipanteModal) {
+                        buscaParticipanteModal.focus();
+                    }
+                }, 300);
+            });
+        }
+
+        if (buscaParticipanteModal) {
+            buscaParticipanteModal.addEventListener('input', renderizarResultadosParticipantes);
+        }
+
+        if (btnLimparBuscaParticipante) {
+            btnLimparBuscaParticipante.addEventListener('click', limparBuscaParticipantes);
+        }
+
+        if (btnSalvarParticipantesModal) {
+            btnSalvarParticipantesModal.addEventListener('click', salvarParticipantesModal);
+        }
+
+        if (btnSelecionarEvidencia) {
+            btnSelecionarEvidencia.addEventListener('click', function () {
+                evidenciaInput.click();
+            });
+        }
+
+        if (evidenciaInput) {
+            evidenciaInput.addEventListener('change', function () {
+                if (evidenciaInput.files && evidenciaInput.files.length > 0) {
+                    nomeArquivoEvidencia.textContent = evidenciaInput.files[0].name;
+                } else {
+                    nomeArquivoEvidencia.textContent = 'Nenhum arquivo selecionado.';
+                }
+            });
+        }
+
+        atualizarLinhaVaziaParticipantes();
+    });
+</script>
+
+{% endblock %}

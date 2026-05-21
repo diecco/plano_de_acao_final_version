@@ -1,0 +1,652 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Auditorias de Padrão{% endblock %}
+
+{% block conteudo %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-clipboard-check me-2"></i>
+        Auditorias de Padrão
+    </h2>
+</div>
+<hr>
+
+<!-- FILTROS -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('main.listar_ap') }}" id="formFiltrosAP">
+
+            <div class="row g-3 align-items-end">
+
+                <div class="col-md-3 position-relative">
+                    <label for="auditor_busca" class="form-label">Auditor</label>
+
+                    <input type="hidden"
+                           name="auditor_id"
+                           id="auditor_id"
+                           value="{{ filtros.get('auditor_id', '') }}">
+
+                    <input type="text"
+                           class="form-control"
+                           id="auditor_busca"
+                           placeholder="Digite matrícula ou nome..."
+                           autocomplete="off">
+
+                    <div id="listaAuditores"
+                         class="list-group position-absolute w-100 shadow-sm"
+                         style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+                    </div>
+                </div>
+
+                <div class="col-md-3 position-relative">
+                    <label for="auditado_busca" class="form-label">Auditado</label>
+
+                    <input type="hidden"
+                           name="auditado_id"
+                           id="auditado_id"
+                           value="{{ filtros.get('auditado_id', '') }}">
+
+                    <input type="text"
+                           class="form-control"
+                           id="auditado_busca"
+                           placeholder="Digite matrícula ou nome..."
+                           autocomplete="off">
+
+                    <div id="listaAuditados"
+                         class="list-group position-absolute w-100 shadow-sm"
+                         style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+                    </div>
+                </div>
+
+                <div class="col-md-2">
+                    <label for="data_inicio" class="form-label">Data inicial</label>
+                    <input type="date"
+                           id="data_inicio"
+                           name="data_inicio"
+                           class="form-control"
+                           value="{{ filtros.get('data_inicio', '') }}">
+                </div>
+
+                <div class="col-md-2">
+                    <label for="data_fim" class="form-label">Data final</label>
+                    <input type="date"
+                           id="data_fim"
+                           name="data_fim"
+                           class="form-control"
+                           value="{{ filtros.get('data_fim', '') }}">
+                </div>
+
+            </div>
+
+            <div class="row g-3 align-items-end mt-1">
+
+                <div class="col-md-6 position-relative">
+                    <label for="procedimento_busca" class="form-label">Procedimento</label>
+
+                    <input type="hidden"
+                           name="procedimento_id"
+                           id="procedimento_id"
+                           value="{{ filtros.get('procedimento_id', '') }}">
+
+                    <input type="text"
+                           class="form-control"
+                           id="procedimento_busca"
+                           placeholder="Digite número, título ou sigla..."
+                           autocomplete="off">
+
+                    <div id="listaProcedimentos"
+                         class="list-group position-absolute w-100 shadow-sm"
+                         style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="d-flex gap-2 justify-content-end flex-wrap">
+                        <button type="submit" class="btn btn-laranja" title="Filtrar">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+
+                        <a href="{{ url_for('main.listar_ap', limpar=1) }}" class="btn btn-cinza" title="Limpar">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+
+                        <a href="{{ url_for('main.lancar_ap') }}" class="btn btn-laranja" title="Nova Auditoria de Padrão">
+                            <i class="bi bi-plus-circle"></i>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<!-- TABELA -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle table-fixed" id="tabelaAuditoriasPadrao">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 130px;">
+                            <span class="th-label">Data</span>
+                        </th>
+
+                        <th style="width: 220px;">
+                            <span class="th-label">Auditor</span>
+                        </th>
+
+                        <th style="width: 220px;">
+                            <span class="th-label">Auditado</span>
+                        </th>
+
+                        <th>
+                            <span class="th-label">Procedimento</span>
+                        </th>
+
+                        <th style="width: 120px;" class="text-center">
+                            <span class="th-label">Ações</span>
+                        </th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for ap in auditorias %}
+                    <tr>
+
+                        <td class="text-center">
+                            {{ ap.data_auditoria.strftime('%d/%m/%Y') if ap.data_auditoria and ap.data_auditoria.strftime else ap.data_auditoria }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ ap.auditor_nome }}">
+                            {{ ap.auditor_nome or '-' }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ ap.auditado_nome }}">
+                            {{ ap.auditado_nome or '-' }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ ap.sigla }} - {{ ap.numero_documento }} - {{ ap.titulo }}">
+                            {{ ap.sigla }} - {{ ap.numero_documento }} - {{ ap.titulo }}
+                            <span class="text-muted">| Rev. {{ ap.numero_revisao }}</span>
+                        </td>
+
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-2">
+
+                                {% if ap.criado_por == session.get('usuario_id') or session.get('perfil') == 'administrador' %}
+
+                                    <button type="button"
+                                            class="btn-acao-icon"
+                                            title="Editar"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalEditarAP"
+                                            data-id="{{ ap.id }}"
+                                            data-auditor-id="{{ ap.auditor_id }}"
+                                            data-auditado-id="{{ ap.auditado_id }}"
+                                            data-data="{{ ap.data_auditoria.strftime('%Y-%m-%d') if ap.data_auditoria and ap.data_auditoria.strftime else ap.data_auditoria }}"
+                                            data-area="{{ ap.area_auditada|default('', true)|e }}"
+                                            data-atividade="{{ ap.atividade_auditada|default('', true)|e }}"
+                                            data-pontos="{{ ap.pontos_observados|default('', true)|e }}">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+
+                                    <form method="POST"
+                                          action="{{ url_for('main.excluir_ap', id=ap.id) }}"
+                                          onsubmit="return confirm('Tem certeza que deseja excluir esta Auditoria de Padrão?');"
+                                          style="display:inline;">
+                                        <button type="submit" class="btn-acao-icon" title="Excluir">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+
+                                {% else %}
+                                    <span class="text-muted small">Sem permissão</span>
+                                {% endif %}
+
+                            </div>
+                        </td>
+
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center">Nenhuma Auditoria de Padrão encontrada.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if total_paginas %}
+<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+
+    <div class="text-muted small">
+        Exibindo página {{ page }} de {{ total_paginas }} — {{ total_registros }} registro(s)
+    </div>
+
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for('main.listar_ap',
+                       auditor_id=filtros.get('auditor_id',''),
+                       auditado_id=filtros.get('auditado_id',''),
+                       procedimento_id=filtros.get('procedimento_id',''),
+                       data_inicio=filtros.get('data_inicio',''),
+                       data_fim=filtros.get('data_fim',''),
+                       revisao_padrao=filtros.get('revisao_padrao',''),
+                       sort=filtros.get('sort','data_auditoria'),
+                       order=filtros.get('order','desc'),
+                       page=page-1) }}">
+                    Anterior
+                </a>
+            </li>
+
+            {% for p in range(1, total_paginas + 1) %}
+                {% if p == 1 or p == total_paginas or (p >= page - 2 and p <= page + 2) %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('main.listar_ap',
+                               auditor_id=filtros.get('auditor_id',''),
+                               auditado_id=filtros.get('auditado_id',''),
+                               procedimento_id=filtros.get('procedimento_id',''),
+                               data_inicio=filtros.get('data_inicio',''),
+                               data_fim=filtros.get('data_fim',''),
+                               revisao_padrao=filtros.get('revisao_padrao',''),
+                               sort=filtros.get('sort','data_auditoria'),
+                               order=filtros.get('order','desc'),
+                               page=p) }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                {% elif p == page - 3 or p == page + 3 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            <li class="page-item {% if page >= total_paginas %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for('main.listar_ap',
+                       auditor_id=filtros.get('auditor_id',''),
+                       auditado_id=filtros.get('auditado_id',''),
+                       procedimento_id=filtros.get('procedimento_id',''),
+                       data_inicio=filtros.get('data_inicio',''),
+                       data_fim=filtros.get('data_fim',''),
+                       revisao_padrao=filtros.get('revisao_padrao',''),
+                       sort=filtros.get('sort','data_auditoria'),
+                       order=filtros.get('order','desc'),
+                       page=page+1) }}">
+                    Próxima
+                </a>
+            </li>
+
+        </ul>
+    </nav>
+
+</div>
+{% endif %}
+
+<!-- MODAL EDITAR AP -->
+<div class="modal fade" id="modalEditarAP" tabindex="-1" aria-labelledby="modalEditarAPLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <form method="POST" id="formEditarAPModal">
+                <input type="hidden" name="next" id="modal_next_ap">
+
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalEditarAPLabel">
+                        <i class="bi bi-pencil-square"></i>
+                        Editar Auditoria de Padrão
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="alert alert-light border">
+                        Esta edição altera apenas os dados principais da auditoria. Desvios, ações geradas e solicitação de revisão permanecem preservados.
+                    </div>
+
+                    <div class="row g-3 mb-3">
+
+                        <div class="col-md-6">
+                            <label for="modal_auditor_id" class="form-label">Auditor</label>
+                            <select name="auditor_id" id="modal_auditor_id" class="form-select" required>
+                                <option value="">Selecione</option>
+                                {% for u in usuarios %}
+                                    <option value="{{ u.id }}">
+                                        {% if u.matricula %}{{ u.matricula }} - {% endif %}{{ u.nome }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="modal_auditado_id" class="form-label">Auditado</label>
+                            <select name="auditado_id" id="modal_auditado_id" class="form-select" required>
+                                <option value="">Selecione</option>
+                                {% for u in usuarios %}
+                                    <option value="{{ u.id }}">
+                                        {% if u.matricula %}{{ u.matricula }} - {% endif %}{{ u.nome }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="modal_data_auditoria" class="form-label">Data da Auditoria</label>
+                            <input type="date"
+                                   name="data_auditoria"
+                                   id="modal_data_auditoria"
+                                   class="form-control"
+                                   required>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="modal_area_auditada" class="form-label">Área Auditada</label>
+                            <input type="text"
+                                   name="area_auditada"
+                                   id="modal_area_auditada"
+                                   class="form-control"
+                                   required>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="modal_atividade_auditada" class="form-label">Atividade Auditada</label>
+                            <input type="text"
+                                   name="atividade_auditada"
+                                   id="modal_atividade_auditada"
+                                   class="form-control"
+                                   required>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="modal_pontos_observados" class="form-label">Pontos Observados / Oportunidades de Melhoria</label>
+                            <textarea name="pontos_observados"
+                                      id="modal_pontos_observados"
+                                      class="form-control"
+                                      rows="5"></textarea>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Voltar</button>
+                    <button type="submit" class="btn btn-laranja">Salvar</button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<script id="usuarios-data-ap" type="application/json">
+    {{ usuarios | tojson }}
+</script>
+
+<script id="procedimentos-data-ap" type="application/json">
+    {{ procedimentos | tojson }}
+</script>
+
+<script>
+const usuariosDisponiveisAP = JSON.parse(
+    document.getElementById('usuarios-data-ap').textContent
+);
+
+const procedimentosDisponiveisAP = JSON.parse(
+    document.getElementById('procedimentos-data-ap').textContent
+);
+
+function normalizarTextoAP(texto) {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+}
+
+function formatarUsuarioAP(usuario) {
+    const matricula = usuario.matricula || 'Sem matrícula';
+    const nome = usuario.nome || '';
+    return `${matricula} - ${nome}`;
+}
+
+function formatarProcedimentoFiltroAP(procedimento) {
+    return `${procedimento.sigla} - ${procedimento.numero_documento} - ${procedimento.titulo}`;
+}
+
+function configurarBuscaUsuarioFiltroAP(inputId, hiddenId, listaId) {
+    const input = document.getElementById(inputId);
+    const hidden = document.getElementById(hiddenId);
+    const lista = document.getElementById(listaId);
+
+    if (!input || !hidden || !lista) return;
+
+    input.addEventListener('input', function () {
+        const termo = normalizarTextoAP(input.value);
+
+        hidden.value = '';
+        lista.innerHTML = '';
+        lista.style.display = 'none';
+
+        if (termo.length < 2) {
+            return;
+        }
+
+        const resultados = usuariosDisponiveisAP
+            .filter(u => {
+                const textoBusca = normalizarTextoAP(`${u.matricula || ''} ${u.nome || ''}`);
+                return textoBusca.includes(termo);
+            })
+            .slice(0, 12);
+
+        if (resultados.length === 0) {
+            lista.innerHTML = `
+                <div class="list-group-item text-muted">
+                    Nenhum funcionário encontrado.
+                </div>
+            `;
+            lista.style.display = 'block';
+            return;
+        }
+
+        resultados.forEach(usuario => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'list-group-item list-group-item-action text-start';
+            item.innerHTML = `
+                <strong>${usuario.matricula || '-'}</strong><br>
+                <small>${usuario.nome || ''}</small>
+            `;
+
+            item.addEventListener('click', function () {
+                input.value = formatarUsuarioAP(usuario);
+                hidden.value = usuario.id;
+                lista.style.display = 'none';
+            });
+
+            lista.appendChild(item);
+        });
+
+        lista.style.display = 'block';
+    });
+
+    input.addEventListener('blur', function () {
+        setTimeout(function () {
+            lista.style.display = 'none';
+        }, 200);
+    });
+}
+
+function configurarBuscaProcedimentoFiltroAP() {
+    const input = document.getElementById('procedimento_busca');
+    const hidden = document.getElementById('procedimento_id');
+    const lista = document.getElementById('listaProcedimentos');
+
+    if (!input || !hidden || !lista) return;
+
+    input.addEventListener('input', function () {
+        const termo = normalizarTextoAP(input.value);
+
+        hidden.value = '';
+        lista.innerHTML = '';
+        lista.style.display = 'none';
+
+        if (termo.length < 2) {
+            return;
+        }
+
+        const resultados = procedimentosDisponiveisAP
+            .filter(p => {
+                const textoBusca = normalizarTextoAP(`${p.sigla || ''} ${p.numero_documento || ''} ${p.titulo || ''}`);
+                return textoBusca.includes(termo);
+            })
+            .slice(0, 12);
+
+        if (resultados.length === 0) {
+            lista.innerHTML = `
+                <div class="list-group-item text-muted">
+                    Nenhum procedimento encontrado.
+                </div>
+            `;
+            lista.style.display = 'block';
+            return;
+        }
+
+        resultados.forEach(procedimento => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'list-group-item list-group-item-action text-start';
+
+            item.innerHTML = `
+                <strong>${procedimento.sigla || '-'} - ${procedimento.numero_documento || '-'}</strong><br>
+                <small>${procedimento.titulo || ''}</small>
+            `;
+
+            item.addEventListener('click', function () {
+                input.value = formatarProcedimentoFiltroAP(procedimento);
+                hidden.value = procedimento.id;
+                lista.style.display = 'none';
+            });
+
+            lista.appendChild(item);
+        });
+
+        lista.style.display = 'block';
+    });
+
+    input.addEventListener('blur', function () {
+        setTimeout(function () {
+            lista.style.display = 'none';
+        }, 200);
+    });
+}
+
+function preencherFiltrosSelecionadosAP() {
+    const auditorId = document.getElementById('auditor_id')?.value;
+    const auditadoId = document.getElementById('auditado_id')?.value;
+    const procedimentoId = document.getElementById('procedimento_id')?.value;
+
+    if (auditorId) {
+        const auditor = usuariosDisponiveisAP.find(u => String(u.id) === String(auditorId));
+        if (auditor) {
+            document.getElementById('auditor_busca').value = formatarUsuarioAP(auditor);
+        }
+    }
+
+    if (auditadoId) {
+        const auditado = usuariosDisponiveisAP.find(u => String(u.id) === String(auditadoId));
+        if (auditado) {
+            document.getElementById('auditado_busca').value = formatarUsuarioAP(auditado);
+        }
+    }
+
+    if (procedimentoId) {
+        const procedimento = procedimentosDisponiveisAP.find(p => String(p.id) === String(procedimentoId));
+        if (procedimento) {
+            document.getElementById('procedimento_busca').value = formatarProcedimentoFiltroAP(procedimento);
+        }
+    }
+}
+
+function validarFiltrosDigitaveisAP(event) {
+    const campos = [
+        {
+            input: document.getElementById('auditor_busca'),
+            hidden: document.getElementById('auditor_id')
+        },
+        {
+            input: document.getElementById('auditado_busca'),
+            hidden: document.getElementById('auditado_id')
+        },
+        {
+            input: document.getElementById('procedimento_busca'),
+            hidden: document.getElementById('procedimento_id')
+        }
+    ];
+
+    campos.forEach(campo => {
+        if (campo.input && campo.hidden && !campo.hidden.value) {
+            campo.input.value = '';
+        }
+    });
+}
+
+function aplicarFiltro(param, value) {
+    const url = new URL(window.location.href);
+
+    if (value) {
+        url.searchParams.set(param, value);
+    } else {
+        url.searchParams.delete(param);
+    }
+
+    url.searchParams.delete('page');
+    window.location.href = url.toString();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    configurarBuscaUsuarioFiltroAP('auditor_busca', 'auditor_id', 'listaAuditores');
+    configurarBuscaUsuarioFiltroAP('auditado_busca', 'auditado_id', 'listaAuditados');
+    configurarBuscaProcedimentoFiltroAP();
+    preencherFiltrosSelecionadosAP();
+
+    const formFiltrosAP = document.getElementById('formFiltrosAP');
+    if (formFiltrosAP) {
+        formFiltrosAP.addEventListener('submit', validarFiltrosDigitaveisAP);
+    }
+
+    const modalEditarAP = document.getElementById('modalEditarAP');
+    const formEditarAP = document.getElementById('formEditarAPModal');
+
+    if (modalEditarAP) {
+        modalEditarAP.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const id = button.getAttribute('data-id');
+
+            formEditarAP.action = `/editar_ap/${id}`;
+
+            document.getElementById('modal_next_ap').value = window.location.href;
+            document.getElementById('modal_auditor_id').value = button.getAttribute('data-auditor-id') || '';
+            document.getElementById('modal_auditado_id').value = button.getAttribute('data-auditado-id') || '';
+            document.getElementById('modal_data_auditoria').value = button.getAttribute('data-data') || '';
+            document.getElementById('modal_area_auditada').value = button.getAttribute('data-area') || '';
+            document.getElementById('modal_atividade_auditada').value = button.getAttribute('data-atividade') || '';
+            document.getElementById('modal_pontos_observados').value = button.getAttribute('data-pontos') || '';
+        });
+    }
+});
+</script>
+
+{% endblock %}

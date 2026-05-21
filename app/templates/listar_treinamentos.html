@@ -1,0 +1,711 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Treinamentos Realizados{% endblock %}
+
+{% block conteudo %}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div style="width: 40px;"></div>
+
+    <div class="text-center flex-grow-1">
+        <h2 class="page-title">
+            <i class="bi bi-journal-check me-2"></i>
+            Treinamentos Realizados
+        </h2>
+    </div>
+
+    <div style="width: 40px;"></div>
+</div>
+
+<div class="page-header-line"></div>
+<hr>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('main.listar_treinamentos') }}">
+
+            <div class="bloco-filtros">
+                <div class="row g-3 align-items-end">
+
+                    <div class="col-md-6">
+                        <label for="procedimento_id" class="form-label">Procedimento</label>
+                        <select class="form-select" id="procedimento_id" name="procedimento_id">
+                            <option value="">Todos</option>
+                            {% for p in procedimentos %}
+                                <option value="{{ p.id }}" {% if filtros.get('procedimento_id') == p.id|string %}selected{% endif %}>
+                                    {{ p.sigla }} - {{ p.numero_documento }} - {{ p.titulo }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label for="data_inicio" class="form-label">Data Inicial</label>
+                        <input type="date"
+                               class="form-control"
+                               id="data_inicio"
+                               name="data_inicio"
+                               value="{{ filtros.get('data_inicio', '') }}">
+                    </div>
+
+                    <div class="col-md-2">
+                        <label for="data_fim" class="form-label">Data Final</label>
+                        <input type="date"
+                               class="form-control"
+                               id="data_fim"
+                               name="data_fim"
+                               value="{{ filtros.get('data_fim', '') }}">
+                    </div>
+
+                    <div class="col-md-2">
+                        <div class="d-flex gap-2 justify-content-end flex-wrap">
+                            <button type="submit" class="btn btn-laranja" title="Filtrar">
+                                <i class="bi bi-funnel"></i>
+                            </button>
+
+                            <a href="{{ url_for('main.listar_treinamentos') }}" class="btn btn-cinza" title="Limpar">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </a>
+
+                            <a href="{{ url_for('main.treinamentos_realizados') }}" class="btn btn-laranja" title="Novo treinamento">
+                                <i class="bi bi-plus-circle"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle table-fixed" id="tabelaTreinamentos">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 130px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Data</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_treinamentos',
+                                           procedimento_id=filtros.get('procedimento_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='data_treinamento', order='asc') }}"
+                                       title="Ordenar crescente">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_treinamentos',
+                                           procedimento_id=filtros.get('procedimento_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='data_treinamento', order='desc') }}"
+                                       title="Ordenar decrescente">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 120px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Início</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_treinamentos',
+                                           procedimento_id=filtros.get('procedimento_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='hora_inicio', order='asc') }}"
+                                       title="Ordenar crescente">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_treinamentos',
+                                           procedimento_id=filtros.get('procedimento_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='hora_inicio', order='desc') }}"
+                                       title="Ordenar decrescente">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 120px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Fim</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_treinamentos',
+                                           procedimento_id=filtros.get('procedimento_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='hora_fim', order='asc') }}"
+                                       title="Ordenar crescente">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_treinamentos',
+                                           procedimento_id=filtros.get('procedimento_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='hora_fim', order='desc') }}"
+                                       title="Ordenar decrescente">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 320px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Procedimento</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 ps-1 text-muted"
+                                       title="Filtrar"
+                                       href="#filtroHeaderProcedimento"
+                                       data-bs-toggle="collapse"
+                                       role="button"
+                                       aria-expanded="false">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_treinamentos',
+                                           procedimento_id=filtros.get('procedimento_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='procedimento', order='asc') }}"
+                                       title="Ordenar crescente">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_treinamentos',
+                                           procedimento_id=filtros.get('procedimento_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='procedimento', order='desc') }}"
+                                       title="Ordenar decrescente">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderProcedimento" class="collapse mt-2">
+                                <select class="form-select form-select-sm"
+                                        onchange="aplicarFiltroSelect('procedimento_id', this.value)">
+                                    <option value="">Todos</option>
+                                    {% for p in procedimentos %}
+                                        <option value="{{ p.id }}" {% if filtros.get('procedimento_id') == p.id|string %}selected{% endif %}>
+                                            {{ p.sigla }} - {{ p.numero_documento }} - {{ p.titulo }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </th>
+
+                        <th style="width: 110px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Revisão</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_treinamentos',
+                                           procedimento_id=filtros.get('procedimento_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='numero_revisao', order='asc') }}"
+                                       title="Ordenar crescente">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_treinamentos',
+                                           procedimento_id=filtros.get('procedimento_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='numero_revisao', order='desc') }}"
+                                       title="Ordenar decrescente">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 220px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Instrutor</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_treinamentos',
+                                           procedimento_id=filtros.get('procedimento_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='nome_instrutor', order='asc') }}"
+                                       title="Ordenar crescente">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       href="{{ url_for('main.listar_treinamentos',
+                                           procedimento_id=filtros.get('procedimento_id',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='nome_instrutor', order='desc') }}"
+                                       title="Ordenar decrescente">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 120px;">
+                            <span class="th-label">Ações</span>
+                        </th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for t in treinamentos %}
+                    <tr>
+                        <td class="text-center">{{ t.data_treinamento or '-' }}</td>
+                        <td class="text-center">{{ t.hora_inicio or '-' }}</td>
+                        <td class="text-center">{{ t.hora_fim or '-' }}</td>
+
+                        <td class="td-truncate" title="{{ t.procedimento_descricao or '' }}">
+                            {{ t.procedimento_descricao or '-' }}
+                        </td>
+
+                        <td class="text-center">{{ t.numero_revisao or '-' }}</td>
+
+                        <td class="td-truncate" title="{{ t.nome_instrutor or '' }}">
+                            {{ t.nome_instrutor or '-' }}
+                        </td>
+
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-2">
+
+                                {% if t.evidencia_arquivo %}
+                                    <a href="{{ url_for('static', filename='evidencias_treinamentos/' ~ t.evidencia_arquivo) }}"
+                                       target="_blank"
+                                       class="btn-acao-icon"
+                                       title="Consultar evidência">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                {% endif %}
+
+                                <button type="button"
+                                        class="btn-acao-icon"
+                                        title="Editar"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalEditarTreinamento"
+                                        data-id="{{ t.id }}"
+                                        data-procedimento-id="{{ t.procedimento_id }}"
+                                        data-revisao-id="{{ t.procedimento_revisao_id }}"
+                                        data-data="{{ t.data_treinamento_iso or '' }}"
+                                        data-hora-inicio="{{ t.hora_inicio or '' }}"
+                                        data-hora-fim="{{ t.hora_fim or '' }}"
+                                        data-local="{{ t.local_treinamento|default('', true)|e }}"
+                                        data-tipo-instrutor="{{ t.tipo_instrutor or 'interno' }}"
+                                        data-instrutor-usuario-id="{{ t.instrutor_usuario_id or '' }}"
+                                        data-instrutor-externo-id="{{ t.instrutor_externo_id or '' }}"
+                                        data-observacoes="{{ t.observacoes|default('', true)|e }}"
+                                        data-evidencia="{{ t.evidencia_arquivo or '' }}"
+                                        data-url-evidencia="{% if t.evidencia_arquivo %}{{ url_for('static', filename='evidencias_treinamentos/' ~ t.evidencia_arquivo) }}{% endif %}"
+                                        data-next="{{ request.full_path }}">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+
+                                {% if t.ativo %}
+                                    <form method="POST"
+                                          action="{{ url_for('main.excluir_treinamento', id=t.id) }}"
+                                          onsubmit="return confirm('Confirma a exclusão lógica deste treinamento?');"
+                                          style="display:inline;">
+                                        <button type="submit"
+                                                class="btn-acao-icon"
+                                                title="Excluir">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                {% endif %}
+
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center">Nenhum treinamento encontrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if total_paginas %}
+<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+
+    <div class="text-muted small">
+        Exibindo página {{ page }} de {{ total_paginas }} — {{ total_registros }} registro(s)
+    </div>
+
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for('main.listar_treinamentos',
+                       procedimento_id=filtros.get('procedimento_id',''),
+                       data_inicio=filtros.get('data_inicio',''),
+                       data_fim=filtros.get('data_fim',''),
+                       sort=filtros.get('sort','data_treinamento'),
+                       order=filtros.get('order','desc'),
+                       page=page-1) }}">
+                    Anterior
+                </a>
+            </li>
+
+            {% for p in range(1, total_paginas + 1) %}
+                {% if p == 1 or p == total_paginas or (p >= page - 2 and p <= page + 2) %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('main.listar_treinamentos',
+                               procedimento_id=filtros.get('procedimento_id',''),
+                               data_inicio=filtros.get('data_inicio',''),
+                               data_fim=filtros.get('data_fim',''),
+                               sort=filtros.get('sort','data_treinamento'),
+                               order=filtros.get('order','desc'),
+                               page=p) }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                {% elif p == page - 3 or p == page + 3 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            <li class="page-item {% if page >= total_paginas %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for('main.listar_treinamentos',
+                       procedimento_id=filtros.get('procedimento_id',''),
+                       data_inicio=filtros.get('data_inicio',''),
+                       data_fim=filtros.get('data_fim',''),
+                       sort=filtros.get('sort','data_treinamento'),
+                       order=filtros.get('order','desc'),
+                       page=page+1) }}">
+                    Próxima
+                </a>
+            </li>
+
+        </ul>
+    </nav>
+
+</div>
+{% endif %}
+
+<!-- MODAL EDITAR TREINAMENTO -->
+<div class="modal fade" id="modalEditarTreinamento" tabindex="-1" aria-labelledby="modalEditarTreinamentoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <form method="POST" id="formEditarTreinamentoModal" enctype="multipart/form-data">
+                <input type="hidden" name="next" id="modal_next_treinamento">
+
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalEditarTreinamentoLabel">
+                        <i class="bi bi-pencil-square"></i>
+                        Editar Treinamento
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-5">
+                            <label for="modal_procedimento_id" class="form-label">Procedimento</label>
+                            <select name="procedimento_id" id="modal_procedimento_id" class="form-select" required>
+                                <option value="">Selecione</option>
+                                {% for p in procedimentos %}
+                                    <option value="{{ p.id }}">
+                                        {{ p.sigla }} - {{ p.numero_documento }} - {{ p.titulo }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="modal_revisao_id" class="form-label">Revisão</label>
+                            <select name="procedimento_revisao_id" id="modal_revisao_id" class="form-select" required>
+                                <option value="">Selecione o procedimento</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label for="modal_local" class="form-label">Local</label>
+                            <input type="text" name="local_treinamento" id="modal_local" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label for="modal_data" class="form-label">Data</label>
+                            <input type="date" name="data_treinamento" id="modal_data" class="form-control" required>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="modal_hora_inicio" class="form-label">Hora Início</label>
+                            <input type="time" name="hora_inicio" id="modal_hora_inicio" class="form-control" required>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="modal_hora_fim" class="form-label">Hora Fim</label>
+                            <input type="time" name="hora_fim" id="modal_hora_fim" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label for="modal_tipo_instrutor" class="form-label">Tipo de Instrutor</label>
+                            <select name="tipo_instrutor" id="modal_tipo_instrutor" class="form-select" required>
+                                <option value="interno">Interno</option>
+                                <option value="externo">Externo</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-8" id="modal_bloco_instrutor_interno">
+                            <label for="modal_instrutor_usuario_id" class="form-label">Instrutor Interno</label>
+                            <select name="instrutor_usuario_id" id="modal_instrutor_usuario_id" class="form-select">
+                                <option value="">Selecione</option>
+                                {% for i in instrutores_internos %}
+                                    <option value="{{ i.id }}">{{ i.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-8" id="modal_bloco_instrutor_externo" style="display:none;">
+                            <label for="modal_instrutor_externo_id" class="form-label">Instrutor Externo</label>
+                            <select name="instrutor_externo_id" id="modal_instrutor_externo_id" class="form-select">
+                                <option value="">Selecione</option>
+                                {% for i in instrutores_externos %}
+                                    <option value="{{ i.id }}">
+                                        {{ i.nome }}{% if i.empresa %} - {{ i.empresa }}{% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Evidência</label>
+
+                        <div class="d-flex align-items-center justify-content-between border rounded p-2">
+                            <div id="modal_nome_evidencia_treinamento" class="text-muted small">
+                                Nenhum arquivo anexado
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <input type="file"
+                                       name="evidencia_arquivo"
+                                       id="modal_evidencia_arquivo"
+                                       class="d-none"
+                                       accept=".pdf">
+
+                                <button type="button"
+                                        id="modal_btn_anexar_evidencia"
+                                        class="btn-acao-icon"
+                                        title="Anexar / Trocar evidência">
+                                    <i class="bi bi-paperclip"></i>
+                                </button>
+
+                                <a id="modal_btn_consultar_evidencia"
+                                   href="#"
+                                   target="_blank"
+                                   class="btn-acao-icon"
+                                   title="Consultar evidência"
+                                   style="display:none;">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="modal_observacoes" class="form-label">Observações</label>
+                        <textarea name="observacoes" id="modal_observacoes" class="form-control" rows="3"></textarea>
+                    </div>
+
+                    <div class="alert alert-light border mb-0">
+                        A edição rápida não altera os participantes. Para alterar participantes, use a tela completa de edição.
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" class="btn btn-laranja">Salvar</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<script id="revisoes-data" type="application/json">
+    {{ revisoes_por_procedimento | tojson }}
+</script>
+
+<script>
+const revisoesPorProcedimento = JSON.parse(
+    document.getElementById('revisoes-data').textContent
+);
+
+function aplicarFiltroSelect(param, value) {
+    const url = new URL(window.location.href);
+
+    if (value && value.trim() !== '') {
+        url.searchParams.set(param, value.trim());
+    } else {
+        url.searchParams.delete(param);
+    }
+
+    window.location.href = url.toString();
+}
+
+function carregarRevisoesModal(procedimentoId, revisaoSelecionada = '') {
+    const revisaoSelect = document.getElementById('modal_revisao_id');
+
+    revisaoSelect.innerHTML = '';
+
+    if (!procedimentoId || !revisoesPorProcedimento[procedimentoId]) {
+        revisaoSelect.innerHTML = '<option value="">Selecione o procedimento</option>';
+        return;
+    }
+
+    revisaoSelect.innerHTML = '<option value="">Selecione</option>';
+
+    revisoesPorProcedimento[procedimentoId].forEach(revisao => {
+        const option = document.createElement('option');
+        option.value = revisao.id;
+        option.textContent = `Revisão ${revisao.numero_revisao} - ${revisao.data_revisao}`;
+
+        if (String(revisao.id) === String(revisaoSelecionada)) {
+            option.selected = true;
+        }
+
+        revisaoSelect.appendChild(option);
+    });
+}
+
+function alternarInstrutorModal() {
+    const tipo = document.getElementById('modal_tipo_instrutor').value;
+    const blocoInterno = document.getElementById('modal_bloco_instrutor_interno');
+    const blocoExterno = document.getElementById('modal_bloco_instrutor_externo');
+    const interno = document.getElementById('modal_instrutor_usuario_id');
+    const externo = document.getElementById('modal_instrutor_externo_id');
+
+    if (tipo === 'interno') {
+        blocoInterno.style.display = '';
+        blocoExterno.style.display = 'none';
+        interno.required = true;
+        externo.required = false;
+        externo.value = '';
+    } else {
+        blocoInterno.style.display = 'none';
+        blocoExterno.style.display = '';
+        interno.required = false;
+        externo.required = true;
+        interno.value = '';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('modalEditarTreinamento');
+    const form = document.getElementById('formEditarTreinamentoModal');
+    const procedimento = document.getElementById('modal_procedimento_id');
+    const tipoInstrutor = document.getElementById('modal_tipo_instrutor');
+
+    const inputEvidencia = document.getElementById('modal_evidencia_arquivo');
+    const btnAnexar = document.getElementById('modal_btn_anexar_evidencia');
+    const btnConsultar = document.getElementById('modal_btn_consultar_evidencia');
+    const nomeEvidencia = document.getElementById('modal_nome_evidencia_treinamento');
+
+    if (procedimento) {
+        procedimento.addEventListener('change', function () {
+            carregarRevisoesModal(procedimento.value);
+        });
+    }
+
+    if (tipoInstrutor) {
+        tipoInstrutor.addEventListener('change', alternarInstrutorModal);
+    }
+
+    if (btnAnexar) {
+        btnAnexar.addEventListener('click', function () {
+            inputEvidencia.click();
+        });
+    }
+
+    if (inputEvidencia) {
+        inputEvidencia.addEventListener('change', function () {
+            if (inputEvidencia.files && inputEvidencia.files.length > 0) {
+                nomeEvidencia.textContent = inputEvidencia.files[0].name;
+                btnConsultar.style.display = 'none';
+                btnConsultar.href = '#';
+            }
+        });
+    }
+
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+
+            const id = button.getAttribute('data-id');
+            const procedimentoId = button.getAttribute('data-procedimento-id');
+            const revisaoId = button.getAttribute('data-revisao-id');
+            const tipo = button.getAttribute('data-tipo-instrutor') || 'interno';
+            const evidencia = button.getAttribute('data-evidencia');
+            const urlEvidencia = button.getAttribute('data-url-evidencia');
+
+            form.action = `/editar_treinamento/${id}`;
+
+            document.getElementById('modal_next_treinamento').value = button.getAttribute('data-next') || '';
+
+            document.getElementById('modal_procedimento_id').value = procedimentoId || '';
+            carregarRevisoesModal(procedimentoId, revisaoId);
+
+            document.getElementById('modal_data').value = button.getAttribute('data-data') || '';
+            document.getElementById('modal_hora_inicio').value = (button.getAttribute('data-hora-inicio') || '').substring(0, 5);
+            document.getElementById('modal_hora_fim').value = (button.getAttribute('data-hora-fim') || '').substring(0, 5);
+            document.getElementById('modal_local').value = button.getAttribute('data-local') || '';
+            document.getElementById('modal_tipo_instrutor').value = tipo;
+
+            document.getElementById('modal_instrutor_usuario_id').value = button.getAttribute('data-instrutor-usuario-id') || '';
+            document.getElementById('modal_instrutor_externo_id').value = button.getAttribute('data-instrutor-externo-id') || '';
+            document.getElementById('modal_observacoes').value = button.getAttribute('data-observacoes') || '';
+
+            inputEvidencia.value = '';
+
+            if (evidencia) {
+                nomeEvidencia.textContent = evidencia;
+                btnConsultar.style.display = 'inline-block';
+                btnConsultar.href = urlEvidencia;
+            } else {
+                nomeEvidencia.textContent = 'Nenhum arquivo anexado';
+                btnConsultar.style.display = 'none';
+                btnConsultar.href = '#';
+            }
+
+            alternarInstrutorModal();
+        });
+    }
+});
+</script>
+
+{% endblock %}

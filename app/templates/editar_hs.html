@@ -1,0 +1,504 @@
+{% extends 'layout.html' %}
+
+{% block titulo %}Editar Hora de Segurança{% endblock %}
+
+{% block conteudo %}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+
+    <!-- Espaço à esquerda -->
+    <div style="width: 40px;"></div>
+
+    <!-- Título central -->
+    <div class="text-center flex-grow-1">
+        <h2 class="page-title">
+            <i class="bi bi-shield-check me-2"></i>
+            Editar Hora de Segurança
+        </h2>
+    </div>
+
+    <!-- Espaço à direita -->
+    <div style="width: 40px;"></div>
+
+</div>
+
+<div class="page-header-line"></div>
+<hr class="mb-3">
+
+<style>
+    .campo-bloqueado {
+        background-color: #e9ecef !important;
+        color: #212529 !important;
+        opacity: 1 !important;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    .campo-bloqueado:focus {
+        background-color: #e9ecef !important;
+        color: #212529 !important;
+        border-color: #ced4da !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    .form-label {
+        margin-bottom: 0.25rem;
+    }
+
+    .bloco-compacto .mb-3 {
+        margin-bottom: 0.75rem !important;
+    }
+
+    .mensagem-regra {
+        font-size: 0.85rem;
+        margin-top: 0.25rem;
+    }
+
+    .lista-busca {
+        display: none;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        background-color: #fff;
+        max-height: 280px;
+        overflow-y: auto;
+        padding: 8px;
+    }
+
+    .lista-busca.show {
+        display: block;
+    }
+
+    .lista-busca-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+    }
+
+    .lista-busca-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .bloco-placeholder {
+        border: 1px dashed #d9d9d9;
+        border-radius: 10px;
+        background-color: #fafafa;
+        color: rgb(120,120,120);
+        padding: 16px;
+        text-align: center;
+    }
+
+    .badge-participante {
+        background-color: rgba(234, 106, 35, 0.12);
+        color: #ea6a23;
+        border: 1px solid rgba(234, 106, 35, 0.25);
+        font-weight: 600;
+        padding: 0.45rem 0.65rem;
+        border-radius: 999px;
+    }
+</style>
+
+<form method="POST" action="/editar_hs/{{ registro.id }}" class="bloco-compacto" id="formEditarHS">
+    <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
+    <input type="hidden" name="id_auditor" value="{{ registro.id_auditor }}">
+    <input type="hidden" name="turno" id="turno" value="{{ registro.turno or '' }}">
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Dados Gerais</h5>
+
+            <div class="row g-2">
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="data" class="form-label">Data</label>
+                        <input type="date"
+                               name="data"
+                               id="data"
+                               class="form-control"
+                               value="{{ registro.data.strftime('%Y-%m-%d') if registro.data else '' }}"
+                               required>
+                    </div>
+                </div>
+
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label for="hora" class="form-label">Hora</label>
+                        <input type="time"
+                               name="hora"
+                               id="hora"
+                               class="form-control"
+                               value="{{ registro.hora.strftime('%H:%M') if registro.hora and registro.hora.strftime else registro.hora }}"
+                               required>
+                    </div>
+                </div>
+
+                <div class="col-md-7">
+                    <div class="mb-3">
+                        <label for="local" class="form-label">Local</label>
+                        <input type="text"
+                               name="local"
+                               id="local"
+                               class="form-control"
+                               value="{{ registro.local or '' }}"
+                               placeholder="Informe o local da inspeção">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="id_tema" class="form-label">Tema</label>
+                        <select name="id_tema" id="id_tema" class="form-select" required>
+                            {% for tema in temas %}
+                                <option value="{{ tema.id }}" {% if tema.id == registro.id_tema %}selected{% endif %}>
+                                    {{ tema.nome }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="auditor_nome" class="form-label">Auditor</label>
+                        <input type="text"
+                               id="auditor_nome"
+                               class="form-control campo-bloqueado"
+                               value="{% for usuario in usuarios %}{% if usuario.id == registro.id_auditor %}{{ usuario.nome }}{% endif %}{% endfor %}"
+                               readonly>
+                        <div class="mensagem-regra text-muted">
+                            O auditor do registro não pode ser alterado.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% set parts = registro.participantes.split(',') if registro.participantes else [] %}
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Participantes</h5>
+
+            <div class="row g-2 mb-3">
+                <div class="col-md-8">
+                    <input type="text"
+                           id="buscarParticipante"
+                           class="form-control"
+                           placeholder="Digite para pesquisar participantes..."
+                           autocomplete="off">
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="button" class="btn btn-cinza" id="btnSelecionarTodos">
+                        Selecionar resultados
+                    </button>
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="button" class="btn btn-cinza" id="btnLimparParticipantes">
+                        Limpar
+                    </button>
+                </div>
+            </div>
+
+            <div id="participantesPlaceholder" class="bloco-placeholder mb-3">
+                Digite no campo de pesquisa para localizar e selecionar os participantes.
+            </div>
+
+            <div class="lista-busca" id="listaParticipantes">
+                {% for usuario in usuarios %}
+                    <div class="lista-busca-item" data-nome="{{ usuario.nome|lower }}">
+                        <input
+                            class="form-check-input chk-participante"
+                            type="checkbox"
+                            value="{{ usuario.id }}"
+                            id="p{{ usuario.id }}"
+                            name="participantes"
+                            {% if usuario.id|string in parts %}checked{% endif %}
+                        >
+                        <label for="p{{ usuario.id }}" class="mb-0 flex-grow-1">{{ usuario.nome }}</label>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="mt-3">
+                <small class="text-muted fw-semibold" id="contadorParticipantes">Nenhum participante selecionado.</small>
+            </div>
+
+            <div id="resumoParticipantes" class="mt-3 d-flex flex-wrap gap-2"></div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Itens de Verificação</h5>
+
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width: 28%;">Item</th>
+                            <th style="width: 12%;">Resultado</th>
+                            <th style="width: 24%;">Descrição do Desvio</th>
+                            <th style="width: 24%;">Descrição da Ação</th>
+                            <th style="width: 12%;">Prazo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in itens %}
+                        <tr>
+                            <td>{{ item.texto }}</td>
+
+                            <td>
+                                <select name="resultado_{{ item.id }}"
+                                        id="resultado_{{ item.id }}"
+                                        class="form-select resultado-select"
+                                        data-id="{{ item.id }}"
+                                        required>
+                                    <option value="">Selecione</option>
+                                    <option value="C" {% if item.resultado == "C" %}selected{% endif %}>C</option>
+                                    <option value="NC" {% if item.resultado == "NC" %}selected{% endif %}>NC</option>
+                                    <option value="NA" {% if item.resultado == "NA" %}selected{% endif %}>NA</option>
+                                </select>
+                            </td>
+
+                            <td>
+                                <input type="text"
+                                       name="desvio_{{ item.id }}"
+                                       id="desvio_{{ item.id }}"
+                                       class="form-control"
+                                       value="{{ item.descricao_desvio or '' }}"
+                                       placeholder="Descreva o desvio, se houver"
+                                       {% if item.resultado != 'NC' %}disabled{% endif %}>
+                            </td>
+
+                            <td>
+                                <div id="acao_wrap_{{ item.id }}" class="{% if item.resultado != 'NC' %}d-none{% endif %}">
+                                    <input type="text"
+                                           name="acao_{{ item.id }}"
+                                           id="acao_{{ item.id }}"
+                                           class="form-control"
+                                           value="{{ item.descricao_acao or '' }}"
+                                           placeholder="Ex.: Acionar fulano para regularizar a situação">
+                                </div>
+                            </td>
+
+                            <td>
+                                <div id="prazo_wrap_{{ item.id }}" class="{% if item.resultado != 'NC' %}d-none{% endif %}">
+                                    <input type="date"
+                                            name="prazo_{{ item.id }}"
+                                            id="prazo_{{ item.id }}"
+                                            class="form-control"
+                                            value="{{ item.prazo_acao.strftime('%Y-%m-%d') if item.prazo_acao and item.prazo_acao.strftime else item.prazo_acao or '' }}">
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-between mt-3">
+                <button type="submit" class="btn btn-laranja">Salvar</button>
+                <a href="{{ request.args.get('next') or url_for('main.listar_hs') }}" class="btn btn-cinza">Voltar</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+<script>
+function definirTurnoAutomaticamente() {
+    const campoHora = document.getElementById("hora");
+    const campoTurno = document.getElementById("turno");
+
+    if (!campoHora || !campoTurno || !campoHora.value) {
+        if (campoTurno) campoTurno.value = "";
+        return;
+    }
+
+    const horaInformada = campoHora.value.split(":")[0];
+    const hora = parseInt(horaInformada, 10);
+
+    if (hora >= 0 && hora < 12) {
+        campoTurno.value = "Manhã";
+    } else if (hora >= 12 && hora < 18) {
+        campoTurno.value = "Tarde";
+    } else {
+        campoTurno.value = "Noite";
+    }
+}
+
+function toggleCamposNC(id) {
+    const select = document.getElementById("resultado_" + id);
+    const campoDesvio = document.getElementById("desvio_" + id);
+    const campoAcaoWrap = document.getElementById("acao_wrap_" + id);
+    const campoPrazoWrap = document.getElementById("prazo_wrap_" + id);
+    const campoAcao = document.getElementById("acao_" + id);
+    const campoPrazo = document.getElementById("prazo_" + id);
+
+    if (!select || !campoAcaoWrap || !campoPrazoWrap || !campoDesvio) return;
+
+    if (select.value === "NC") {
+        campoDesvio.disabled = false;
+        campoAcaoWrap.classList.remove("d-none");
+        campoPrazoWrap.classList.remove("d-none");
+    } else {
+        campoDesvio.value = "";
+        campoDesvio.disabled = true;
+        campoAcaoWrap.classList.add("d-none");
+        campoPrazoWrap.classList.add("d-none");
+        if (campoAcao) campoAcao.value = "";
+        if (campoPrazo) campoPrazo.value = "";
+    }
+}
+
+function atualizarResumoParticipantes() {
+    const container = document.getElementById("resumoParticipantes");
+    const contador = document.getElementById("contadorParticipantes");
+    const selecionados = document.querySelectorAll(".chk-participante:checked");
+
+    container.innerHTML = "";
+
+    if (selecionados.length === 0) {
+        contador.textContent = "Nenhum participante selecionado.";
+        return;
+    }
+
+    contador.textContent = selecionados.length + " participante(s) selecionado(s).";
+
+    selecionados.forEach(function(chk) {
+        const label = document.querySelector('label[for="' + chk.id + '"]');
+        if (label) {
+            const badge = document.createElement("span");
+            badge.className = "badge badge-participante d-inline-flex align-items-center gap-2";
+
+            const nome = document.createElement("span");
+            nome.textContent = label.textContent.trim();
+
+            const botaoRemover = document.createElement("button");
+            botaoRemover.type = "button";
+            botaoRemover.className = "btn-close btn-close-sm";
+            botaoRemover.setAttribute("aria-label", "Remover participante");
+            botaoRemover.style.fontSize = "0.6rem";
+            botaoRemover.style.opacity = "0.8";
+
+            botaoRemover.addEventListener("click", function() {
+                chk.checked = false;
+                atualizarResumoParticipantes();
+            });
+
+            badge.appendChild(nome);
+            badge.appendChild(botaoRemover);
+            container.appendChild(badge);
+        }
+    });
+}
+
+function filtrarParticipantes() {
+    const termo = document.getElementById("buscarParticipante").value.toLowerCase().trim();
+    const lista = document.getElementById("listaParticipantes");
+    const placeholder = document.getElementById("participantesPlaceholder");
+    const itens = document.querySelectorAll(".lista-busca-item");
+
+    if (termo === "") {
+        lista.classList.remove("show");
+        placeholder.style.display = "block";
+        placeholder.textContent = "Digite no campo de pesquisa para localizar e selecionar os participantes.";
+        itens.forEach(function(item) {
+            item.style.display = "none";
+        });
+        return;
+    }
+
+    let encontrou = false;
+
+    itens.forEach(function(item) {
+        const nome = item.getAttribute("data-nome");
+        const mostrar = nome.includes(termo);
+        item.style.display = mostrar ? "flex" : "none";
+        if (mostrar) encontrou = true;
+    });
+
+    placeholder.style.display = "none";
+    lista.classList.add("show");
+
+    if (!encontrou) {
+        lista.classList.remove("show");
+        placeholder.style.display = "block";
+        placeholder.textContent = "Nenhum participante encontrado para a pesquisa informada.";
+    }
+}
+
+document.querySelectorAll(".resultado-select").forEach(function(el) {
+    el.addEventListener("change", function() {
+        toggleCamposNC(this.dataset.id);
+    });
+});
+
+document.querySelectorAll(".chk-participante").forEach(function(el) {
+    el.addEventListener("change", atualizarResumoParticipantes);
+});
+
+document.getElementById("buscarParticipante").addEventListener("input", filtrarParticipantes);
+
+document.getElementById("hora").addEventListener("input", function() {
+    definirTurnoAutomaticamente();
+});
+
+document.getElementById("btnSelecionarTodos").addEventListener("click", function() {
+    const termo = document.getElementById("buscarParticipante").value.toLowerCase().trim();
+    if (termo === "") return;
+
+    document.querySelectorAll(".lista-busca-item").forEach(function(item) {
+        if (item.style.display !== "none") {
+            const chk = item.querySelector(".chk-participante");
+            if (chk) chk.checked = true;
+        }
+    });
+
+    atualizarResumoParticipantes();
+});
+
+document.getElementById("btnLimparParticipantes").addEventListener("click", function() {
+    document.getElementById("buscarParticipante").value = "";
+
+    document.querySelectorAll(".chk-participante").forEach(function(chk) {
+        chk.checked = false;
+    });
+
+    document.querySelectorAll(".lista-busca-item").forEach(function(item) {
+        item.style.display = "none";
+    });
+
+    document.getElementById("listaParticipantes").classList.remove("show");
+
+    const placeholder = document.getElementById("participantesPlaceholder");
+    placeholder.style.display = "block";
+    placeholder.textContent = "Digite no campo de pesquisa para localizar e selecionar os participantes.";
+
+    atualizarResumoParticipantes();
+});
+
+document.getElementById("formEditarHS").addEventListener("submit", function() {
+    definirTurnoAutomaticamente();
+});
+
+document.addEventListener("DOMContentLoaded", function() {
+    document.querySelectorAll(".lista-busca-item").forEach(function(item) {
+        item.style.display = "none";
+    });
+
+    definirTurnoAutomaticamente();
+
+    document.querySelectorAll(".resultado-select").forEach(function(el) {
+        toggleCamposNC(el.dataset.id);
+    });
+
+    atualizarResumoParticipantes();
+});
+</script>
+
+{% endblock %}

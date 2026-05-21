@@ -1,0 +1,218 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Novo Procedimento{% endblock %}
+
+{% block conteudo %}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+
+    <div style="width: 40px;"></div>
+
+    <div class="text-center flex-grow-1">
+        <h2 class="page-title">
+            <i class="bi bi-file-earmark-text me-2"></i>
+            Novo Procedimento
+        </h2>
+    </div>
+
+    <div style="width: 40px;"></div>
+
+</div>
+
+<div class="page-header-line"></div>
+<hr>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<form method="POST" enctype="multipart/form-data" action="{{ url_for('main.procedimentos') }}">
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Cadastro do Procedimento</h5>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="tipo_documento_id" class="form-label">Tipo de Documento</label>
+                    <select name="tipo_documento_id" id="tipo_documento_id" class="form-select" required>
+                        <option value="">Selecione</option>
+                        {% for tipo in tipos_documento %}
+                            <option value="{{ tipo.id }}">
+                                {{ tipo.sigla }} - {{ tipo.descricao }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label for="numero_documento" class="form-label">Número</label>
+                    <input type="text"
+                           class="form-control"
+                           id="numero_documento"
+                           name="numero_documento"
+                           maxlength="3"
+                           required>
+                    <small class="text-muted">Ex.: 001</small>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="titulo" class="form-label">Título</label>
+                    <input type="text"
+                           class="form-control"
+                           id="titulo"
+                           name="titulo"
+                           required>
+                </div>
+
+                <div class="col-md-2">
+                    <label for="validade_dias" class="form-label">Validade (dias)</label>
+                    <input type="number"
+                           class="form-control"
+                           id="validade_dias"
+                           name="validade_dias"
+                           min="0"
+                           step="1">
+                    <small class="text-muted">Ex.: 365</small>
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <h5 class="text-laranja mb-3">Níveis de Aplicação</h5>
+
+            <div class="row g-3">
+                <div class="col-12">
+                    <div class="d-flex flex-wrap gap-4">
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="nivel_cargo"
+                                   name="niveis_aplicacao"
+                                   value="cargo">
+                            <label class="form-check-label" for="nivel_cargo">
+                                Cargo
+                            </label>
+                        </div>
+
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="nivel_funcao"
+                                   name="niveis_aplicacao"
+                                   value="funcao">
+                            <label class="form-check-label" for="nivel_funcao">
+                                Função
+                            </label>
+                        </div>
+
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="nivel_setor"
+                                   name="niveis_aplicacao"
+                                   value="setor">
+                            <label class="form-check-label" for="nivel_setor">
+                                Setor
+                            </label>
+                        </div>
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        Selecione em quais camadas da matriz este documento poderá ser utilizado.
+                    </small>
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <h5 class="text-laranja mb-3">Revisão Inicial</h5>
+
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label for="numero_revisao" class="form-label">Revisão</label>
+                    <input type="number"
+                           class="form-control"
+                           id="numero_revisao"
+                           name="numero_revisao"
+                           min="0"
+                           step="1"
+                           value="0"
+                           required>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="data_revisao" class="form-label">Data da Revisão</label>
+                    <input type="date"
+                           class="form-control"
+                           id="data_revisao"
+                           name="data_revisao"
+                           required>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="elaborado_por" class="form-label">Elaborado por</label>
+                    <input type="text"
+                           class="form-control"
+                           id="elaborado_por"
+                           name="elaborado_por">
+                </div>
+
+                <div class="col-md-4">
+                    <label for="aprovado_por" class="form-label">Aprovado por</label>
+                    <input type="text"
+                           class="form-control"
+                           id="aprovado_por"
+                           name="aprovado_por">
+                </div>
+
+                <div class="col-md-6">
+                    <label for="arquivo_pdf" class="form-label">Arquivo PDF</label>
+                    <input type="file"
+                           class="form-control"
+                           id="arquivo_pdf"
+                           name="arquivo_pdf"
+                           accept=".pdf">
+                </div>
+
+                <div class="col-md-6 d-flex align-items-end">
+                    <div class="form-check mb-2">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               value="1"
+                               id="requer_treinamento"
+                               name="requer_treinamento">
+                        <label class="form-check-label" for="requer_treinamento">
+                            Esta revisão requer treinamento
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <label for="observacoes" class="form-label">Observações</label>
+                    <textarea class="form-control"
+                              id="observacoes"
+                              name="observacoes"
+                              rows="3"></textarea>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end mt-4 gap-2">
+                <a href="{{ url_for('main.listar_procedimentos') }}" class="btn btn-cinza">
+                    Cancelar
+                </a>
+                <button type="submit" class="btn btn-laranja">
+                    Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+
+{% endblock %}

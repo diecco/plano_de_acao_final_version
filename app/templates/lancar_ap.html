@@ -1,0 +1,671 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Auditoria de Padrão{% endblock %}
+
+{% block conteudo %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-clipboard-check me-2"></i>
+        Auditoria de Padrão
+    </h2>
+</div>
+<hr>
+
+<form method="POST" action="{{ url_for('main.lancar_ap') }}" id="formAuditoriaPadrao">
+
+    <input type="hidden" name="desvios_json" id="desvios_json">
+    <input type="hidden" name="solicitacao_revisao_json" id="solicitacao_revisao_json">
+
+    <!-- DADOS PRINCIPAIS -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Dados da Auditoria</h5>
+
+            <div class="row g-3">
+
+                <div class="col-md-4 position-relative">
+                    <label for="auditor_busca" class="form-label">Auditor</label>
+
+                    <input type="hidden" name="auditor_id" id="auditor_id" required>
+
+                    <input type="text"
+                        class="form-control"
+                        id="auditor_busca"
+                        placeholder="Digite matrícula ou nome..."
+                        autocomplete="off"
+                        required>
+
+                    <div id="listaAuditores"
+                        class="list-group position-absolute w-100 shadow-sm"
+                        style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+                    </div>
+                </div>
+
+                <div class="col-md-4 position-relative">
+                    <label for="auditado_busca" class="form-label">Auditado</label>
+
+                    <input type="hidden" name="auditado_id" id="auditado_id" required>
+
+                    <input type="text"
+                        class="form-control"
+                        id="auditado_busca"
+                        placeholder="Digite matrícula ou nome..."
+                        autocomplete="off"
+                        required>
+
+                    <div id="listaAuditados"
+                        class="list-group position-absolute w-100 shadow-sm"
+                        style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Data da Auditoria</label>
+                    <input type="date" name="data_auditoria" class="form-control" required>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Área Auditada</label>
+                    <input type="text" name="area_auditada" class="form-control" required>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Atividade Auditada</label>
+                    <input type="text" name="atividade_auditada" class="form-control" required>
+                </div>
+
+                <div class="col-md-12 position-relative">
+
+                    <label class="form-label">Procedimento / Revisão Vigente</label>
+
+                    <input type="hidden" name="procedimento_id" id="procedimento_id">
+                    <input type="hidden" name="procedimento_revisao_id" id="procedimento_revisao_id">
+
+                    <input type="text"
+                        class="form-control"
+                        id="procedimento_busca"
+                        placeholder="Digite número, título ou sigla..."
+                        autocomplete="off"
+                        required>
+
+                    <div id="listaProcedimentos"
+                        class="list-group position-absolute w-100 shadow-sm"
+                        style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- CHECKLIST -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Itens de Verificação</h5>
+
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 70px;">Item</th>
+                            <th>Verificação</th>
+                            <th style="width: 180px;">Resultado</th>
+                            <th style="width: 140px;">Desvio / Ação</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% set itens = [
+                            'O colaborador conhece os procedimentos aplicáveis à atividade?',
+                            'A atividade está sendo executada conforme o procedimento vigente?',
+                            'As ferramentas e recursos utilizados estão adequados?',
+                            'Os riscos da atividade foram identificados e controlados?',
+                            'Os EPIs necessários estão sendo utilizados corretamente?',
+                            'O local de trabalho está organizado e seguro?',
+                            'A comunicação da atividade está clara entre os envolvidos?',
+                            'Há evidências de desvios recorrentes ou práticas inseguras?',
+                            'O procedimento vigente representa adequadamente a prática de campo?',
+                            'O colaborador demonstrou domínio dos pontos críticos da atividade?'
+                        ] %}
+
+                        {% for item in itens %}
+                        <tr data-item="{{ loop.index }}">
+                            <td class="text-center fw-semibold">{{ loop.index }}</td>
+
+                            <td>
+                                {{ item }}
+                                <input type="hidden" name="item_texto_{{ loop.index }}" value="{{ item }}">
+                            </td>
+
+                            <td>
+                                <select name="resultado_{{ loop.index }}"
+                                        class="form-select resultado-item"
+                                        data-item="{{ loop.index }}">
+                                    <option value="C" selected>Conforme</option>
+                                    <option value="NC">Não Conforme</option>
+                                    <option value="NA">Não se aplica</option>
+                                </select>
+                            </td>
+
+                            <td class="text-center">
+                                <button type="button"
+                                        class="btn btn-sm btn-laranja btn-desvio"
+                                        data-item="{{ loop.index }}"
+                                        data-texto="{{ item|e }}"
+                                        style="display:none;">
+                                    <i class="bi bi-plus-circle me-1"></i>
+                                    Registrar
+                                </button>
+
+                                <span class="badge bg-success badge-desvio" id="badge_desvio_{{ loop.index }}" style="display:none;">
+                                    Registrado
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="alert alert-light border mb-0">
+                Ao marcar um item como <strong>Não Conforme</strong>, será necessário registrar o desvio e a ação correspondente.
+            </div>
+        </div>
+    </div>
+
+    <!-- OBSERVAÇÕES -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Pontos Observados / Oportunidades de Melhoria</h5>
+
+            <textarea name="pontos_observados"
+                      class="form-control"
+                      rows="5"
+                      placeholder="Descreva pontos relevantes observados durante a auditoria, boas práticas, oportunidades de melhoria ou comentários gerais."></textarea>
+        </div>
+    </div>
+
+    <!-- SOLICITAÇÃO DE REVISÃO -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <h5 class="text-laranja mb-1">Solicitação de Revisão do Padrão</h5>
+                    <div class="text-muted small">
+                        Use esta opção quando a prática de campo indicar necessidade de revisar o procedimento vigente.
+                    </div>
+                </div>
+
+                <button type="button"
+                        class="btn btn-laranja"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalRevisaoPadrao">
+                    <i class="bi bi-file-earmark-text me-1"></i>
+                    Solicitar Revisão
+                </button>
+            </div>
+
+            <div id="resumoSolicitacaoRevisao" class="alert alert-light border mt-3 mb-0" style="display:none;">
+                Solicitação de revisão registrada para envio ao salvar a auditoria.
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between mt-4 gap-2">
+        <a href="{{ url_for('main.listar_ap') }}" class="btn btn-cinza">
+             Voltar
+        </a>
+
+        <button type="submit" class="btn btn-laranja">
+            Salvar
+        </button>
+    </div>
+
+</form>
+
+<!-- MODAL DESVIO -->
+<div class="modal fade" id="modalDesvioAP" tabindex="-1" aria-labelledby="modalDesvioAPLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <div class="modal-header modal-header-trackplan">
+                <h5 class="modal-title" id="modalDesvioAPLabel">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Registrar Desvio e Ação
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <div class="modal-body">
+
+                <input type="hidden" id="modal_desvio_item_numero">
+
+                <div class="mb-3">
+                    <label class="form-label">Item de Verificação</label>
+                    <input type="text" id="modal_desvio_item_texto" class="form-control campo-readonly" readonly>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Desvio Observado</label>
+                    <textarea id="modal_desvio_observado" class="form-control" rows="4"></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Ação Proposta</label>
+                    <textarea id="modal_acao_proposta" class="form-control" rows="4"></textarea>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label">Responsável pela Ação</label>
+                        <select id="modal_responsavel_id" class="form-select">
+                            <option value="">Selecione</option>
+                            {% for u in usuarios %}
+                                <option value="{{ u.id }}">{{ u.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Prazo</label>
+                        <input type="date" id="modal_prazo" class="form-control">
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-laranja" id="btnSalvarDesvio">
+                    Salvar Desvio
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- MODAL REVISÃO DO PADRÃO -->
+<div class="modal fade" id="modalRevisaoPadrao" tabindex="-1" aria-labelledby="modalRevisaoPadraoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <div class="modal-header modal-header-trackplan">
+                <h5 class="modal-title" id="modalRevisaoPadraoLabel">
+                    <i class="bi bi-file-earmark-text"></i>
+                    Solicitação de Revisão do Padrão
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <div class="modal-body">
+
+                <div class="alert alert-light border">
+                    A solicitação será convertida automaticamente em uma ação para o responsável por revisão de padrão, com prazo de 30 dias.
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Procedimento / Revisão Vigente</label>
+                    <input type="text" id="modal_revisao_procedimento_texto" class="form-control campo-readonly" readonly>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Oportunidade de Revisão Identificada</label>
+                    <textarea id="modal_oportunidade_revisao" class="form-control" rows="4"></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Justificativa / Evidência Observada em Campo</label>
+                    <textarea id="modal_justificativa_revisao" class="form-control" rows="4"></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Sugestão de Alteração</label>
+                    <textarea id="modal_sugestao_revisao" class="form-control" rows="4"></textarea>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-laranja" id="btnSalvarRevisaoPadrao">
+                    Registrar Solicitação
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script id="procedimentos-data" type="application/json">
+    {{ procedimentos | tojson }}
+</script>
+
+<script id="usuarios-data" type="application/json">
+    {{ usuarios | tojson }}
+</script>
+
+<script>
+let desviosAP = {};
+let solicitacaoRevisaoAP = null;
+
+const procedimentosAP = JSON.parse(
+    document.getElementById('procedimentos-data').textContent
+);
+
+function formatarProcedimento(p) {
+    return `${p.sigla} - ${p.numero_documento} - ${p.titulo} | Rev. ${p.numero_revisao}`;
+}
+
+function configurarBuscaProcedimento() {
+    const input = document.getElementById('procedimento_busca');
+    const lista = document.getElementById('listaProcedimentos');
+
+    if (!input || !lista) return;
+
+    input.addEventListener('input', function () {
+        const termo = normalizarTextoAP(input.value);
+
+        lista.innerHTML = '';
+        lista.style.display = 'none';
+
+        if (termo.length < 2) return;
+
+        const resultados = procedimentosAP.filter(p => {
+            const texto = normalizarTextoAP(
+                `${p.sigla} ${p.numero_documento} ${p.titulo}`
+            );
+            return texto.includes(termo);
+        }).slice(0, 12);
+
+        if (resultados.length === 0) {
+            lista.innerHTML = `
+                <div class="list-group-item text-muted">
+                    Nenhum procedimento encontrado.
+                </div>
+            `;
+            lista.style.display = 'block';
+            return;
+        }
+
+        resultados.forEach(p => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'list-group-item list-group-item-action text-start';
+
+            item.innerHTML = `
+                <strong>${p.sigla} - ${p.numero_documento}</strong><br>
+                <small>${p.titulo}</small><br>
+                <span class="badge bg-secondary">Rev. ${p.numero_revisao}</span>
+            `;
+
+            item.addEventListener('click', function () {
+                input.value = formatarProcedimento(p);
+                document.getElementById('procedimento_id').value = p.procedimento_id;
+                document.getElementById('procedimento_revisao_id').value = p.revisao_id;
+
+                const inputModal = document.getElementById('modal_revisao_procedimento_texto');
+                if (inputModal) {
+                    inputModal.value = formatarProcedimento(p);
+                }
+
+                lista.style.display = 'none';
+            });
+
+            lista.appendChild(item);
+        });
+
+        lista.style.display = 'block';
+    });
+
+    input.addEventListener('blur', function () {
+        setTimeout(() => {
+            lista.style.display = 'none';
+        }, 200);
+    });
+}
+
+const usuariosDisponiveisAP = JSON.parse(
+    document.getElementById('usuarios-data').textContent
+);
+
+function normalizarTextoAP(texto) {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+}
+
+function formatarUsuarioAP(usuario) {
+    const matricula = usuario.matricula || 'Sem matrícula';
+    const nome = usuario.nome || '';
+    return `${matricula} - ${nome}`;
+}
+
+function configurarBuscaUsuarioAP(inputId, hiddenId, listaId) {
+    const input = document.getElementById(inputId);
+    const hidden = document.getElementById(hiddenId);
+    const lista = document.getElementById(listaId);
+
+    if (!input || !hidden || !lista) return;
+
+    input.addEventListener('input', function () {
+        const termo = normalizarTextoAP(input.value);
+
+        hidden.value = '';
+        lista.innerHTML = '';
+        lista.style.display = 'none';
+
+        if (termo.length < 2) {
+            return;
+        }
+
+        const resultados = usuariosDisponiveisAP
+            .filter(u => {
+                const textoBusca = normalizarTextoAP(`${u.matricula || ''} ${u.nome || ''}`);
+                return textoBusca.includes(termo);
+            })
+            .slice(0, 12);
+
+        if (resultados.length === 0) {
+            lista.innerHTML = `
+                <div class="list-group-item text-muted">
+                    Nenhum funcionário encontrado.
+                </div>
+            `;
+            lista.style.display = 'block';
+            return;
+        }
+
+        resultados.forEach(usuario => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'list-group-item list-group-item-action text-start';
+            item.innerHTML = `
+                <strong>${usuario.matricula || '-'}</strong><br>
+                <small>${usuario.nome || ''}</small>
+            `;
+
+            item.addEventListener('click', function () {
+                input.value = formatarUsuarioAP(usuario);
+                hidden.value = usuario.id;
+                lista.style.display = 'none';
+            });
+
+            lista.appendChild(item);
+        });
+
+        lista.style.display = 'block';
+    });
+
+    input.addEventListener('blur', function () {
+        setTimeout(function () {
+            lista.style.display = 'none';
+        }, 200);
+    });
+}
+
+function atualizarProcedimentoSelecionado() {
+    const procedimentoId = document.getElementById('procedimento_id');
+    const procedimentoRevisaoId = document.getElementById('procedimento_revisao_id');
+    const procedimentoBusca = document.getElementById('procedimento_busca');
+    const inputModal = document.getElementById('modal_revisao_procedimento_texto');
+
+    if (!procedimentoId || !procedimentoRevisaoId || !procedimentoBusca || !inputModal) return;
+
+    if (!procedimentoId.value || !procedimentoRevisaoId.value) {
+        inputModal.value = '';
+        return;
+    }
+
+    inputModal.value = procedimentoBusca.value || '';
+}
+
+function abrirModalDesvio(button) {
+    const item = button.getAttribute('data-item');
+    const texto = button.getAttribute('data-texto');
+
+    document.getElementById('modal_desvio_item_numero').value = item;
+    document.getElementById('modal_desvio_item_texto').value = `${item}. ${texto}`;
+
+    const existente = desviosAP[item];
+
+    document.getElementById('modal_desvio_observado').value = existente?.desvio_observado || '';
+    document.getElementById('modal_acao_proposta').value = existente?.acao_proposta || '';
+    document.getElementById('modal_responsavel_id').value = existente?.responsavel_id || '';
+    document.getElementById('modal_prazo').value = existente?.prazo || '';
+
+    const modal = new bootstrap.Modal(document.getElementById('modalDesvioAP'));
+    modal.show();
+}
+
+function salvarDesvio() {
+    const item = document.getElementById('modal_desvio_item_numero').value;
+    const itemTexto = document.getElementById('modal_desvio_item_texto').value;
+    const desvio = document.getElementById('modal_desvio_observado').value.trim();
+    const acao = document.getElementById('modal_acao_proposta').value.trim();
+    const responsavelId = document.getElementById('modal_responsavel_id').value;
+    const prazo = document.getElementById('modal_prazo').value;
+
+    if (!desvio || !acao || !responsavelId || !prazo) {
+        alert('Preencha o desvio, a ação proposta, o responsável e o prazo.');
+        return;
+    }
+
+    desviosAP[item] = {
+        numero_item: item,
+        item_texto: itemTexto,
+        desvio_observado: desvio,
+        acao_proposta: acao,
+        responsavel_id: responsavelId,
+        prazo: prazo
+    };
+
+    document.getElementById(`badge_desvio_${item}`).style.display = '';
+
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalDesvioAP'));
+    modal.hide();
+}
+
+function salvarRevisaoPadrao() {
+    atualizarProcedimentoSelecionado();
+
+    const procedimentoSelect = document.getElementById('procedimento_revisao_id');
+    const procedimentoRevisaoId = procedimentoSelect.value;
+    const procedimentoId = document.getElementById('procedimento_id').value;
+    const procedimentoTexto = document.getElementById('modal_revisao_procedimento_texto').value;
+
+    const oportunidade = document.getElementById('modal_oportunidade_revisao').value.trim();
+    const justificativa = document.getElementById('modal_justificativa_revisao').value.trim();
+    const sugestao = document.getElementById('modal_sugestao_revisao').value.trim();
+
+    if (!procedimentoRevisaoId || !procedimentoId) {
+        alert('Selecione o procedimento/revisão vigente antes de registrar a solicitação.');
+        return;
+    }
+
+    if (!oportunidade || !justificativa || !sugestao) {
+        alert('Preencha a oportunidade, a justificativa e a sugestão de alteração.');
+        return;
+    }
+
+    solicitacaoRevisaoAP = {
+        procedimento_id: procedimentoId,
+        procedimento_revisao_id: procedimentoRevisaoId,
+        procedimento_texto: procedimentoTexto,
+        oportunidade_revisao: oportunidade,
+        justificativa_revisao: justificativa,
+        sugestao_revisao: sugestao
+    };
+
+    document.getElementById('resumoSolicitacaoRevisao').style.display = '';
+
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalRevisaoPadrao'));
+    modal.hide();
+}
+
+function validarFormularioAP(event) {
+    const resultadosNC = document.querySelectorAll('.resultado-item');
+
+    for (const select of resultadosNC) {
+        const item = select.getAttribute('data-item');
+
+        if (select.value === 'NC' && !desviosAP[item]) {
+            event.preventDefault();
+            alert(`O item ${item} foi marcado como Não Conforme. Registre o desvio e a ação antes de salvar.`);
+            return false;
+        }
+    }
+
+    document.getElementById('desvios_json').value = JSON.stringify(Object.values(desviosAP));
+    document.getElementById('solicitacao_revisao_json').value = solicitacaoRevisaoAP ? JSON.stringify(solicitacaoRevisaoAP) : '';
+
+    return true;
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    configurarBuscaUsuarioAP('auditor_busca', 'auditor_id', 'listaAuditores');
+    configurarBuscaUsuarioAP('auditado_busca', 'auditado_id', 'listaAuditados');
+    const dataAuditoria = document.querySelector('input[name="data_auditoria"]');
+    if (dataAuditoria && !dataAuditoria.value) {
+        dataAuditoria.valueAsDate = new Date();
+    }
+
+    const procedimentoSelect = document.getElementById('procedimento_revisao_id');
+    if (procedimentoSelect) {
+        procedimentoSelect.addEventListener('change', atualizarProcedimentoSelecionado);
+    }
+
+    document.querySelectorAll('.resultado-item').forEach(select => {
+        select.addEventListener('change', function () {
+            const item = this.getAttribute('data-item');
+            const btn = document.querySelector(`.btn-desvio[data-item="${item}"]`);
+            const badge = document.getElementById(`badge_desvio_${item}`);
+
+            if (this.value === 'NC') {
+                btn.style.display = '';
+            } else {
+                btn.style.display = 'none';
+                badge.style.display = 'none';
+                delete desviosAP[item];
+            }
+        });
+    });
+
+    document.querySelectorAll('.btn-desvio').forEach(button => {
+        button.addEventListener('click', function () {
+            abrirModalDesvio(this);
+        });
+    });
+
+    document.getElementById('btnSalvarDesvio').addEventListener('click', salvarDesvio);
+    document.getElementById('btnSalvarRevisaoPadrao').addEventListener('click', salvarRevisaoPadrao);
+
+    document.getElementById('formAuditoriaPadrao').addEventListener('submit', validarFormularioAP);
+});
+    configurarBuscaProcedimento();
+</script>
+
+{% endblock %}

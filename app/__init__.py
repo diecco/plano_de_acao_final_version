@@ -3,11 +3,17 @@ from flask_mail import Mail
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from zoneinfo import ZoneInfo  # stdlib (Python 3.9+)
+from dotenv import load_dotenv, find_dotenv
+import os
 
 mail = Mail()
 
+# Força carregar o .env e sobrescrever variáveis existentes
+load_dotenv(find_dotenv())
+
 def create_app():
     app = Flask(__name__)
+    app.config.from_object("app.config_local.Config")
 
     # --- Configs básicas
     app.secret_key = 'sua_chave_secreta_segura'
@@ -45,4 +51,3 @@ def create_app():
     scheduler.start()
 
     return app
-

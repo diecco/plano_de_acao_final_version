@@ -1,56 +1,288 @@
 {% extends 'layout.html' %}
 {% block conteudo %}
 
-<h2 class="mb-4 text-center text-laranja">EDITAR AÇÃO</h2>
-<hr>
+<h2 class="mb-3 text-center text-laranja">EDITAR AÇÃO</h2>
+<hr class="mb-3">
 
-<form method="POST" action="/editar_acao/{{ acao.id }}">
-    <div class="mb-3">
-        <label for="origem_id" class="form-label">Origem</label>
-        <select name="origem_id" id="origem_id" class="form-select" required>
-            {% for origem in origens %}
-                <option value="{{ origem.id }}" {% if origem.id == acao.origem_id %}selected{% endif %}>
-                    {{ origem.descricao }}
-                </option>
-            {% endfor %}
-        </select>
-    </div>
+<style>
+    .campo-bloqueado {
+        background-color: #e9ecef !important;
+        color: #212529 !important;
+        opacity: 1 !important;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
 
-    <div class="mb-3">
-        <label for="responsavel_id" class="form-label">Responsável</label>
-        <select name="responsavel_id" id="responsavel_id" class="form-select" required>
-            {% for usuario in usuarios %}
-                <option value="{{ usuario.id }}" {% if usuario.id == acao.responsavel_id %}selected{% endif %}>
-                    {{ usuario.nome }}
-                </option>
-            {% endfor %}
-        </select>
+    .campo-bloqueado:focus {
+        background-color: #e9ecef !important;
+        color: #212529 !important;
+        border-color: #ced4da !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    .form-label {
+        margin-bottom: 0.25rem;
+    }
+
+    .bloco-compacto .mb-3 {
+        margin-bottom: 0.75rem !important;
+    }
+
+    .textarea-descricao {
+        min-height: 90px;
+        resize: none;
+    }
+
+    .textarea-observacoes {
+        min-height: 80px;
+        resize: none;
+    }
+
+    .mensagem-regra {
+        font-size: 0.85rem;
+        margin-top: 0.25rem;
+    }
+</style>
+
+<form method="POST" action="/editar_acao/{{ acao.id }}" class="bloco-compacto" id="formEditarAcao">
+    <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
+
+    <div class="row g-2">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="origem_id" class="form-label">Origem</label>
+                <select name="origem_id"
+                        id="origem_id"
+                        class="form-select {% if not pode_editar_completo %}campo-bloqueado{% endif %}"
+                        required
+                        {% if not pode_editar_completo %}disabled{% endif %}>
+                    {% for origem in origens %}
+                        <option value="{{ origem.id }}" {% if origem.id == acao.origem_id %}selected{% endif %}>
+                            {{ origem.descricao }}
+                        </option>
+                    {% endfor %}
+                </select>
+                {% if not pode_editar_completo %}
+                    <input type="hidden" name="origem_id" value="{{ acao.origem_id }}">
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="responsavel_id" class="form-label">Responsável</label>
+                <select name="responsavel_id"
+                        id="responsavel_id"
+                        class="form-select {% if not pode_editar_completo %}campo-bloqueado{% endif %}"
+                        required
+                        {% if not pode_editar_completo %}disabled{% endif %}>
+                    {% for usuario in usuarios %}
+                        <option value="{{ usuario.id }}" {% if usuario.id == acao.responsavel_id %}selected{% endif %}>
+                            {{ usuario.nome }}
+                        </option>
+                    {% endfor %}
+                </select>
+                {% if not pode_editar_completo %}
+                    <input type="hidden" name="responsavel_id" value="{{ acao.responsavel_id }}">
+                {% endif %}
+            </div>
+        </div>
     </div>
 
     <div class="mb-3">
         <label for="descricao" class="form-label">Descrição da Ação</label>
-        <textarea name="descricao" id="descricao" class="form-control" rows="4" required>{{ acao.descricao }}</textarea>
+        <textarea name="descricao"
+                  id="descricao"
+                  class="form-control {% if not pode_editar_completo %}campo-bloqueado{% endif %} textarea-descricao"
+                  rows="3"
+                  required
+                  {% if not pode_editar_completo %}readonly{% endif %}>{{ acao.descricao }}</textarea>
+    </div>
+
+    <div class="row g-2">
+        <div class="col-md-3">
+            <div class="mb-3">
+                <label for="prazo" class="form-label">Prazo</label>
+                <input type="date"
+                       name="prazo"
+                       id="prazo"
+                       class="form-control {% if not pode_editar_completo %}campo-bloqueado{% endif %}"
+                       value="{{ acao.prazo.strftime('%Y-%m-%d') if acao.prazo else '' }}"
+                       required
+                       {% if not pode_editar_completo %}readonly{% endif %}>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="mb-3">
+                <label for="status" class="form-label">Status</label>
+                <select name="status" id="status" class="form-select" required>
+                    <option value="Não iniciada" {% if acao.status == 'Não iniciada' %}selected{% endif %}>Não iniciada</option>
+                    <option value="Em andamento" {% if acao.status == 'Em andamento' %}selected{% endif %}>Em andamento</option>
+                    <option value="Concluída" {% if acao.status == 'Concluída' %}selected{% endif %}>Concluída</option>
+                    <option value="Cancelada" {% if acao.status == 'Cancelada' %}selected{% endif %}>Cancelada</option>
+                </select>
+                <div class="mensagem-regra text-muted">
+                    Para concluir a ação, preencha a data de conclusão.
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="mb-3">
+                <label for="data_conclusao" class="form-label">Data de conclusão</label>
+                <input type="date"
+                       name="data_conclusao"
+                       id="data_conclusao"
+                       class="form-control"
+                       value="{{ acao.data_conclusao.strftime('%Y-%m-%d') if acao.data_conclusao else '' }}">
+                <div class="mensagem-regra text-muted">
+                    Não é permitido informar data futura.
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label d-block">&nbsp;</label>
+
+            {% if acao.arquivo_evidencia %}
+                <div class="row g-2">
+                    <div class="col-4">
+                        <a href="{{ url_for('main.anexar_evidencia', acao_id=acao.id, next=request.args.get('next', '')) }}"
+                           class="btn btn-laranja w-100">
+                            Trocar
+                        </a>
+                    </div>
+                    <div class="col-4">
+                        <a href="{{ url_for('static', filename='evidencias/' ~ acao.arquivo_evidencia) }}"
+                           target="_blank"
+                           class="btn btn-success w-100">
+                            Consultar
+                        </a>
+                    </div>
+                    <div class="col-4">
+                        <a href="{{ url_for('main.excluir_acao', id=acao.id) }}"
+                           class="btn btn-danger w-100"
+                           onclick="return confirm('Tem certeza que deseja excluir esta ação?')">
+                            Excluir
+                        </a>
+                    </div>
+                </div>
+            {% else %}
+                <div class="row g-2">
+                    <div class="col-6">
+                        <a href="{{ url_for('main.anexar_evidencia', acao_id=acao.id, next=request.args.get('next', '')) }}"
+                           class="btn btn-laranja w-100">
+                            Anexar
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{{ url_for('main.excluir_acao', id=acao.id) }}"
+                           class="btn btn-danger w-100"
+                           onclick="return confirm('Tem certeza que deseja excluir esta ação?')">
+                            Excluir
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
     </div>
 
     <div class="mb-3">
-        <label for="prazo" class="form-label">Prazo</label>
-        <input type="date" name="prazo" id="prazo" class="form-control" value="{{ acao.prazo.strftime('%Y-%m-%d') }}" required>
-    </div>
-
-    <div class="mb-3">
-        <label for="status" class="form-label">Status</label>
-        <select name="status" id="status" class="form-select" required>
-            <option value="Não iniciada" {% if acao.status == 'Não iniciada' %}selected{% endif %}>Não iniciada</option>
-            <option value="Em andamento" {% if acao.status == 'Em andamento' %}selected{% endif %}>Em andamento</option>
-            <option value="Concluída" {% if acao.status == 'Concluída' %}selected{% endif %}>Concluída</option>
-            <option value="Cancelada" {% if acao.status == 'Cancelada' %}selected{% endif %}>Cancelada</option>
-        </select>
+        <label for="observacoes" class="form-label">Observações</label>
+        <textarea name="observacoes"
+                  id="observacoes"
+                  class="form-control textarea-observacoes"
+                  placeholder="Informe aqui detalhes adicionais...">{{ acao.observacoes or '' }}</textarea>
+        <div class="mensagem-regra text-muted">
+            Se o status for Cancelada, o preenchimento deste campo é obrigatório.
+        </div>
     </div>
 
     <div class="d-flex justify-content-between">
         <button type="submit" class="btn btn-laranja">Salvar</button>
-        <a href="/dashboard" class="btn btn-cinza">Voltar</a>
+        <a href="{{ request.args.get('next') or url_for('main.dashboard') }}" class="btn btn-cinza">Voltar</a>
     </div>
+
 </form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('formEditarAcao');
+    const status = document.getElementById('status');
+    const dataConclusao = document.getElementById('data_conclusao');
+    const observacoes = document.getElementById('observacoes');
+
+    function hojeISO() {
+        const hoje = new Date();
+        const ano = hoje.getFullYear();
+        const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+        const dia = String(hoje.getDate()).padStart(2, '0');
+        return `${ano}-${mes}-${dia}`;
+    }
+
+    function validarDataFutura() {
+        if (dataConclusao.value && dataConclusao.value > hojeISO()) {
+            alert('A data de conclusão não pode ser superior à data de hoje.');
+            dataConclusao.value = '';
+            dataConclusao.focus();
+            return false;
+        }
+        return true;
+    }
+
+    function sincronizarStatusComData() {
+        if (dataConclusao.value) {
+            status.value = 'Concluída';
+        }
+    }
+
+    dataConclusao.addEventListener('change', function () {
+        if (!validarDataFutura()) return;
+        sincronizarStatusComData();
+    });
+
+    status.addEventListener('change', function () {
+        if (status.value === 'Concluída' && !dataConclusao.value) {
+            alert('Para concluir a ação, preencha a data de conclusão.');
+            status.value = 'Em andamento';
+            dataConclusao.focus();
+            return;
+        }
+
+        if (status.value === 'Cancelada' && !observacoes.value.trim()) {
+            observacoes.placeholder = 'Para cancelar a ação, informe uma justificativa neste campo.';
+        }
+    });
+
+    form.addEventListener('submit', function (e) {
+        if (dataConclusao.value && dataConclusao.value > hojeISO()) {
+            alert('A data de conclusão não pode ser superior à data de hoje.');
+            dataConclusao.focus();
+            e.preventDefault();
+            return;
+        }
+
+        if (dataConclusao.value) {
+            status.value = 'Concluída';
+        }
+
+        if (status.value === 'Concluída' && !dataConclusao.value) {
+            alert('Para concluir a ação, preencha a data de conclusão.');
+            dataConclusao.focus();
+            e.preventDefault();
+            return;
+        }
+
+        if (status.value === 'Cancelada' && !observacoes.value.trim()) {
+            alert('Ao cancelar a ação, o campo Observações é obrigatório.');
+            observacoes.focus();
+            e.preventDefault();
+            return;
+        }
+    });
+});
+</script>
 
 {% endblock %}

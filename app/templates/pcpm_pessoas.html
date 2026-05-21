@@ -1,0 +1,508 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Clientes / Operadores{% endblock %}
+
+{% block conteudo %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-person-vcard me-2"></i>
+        Clientes / Operadores
+    </h2>
+</div>
+
+<hr>
+
+<!-- FILTROS E AÇÕES -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+
+        <form method="GET" action="{{ url_for('main.pcpm_pessoas') }}">
+
+            <div class="row g-3 align-items-end">
+
+                <div class="col-md-2">
+                    <label for="matricula" class="form-label">Matrícula</label>
+                    <input type="text"
+                           class="form-control"
+                           id="matricula"
+                           name="matricula"
+                           value="{{ filtros.get('matricula', '') }}"
+                           placeholder="Matrícula">
+                </div>
+
+                <div class="col-md-3">
+                    <label for="nome" class="form-label">Nome</label>
+                    <input type="text"
+                           class="form-control"
+                           id="nome"
+                           name="nome"
+                           value="{{ filtros.get('nome', '') }}"
+                           placeholder="Nome do operador">
+                </div>
+
+                <div class="col-md-3">
+                    <label for="empresa_id" class="form-label">Empresa</label>
+
+                    <select class="form-select"
+                            id="empresa_id"
+                            name="empresa_id">
+
+                        <option value="">Todas</option>
+
+                        {% for empresa in empresas %}
+
+                            <option value="{{ empresa.id }}"
+                                    {% if filtros.get('empresa_id') == empresa.id|string %}selected{% endif %}>
+
+                                {{ empresa.nome }}
+
+                            </option>
+
+                        {% endfor %}
+
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label for="setor_area" class="form-label">Setor/Área</label>
+                    <input type="text"
+                           class="form-control"
+                           id="setor_area"
+                           name="setor_area"
+                           value="{{ filtros.get('setor_area', '') }}"
+                           placeholder="Setor/Área">
+                </div>
+
+                <div class="col-md-2">
+                    <div class="d-flex gap-2 justify-content-end flex-wrap">
+
+                        <button type="submit"
+                                class="btn btn-laranja"
+                                title="Filtrar">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+
+                        <a href="{{ url_for('main.pcpm_pessoas', limpar=1) }}"
+                           class="btn btn-cinza"
+                           title="Limpar filtros">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+
+                        <button type="button"
+                                class="btn btn-laranja"
+                                title="Novo cliente/operador"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modalCadastrarPessoaPCPM">
+                            <i class="bi bi-plus-circle"></i>
+                        </button>
+
+                    </div>
+                </div>
+
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+<!-- TABELA -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+
+        <div class="table-responsive">
+
+            <table class="table table-bordered align-middle table-fixed">
+
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 80px;" class="text-center">ID</th>
+                        <th style="width: 160px;">RFID</th>
+                        <th style="width: 130px;">Matrícula</th>
+                        <th>Nome</th>
+                        <th style="width: 220px;">Empresa</th>
+                        <th style="width: 220px;">Setor/Área</th>
+                        <th style="width: 120px;" class="text-center">Status</th>
+                        <th style="width: 140px;" class="text-center">Ações</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for pessoa in pessoas %}
+                    <tr>
+                        <td class="text-center">
+                            {{ pessoa.id }}
+                        </td>
+
+                        <td class="text-center">
+                            <span class="badge bg-dark">
+                                {{ pessoa.rfid }}
+                            </span>
+                        </td>
+
+                        <td class="text-center">
+                            {{ pessoa.matricula }}
+                        </td>
+
+                        <td>
+                            {{ pessoa.nome }}
+                        </td>
+
+                        <td>
+                            {{ pessoa.empresa_nome }}
+                        </td>
+
+                        <td>
+                            {{ pessoa.setor_area }}
+                        </td>
+
+                        <td class="text-center">
+                            {% if pessoa.ativo %}
+                                <span class="badge bg-success">Ativo</span>
+                            {% else %}
+                                <span class="badge bg-danger">Inativo</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <div class="d-flex justify-content-center gap-2">
+
+                                <button type="button"
+                                        class="btn-acao-icon"
+                                        title="Editar"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalEditarPessoaPCPM"
+                                        data-id="{{ pessoa.id }}"
+                                        data-rfid="{{ pessoa.rfid }}"
+                                        data-matricula="{{ pessoa.matricula }}"
+                                        data-nome="{{ pessoa.nome }}"
+                                        data-empresa-id="{{ pessoa.empresa_id }}"
+                                        data-setor-area="{{ pessoa.setor_area }}">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+
+                                {% if pessoa.ativo %}
+                                <form method="POST"
+                                      action="{{ url_for('main.inativar_pcpm_pessoa', id=pessoa.id) }}"
+                                      onsubmit="return confirm('Deseja inativar este cadastro?');">
+                                    <button type="submit"
+                                            class="btn-acao-icon"
+                                            title="Inativar">
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
+                                </form>
+                                {% else %}
+                                <form method="POST"
+                                      action="{{ url_for('main.ativar_pcpm_pessoa', id=pessoa.id) }}"
+                                      onsubmit="return confirm('Deseja ativar este cadastro?');">
+                                    <button type="submit"
+                                            class="btn-acao-icon"
+                                            title="Ativar">
+                                        <i class="bi bi-check-circle"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center">
+                            Nenhum cliente/operador cadastrado.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- MODAL CADASTRAR -->
+<div class="modal fade"
+     id="modalCadastrarPessoaPCPM"
+     tabindex="-1"
+     aria-labelledby="modalCadastrarPessoaPCPMLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-lg">
+
+        <div class="modal-content">
+
+            <form method="POST"
+                  action="{{ url_for('main.cadastrar_pcpm_pessoa') }}">
+
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalCadastrarPessoaPCPMLabel">
+                        <i class="bi bi-plus-circle"></i>
+                        Novo Cliente / Operador
+                    </h5>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Fechar">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="row g-3">
+
+                        <div class="col-md-6">
+                            <label for="cad_rfid" class="form-label">RFID</label>
+                            <input type="text"
+                                   name="rfid"
+                                   id="cad_rfid"
+                                   class="form-control"
+                                   maxlength="100"
+                                   required
+                                   placeholder="ID do crachá">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="cad_matricula" class="form-label">Matrícula</label>
+                            <input type="text"
+                                   name="matricula"
+                                   id="cad_matricula"
+                                   class="form-control"
+                                   maxlength="30"
+                                   required
+                                   placeholder="Matrícula">
+                        </div>
+
+                        <div class="col-md-12">
+                            <label for="cad_nome" class="form-label">Nome</label>
+                            <input type="text"
+                                   name="nome"
+                                   id="cad_nome"
+                                   class="form-control"
+                                   maxlength="150"
+                                   required
+                                   placeholder="Nome completo">
+                        </div>
+
+                        <div class="col-md-6">
+
+                            <label for="cad_empresa_id"
+                                class="form-label">
+
+                                Empresa
+                            </label>
+
+                            <select class="form-select"
+                                    id="cad_empresa_id"
+                                    name="empresa_id"
+                                    required>
+
+                                <option value="">Selecione</option>
+
+                                {% for empresa in empresas %}
+
+                                    <option value="{{ empresa.id }}">
+                                        {{ empresa.nome }}
+                                    </option>
+
+                                {% endfor %}
+
+                            </select>
+
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="cad_setor_area" class="form-label">Setor/Área</label>
+                            <input type="text"
+                                   name="setor_area"
+                                   id="cad_setor_area"
+                                   class="form-control"
+                                   maxlength="150"
+                                   required
+                                   placeholder="Ex: Laminação">
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-cinza"
+                            data-bs-dismiss="modal">
+                        Voltar
+                    </button>
+
+                    <button type="submit"
+                            class="btn btn-laranja">
+                        Salvar
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- MODAL EDITAR -->
+<div class="modal fade"
+     id="modalEditarPessoaPCPM"
+     tabindex="-1"
+     aria-labelledby="modalEditarPessoaPCPMLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-lg">
+
+        <div class="modal-content">
+
+            <form method="POST"
+                  action="{{ url_for('main.editar_pcpm_pessoa', id=0) }}"
+                  id="formEditarPessoaPCPM"
+                  data-action-template="{{ url_for('main.editar_pcpm_pessoa', id=0) }}">
+
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalEditarPessoaPCPMLabel">
+                        <i class="bi bi-pencil-square"></i>
+                        Editar Cliente / Operador
+                    </h5>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Fechar">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="row g-3">
+
+                        <div class="col-md-6">
+                            <label for="edit_rfid" class="form-label">RFID</label>
+                            <input type="text"
+                                   name="rfid"
+                                   id="edit_rfid"
+                                   class="form-control"
+                                   maxlength="100"
+                                   required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="edit_matricula" class="form-label">Matrícula</label>
+                            <input type="text"
+                                   name="matricula"
+                                   id="edit_matricula"
+                                   class="form-control"
+                                   maxlength="30"
+                                   required>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label for="edit_nome" class="form-label">Nome</label>
+                            <input type="text"
+                                   name="nome"
+                                   id="edit_nome"
+                                   class="form-control"
+                                   maxlength="150"
+                                   required>
+                        </div>
+
+                        <div class="col-md-6">
+
+                            <label for="edit_empresa_id"
+                                class="form-label">
+
+                                Empresa
+                            </label>
+
+                            <select class="form-select"
+                                    id="edit_empresa_id"
+                                    name="empresa_id"
+                                    required>
+
+                                <option value="">Selecione</option>
+
+                                {% for empresa in empresas %}
+
+                                    <option value="{{ empresa.id }}">
+                                        {{ empresa.nome }}
+                                    </option>
+
+                                {% endfor %}
+
+                            </select>
+
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="edit_setor_area" class="form-label">Setor/Área</label>
+                            <input type="text"
+                                   name="setor_area"
+                                   id="edit_setor_area"
+                                   class="form-control"
+                                   maxlength="150"
+                                   required>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-cinza"
+                            data-bs-dismiss="modal">
+                        Voltar
+                    </button>
+
+                    <button type="submit"
+                            class="btn btn-laranja">
+                        Salvar alterações
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modalEditar = document.getElementById('modalEditarPessoaPCPM');
+
+    if (modalEditar) {
+        modalEditar.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+
+            const id = button.getAttribute('data-id');
+            const rfid = button.getAttribute('data-rfid');
+            const matricula = button.getAttribute('data-matricula');
+            const nome = button.getAttribute('data-nome');
+            const empresaId = button.getAttribute('data-empresa-id');
+            const setorArea = button.getAttribute('data-setor-area');
+
+            const form = document.getElementById('formEditarPessoaPCPM');
+            const actionTemplate = form.getAttribute('data-action-template');
+
+            form.action = actionTemplate.replace('/0', '/' + id);
+
+            document.getElementById('edit_rfid').value = rfid;
+            document.getElementById('edit_matricula').value = matricula;
+            document.getElementById('edit_nome').value = nome;
+            document.getElementById('edit_empresa_id').value = empresaId;
+            document.getElementById('edit_setor_area').value = setorArea;
+        });
+    }
+});
+</script>
+
+{% endblock %}

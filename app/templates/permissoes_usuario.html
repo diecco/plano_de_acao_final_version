@@ -1,0 +1,127 @@
+{% extends 'layout.html' %}
+
+{% block titulo %}Permissões do Usuário{% endblock %}
+
+{% block conteudo %}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+
+    <div style="width: 40px;"></div>
+
+    <div class="text-center flex-grow-1">
+        <h2 class="page-title">
+            <i class="bi bi-shield-lock me-2"></i>
+            Permissões do Usuário
+        </h2>
+    </div>
+
+    <div style="width: 40px;"></div>
+
+</div>
+
+<div class="page-header-line"></div>
+<hr>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-4">
+
+        <div class="mb-4">
+            <h5 class="text-laranja mb-1">{{ usuario.nome }}</h5>
+            <p class="text-muted mb-0">{{ usuario.email or 'Sem e-mail cadastrado' }}</p>
+        </div>
+
+        <form method="POST">
+
+            <div class="row g-4">
+
+                <!-- NÍVEL DE ACESSO -->
+                <div class="col-lg-6">
+                    <label class="form-label fw-bold">Nível de Acesso</label>
+
+                    <div class="border rounded p-4 bg-light">
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="perfil" id="perfil_basico" value="basico"
+                                   {% if usuario.perfil == 'basico' %}checked{% endif %}>
+                            <label class="form-check-label" for="perfil_basico">Básico</label>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="perfil" id="perfil_intermediario" value="intermediario"
+                                   {% if usuario.perfil == 'intermediario' %}checked{% endif %}>
+                            <label class="form-check-label" for="perfil_intermediario">Intermediário</label>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="perfil" id="perfil_avancado" value="avancado"
+                                   {% if usuario.perfil == 'avancado' %}checked{% endif %}>
+                            <label class="form-check-label" for="perfil_avancado">Avançado</label>
+                        </div>
+
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="perfil" id="perfil_administrador" value="administrador"
+                                   {% if usuario.perfil == 'administrador' %}checked{% endif %}>
+                            <label class="form-check-label" for="perfil_administrador">Administrador</label>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- MÓDULOS LIBERADOS -->
+                <div class="col-lg-6">
+                    <label class="form-label fw-bold">Módulos Liberados</label>
+
+                    <div class="border rounded p-4 bg-light">
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="acesso_plano_acao" id="acesso_plano_acao"
+                                   {% if usuario.acesso_plano_acao %}checked{% endif %}>
+                            <label class="form-check-label" for="acesso_plano_acao">Plano de Ação</label>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="acesso_ssma" id="acesso_ssma"
+                                   {% if usuario.acesso_ssma %}checked{% endif %}>
+                            <label class="form-check-label" for="acesso_ssma">SSMA</label>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="acesso_melhoria" id="acesso_melhoria"
+                                   {% if usuario.acesso_melhoria %}checked{% endif %}>
+                            <label class="form-check-label" for="acesso_melhoria">Melhoria</label>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="acesso_gestao_pessoas" id="acesso_gestao_pessoas"
+                                   {% if usuario.acesso_gestao_pessoas %}checked{% endif %}>
+                            <label class="form-check-label" for="acesso_gestao_pessoas">Gestão de Pessoas</label>
+                        </div>
+
+                        <!-- NOVO MÓDULO -->
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="acesso_treinamentos" id="acesso_treinamentos"
+                                   {% if usuario.acesso_treinamentos %}checked{% endif %}>
+                            <label class="form-check-label" for="acesso_treinamentos">Gestão de Treinamentos</label>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- BOTÕES -->
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{{ url_for('main.listar_usuarios') }}" class="btn btn-cinza">
+                    Voltar
+                </a>
+                <button type="submit" class="btn btn-laranja">
+                    Salvar Permissões
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+{% endblock %}

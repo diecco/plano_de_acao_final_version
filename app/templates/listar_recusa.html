@@ -1,0 +1,584 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Recusas à Tarefa{% endblock %}
+
+{% block conteudo %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        Recusas à Tarefa
+    </h2>
+</div>
+<hr>
+
+<!-- FILTROS -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('main.listar_recusa') }}">
+
+            <div class="row g-3 mb-2">
+
+                <div class="col-md-4">
+                    <label class="form-label">Pessoa</label>
+                    <select name="usuario_id" class="form-select">
+                        <option value="">Todos</option>
+                        {% for u in usuarios %}
+                            <option value="{{ u.id }}" {% if filtros.get('usuario_id') == u.id|string %}selected{% endif %}>
+                                {{ u.nome }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Classificação</label>
+                    <select name="classificacao" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="CONDIÇÃO ABAIXO DO PADRÃO" {% if filtros.get('classificacao') == 'CONDIÇÃO ABAIXO DO PADRÃO' %}selected{% endif %}>CONDIÇÃO ABAIXO DO PADRÃO</option>
+                        <option value="ATO ABAIXO DO PADRÃO" {% if filtros.get('classificacao') == 'ATO ABAIXO DO PADRÃO' %}selected{% endif %}>ATO ABAIXO DO PADRÃO</option>
+                        <option value="PROCEDIMENTO ABAIXO DO PADRÃO" {% if filtros.get('classificacao') == 'PROCEDIMENTO ABAIXO DO PADRÃO' %}selected{% endif %}>PROCEDIMENTO ABAIXO DO PADRÃO</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Potencial</label>
+                    <select name="potencial" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="A" {% if filtros.get('potencial') == 'A' %}selected{% endif %}>A</option>
+                        <option value="B" {% if filtros.get('potencial') == 'B' %}selected{% endif %}>B</option>
+                        <option value="C" {% if filtros.get('potencial') == 'C' %}selected{% endif %}>C</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="row g-3 align-items-end">
+
+                <div class="col-md-3">
+                    <label class="form-label">Data inicial</label>
+                    <input type="date" name="data_inicio" class="form-control" value="{{ filtros.get('data_inicio','') }}">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Data final</label>
+                    <input type="date" name="data_fim" class="form-control" value="{{ filtros.get('data_fim','') }}">
+                </div>
+
+                <div class="col-md-6">
+                    <div class="d-flex gap-2 justify-content-end flex-wrap">
+                        <button type="submit" class="btn btn-laranja" title="Filtrar">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+
+                        <a href="{{ url_for('main.listar_recusa', limpar=1) }}" class="btn btn-cinza" title="Limpar">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+
+                        <a href="{{ url_for('main.lancar_recusa') }}" class="btn btn-laranja" title="Nova Recusa">
+                            <i class="bi bi-plus-circle"></i>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<!-- TABELA -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+
+            <table class="table table-bordered align-middle table-fixed" id="tabelaRecusa">
+
+                <thead class="table-light">
+                    <tr>
+
+                        <th style="width: 70px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">ID</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_recusa',
+                                           usuario_id=filtros.get('usuario_id',''),
+                                           classificacao=filtros.get('classificacao',''),
+                                           potencial=filtros.get('potencial',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='id', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_recusa',
+                                           usuario_id=filtros.get('usuario_id',''),
+                                           classificacao=filtros.get('classificacao',''),
+                                           potencial=filtros.get('potencial',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='id', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 120px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Data</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_recusa',
+                                           usuario_id=filtros.get('usuario_id',''),
+                                           classificacao=filtros.get('classificacao',''),
+                                           potencial=filtros.get('potencial',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='data', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_recusa',
+                                           usuario_id=filtros.get('usuario_id',''),
+                                           classificacao=filtros.get('classificacao',''),
+                                           potencial=filtros.get('potencial',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='data', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 220px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Pessoa</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_recusa',
+                                           usuario_id=filtros.get('usuario_id',''),
+                                           classificacao=filtros.get('classificacao',''),
+                                           potencial=filtros.get('potencial',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='usuario', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_recusa',
+                                           usuario_id=filtros.get('usuario_id',''),
+                                           classificacao=filtros.get('classificacao',''),
+                                           potencial=filtros.get('potencial',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='usuario', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 ps-1 text-muted" title="Filtrar"
+                                       href="#filtroHeaderUsuario" data-bs-toggle="collapse" role="button">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderUsuario" class="collapse mt-2">
+                                <select class="form-select form-select-sm" onchange="aplicarFiltro('usuario_id', this.value);">
+                                    <option value="">Todos</option>
+                                    {% for u in usuarios %}
+                                        <option value="{{ u.id }}" {% if filtros.get('usuario_id') == u.id|string %}selected{% endif %}>
+                                            {{ u.nome }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </th>
+
+                        <th style="width: 250px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Classificação</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_recusa',
+                                           usuario_id=filtros.get('usuario_id',''),
+                                           classificacao=filtros.get('classificacao',''),
+                                           potencial=filtros.get('potencial',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='classificacao', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_recusa',
+                                           usuario_id=filtros.get('usuario_id',''),
+                                           classificacao=filtros.get('classificacao',''),
+                                           potencial=filtros.get('potencial',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='classificacao', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 ps-1 text-muted" title="Filtrar"
+                                       href="#filtroHeaderClassificacao" data-bs-toggle="collapse" role="button">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderClassificacao" class="collapse mt-2">
+                                <select class="form-select form-select-sm" onchange="aplicarFiltro('classificacao', this.value);">
+                                    <option value="">Todos</option>
+                                    <option value="CONDIÇÃO ABAIXO DO PADRÃO" {% if filtros.get('classificacao') == 'CONDIÇÃO ABAIXO DO PADRÃO' %}selected{% endif %}>CONDIÇÃO ABAIXO DO PADRÃO</option>
+                                    <option value="ATO ABAIXO DO PADRÃO" {% if filtros.get('classificacao') == 'ATO ABAIXO DO PADRÃO' %}selected{% endif %}>ATO ABAIXO DO PADRÃO</option>
+                                    <option value="PROCEDIMENTO ABAIXO DO PADRÃO" {% if filtros.get('classificacao') == 'PROCEDIMENTO ABAIXO DO PADRÃO' %}selected{% endif %}>PROCEDIMENTO ABAIXO DO PADRÃO</option>
+                                </select>
+                            </div>
+                        </th>
+
+                        <th style="width: 120px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Potencial</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.listar_recusa',
+                                           usuario_id=filtros.get('usuario_id',''),
+                                           classificacao=filtros.get('classificacao',''),
+                                           potencial=filtros.get('potencial',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='potencial', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.listar_recusa',
+                                           usuario_id=filtros.get('usuario_id',''),
+                                           classificacao=filtros.get('classificacao',''),
+                                           potencial=filtros.get('potencial',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='potencial', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 ps-1 text-muted" title="Filtrar"
+                                       href="#filtroHeaderPotencial" data-bs-toggle="collapse" role="button">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderPotencial" class="collapse mt-2">
+                                <select class="form-select form-select-sm" onchange="aplicarFiltro('potencial', this.value);">
+                                    <option value="">Todos</option>
+                                    <option value="A" {% if filtros.get('potencial') == 'A' %}selected{% endif %}>A</option>
+                                    <option value="B" {% if filtros.get('potencial') == 'B' %}selected{% endif %}>B</option>
+                                    <option value="C" {% if filtros.get('potencial') == 'C' %}selected{% endif %}>C</option>
+                                </select>
+                            </div>
+                        </th>
+
+                        <th style="width: 300px;">
+                            <span class="th-label">Descrição</span>
+                        </th>
+
+                        <th style="width: 120px;">
+                            <span class="th-label">Ações</span>
+                        </th>
+
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for recusa in registros %}
+                    <tr>
+
+                        <td class="text-center">{{ recusa.id }}</td>
+
+                        <td class="text-center">
+                            {{ recusa.data_recusa.strftime('%d/%m/%Y') if recusa.data_recusa else '' }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ recusa.usuario_nome }}">
+                            {{ recusa.usuario_nome or '-' }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ recusa.classificacao }}">
+                            {{ recusa.classificacao or '-' }}
+                        </td>
+
+                        <td class="text-center">{{ recusa.potencial_severidade or '-' }}</td>
+
+                        <td class="td-truncate" title="{{ recusa.descricao }}">
+                            {{ recusa.descricao or '-' }}
+                        </td>
+
+                        <td class="text-center">
+                            {% if recusa.criado_por == session.get('usuario_id') %}
+                                <div class="d-flex justify-content-center gap-2">
+
+                                    <button type="button"
+                                            class="btn-acao-icon"
+                                            title="Editar"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalEditarRecusa"
+                                            data-id="{{ recusa.id }}"
+                                            data-data="{{ recusa.data_recusa.strftime('%Y-%m-%d') if recusa.data_recusa else '' }}"
+                                            data-hora="{{ recusa.hora_recusa }}"
+                                            data-usuario="{{ recusa.id_usuario }}"
+                                            data-local="{{ recusa.local|default('', true)|e }}"
+                                            data-classificacao="{{ recusa.classificacao|default('', true)|e }}"
+                                            data-potencial="{{ recusa.potencial_severidade|default('', true)|e }}"
+                                            data-causa="{{ recusa.id_causa }}"
+                                            data-descricao="{{ recusa.descricao|default('', true)|e }}">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+
+                                    <form method="POST"
+                                          action="{{ url_for('main.excluir_recusa', id=recusa.id) }}"
+                                          onsubmit="return confirm('Tem certeza que deseja excluir esta Recusa à Tarefa?');"
+                                          style="display:inline;">
+                                        <button type="submit" class="btn-acao-icon" title="Excluir">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+
+                                </div>
+                            {% else %}
+                                <span class="text-muted">Sem permissão</span>
+                            {% endif %}
+                        </td>
+
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center">Nenhum registro encontrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+
+        </div>
+    </div>
+</div>
+
+{% if total_paginas %}
+<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+
+    <div class="text-muted small">
+        Exibindo página {{ page }} de {{ total_paginas }} — {{ total_registros }} registro(s)
+    </div>
+
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for('main.listar_recusa',
+                       usuario_id=filtros.get('usuario_id',''),
+                       classificacao=filtros.get('classificacao',''),
+                       potencial=filtros.get('potencial',''),
+                       causa_id=filtros.get('causa_id',''),
+                       local=filtros.get('local',''),
+                       criado_por_mim=filtros.get('criado_por_mim',''),
+                       data_inicio=filtros.get('data_inicio',''),
+                       data_fim=filtros.get('data_fim',''),
+                       sort=filtros.get('sort','data'),
+                       order=filtros.get('order','desc'),
+                       page=page-1) }}">
+                    Anterior
+                </a>
+            </li>
+
+            {% for p in range(1, total_paginas + 1) %}
+                {% if p == 1 or p == total_paginas or (p >= page - 2 and p <= page + 2) %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for('main.listar_recusa',
+                               usuario_id=filtros.get('usuario_id',''),
+                               classificacao=filtros.get('classificacao',''),
+                               potencial=filtros.get('potencial',''),
+                               causa_id=filtros.get('causa_id',''),
+                               local=filtros.get('local',''),
+                               criado_por_mim=filtros.get('criado_por_mim',''),
+                               data_inicio=filtros.get('data_inicio',''),
+                               data_fim=filtros.get('data_fim',''),
+                               sort=filtros.get('sort','data'),
+                               order=filtros.get('order','desc'),
+                               page=p) }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                {% elif p == page - 3 or p == page + 3 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            <li class="page-item {% if page >= total_paginas %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for('main.listar_recusa',
+                       usuario_id=filtros.get('usuario_id',''),
+                       classificacao=filtros.get('classificacao',''),
+                       potencial=filtros.get('potencial',''),
+                       causa_id=filtros.get('causa_id',''),
+                       local=filtros.get('local',''),
+                       criado_por_mim=filtros.get('criado_por_mim',''),
+                       data_inicio=filtros.get('data_inicio',''),
+                       data_fim=filtros.get('data_fim',''),
+                       sort=filtros.get('sort','data'),
+                       order=filtros.get('order','desc'),
+                       page=page+1) }}">
+                    Próxima
+                </a>
+            </li>
+
+        </ul>
+    </nav>
+
+</div>
+{% endif %}
+
+<!-- MODAL EDITAR RECUSA -->
+<div class="modal fade" id="modalEditarRecusa" tabindex="-1" aria-labelledby="modalEditarRecusaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <form method="POST" id="formEditarRecusaModal">
+                <input type="hidden" name="next" id="modal_next_recusa">
+
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalEditarRecusaLabel">
+                        <i class="bi bi-pencil-square"></i>
+                        Editar Recusa
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="row g-3 mb-3">
+
+                        <div class="col-md-4">
+                            <label for="modal_data" class="form-label">Data</label>
+                            <input type="date" name="data" id="modal_data" class="form-control" required>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="modal_hora" class="form-label">Hora</label>
+                            <input type="time" name="hora" id="modal_hora" class="form-control" required>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="modal_local" class="form-label">Local</label>
+                            <input type="text" name="local" id="modal_local" class="form-control">
+                        </div>
+
+                    </div>
+
+                    <div class="row g-3 mb-3">
+
+                        <div class="col-md-6">
+                            <label for="modal_usuario" class="form-label">Usuário</label>
+                            <select name="usuario_id" id="modal_usuario" class="form-select" required>
+                                {% for u in usuarios %}
+                                    <option value="{{ u.id }}">{{ u.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="modal_causa" class="form-label">Causa</label>
+                            <select name="causa_id" id="modal_causa" class="form-select" required>
+                                {% for c in causas %}
+                                    <option value="{{ c.id }}">{{ c.descricao }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                    </div>
+
+                    <div class="row g-3 mb-3">
+
+                        <div class="col-md-6">
+                            <label for="modal_classificacao" class="form-label">Classificação</label>
+                            <select name="classificacao" id="modal_classificacao" class="form-select" required>
+                                <option value="CONDIÇÃO ABAIXO DO PADRÃO">CONDIÇÃO ABAIXO DO PADRÃO</option>
+                                <option value="ATO ABAIXO DO PADRÃO">ATO ABAIXO DO PADRÃO</option>
+                                <option value="PROCEDIMENTO ABAIXO DO PADRÃO">PROCEDIMENTO ABAIXO DO PADRÃO</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="modal_potencial" class="form-label">Potencial</label>
+                            <select name="potencial" id="modal_potencial" class="form-select" required>
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                                <option value="C">C</option>
+                            </select>
+                        </div>
+
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="modal_descricao" class="form-label">Descrição</label>
+                        <textarea name="descricao" id="modal_descricao" class="form-control" rows="4" required></textarea>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" class="btn btn-laranja">Salvar</button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<script>
+function aplicarFiltro(param, value) {
+    const url = new URL(window.location.href);
+
+    if (value) {
+        url.searchParams.set(param, value);
+    } else {
+        url.searchParams.delete(param);
+    }
+
+    window.location.href = url.toString();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('modalEditarRecusa');
+    const form = document.getElementById('formEditarRecusaModal');
+
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function (event) {
+
+            const button = event.relatedTarget;
+            const id = button.getAttribute('data-id');
+
+            form.action = `/editar_recusa/${id}`;
+
+            document.getElementById('modal_next_recusa').value = window.location.href;
+
+            document.getElementById('modal_data').value = button.getAttribute('data-data') || '';
+            document.getElementById('modal_hora').value = (button.getAttribute('data-hora') || '').substring(0, 5);
+            document.getElementById('modal_local').value = button.getAttribute('data-local') || '';
+            document.getElementById('modal_usuario').value = button.getAttribute('data-usuario') || '';
+            document.getElementById('modal_classificacao').value = (button.getAttribute('data-classificacao') || '').toUpperCase();
+            document.getElementById('modal_potencial').value = button.getAttribute('data-potencial') || '';
+            document.getElementById('modal_causa').value = button.getAttribute('data-causa') || '';
+            document.getElementById('modal_descricao').value = button.getAttribute('data-descricao') || '';
+
+        });
+    }
+});
+</script>
+
+{% endblock %}

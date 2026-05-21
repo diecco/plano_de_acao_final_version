@@ -1,0 +1,711 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Histórico de Movimentações{% endblock %}
+
+{% block conteudo %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-clock-history me-2"></i>
+        Histórico de Movimentações
+    </h2>
+</div>
+
+<hr>
+
+<!-- FILTROS -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+
+        <form method="GET"
+              action="{{ url_for('main.listar_pcpm_movimentacoes') }}">
+
+            <div class="row g-3 align-items-end">
+
+                <!-- FROTA -->
+                <div class="col-md-4 position-relative">
+
+                    <label for="frota_busca" class="form-label">
+                        Frota
+                    </label>
+
+                    <input type="text"
+                           id="frota_busca"
+                           class="form-control"
+                           placeholder="Digite a frota..."
+                           autocomplete="off"
+                           value="{{ filtros.get('codigo_frota', '') }}">
+
+                    <div id="listaFrotasPCPM"
+                         class="list-group position-absolute w-100 shadow-sm"
+                         style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+                    </div>
+
+                </div>
+
+                <!-- TIPO MOVIMENTAÇÃO -->
+                <div class="col-md-3">
+
+                    <label for="tipo_movimentacao" class="form-label">
+                        Tipo de Movimentação
+                    </label>
+
+                    <select id="tipo_movimentacao"
+                            name="tipo_movimentacao"
+                            class="form-select">
+
+                        <option value="">
+                            Todos
+                        </option>
+
+                        <option value="retirada"
+                            {% if filtros.get('tipo_movimentacao') == 'retirada' %}
+                                selected
+                            {% endif %}>
+                            Retirada da área
+                        </option>
+
+                        <option value="entrega"
+                            {% if filtros.get('tipo_movimentacao') == 'entrega' %}
+                                selected
+                            {% endif %}>
+                            Entrega na área
+                        </option>
+
+                    </select>
+
+                </div>
+
+                <!-- DATA INÍCIO -->
+                <div class="col-md-2">
+
+                    <label for="data_inicio" class="form-label">
+                        Data início
+                    </label>
+
+                    <input type="date"
+                           id="data_inicio"
+                           name="data_inicio"
+                           class="form-control"
+                           value="{{ filtros.get('data_inicio', '') }}">
+
+                </div>
+
+                <!-- DATA FIM -->
+                <div class="col-md-2">
+
+                    <label for="data_fim" class="form-label">
+                        Data fim
+                    </label>
+
+                    <input type="date"
+                           id="data_fim"
+                           name="data_fim"
+                           class="form-control"
+                           value="{{ filtros.get('data_fim', '') }}">
+
+                </div>
+
+                <!-- BOTÕES -->
+                <div class="col-md-1">
+
+                    <div class="d-flex gap-2 justify-content-end">
+
+                        <button type="submit"
+                                class="btn btn-laranja"
+                                title="Filtrar">
+
+                            <i class="bi bi-funnel"></i>
+
+                        </button>
+
+                        <a href="{{ url_for('main.listar_pcpm_movimentacoes', limpar=1) }}"
+                           class="btn btn-cinza"
+                           title="Limpar filtros">
+
+                            <i class="bi bi-arrow-clockwise"></i>
+
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+<!-- TABELA -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+
+        <div class="table-responsive">
+
+            <table class="table table-bordered align-middle table-fixed mb-0">
+
+                <thead class="table-light">
+                    <tr>
+
+                        <th style="width: 160px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Data</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                    title="Ordenar crescente"
+                                    href="{{ url_for('main.listar_pcpm_movimentacoes',
+                                        codigo_frota=filtros.get('codigo_frota',''),
+                                        tipo_movimentacao=filtros.get('tipo_movimentacao',''),
+                                        data_inicio=filtros.get('data_inicio',''),
+                                        data_fim=filtros.get('data_fim',''),
+                                        sort='criado_em',
+                                        order='asc',
+                                        page=1) }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                    title="Ordenar decrescente"
+                                    href="{{ url_for('main.listar_pcpm_movimentacoes',
+                                        codigo_frota=filtros.get('codigo_frota',''),
+                                        tipo_movimentacao=filtros.get('tipo_movimentacao',''),
+                                        data_inicio=filtros.get('data_inicio',''),
+                                        data_fim=filtros.get('data_fim',''),
+                                        sort='criado_em',
+                                        order='desc',
+                                        page=1) }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 ps-1 text-muted"
+                                    title="Filtrar"
+                                    href="#filtroHeaderDataPCPM"
+                                    data-bs-toggle="collapse"
+                                    role="button">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderDataPCPM" class="collapse mt-2">
+                                <div class="d-flex flex-column gap-1">
+                                    <input type="date"
+                                        class="form-control form-control-sm"
+                                        value="{{ filtros.get('data_inicio', '') }}"
+                                        onchange="aplicarFiltroPCPM('data_inicio', this.value);">
+
+                                    <input type="date"
+                                        class="form-control form-control-sm"
+                                        value="{{ filtros.get('data_fim', '') }}"
+                                        onchange="aplicarFiltroPCPM('data_fim', this.value);">
+                                </div>
+                            </div>
+                        </th>
+
+                        <th style="width: 140px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Frota</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                    title="Ordenar crescente"
+                                    href="{{ url_for('main.listar_pcpm_movimentacoes',
+                                        codigo_frota=filtros.get('codigo_frota',''),
+                                        tipo_movimentacao=filtros.get('tipo_movimentacao',''),
+                                        data_inicio=filtros.get('data_inicio',''),
+                                        data_fim=filtros.get('data_fim',''),
+                                        sort='codigo_frota',
+                                        order='asc',
+                                        page=1) }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                    title="Ordenar decrescente"
+                                    href="{{ url_for('main.listar_pcpm_movimentacoes',
+                                        codigo_frota=filtros.get('codigo_frota',''),
+                                        tipo_movimentacao=filtros.get('tipo_movimentacao',''),
+                                        data_inicio=filtros.get('data_inicio',''),
+                                        data_fim=filtros.get('data_fim',''),
+                                        sort='codigo_frota',
+                                        order='desc',
+                                        page=1) }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 ps-1 text-muted"
+                                    title="Filtrar"
+                                    href="#filtroHeaderFrotaPCPM"
+                                    data-bs-toggle="collapse"
+                                    role="button">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderFrotaPCPM" class="collapse mt-2">
+                                <div class="input-group input-group-sm">
+                                    <input type="text"
+                                        id="filtroHeaderFrotaInputPCPM"
+                                        class="form-control form-control-sm text-uppercase"
+                                        value="{{ filtros.get('codigo_frota', '') }}"
+                                        placeholder="Filtrar frota..."
+                                        onkeydown="if(event.key === 'Enter') aplicarFiltroPCPM('codigo_frota', this.value);">
+
+                                    <button type="button"
+                                            class="btn btn-outline-secondary"
+                                            onclick="aplicarFiltroPCPM('codigo_frota', document.getElementById('filtroHeaderFrotaInputPCPM').value);">
+                                        <i class="bi bi-check2"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </th>
+
+                        <th style="width: 180px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Tipo de Movimentação</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                    title="Ordenar crescente"
+                                    href="{{ url_for('main.listar_pcpm_movimentacoes',
+                                        codigo_frota=filtros.get('codigo_frota',''),
+                                        tipo_movimentacao=filtros.get('tipo_movimentacao',''),
+                                        data_inicio=filtros.get('data_inicio',''),
+                                        data_fim=filtros.get('data_fim',''),
+                                        sort='tipo_movimentacao',
+                                        order='asc',
+                                        page=1) }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                    title="Ordenar decrescente"
+                                    href="{{ url_for('main.listar_pcpm_movimentacoes',
+                                        codigo_frota=filtros.get('codigo_frota',''),
+                                        tipo_movimentacao=filtros.get('tipo_movimentacao',''),
+                                        data_inicio=filtros.get('data_inicio',''),
+                                        data_fim=filtros.get('data_fim',''),
+                                        sort='tipo_movimentacao',
+                                        order='desc',
+                                        page=1) }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 ps-1 text-muted"
+                                    title="Filtrar"
+                                    href="#filtroHeaderTipoMovPCPM"
+                                    data-bs-toggle="collapse"
+                                    role="button">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderTipoMovPCPM" class="collapse mt-2">
+                                <select class="form-select form-select-sm"
+                                        onchange="aplicarFiltroPCPM('tipo_movimentacao', this.value);">
+                                    <option value="">Todos</option>
+                                    <option value="retirada" {% if filtros.get('tipo_movimentacao') == 'retirada' %}selected{% endif %}>Retirada da área</option>
+                                    <option value="entrega" {% if filtros.get('tipo_movimentacao') == 'entrega' %}selected{% endif %}>Entrega na área</option>
+                                </select>
+                            </div>
+                        </th>
+
+                        <th>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Funcionário</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                    title="Ordenar crescente"
+                                    href="{{ url_for('main.listar_pcpm_movimentacoes',
+                                        codigo_frota=filtros.get('codigo_frota',''),
+                                        tipo_movimentacao=filtros.get('tipo_movimentacao',''),
+                                        data_inicio=filtros.get('data_inicio',''),
+                                        data_fim=filtros.get('data_fim',''),
+                                        sort='funcionario_nome',
+                                        order='asc',
+                                        page=1) }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                    title="Ordenar decrescente"
+                                    href="{{ url_for('main.listar_pcpm_movimentacoes',
+                                        codigo_frota=filtros.get('codigo_frota',''),
+                                        tipo_movimentacao=filtros.get('tipo_movimentacao',''),
+                                        data_inicio=filtros.get('data_inicio',''),
+                                        data_fim=filtros.get('data_fim',''),
+                                        sort='funcionario_nome',
+                                        order='desc',
+                                        page=1) }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Cliente</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                    title="Ordenar crescente"
+                                    href="{{ url_for('main.listar_pcpm_movimentacoes',
+                                        codigo_frota=filtros.get('codigo_frota',''),
+                                        tipo_movimentacao=filtros.get('tipo_movimentacao',''),
+                                        data_inicio=filtros.get('data_inicio',''),
+                                        data_fim=filtros.get('data_fim',''),
+                                        sort='cliente_nome',
+                                        order='asc',
+                                        page=1) }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                    title="Ordenar decrescente"
+                                    href="{{ url_for('main.listar_pcpm_movimentacoes',
+                                        codigo_frota=filtros.get('codigo_frota',''),
+                                        tipo_movimentacao=filtros.get('tipo_movimentacao',''),
+                                        data_inicio=filtros.get('data_inicio',''),
+                                        data_fim=filtros.get('data_fim',''),
+                                        sort='cliente_nome',
+                                        order='desc',
+                                        page=1) }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 150px;" class="text-center">
+                            <span class="th-label">Ações</span>
+                        </th>
+
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for mov in movimentacoes %}
+                    <tr>
+
+                        <td>
+                            {{ mov.data_movimentacao }}
+                        </td>
+
+                        <td class="text-center fw-semibold">
+                            {{ mov.codigo_frota }}
+                        </td>
+
+                        <td>
+
+                            {% if mov.tipo_movimentacao == 'retirada' %}
+                                Retirada da área
+                            {% elif mov.tipo_movimentacao == 'entrega' %}
+                                Entrega na área
+                            {% else %}
+                                {{ mov.tipo_movimentacao }}
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+                            {{ mov.funcionario_nome or '-' }}
+                        </td>
+
+                        <td>
+                            {{ mov.cliente_nome or '-' }}
+                        </td>
+
+                        <td class="text-center">
+
+                            <div class="d-flex justify-content-center gap-2">
+
+                                <!-- VISUALIZAR -->
+                                <a href="{{ url_for('main.visualizar_pcpm_movimentacao', movimentacao_id=mov.id) }}"
+                                class="btn-acao-icon"
+                                title="Visualizar movimentação">
+
+                                    <i class="bi bi-eye-fill"></i>
+
+                                </a>
+
+                                <!-- EDITAR -->
+                                <a href="{{ url_for('main.editar_pcpm_movimentacao', movimentacao_id=mov.id) }}"
+                                class="btn-acao-icon"
+                                title="Editar movimentação">
+
+                                    <i class="bi bi-pencil-square"></i>
+
+                                </a>
+
+                                <!-- EXCLUIR -->
+                                <a href="{{ url_for('main.excluir_pcpm_movimentacao', movimentacao_id=mov.id) }}"
+                                class="btn-acao-icon"
+                                title="Excluir movimentação"
+                                onclick="return confirm('Deseja realmente excluir esta movimentação?');">
+
+                                    <i class="bi bi-trash"></i>
+
+                                </a>
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                    {% else %}
+
+                    <tr>
+
+                        <td colspan="6" class="text-center text-muted">
+                            Nenhuma movimentação encontrada.
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- PAGINAÇÃO -->
+{% if total_paginas %}
+
+<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+
+    <div class="text-muted small">
+        Exibindo página {{ page }} de {{ total_paginas }}
+        — {{ total_registros }} registro(s)
+    </div>
+
+    <nav>
+
+        <ul class="pagination pagination-sm mb-0">
+
+            <!-- ANTERIOR -->
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+
+                <a class="page-link"
+                   href="{{ url_for(
+                       'main.listar_pcpm_movimentacoes',
+                       codigo_frota=filtros.get('codigo_frota',''),
+                       tipo_movimentacao=filtros.get('tipo_movimentacao',''),
+                       data_inicio=filtros.get('data_inicio',''),
+                       data_fim=filtros.get('data_fim',''),
+                       sort=filtros.get('sort','criado_em'),
+                       order=filtros.get('order','desc'),
+                       page=page-1
+                   ) }}">
+
+                    Anterior
+
+                </a>
+
+            </li>
+
+            <!-- PÁGINAS -->
+            {% for p in range(1, total_paginas + 1) %}
+
+                {% if p == 1
+                      or p == total_paginas
+                      or (p >= page - 2 and p <= page + 2) %}
+
+                    <li class="page-item {% if p == page %}active{% endif %}">
+
+                        <a class="page-link"
+                           href="{{ url_for(
+                               'main.listar_pcpm_movimentacoes',
+                               codigo_frota=filtros.get('codigo_frota',''),
+                               tipo_movimentacao=filtros.get('tipo_movimentacao',''),
+                               data_inicio=filtros.get('data_inicio',''),
+                               data_fim=filtros.get('data_fim',''),
+                               sort=filtros.get('sort','criado_em'),
+                               order=filtros.get('order','desc'),
+                               page=p
+                           ) }}">
+
+                            {{ p }}
+
+                        </a>
+
+                    </li>
+
+                {% elif p == page - 3 or p == page + 3 %}
+
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+
+                {% endif %}
+
+            {% endfor %}
+
+            <!-- PRÓXIMA -->
+            <li class="page-item {% if page >= total_paginas %}disabled{% endif %}">
+
+                <a class="page-link"
+                   href="{{ url_for(
+                       'main.listar_pcpm_movimentacoes',
+                       codigo_frota=filtros.get('codigo_frota',''),
+                       tipo_movimentacao=filtros.get('tipo_movimentacao',''),
+                       data_inicio=filtros.get('data_inicio',''),
+                       data_fim=filtros.get('data_fim',''),
+                       sort=filtros.get('sort','criado_em'),
+                       order=filtros.get('order','desc'),
+                       page=page+1
+                   ) }}">
+
+                    Próxima
+
+                </a>
+
+            </li>
+
+        </ul>
+
+    </nav>
+
+</div>
+
+{% endif %}
+
+<!-- JSON EQUIPAMENTOS -->
+<script id="equipamentos-data" type="application/json">
+    {{ equipamentos | tojson }}
+</script>
+
+<script>
+
+const equipamentosPCPM = JSON.parse(
+    document.getElementById('equipamentos-data').textContent
+);
+
+function normalizarTextoPCPM(texto) {
+
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+}
+
+function aplicarFiltroPCPM(param, value) {
+
+    const url = new URL(window.location.href);
+
+    if (value) {
+        url.searchParams.set(param, value);
+    } else {
+        url.searchParams.delete(param);
+    }
+
+    url.searchParams.delete('page');
+
+    window.location.href = url.toString();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    const inputFrota = document.getElementById('frota_busca');
+    const listaFrotas = document.getElementById('listaFrotasPCPM');
+
+    if (inputFrota && listaFrotas) {
+
+        inputFrota.addEventListener('input', function () {
+
+            const termo = normalizarTextoPCPM(inputFrota.value);
+
+            listaFrotas.innerHTML = '';
+            listaFrotas.style.display = 'none';
+
+            if (termo.length < 2) {
+                return;
+            }
+
+            const resultados = equipamentosPCPM.filter(equipamento => {
+
+                const textoBusca = normalizarTextoPCPM(`
+                    ${equipamento.codigo_frota || ''}
+                    ${equipamento.tipo_nome || ''}
+                    ${equipamento.marca || ''}
+                    ${equipamento.modelo || ''}
+                `);
+
+                return textoBusca.includes(termo);
+
+            }).slice(0, 10);
+
+            if (resultados.length === 0) {
+
+                listaFrotas.innerHTML = `
+                    <div class="list-group-item text-muted">
+                        Nenhum equipamento encontrado.
+                    </div>
+                `;
+
+                listaFrotas.style.display = 'block';
+
+                return;
+            }
+
+            resultados.forEach(equipamento => {
+
+                const botao = document.createElement('button');
+
+                botao.type = 'button';
+
+                botao.className =
+                    'list-group-item list-group-item-action text-start';
+
+                botao.innerHTML = `
+                    <strong>${equipamento.codigo_frota}</strong><br>
+                    <small>
+                        ${equipamento.tipo_nome || ''} -
+                        ${equipamento.marca || ''} ${equipamento.modelo || ''}
+                    </small>
+                `;
+
+                botao.addEventListener('click', function () {
+
+                    inputFrota.value = equipamento.codigo_frota;
+
+                    listaFrotas.style.display = 'none';
+
+                    aplicarFiltroPCPM(
+                        'codigo_frota',
+                        equipamento.codigo_frota
+                    );
+
+                });
+
+                listaFrotas.appendChild(botao);
+
+            });
+
+            listaFrotas.style.display = 'block';
+
+        });
+
+        inputFrota.addEventListener('blur', function () {
+
+            setTimeout(function () {
+                listaFrotas.style.display = 'none';
+            }, 200);
+
+        });
+
+    }
+
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,781 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Ações que Eu Criei{% endblock %}
+
+{% block conteudo %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+
+    <div style="width: 40px;"></div>
+
+    <div class="text-center flex-grow-1">
+        <h2 class="page-title">
+            <i class="bi bi-folder2-open me-2"></i>
+            Ações que Criei
+        </h2>
+    </div>
+
+    <div style="width: 40px;"></div>
+
+</div>
+
+<div class="page-header-line"></div>
+<hr>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('main.acoes_criadas') }}">
+
+            <div class="bloco-filtros">
+
+                <div class="row g-3 mb-2">
+
+                    <div class="col-md-3">
+                        <label class="form-label">Criado por</label>
+                        <select class="form-select" disabled>
+                            <option>{{ session.get('nome', 'Usuário logado') }}</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="superintendencia_id" class="form-label">Superintendência</label>
+                        <select name="superintendencia_id" id="superintendencia_id" class="form-select">
+                            <option value="">Todas</option>
+                            {% for s in superintendencias %}
+                                <option value="{{ s.id }}" {% if filtros.get('superintendencia_id') == s.id|string %}selected{% endif %}>
+                                    {{ s.nome }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="centro_custos_id" class="form-label">Centro de Custos</label>
+                        <select name="centro_custos_id" id="centro_custos_id" class="form-select">
+                            <option value="">Todos</option>
+                            {% for cc in centros_custos %}
+                                <option value="{{ cc.id }}" {% if filtros.get('centro_custos_id') == cc.id|string %}selected{% endif %}>
+                                    {{ cc.codigo }} - {{ cc.descricao }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="origem_id" class="form-label">Origem</label>
+                        <select name="origem_id" id="origem_id" class="form-select">
+                            <option value="">Todas</option>
+                            {% for o in origens %}
+                                <option value="{{ o.id }}" {% if filtros.get('origem_id') == o.id|string %}selected{% endif %}>
+                                    {{ o.descricao }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                </div>
+
+                <div class="row g-3 align-items-end">
+
+                    <div class="col-md-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select name="status" id="status" class="form-select">
+                            <option value="">Todos</option>
+                            {% for s in status_opcoes %}
+                                <option value="{{ s.status }}" {% if filtros.get('status') == s.status %}selected{% endif %}>
+                                    {{ s.status }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="data_inicio" class="form-label">Data inicial</label>
+                        <input type="date" name="data_inicio" id="data_inicio" class="form-control"
+                               value="{{ filtros.get('data_inicio', '') }}">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="data_fim" class="form-label">Data final</label>
+                        <input type="date" name="data_fim" id="data_fim" class="form-control"
+                               value="{{ filtros.get('data_fim', '') }}">
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="d-flex gap-2 justify-content-end flex-wrap">
+                            <button type="submit" class="btn btn-laranja" title="Filtrar">
+                                <i class="bi bi-funnel"></i>
+                            </button>
+
+                            <a href="{{ url_for('main.acoes_criadas', limpar=1) }}" class="btn btn-cinza" title="Limpar">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </a>
+
+                            <a href="{{ url_for('main.exportar_acoes_criadas',
+                                superintendencia_id=filtros.get('superintendencia_id',''),
+                                centro_custos_id=filtros.get('centro_custos_id',''),
+                                origem_id=filtros.get('origem_id',''),
+                                status=filtros.get('status',''),
+                                data_inicio=filtros.get('data_inicio',''),
+                                data_fim=filtros.get('data_fim','')
+                            ) }}"
+                               class="btn btn-verde"
+                               title="Exportar para Excel">
+                                <i class="bi bi-file-earmark-excel"></i>
+                            </a>
+
+                            <a href="{{ url_for('main.cadastrar_acao') }}" class="btn btn-laranja" title="Nova ação">
+                                <i class="bi bi-plus-circle"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle table-fixed" id="tabelaAcoesCriadas">
+                <thead class="table-light">
+                    <tr>
+
+                        <th style="width: 70px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">ID</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.acoes_criadas',
+                                           superintendencia_id=filtros.get('superintendencia_id',''),
+                                           centro_custos_id=filtros.get('centro_custos_id',''),
+                                           origem_id=filtros.get('origem_id',''),
+                                           status=filtros.get('status',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='id', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.acoes_criadas',
+                                           superintendencia_id=filtros.get('superintendencia_id',''),
+                                           centro_custos_id=filtros.get('centro_custos_id',''),
+                                           origem_id=filtros.get('origem_id',''),
+                                           status=filtros.get('status',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='id', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 300px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Descrição</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.acoes_criadas',
+                                           superintendencia_id=filtros.get('superintendencia_id',''),
+                                           centro_custos_id=filtros.get('centro_custos_id',''),
+                                           origem_id=filtros.get('origem_id',''),
+                                           status=filtros.get('status',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='descricao', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.acoes_criadas',
+                                           superintendencia_id=filtros.get('superintendencia_id',''),
+                                           centro_custos_id=filtros.get('centro_custos_id',''),
+                                           origem_id=filtros.get('origem_id',''),
+                                           status=filtros.get('status',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='descricao', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 180px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Responsável</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.acoes_criadas',
+                                           superintendencia_id=filtros.get('superintendencia_id',''),
+                                           centro_custos_id=filtros.get('centro_custos_id',''),
+                                           origem_id=filtros.get('origem_id',''),
+                                           status=filtros.get('status',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='nome_responsavel', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.acoes_criadas',
+                                           superintendencia_id=filtros.get('superintendencia_id',''),
+                                           centro_custos_id=filtros.get('centro_custos_id',''),
+                                           origem_id=filtros.get('origem_id',''),
+                                           status=filtros.get('status',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='nome_responsavel', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 250px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Origem</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.acoes_criadas',
+                                           superintendencia_id=filtros.get('superintendencia_id',''),
+                                           centro_custos_id=filtros.get('centro_custos_id',''),
+                                           origem_id=filtros.get('origem_id',''),
+                                           status=filtros.get('status',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='descricao_origem', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.acoes_criadas',
+                                           superintendencia_id=filtros.get('superintendencia_id',''),
+                                           centro_custos_id=filtros.get('centro_custos_id',''),
+                                           origem_id=filtros.get('origem_id',''),
+                                           status=filtros.get('status',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='descricao_origem', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 ps-1 text-muted" title="Filtrar"
+                                       href="#filtroHeaderOrigem" data-bs-toggle="collapse" role="button" aria-expanded="false">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderOrigem" class="collapse mt-2">
+                                <select class="form-select form-select-sm"
+                                        onchange="aplicarFiltro('origem_id', this.value);">
+                                    <option value="">Todas</option>
+                                    {% for o in origens %}
+                                        <option value="{{ o.id }}" {% if filtros.get('origem_id') == o.id|string %}selected{% endif %}>
+                                            {{ o.descricao }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </th>
+
+                        <th style="width: 120px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Prazo</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.acoes_criadas',
+                                           superintendencia_id=filtros.get('superintendencia_id',''),
+                                           centro_custos_id=filtros.get('centro_custos_id',''),
+                                           origem_id=filtros.get('origem_id',''),
+                                           status=filtros.get('status',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='prazo', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.acoes_criadas',
+                                           superintendencia_id=filtros.get('superintendencia_id',''),
+                                           centro_custos_id=filtros.get('centro_custos_id',''),
+                                           origem_id=filtros.get('origem_id',''),
+                                           status=filtros.get('status',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='prazo', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 140px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Status</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+                                       href="{{ url_for('main.acoes_criadas',
+                                           superintendencia_id=filtros.get('superintendencia_id',''),
+                                           centro_custos_id=filtros.get('centro_custos_id',''),
+                                           origem_id=filtros.get('origem_id',''),
+                                           status=filtros.get('status',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='status', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+                                       href="{{ url_for('main.acoes_criadas',
+                                           superintendencia_id=filtros.get('superintendencia_id',''),
+                                           centro_custos_id=filtros.get('centro_custos_id',''),
+                                           origem_id=filtros.get('origem_id',''),
+                                           status=filtros.get('status',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='status', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 ps-1 text-muted" title="Filtrar"
+                                       href="#filtroHeaderStatus" data-bs-toggle="collapse" role="button" aria-expanded="false">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderStatus" class="collapse mt-2">
+                                <select class="form-select form-select-sm"
+                                        onchange="aplicarFiltro('status', this.value);">
+                                    <option value="">Todos</option>
+                                    {% for s in status_opcoes %}
+                                        <option value="{{ s.status }}" {% if filtros.get('status') == s.status %}selected{% endif %}>
+                                            {{ s.status }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </th>
+
+                        <th style="width: 110px;">
+                            <span class="th-label">Ações</span>
+                        </th>
+
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for acao in acoes %}
+                    <tr>
+
+                        <td>{{ acao.id }}</td>
+
+                        <td class="td-truncate" title="{{ acao.descricao }}">
+                            {{ acao.descricao }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ acao.nome_responsavel }}">
+                            {{ acao.nome_responsavel or '-' }}
+                        </td>
+
+                        <td class="td-truncate" title="{{ acao.descricao_origem }}">
+                            {{ acao.descricao_origem }}
+                        </td>
+
+                        <td>
+                            {{ acao.prazo.strftime('%d/%m/%Y') if acao.prazo else '' }}
+                        </td>
+
+                        <td>{{ acao.status }}</td>
+
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-2">
+                                <button type="button"
+                                        class="btn-acao-icon"
+                                        title="Editar"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalEditarAcao"
+                                        data-id="{{ acao.id }}"
+                                        data-origem-id="{{ acao.origem_id }}"
+                                        data-responsavel-id="{{ acao.responsavel_id }}"
+                                        data-descricao="{{ acao.descricao|e }}"
+                                        data-prazo="{{ acao.prazo.strftime('%Y-%m-%d') if acao.prazo else '' }}"
+                                        data-status="{{ acao.status|e }}"
+                                        data-data-conclusao="{{ acao.data_conclusao.strftime('%Y-%m-%d') if acao.data_conclusao else '' }}"
+                                        data-observacoes="{{ acao.observacoes|default('', true)|e }}"
+                                        data-arquivo-evidencia="{{ acao.arquivo_evidencia or '' }}"
+                                        data-url-evidencia="{% if acao.arquivo_evidencia %}{{ url_for('static', filename='evidencias/' ~ acao.arquivo_evidencia) }}{% endif %}"
+                                        data-next="{{ request.full_path }}">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+
+                                {% if acao.arquivo_evidencia %}
+                                    <a href="{{ url_for('static', filename='evidencias/' ~ acao.arquivo_evidencia) }}"
+                                       target="_blank"
+                                       class="btn-acao-icon"
+                                       title="Consultar evidência">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center">Nenhuma ação encontrada.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if total_paginas %}
+<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+
+    <div class="text-muted small">
+        Exibindo página {{ page }} de {{ total_paginas }} — {{ total_registros }} registro(s)
+    </div>
+
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('main.acoes_criadas', page=page-1) }}">
+                    Anterior
+                </a>
+            </li>
+
+            {% for p in range(1, total_paginas + 1) %}
+                {% if p == 1 or p == total_paginas or (p >= page - 2 and p <= page + 2) %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.acoes_criadas', page=p) }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                {% elif p == page - 3 or p == page + 3 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            <li class="page-item {% if page >= total_paginas %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('main.acoes_criadas', page=page+1) }}">
+                    Próxima
+                </a>
+            </li>
+
+        </ul>
+    </nav>
+
+</div>
+{% endif %}
+
+<!-- MODAL EDITAR AÇÃO -->
+<div class="modal fade" id="modalEditarAcao" tabindex="-1" aria-labelledby="modalEditarAcaoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <form method="POST" id="formEditarAcaoModal" enctype="multipart/form-data">
+                <input type="hidden" name="next" id="modal_next" value="">
+
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalEditarAcaoLabel">
+                        <i class="bi bi-pencil-square"></i>
+                        Editar Ação
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="modal_origem_id" class="form-label">Origem</label>
+                                <select name="origem_id" id="modal_origem_id" class="form-select" required>
+                                    {% for origem in origens %}
+                                        <option value="{{ origem.id }}">{{ origem.descricao }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="modal_responsavel_id" class="form-label">Responsável</label>
+                                <select name="responsavel_id" id="modal_responsavel_id" class="form-select" required>
+                                    {% for usuario in usuarios %}
+                                        <option value="{{ usuario.id }}">{{ usuario.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="modal_descricao" class="form-label">Descrição da Ação</label>
+                        <textarea name="descricao"
+                                  id="modal_descricao"
+                                  class="form-control textarea-descricao"
+                                  rows="3"
+                                  required></textarea>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="modal_prazo" class="form-label">Prazo</label>
+                                <input type="date"
+                                       name="prazo"
+                                       id="modal_prazo"
+                                       class="form-control"
+                                       required>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="modal_status" class="form-label">Status</label>
+                                <select name="status" id="modal_status" class="form-select" required>
+                                    <option value="Não iniciada">Não iniciada</option>
+                                    <option value="Em andamento">Em andamento</option>
+                                    <option value="Concluída">Concluída</option>
+                                    <option value="Cancelada">Cancelada</option>
+                                </select>
+                                <div class="form-text">
+                                    Para concluir a ação, preencha a data de conclusão.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="modal_data_conclusao" class="form-label">Data de conclusão</label>
+                                <input type="date"
+                                       name="data_conclusao"
+                                       id="modal_data_conclusao"
+                                       class="form-control">
+                                <div class="form-text">
+                                    Não é permitido informar data futura.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Evidência</label>
+
+                        <div class="d-flex align-items-center justify-content-between border rounded p-2">
+                            <div id="modal_nome_arquivo" class="text-muted small">
+                                Nenhum arquivo anexado
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <input type="file"
+                                       name="arquivo_evidencia"
+                                       id="modal_arquivo_evidencia"
+                                       class="d-none"
+                                       accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx">
+
+                                <button type="button"
+                                        id="modal_btn_anexar"
+                                        class="btn-acao-icon"
+                                        title="Anexar / Trocar evidência">
+                                    <i class="bi bi-paperclip"></i>
+                                </button>
+
+                                <a id="modal_btn_consultar"
+                                   href="#"
+                                   target="_blank"
+                                   class="btn-acao-icon"
+                                   title="Consultar evidência"
+                                   style="display: none;">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="modal_observacoes" class="form-label">Observações</label>
+                        <textarea name="observacoes"
+                                  id="modal_observacoes"
+                                  class="form-control textarea-observacoes"
+                                  rows="3"
+                                  placeholder="Informe aqui detalhes adicionais..."></textarea>
+                        <div class="form-text">
+                            Se o status for Cancelada, o preenchimento deste campo é obrigatório.
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" class="btn btn-laranja">Salvar</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<script>
+function aplicarFiltro(param, value) {
+  const url = new URL(window.location.href);
+  if (value) {
+    url.searchParams.set(param, value);
+  } else {
+    url.searchParams.delete(param);
+  }
+  window.location.href = url.toString();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('modalEditarAcao');
+    const form = document.getElementById('formEditarAcaoModal');
+    const status = document.getElementById('modal_status');
+    const dataConclusao = document.getElementById('modal_data_conclusao');
+    const observacoes = document.getElementById('modal_observacoes');
+
+    const nomeArquivo = document.getElementById('modal_nome_arquivo');
+    const btnAnexar = document.getElementById('modal_btn_anexar');
+    const btnConsultar = document.getElementById('modal_btn_consultar');
+    const inputArquivo = document.getElementById('modal_arquivo_evidencia');
+
+    function hojeISO() {
+        const hoje = new Date();
+        const ano = hoje.getFullYear();
+        const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+        const dia = String(hoje.getDate()).padStart(2, '0');
+        return `${ano}-${mes}-${dia}`;
+    }
+
+    function validarDataFutura() {
+        if (dataConclusao.value && dataConclusao.value > hojeISO()) {
+            alert('A data de conclusão não pode ser superior à data de hoje.');
+            dataConclusao.value = '';
+            dataConclusao.focus();
+            return false;
+        }
+        return true;
+    }
+
+    function sincronizarStatusComData() {
+        if (dataConclusao.value) {
+            status.value = 'Concluída';
+        }
+    }
+
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+
+            const id = button.getAttribute('data-id');
+            const origemId = button.getAttribute('data-origem-id');
+            const responsavelId = button.getAttribute('data-responsavel-id');
+            const descricao = button.getAttribute('data-descricao');
+            const prazo = button.getAttribute('data-prazo');
+            const statusValue = button.getAttribute('data-status');
+            const dataConclusaoValue = button.getAttribute('data-data-conclusao');
+            const observacoesValue = button.getAttribute('data-observacoes');
+            const nextValue = button.getAttribute('data-next');
+
+            const arquivo = button.getAttribute('data-arquivo-evidencia');
+            const urlEvidencia = button.getAttribute('data-url-evidencia');
+
+            form.action = `/editar_acao/${id}`;
+
+            document.getElementById('modal_origem_id').value = origemId || '';
+            document.getElementById('modal_responsavel_id').value = responsavelId || '';
+            document.getElementById('modal_descricao').value = descricao || '';
+            document.getElementById('modal_prazo').value = prazo || '';
+            document.getElementById('modal_status').value = statusValue || 'Não iniciada';
+            document.getElementById('modal_data_conclusao').value = dataConclusaoValue || '';
+            document.getElementById('modal_observacoes').value = observacoesValue || '';
+            document.getElementById('modal_next').value = nextValue || '';
+
+            inputArquivo.value = '';
+
+            if (arquivo) {
+                nomeArquivo.textContent = arquivo;
+                btnConsultar.style.display = 'inline-block';
+                btnConsultar.href = urlEvidencia;
+            } else {
+                nomeArquivo.textContent = 'Nenhum arquivo anexado';
+                btnConsultar.style.display = 'none';
+                btnConsultar.href = '#';
+            }
+        });
+    }
+
+    if (btnAnexar) {
+        btnAnexar.addEventListener('click', function () {
+            inputArquivo.click();
+        });
+    }
+
+    if (inputArquivo) {
+        inputArquivo.addEventListener('change', function () {
+            if (inputArquivo.files && inputArquivo.files.length > 0) {
+                nomeArquivo.textContent = inputArquivo.files[0].name;
+                btnConsultar.style.display = 'none';
+                btnConsultar.href = '#';
+            }
+        });
+    }
+
+    dataConclusao.addEventListener('change', function () {
+        if (!validarDataFutura()) return;
+        sincronizarStatusComData();
+    });
+
+    status.addEventListener('change', function () {
+        if (status.value === 'Concluída' && !dataConclusao.value) {
+            alert('Para concluir a ação, preencha a data de conclusão.');
+            status.value = 'Em andamento';
+            dataConclusao.focus();
+            return;
+        }
+
+        if (status.value === 'Cancelada' && !observacoes.value.trim()) {
+            observacoes.placeholder = 'Para cancelar a ação, informe uma justificativa neste campo.';
+        }
+    });
+
+    form.addEventListener('submit', function (e) {
+        if (dataConclusao.value && dataConclusao.value > hojeISO()) {
+            alert('A data de conclusão não pode ser superior à data de hoje.');
+            dataConclusao.focus();
+            e.preventDefault();
+            return;
+        }
+
+        if (dataConclusao.value) {
+            status.value = 'Concluída';
+        }
+
+        if (status.value === 'Concluída' && !dataConclusao.value) {
+            alert('Para concluir a ação, preencha a data de conclusão.');
+            dataConclusao.focus();
+            e.preventDefault();
+            return;
+        }
+
+        if (status.value === 'Cancelada' && !observacoes.value.trim()) {
+            alert('Ao cancelar a ação, o campo Observações é obrigatório.');
+            observacoes.focus();
+            e.preventDefault();
+            return;
+        }
+    });
+});
+</script>
+
+{% endblock %}

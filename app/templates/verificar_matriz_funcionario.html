@@ -1,0 +1,309 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Verificação da Matriz por Funcionário{% endblock %}
+
+{% block conteudo %}
+
+<style>
+    .cabecalho-secao-titulo {
+        color: #ea6a23;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .campo-readonly-custom {
+        background-color: #f8f9fa !important;
+        color: rgb(80,81,80);
+        cursor: not-allowed;
+    }
+
+    .status-badge {
+        min-width: 110px;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    /* 🔥 TABELA */
+    .tabela-verificacao {
+        table-layout: fixed;
+        width: 100%;
+    }
+
+    /* 🔥 CENTRALIZAÇÃO GARANTIDA */
+    .coluna-sigla,
+    .coluna-numero,
+    .coluna-status {
+        width: 110px;
+        text-align: center !important;
+        vertical-align: middle !important;
+    }
+
+    .coluna-titulo {
+        width: 60%;
+        text-align: left !important;
+        vertical-align: middle !important;
+        word-wrap: break-word;
+        white-space: normal;
+    }
+
+    /* 🔥 GARANTE QUE TD E TH OBEDEÇAM */
+    .tabela-verificacao th,
+    .tabela-verificacao td {
+        vertical-align: middle !important;
+    }
+
+    .bloco-camada {
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background-color: #f8f9fa;
+    }
+
+    .titulo-camada-item {
+        font-weight: 700;
+        margin-bottom: 0.75rem;
+        text-transform: uppercase;
+        color: rgb(80,81,80);
+    }
+</style>
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div style="width: 40px;"></div>
+
+    <div class="text-center flex-grow-1">
+        <h2 class="page-title">
+            <i class="bi bi-person-badge me-2"></i>
+            Verificação da Matriz por Funcionário
+        </h2>
+    </div>
+
+    <div style="width: 40px;"></div>
+</div>
+
+<div class="page-header-line"></div>
+<hr>
+
+<!-- 🔹 BLOCO 1: FUNCIONÁRIO -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('main.verificar_matriz_funcionario') }}">
+            <div class="row g-3 align-items-end">
+
+                <div class= "col-md-2">
+                    <label class="form-label fw-semibold">Matrícula</label>
+                    <select name="usuario_id" id="usuario_id_matricula" class="form-select" onchange="this.form.submit()">
+                        <option value="">Selecione...</option>
+                        {% for u in usuarios %}
+                            <option value="{{ u.id }}" {% if usuario_id == u.id %}selected{% endif %}>
+                                {{ u.matricula }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Nome</label>
+                    <select class="form-select"
+                        onchange="document.getElementById('usuario_id_matricula').value=this.value; document.getElementById('usuario_id_matricula').form.submit();">
+                        <option value="">Selecione...</option>
+                        {% for u in usuarios %}
+                            <option value="{{ u.id }}" {% if usuario_id == u.id %}selected{% endif %}>
+                                {{ u.nome }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Cargo</label>
+                    <input type="text" class="form-control campo-readonly-custom"
+                        value="{{ usuario.cargo_nome if usuario else '' }}" readonly>
+                </div>
+
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if usuario %}
+
+<!-- 🔹 BLOCO 2: CARGO -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <h5 class="cabecalho-secao-titulo mb-3">
+            <i class="bi bi-briefcase"></i>
+            Matriz do Cargo
+        </h5>
+
+        <div class="bloco-camada">
+            <div class="titulo-camada-item">
+                CARGO: {{ usuario.cargo_nome }}
+            </div>
+
+            <div class="table-responsive">
+                <table class="table tabela-verificacao">
+                    <thead>
+                        <tr>
+                            <th class="coluna-sigla">Sigla</th>
+                            <th class="coluna-numero">Nº DOC</th>
+                            <th class="coluna-titulo">Título</th>
+                            <th class="coluna-status">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in procedimentos_cargo %}
+                        <tr>
+                            <td class="coluna-sigla">{{ item.sigla or '-' }}</td>
+                            <td class="coluna-numero">{{ item.numero_documento or '-' }}</td>
+                            <td class="coluna-titulo">{{ item.titulo or '-' }}</td>
+                            <td class="coluna-status">
+                                {% if item.status == 'Realizado' %}
+                                    <span class="badge bg-success status-badge">Realizado</span>
+                                {% elif item.status == 'Pendente' %}
+                                    <span class="badge bg-danger status-badge">Pendente</span>
+                                {% elif item.status == 'Vencido' %}
+                                    <span class="badge bg-danger status-badge">Vencido</span>
+                                {% else %}
+                                    <span class="badge bg-secondary status-badge">{{ item.status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">
+                                Nenhum treinamento vinculado ao cargo.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 🔹 BLOCO 3: FUNÇÕES -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <h5 class="cabecalho-secao-titulo mb-3">
+            <i class="bi bi-diagram-3"></i>
+            Matriz das Funções
+        </h5>
+
+        {% for funcao in funcoes_com_procedimentos %}
+        <div class="bloco-camada">
+            <div class="titulo-camada-item">
+                FUNÇÃO: {{ funcao.nome }}
+            </div>
+
+            <div class="table-responsive">
+                <table class="table tabela-verificacao">
+                    <thead>
+                        <tr>
+                            <th class="coluna-sigla">Sigla</th>
+                            <th class="coluna-numero">Nº DOC</th>
+                            <th class="coluna-titulo">Título</th>
+                            <th class="coluna-status">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in funcao.procedimentos %}
+                        <tr>
+                            <td class="coluna-sigla">{{ item.sigla or '-' }}</td>
+                            <td class="coluna-numero">{{ item.numero_documento or '-' }}</td>
+                            <td class="coluna-titulo">{{ item.titulo or '-' }}</td>
+                            <td class="coluna-status">
+                                {% if item.status == 'Realizado' %}
+                                    <span class="badge bg-success status-badge">Realizado</span>
+                                {% elif item.status == 'Pendente' %}
+                                    <span class="badge bg-danger status-badge">Pendente</span>
+                                {% elif item.status == 'Vencido' %}
+                                    <span class="badge bg-danger status-badge">Vencido</span>
+                                {% else %}
+                                    <span class="badge bg-secondary status-badge">{{ item.status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">
+                                Nenhum treinamento para esta função.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center text-muted">Nenhuma função vinculada.</div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- 🔹 BLOCO 4: SETORES -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <h5 class="cabecalho-secao-titulo mb-3">
+            <i class="bi bi-building"></i>
+            Matriz dos Setores
+        </h5>
+
+        {% for setor in setores_com_procedimentos %}
+        <div class="bloco-camada">
+            <div class="titulo-camada-item">
+                SETOR: {{ setor.nome }}
+            </div>
+
+            <div class="table-responsive">
+                <table class="table tabela-verificacao">
+                    <thead>
+                        <tr>
+                            <th class="coluna-sigla">Sigla</th>
+                            <th class="coluna-numero">Nº DOC</th>
+                            <th class="coluna-titulo">Título</th>
+                            <th class="coluna-status">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in setor.procedimentos %}
+                        <tr>
+                            <td class="coluna-sigla">{{ item.sigla or '-' }}</td>
+                            <td class="coluna-numero">{{ item.numero_documento or '-' }}</td>
+                            <td class="coluna-titulo">{{ item.titulo or '-' }}</td>
+                            <td class="coluna-status">
+                                {% if item.status == 'Realizado' %}
+                                    <span class="badge bg-success status-badge">Realizado</span>
+                                {% elif item.status == 'Pendente' %}
+                                    <span class="badge bg-danger status-badge">Pendente</span>
+                                {% elif item.status == 'Vencido' %}
+                                    <span class="badge bg-danger status-badge">Vencido</span>
+                                {% else %}
+                                    <span class="badge bg-secondary status-badge">{{ item.status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">
+                                Nenhum treinamento para este setor.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center text-muted">Nenhum setor vinculado.</div>
+        {% endfor %}
+    </div>
+</div>
+
+{% endif %}
+
+{% endblock %}

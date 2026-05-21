@@ -1,237 +1,504 @@
-{% extends 'layout.html' %}
+{% extends "layout.html" %}
 
-{% block titulo %}Cadastro de Usuários{% endblock %}
+{% block titulo %}Cadastro de Funcionários{% endblock %}
 
 {% block conteudo %}
-<h2 class="mb-4 text-center text-laranja">CADASTRO DE USUÁRIOS</h2>
-<hr>
 
-{% with messages = get_flashed_messages() %}
-  {% if messages %}
-    <div class="alert alert-success">{{ messages[0] }}</div>
-  {% endif %}
-{% endwith %}
+<div class="d-flex align-items-center justify-content-between mb-4">
 
-<form method="POST" class="mb-5">
-  <div class="row">
-    <div class="col-md-6 mb-3">
-      <label for="nome" class="form-label">Nome</label>
-      <input type="text" class="form-control" id="nome" name="nome" required>
-    </div>
-    <div class="col-md-6 mb-3">
-      <label for="email" class="form-label">Email</label>
-      <input type="email" class="form-control" id="email" name="email" required>
-    </div>
-  </div>
-  <div class="row">
-    <div class="col-md-6 mb-3">
-      <label for="centro_custos_id" class="form-label">Centro de Custos</label>
-      <select class="form-select" id="centro_custos_id" name="centro_custos_id" required>
-        <option value="">Selecione</option>
-        {% for c in centros_custos %}
-        <option value="{{ c.id }}" data-super-id="{{ c.superintendencia_id }}" data-super-nome="{{ c.superintendencia_nome }}">
-          {{ c.codigo }} - {{ c.descricao }}
-        </option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-md-6 mb-3">
-      <label for="superintendencia_nome" class="form-label">Superintendência</label>
-      <input type="text" class="form-control" id="superintendencia_nome" readonly>
-      <input type="hidden" name="superintendencia_id" id="superintendencia_id">
-    </div>
-  </div>
-  <div class="row">
-    <div class="col-md-6 mb-3">
-      <label for="senha" class="form-label">Senha Inicial</label>
-      <input type="password" class="form-control" id="senha" name="senha" required>
-    </div>
-    <div class="col-md-6 mb-3">
-      <label for="perfil" class="form-label">Perfil</label>
-      <select class="form-select" id="perfil" name="perfil" required>
-        <option value="">Selecione</option>
-        <option value="basico">Básico</option>
-        <option value="intermediario">Intermediário</option>
-        <option value="avancado">Avançado</option>
-        <option value="administrador">Administrador</option>
-      </select>
-    </div>
-  </div>
-  <div class="d-flex justify-content-between">
-    <button type="submit" class="btn btn-laranja">Salvar</button>
-    <a href="/dashboard" class="btn btn-cinza">Voltar</a>
-  </div>
-</form>
+    <div style="width: 40px;"></div>
 
-<hr>
+    <div class="text-center flex-grow-1">
+        <h2 class="page-title">
+            <i class="bi bi-people me-2"></i>
+            Cadastro de Funcionários
+        </h2>
+    </div>
 
-<h4 class="mb-4 text-center text-laranja">USUÁRIOS CADASTRADOS</h4>
+    <div style="width: 40px;"></div>
 
-<style>
-  /* Ordenação e filtro (mesmo padrão do dashboard) */
-  th.sortable { cursor: pointer; position: relative; user-select: none; white-space: nowrap; }
-  th.sortable .th-label { padding-right: 1.75rem; display: inline-block; }
-  th.sortable .sort-indicator { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: .85rem; opacity: .6; }
-  .filter-btn { border: 0; background: transparent; margin-left: .35rem; padding: 0 .15rem; line-height: 1; cursor: pointer; opacity: .8; }
-  .filter-btn:hover { opacity: 1; }
-  .filter-menu { position: absolute; z-index: 1100; background: #fff; border: 1px solid #ddd; border-radius: .5rem; padding: .5rem; min-width: 180px; box-shadow: 0 6px 18px rgba(0,0,0,.12); }
-  .filter-menu .form-select { font-size: .9rem; }
-</style>
-
-<div class="table-responsive">
-  <table class="table table-striped mt-3 sortable-table" id="tabelaUsuarios">
-    <thead>
-      <tr>
-        <th class="sortable" data-type="text"><span class="th-label">Nome</span><span class="sort-indicator">↕</span></th>
-        <th class="sortable" data-type="text"><span class="th-label">Email</span><span class="sort-indicator">↕</span></th>
-        <th class="sortable with-filter" data-type="text" data-filter-col="perfil">
-          <span class="th-label">Perfil</span>
-          <button class="filter-btn" title="Filtrar">⏷</button>
-          <span class="sort-indicator">↕</span>
-        </th>
-        <th class="sortable with-filter" data-type="text" data-filter-col="cc">
-          <span class="th-label">Centro de Custos</span>
-          <button class="filter-btn" title="Filtrar">⏷</button>
-          <span class="sort-indicator">↕</span>
-        </th>
-        <th class="sortable with-filter" data-type="text" data-filter-col="super">
-          <span class="th-label">Superintendência</span>
-          <button class="filter-btn" title="Filtrar">⏷</button>
-          <span class="sort-indicator">↕</span>
-        </th>
-        <th class="sortable with-filter" data-type="text" data-filter-col="status">
-          <span class="th-label">Status</span>
-          <button class="filter-btn" title="Filtrar">⏷</button>
-          <span class="sort-indicator">↕</span>
-        </th>
-        <th><span class="th-label">Ações</span></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for u in usuarios %}
-      <tr>
-        <td data-filter="nome">{{ u.nome }}</td>
-        <td data-filter="email">{{ u.email }}</td>
-        <td data-filter="perfil">{{ u.perfil }}</td>
-        <td data-filter="cc">{{ u.codigo_cc }} - {{ u.descricao_cc }}</td>
-        <td data-filter="super">{{ u.nome_superintendencia }}</td>
-        <td data-filter="status">{{ 'Ativo' if u.ativo else 'Inativo' }}</td>
-        <td>
-          <a href="/editar_usuario/{{ u.id }}" class="btn btn-laranja">Editar</a>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
 </div>
 
+<div class="page-header-line"></div>
+<hr>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<form method="POST" action="{{ url_for('main.usuarios') }}">
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Dados Básicos</h5>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="nome" class="form-label">Nome</label>
+                    <input type="text"
+                           class="form-control"
+                           id="nome"
+                           name="nome"
+                           required>
+                </div>
+
+                <div class="col-md-2">
+                    <label for="matricula" class="form-label">Matrícula</label>
+                    <input type="text"
+                           class="form-control"
+                           id="matricula"
+                           name="matricula"
+                           maxlength="6"
+                           pattern="\d{6}"
+                           inputmode="numeric"
+                           oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0,6)"
+                           placeholder="000123"
+                           required>
+                </div>
+
+                <div class="col-md-2">
+                    <label for="uid_rfid" class="form-label">RFID</label>
+                    <input type="text"
+                        class="form-control"
+                        id="uid_rfid"
+                        name="uid_rfid"
+                        placeholder="Aproxime o crachá">
+                </div>
+
+                <div class="col-md-4">
+                    <label for="email" class="form-label">E-mail</label>
+                    <input type="email"
+                           class="form-control"
+                           id="email"
+                           name="email">
+                </div>
+
+                <div class="col-md-4">
+                    <label for="centro_custos_id" class="form-label">Centro de Custos</label>
+                    <select class="form-select"
+                            id="centro_custos_id"
+                            name="centro_custos_id"
+                            required>
+                        <option value="">Selecione</option>
+                        {% for c in centros_custos %}
+                            <option value="{{ c.id }}"
+                                    data-super-id="{{ c.superintendencia_id }}"
+                                    data-super-nome="{{ c.superintendencia_nome }}">
+                                {{ c.codigo }} - {{ c.descricao }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="superintendencia_nome" class="form-label">Superintendência</label>
+                    <input type="text"
+                           class="form-control"
+                           id="superintendencia_nome"
+                           readonly>
+                    <input type="hidden" name="superintendencia_id" id="superintendencia_id">
+                </div>
+
+                <div class="col-md-4">
+                    <label for="cargo_id" class="form-label">Cargo</label>
+                    <select class="form-select" id="cargo_id" name="cargo_id">
+                        <option value="">Selecione</option>
+                        {% for cargo in cargos %}
+                            <option value="{{ cargo.id }}">{{ cargo.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Habilitações Operacionais</h5>
+
+            <div class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    <label for="funcao_temp" class="form-label">Função</label>
+                    <select class="form-select" id="funcao_temp">
+                        <option value="">Selecione</option>
+                        {% for funcao in funcoes %}
+                            <option value="{{ funcao.id }}">{{ funcao.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-5">
+                    <label for="setor_temp" class="form-label">Setor</label>
+                    <select class="form-select" id="setor_temp">
+                        <option value="">Selecione</option>
+                        {% for setor in setores %}
+                            <option value="{{ setor.id }}">{{ setor.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-laranja w-100" id="btnAdicionarHabilitacao">
+                        <i class="bi bi-plus-circle me-1"></i>
+                        Adicionar
+                    </button>
+                </div>
+
+                <div class="col-12">
+                    <div class="alert alert-light border mb-0">
+                        Cadastre aqui as combinações de <strong>função + setor</strong> para as quais o funcionário está habilitado.
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive mt-4">
+                <table class="table table-bordered align-middle mb-0" id="tabelaHabilitacoes">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Função</th>
+                            <th>Setor</th>
+                            <th style="width: 120px;">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr id="linhaSemHabilitacoes">
+                            <td colspan="3" class="text-center text-muted">
+                                Nenhuma habilitação adicionada.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="containerHabilitacoes"></div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Acesso e Papéis Especiais</h5>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="tem_acesso_sistema" class="form-label">Possui acesso ao TrackPlan?</label>
+                    <select class="form-select" id="tem_acesso_sistema" name="tem_acesso_sistema">
+                        <option value="1" selected>Sim</option>
+                        <option value="0">Não</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="pode_ser_instrutor" class="form-label">Pode ser instrutor?</label>
+                    <select class="form-select" id="pode_ser_instrutor" name="pode_ser_instrutor">
+                        <option value="0" selected>Não</option>
+                        <option value="1">Sim</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4 campo-acesso-sistema">
+                    <label for="responsavel_revisao_padrao" class="form-label">Responsável por revisão de padrão?</label>
+                    <select class="form-select" id="responsavel_revisao_padrao" name="responsavel_revisao_padrao">
+                        <option value="0" selected>Não</option>
+                        <option value="1">Sim</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6 campo-acesso-sistema">
+                    <label for="perfil" class="form-label">Perfil</label>
+                    <select class="form-select" id="perfil" name="perfil">
+                        <option value="">Selecione</option>
+                        <option value="basico">Básico</option>
+                        <option value="intermediario">Intermediário</option>
+                        <option value="avancado">Avançado</option>
+                        <option value="administrador">Administrador</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6 campo-acesso-sistema">
+                    <label for="senha" class="form-label">Senha Inicial</label>
+                    <input type="password"
+                        class="form-control"
+                        id="senha"
+                        name="senha">
+                </div>
+
+                <div class="col-12 campo-acesso-sistema">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                            type="checkbox"
+                            id="precisa_alterar_senha"
+                            name="precisa_alterar_senha"
+                            value="1"
+                            checked>
+                        <label class="form-check-label" for="precisa_alterar_senha">
+                            Exigir alteração de senha no primeiro acesso
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="alert alert-light border mb-0">
+                        O responsável por revisão de padrão será usado automaticamente nas solicitações geradas pela Auditoria de Padrão.
+                        Apenas um funcionário ativo poderá assumir esse papel.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4 campo-acesso-sistema">
+        <div class="card-body">
+            <h5 class="text-laranja mb-3">Permissões de Acesso</h5>
+
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="acesso_plano_acao"
+                               name="acesso_plano_acao"
+                               value="1">
+                        <label class="form-check-label" for="acesso_plano_acao">
+                            Planos de Ação
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="acesso_ssma"
+                               name="acesso_ssma"
+                               value="1">
+                        <label class="form-check-label" for="acesso_ssma">
+                            SSMA
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="acesso_melhoria"
+                               name="acesso_melhoria"
+                               value="1">
+                        <label class="form-check-label" for="acesso_melhoria">
+                            Melhorias
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="acesso_gestao_pessoas"
+                               name="acesso_gestao_pessoas"
+                               value="1">
+                        <label class="form-check-label" for="acesso_gestao_pessoas">
+                            Gestão de Pessoas
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="acesso_treinamentos"
+                               name="acesso_treinamentos"
+                               value="1">
+                        <label class="form-check-label" for="acesso_treinamentos">
+                            Gestão de Treinamentos
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="acesso_procedimentos"
+                               name="acesso_procedimentos"
+                               value="1">
+                        <label class="form-check-label" for="acesso_procedimentos">
+                            Procedimentos
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                            type="checkbox"
+                            id="acesso_pcpm"
+                            name="acesso_pcpm"
+                            value="1">
+                        <label class="form-check-label" for="acesso_pcpm">
+                            PCP-M
+                        </label>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2">
+        <a href="{{ url_for('main.admin') }}" class="btn btn-cinza">
+            Cancelar
+        </a>
+        <button type="submit" class="btn btn-laranja">
+            Salvar
+        </button>
+    </div>
+
+</form>
+
 <script>
-  // Preenche Superintendência automática no formulário
-  document.getElementById('centro_custos_id').addEventListener('change', function () {
-    const selected = this.options[this.selectedIndex];
-    const superNome = selected.getAttribute('data-super-nome');
-    const superId = selected.getAttribute('data-super-id');
-    document.getElementById('superintendencia_nome').value = superNome || '';
-    document.getElementById('superintendencia_id').value = superId || '';
-  });
+    const centroCustos = document.getElementById('centro_custos_id');
+    const superNome = document.getElementById('superintendencia_nome');
+    const superId = document.getElementById('superintendencia_id');
 
-  // ------- Ordenação / Filtro da tabela -------
-  function parseCellValue(td, type) {
-    return td.textContent.trim().toLowerCase();
-  }
-
-  function sortTable(table, colIndex, type, direction) {
-    const tbody = table.tBodies[0];
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-    rows.sort((a, b) => {
-      const va = parseCellValue(a.children[colIndex], type);
-      const vb = parseCellValue(b.children[colIndex], type);
-      if (va < vb) return direction === 'asc' ? -1 : 1;
-      if (va > vb) return direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-    rows.forEach(r => tbody.appendChild(r));
-  }
-
-  function buildFilterMenu(th, table, colIndex) {
-    // Remove qualquer menu aberto
-    document.querySelectorAll('.filter-menu').forEach(m => m.remove());
-
-    const menu = document.createElement('div');
-    menu.className = 'filter-menu';
-
-    // Coleta de valores únicos
-    const vals = new Set();
-    table.querySelectorAll('tbody tr').forEach(tr => {
-      const td = tr.children[colIndex];
-      vals.add(td.textContent.trim());
-    });
-    const arr = Array.from(vals).filter(v => v.length).sort((a,b)=>a.localeCompare(b,'pt-BR'));
-
-    menu.innerHTML = `
-      <div class="mb-2 fw-semibold">Filtrar por ${th.querySelector('.th-label').textContent}</div>
-      <select class="form-select mb-2 filter-select">
-        <option value="">(todos)</option>
-        ${arr.map(v => `<option value="${v.replace(/"/g,'&quot;')}">${v}</option>`).join('')}
-      </select>
-      <div class="d-flex gap-2">
-        <button type="button" class="btn btn-sm btn-laranja aplicar">Aplicar</button>
-        <button type="button" class="btn btn-sm btn-secondary limpar">Limpar</button>
-      </div>
-    `;
-
-    document.body.appendChild(menu);
-    const rect = th.getBoundingClientRect();
-    menu.style.top  = (window.scrollY + rect.bottom + 6) + 'px';
-    menu.style.left = (window.scrollX + rect.left) + 'px';
-
-    const select = menu.querySelector('.filter-select');
-
-    function applyFilter(val) {
-      table.querySelectorAll('tbody tr').forEach(tr => {
-        const txt = tr.children[colIndex].textContent.trim();
-        tr.style.display = (!val || txt === val) ? '' : 'none';
-      });
+    if (centroCustos) {
+        centroCustos.addEventListener('change', function () {
+            const selected = this.options[this.selectedIndex];
+            superNome.value = selected.getAttribute('data-super-nome') || '';
+            superId.value = selected.getAttribute('data-super-id') || '';
+        });
     }
 
-    // Fecha o popover depois de aplicar/limpar
-    menu.querySelector('.aplicar').onclick = () => { applyFilter(select.value); menu.remove(); };
-    menu.querySelector('.limpar').onclick  = () => { select.value=''; applyFilter(''); menu.remove(); };
+    function alternarCamposAcessoSistema() {
+        const temAcesso = document.getElementById('tem_acesso_sistema');
+        const blocos = document.querySelectorAll('.campo-acesso-sistema');
+        const perfil = document.getElementById('perfil');
+        const senha = document.getElementById('senha');
+        const email = document.getElementById('email');
 
-    // Fecha ao clicar fora
-    document.addEventListener('click', (e) => {
-      if (!menu.contains(e.target) && e.target !== th.querySelector('.filter-btn')) {
-        menu.remove();
-      }
-    }, { once: true });
-  }
+        const mostrar = temAcesso && temAcesso.value === '1';
 
-  (function initSortableAndFilters() {
-    const table = document.getElementById('tabelaUsuarios');
-    table.querySelectorAll('th').forEach((th, idx) => {
-      const type = th.getAttribute('data-type') || 'text';
-
-      // Ordenação
-      const label = th.querySelector('.th-label');
-      if (label && th.classList.contains('sortable')) {
-        let dir = 'asc';
-        label.addEventListener('click', () => {
-          sortTable(table, idx, type, dir);
-          dir = (dir === 'asc' ? 'desc' : 'asc');
-          const ind = th.querySelector('.sort-indicator');
-          if (ind) ind.textContent = dir === 'asc' ? '↑' : '↓';
+        blocos.forEach(bloco => {
+            bloco.style.display = mostrar ? '' : 'none';
         });
-      }
 
-      // Filtro
-      const filterBtn = th.querySelector('.filter-btn');
-      if (filterBtn && th.classList.contains('with-filter')) {
-        filterBtn.addEventListener('click', (ev) => {
-          ev.stopPropagation();
-          buildFilterMenu(th, table, idx);
+        if (perfil) {
+            perfil.required = mostrar;
+            if (!mostrar) perfil.value = '';
+        }
+
+        if (senha) {
+            senha.required = mostrar;
+            if (!mostrar) senha.value = '';
+        }
+
+        if (email) {
+            email.required = mostrar;
+        }
+    }
+
+    function atualizarLinhaVazia() {
+        const tbody = document.querySelector('#tabelaHabilitacoes tbody');
+        const linhas = tbody.querySelectorAll('tr.habilitacao-row');
+        const linhaVazia = document.getElementById('linhaSemHabilitacoes');
+
+        if (linhaVazia) {
+            linhaVazia.style.display = linhas.length > 0 ? 'none' : '';
+        }
+    }
+
+    function criarInputHidden(name, value) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        return input;
+    }
+
+    function adicionarHabilitacao(funcaoId, funcaoNome, setorId, setorNome) {
+        const tbody = document.querySelector('#tabelaHabilitacoes tbody');
+
+        const existente = Array.from(tbody.querySelectorAll('tr.habilitacao-row')).some(row => {
+            return row.dataset.funcaoId === String(funcaoId) && row.dataset.setorId === String(setorId);
         });
-      }
+
+        if (existente) {
+            alert('Essa combinação de função e setor já foi adicionada.');
+            return;
+        }
+
+        const tr = document.createElement('tr');
+        tr.classList.add('habilitacao-row');
+        tr.dataset.funcaoId = funcaoId;
+        tr.dataset.setorId = setorId;
+
+        tr.innerHTML = `
+            <td>${funcaoNome}</td>
+            <td>${setorNome}</td>
+            <td>
+                <button type="button" class="btn btn-vermelho btn-sm w-100 btn-remover-habilitacao">
+                    Remover
+                </button>
+            </td>
+        `;
+
+        const hiddenFuncao = criarInputHidden('funcao_ids[]', funcaoId);
+        const hiddenSetor = criarInputHidden('setor_ids[]', setorId);
+
+        tr.appendChild(hiddenFuncao);
+        tr.appendChild(hiddenSetor);
+
+        tbody.appendChild(tr);
+        atualizarLinhaVazia();
+
+        tr.querySelector('.btn-remover-habilitacao').addEventListener('click', function () {
+            tr.remove();
+            atualizarLinhaVazia();
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        alternarCamposAcessoSistema();
+
+        const temAcesso = document.getElementById('tem_acesso_sistema');
+        if (temAcesso) {
+            temAcesso.addEventListener('change', alternarCamposAcessoSistema);
+        }
+
+        const btnAdicionar = document.getElementById('btnAdicionarHabilitacao');
+        const funcaoTemp = document.getElementById('funcao_temp');
+        const setorTemp = document.getElementById('setor_temp');
+
+        if (btnAdicionar) {
+            btnAdicionar.addEventListener('click', function () {
+                const funcaoId = funcaoTemp.value;
+                const setorId = setorTemp.value;
+
+                const funcaoNome = funcaoTemp.options[funcaoTemp.selectedIndex]?.text || '';
+                const setorNome = setorTemp.options[setorTemp.selectedIndex]?.text || '';
+
+                if (!funcaoId || !setorId) {
+                    alert('Selecione a função e o setor para adicionar a habilitação.');
+                    return;
+                }
+
+                adicionarHabilitacao(funcaoId, funcaoNome, setorId, setorNome);
+
+                funcaoTemp.value = '';
+                setorTemp.value = '';
+            });
+        }
+
+        atualizarLinhaVazia();
     });
-  })();
 </script>
+
 {% endblock %}

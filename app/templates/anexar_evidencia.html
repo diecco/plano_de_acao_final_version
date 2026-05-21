@@ -1,8 +1,58 @@
 {% extends 'layout.html' %}
 {% block conteudo %}
 
-<h2 class="mb-4 text-center text-laranja">ANEXAR EVIDÊNCIA</h2>
-<hr>
+<h2 class="mb-3 text-center text-laranja">ANEXAR EVIDÊNCIA</h2>
+<hr class="mb-3">
+
+<style>
+    .campo-bloqueado {
+        background-color: #e9ecef !important;
+        color: #212529 !important;
+        opacity: 1 !important;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    .campo-bloqueado:focus {
+        background-color: #e9ecef !important;
+        color: #212529 !important;
+        border-color: #ced4da !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    .bloco-evidencia {
+        border: 1px solid #ececec;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        padding: 20px;
+    }
+
+    .preview-evidencia {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 10px;
+        background-color: #f8f9fa;
+    }
+
+    .nome-arquivo {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-top: 8px;
+        word-break: break-word;
+    }
+
+    .preview-titulo {
+        font-weight: 600;
+        color: #ea6a23;
+        margin-bottom: 8px;
+    }
+
+    .preview-oculto {
+        display: none;
+    }
+</style>
 
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
@@ -15,39 +65,143 @@
   {% endif %}
 {% endwith %}
 
-<form method="POST" enctype="multipart/form-data" class="border p-4 rounded bg-light">
+<form method="POST" enctype="multipart/form-data" class="bloco-evidencia">
     <div class="mb-3">
         <label class="form-label">Descrição da Ação</label>
-        <input type="text" class="form-control" value="{{ acao.descricao }}" readonly>
+        <input type="text"
+               class="form-control campo-bloqueado"
+               value="{{ acao.descricao }}"
+               readonly>
     </div>
 
     {% if acao.arquivo_evidencia %}
     <div class="mb-3">
-        <label class="form-label">Evidência Anexada:</label>
+        <label class="form-label">Documento atualmente anexado</label>
+
         {% set ext = acao.arquivo_evidencia.split('.')[-1].lower() %}
-        {% if ext in ['jpg', 'jpeg', 'png'] %}
-            <div class="border p-2 rounded">
-                <img src="{{ url_for('static', filename='evidencias/' ~ acao.arquivo_evidencia) }}" alt="Evidência" class="img-fluid">
+        <div class="preview-evidencia">
+            {% if ext in ['jpg', 'jpeg', 'png', 'webp'] %}
+                <img src="{{ url_for('static', filename='evidencias/' ~ acao.arquivo_evidencia) }}"
+                     alt="Evidência atual"
+                     class="img-fluid rounded">
+            {% elif ext == 'pdf' %}
+                <embed src="{{ url_for('static', filename='evidencias/' ~ acao.arquivo_evidencia) }}"
+                       type="application/pdf"
+                       width="100%"
+                       height="420px">
+            {% else %}
+                <p class="mb-2">Visualização não disponível para este tipo de arquivo.</p>
+                <a href="{{ url_for('static', filename='evidencias/' ~ acao.arquivo_evidencia) }}"
+                   target="_blank"
+                   class="btn btn-success btn-sm">
+                    Consultar documento
+                </a>
+            {% endif %}
+
+            <div class="nome-arquivo">
+                <strong>Arquivo atual:</strong> {{ acao.arquivo_evidencia }}
             </div>
-        {% elif ext in ['pdf'] %}
-            <div class="border p-2 rounded">
-                <embed src="{{ url_for('static', filename='evidencias/' ~ acao.arquivo_evidencia) }}" type="application/pdf" width="100%" height="400px">
-            </div>
-        {% else %}
-            <p><a href="{{ url_for('static', filename='evidencias/' ~ acao.arquivo_evidencia) }}" target="_blank">{{ acao.arquivo_evidencia }}</a></p>
-        {% endif %}
+        </div>
     </div>
     {% endif %}
 
     <div class="mb-3">
-        <label for="arquivo" class="form-label">Selecionar novo arquivo (opcional)</label>
-        <input type="file" class="form-control" name="arquivo" id="arquivo">
+        <label for="arquivo" class="form-label">
+            {% if acao.arquivo_evidencia %}
+                Selecionar novo arquivo para substituir a evidência atual
+            {% else %}
+                Selecionar arquivo de evidência
+            {% endif %}
+        </label>
+        <input type="file" class="form-control" name="arquivo" id="arquivo" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx">
+    </div>
+
+    <!-- PREVIEW IMEDIATO DO NOVO ARQUIVO -->
+    <div class="mb-3 preview-oculto" id="bloco-preview-novo">
+        <label class="form-label">Novo arquivo selecionado</label>
+        <div class="preview-evidencia">
+            <div class="preview-titulo" id="preview-nome-arquivo"></div>
+
+            <div id="preview-imagem-container" class="preview-oculto">
+                <img id="preview-imagem" src="" alt="Pré-visualização da imagem" class="img-fluid rounded">
+            </div>
+
+            <div id="preview-pdf-container" class="preview-oculto">
+                <embed id="preview-pdf" src="" type="application/pdf" width="100%" height="420px">
+            </div>
+
+            <div id="preview-generico-container" class="preview-oculto">
+                <p class="mb-0">Pré-visualização não disponível para este tipo de arquivo.</p>
+            </div>
+        </div>
     </div>
 
     <div class="d-flex justify-content-between">
         <button type="submit" class="btn btn-laranja">Salvar</button>
-        <a href="/dashboard" class="btn btn-cinza">Voltar</a>
+        <a href="{{ url_for('main.editar_acao', id=acao.id) }}" class="btn btn-cinza">Voltar</a>
     </div>
 </form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const inputArquivo = document.getElementById('arquivo');
+    const blocoPreview = document.getElementById('bloco-preview-novo');
+    const nomeArquivo = document.getElementById('preview-nome-arquivo');
+
+    const imgContainer = document.getElementById('preview-imagem-container');
+    const imgPreview = document.getElementById('preview-imagem');
+
+    const pdfContainer = document.getElementById('preview-pdf-container');
+    const pdfPreview = document.getElementById('preview-pdf');
+
+    const genericoContainer = document.getElementById('preview-generico-container');
+
+    function ocultarPreviews() {
+        imgContainer.classList.add('preview-oculto');
+        pdfContainer.classList.add('preview-oculto');
+        genericoContainer.classList.add('preview-oculto');
+
+        imgPreview.src = '';
+        pdfPreview.src = '';
+    }
+
+    inputArquivo.addEventListener('change', function () {
+        const arquivo = this.files && this.files[0];
+
+        if (!arquivo) {
+            blocoPreview.classList.add('preview-oculto');
+            ocultarPreviews();
+            nomeArquivo.textContent = '';
+            return;
+        }
+
+        blocoPreview.classList.remove('preview-oculto');
+        ocultarPreviews();
+
+        nomeArquivo.textContent = 'Arquivo selecionado: ' + arquivo.name;
+
+        const tipo = arquivo.type;
+
+        if (tipo.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                imgPreview.src = e.target.result;
+                imgContainer.classList.remove('preview-oculto');
+            };
+            reader.readAsDataURL(arquivo);
+            return;
+        }
+
+        if (tipo === 'application/pdf') {
+            const url = URL.createObjectURL(arquivo);
+            pdfPreview.src = url;
+            pdfContainer.classList.remove('preview-oculto');
+            return;
+        }
+
+        genericoContainer.classList.remove('preview-oculto');
+    });
+});
+</script>
 
 {% endblock %}

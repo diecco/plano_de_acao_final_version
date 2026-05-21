@@ -1,0 +1,536 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Equipamentos{% endblock %}
+
+{% block conteudo %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-truck-front me-2"></i>
+        Equipamentos
+    </h2>
+</div>
+
+<hr>
+
+<!-- FILTROS E AÇÕES -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+
+        <form method="GET" action="{{ url_for('main.equipamentos') }}">
+
+            <div class="row g-3 align-items-end">
+
+                <div class="col-md-3">
+                    <label for="codigo_frota" class="form-label">Frota</label>
+                    <input type="text"
+                           class="form-control text-uppercase"
+                           id="codigo_frota"
+                           name="codigo_frota"
+                           value="{{ filtros.get('codigo_frota', '') }}"
+                           placeholder="Ex: TDE-2682">
+                </div>
+
+                <div class="col-md-3">
+                    <label for="tipo_equipamento_id" class="form-label">Tipo de Equipamento</label>
+                    <select class="form-select"
+                            id="tipo_equipamento_id"
+                            name="tipo_equipamento_id">
+                        <option value="">Todos</option>
+                        {% for tipo in tipos_equipamento %}
+                            <option value="{{ tipo.id }}"
+                                    {% if filtros.get('tipo_equipamento_id') == tipo.id|string %}selected{% endif %}>
+                                {{ tipo.tag }} - {{ tipo.nome }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="centro_custo_id" class="form-label">Centro de Custo</label>
+                    <select class="form-select"
+                            id="centro_custo_id"
+                            name="centro_custo_id">
+                        <option value="">Todos</option>
+                        {% for cc in centros_custos %}
+                            <option value="{{ cc.id }}"
+                                    {% if filtros.get('centro_custo_id') == cc.id|string %}selected{% endif %}>
+                                {{ cc.codigo }} - {{ cc.descricao }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="d-flex gap-2 justify-content-end flex-wrap">
+
+                        <button type="submit"
+                                class="btn btn-laranja"
+                                title="Filtrar">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+
+                        <a href="{{ url_for('main.equipamentos', limpar=1) }}"
+                           class="btn btn-cinza"
+                           title="Limpar filtros">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+
+                        <button type="button"
+                                class="btn btn-laranja"
+                                title="Novo equipamento"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modalCadastrarEquipamento">
+                            <i class="bi bi-plus-circle"></i>
+                        </button>
+
+                    </div>
+                </div>
+
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+<!-- TABELA -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+
+        <div class="table-responsive">
+
+            <table class="table table-bordered align-middle table-fixed">
+
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 80px;" class="text-center">ID</th>
+                        <th style="width: 140px;">Frota</th>
+                        <th style="width: 180px;">Tipo</th>
+                        <th style="width: 160px;">Marca</th>
+                        <th style="width: 160px;">Modelo</th>
+                        <th>Centro de Custo</th>
+                        <th style="width: 120px;" class="text-center">Status</th>
+                        <th style="width: 140px;" class="text-center">Ações</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for equipamento in equipamentos %}
+                    <tr>
+                        <td class="text-center">
+                            {{ equipamento.id }}
+                        </td>
+
+                        <td class="text-center">
+                            <span class="badge bg-dark">
+                                {{ equipamento.codigo_frota }}
+                            </span>
+                        </td>
+
+                        <td>
+                            {{ equipamento.tipo_tag }} - {{ equipamento.tipo_nome }}
+                        </td>
+
+                        <td>
+                            {{ equipamento.marca }}
+                        </td>
+
+                        <td>
+                            {{ equipamento.modelo }}
+                        </td>
+
+                        <td>
+                            {{ equipamento.centro_custo_codigo }} - {{ equipamento.centro_custo_descricao }}
+                        </td>
+
+                        <td class="text-center">
+                            {% if equipamento.ativo %}
+                                <span class="badge bg-success">Ativo</span>
+                            {% else %}
+                                <span class="badge bg-danger">Inativo</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <div class="d-flex justify-content-center gap-2">
+
+                                <button type="button"
+                                        class="btn-acao-icon"
+                                        title="Editar"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalEditarEquipamento"
+                                        data-id="{{ equipamento.id }}"
+                                        data-tipo-id="{{ equipamento.tipo_equipamento_id }}"
+                                        data-centro-custo-id="{{ equipamento.centro_custo_id }}"
+                                        data-codigo-frota="{{ equipamento.codigo_frota }}"
+                                        data-numero-frota="{{ equipamento.codigo_frota.split('-')[-1] if equipamento.codigo_frota else '' }}"
+                                        data-marca="{{ equipamento.marca }}"
+                                        data-modelo="{{ equipamento.modelo }}">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+
+                                {% if equipamento.ativo %}
+                                <form method="POST"
+                                      action="{{ url_for('main.inativar_equipamento', id=equipamento.id) }}"
+                                      onsubmit="return confirm('Deseja inativar este equipamento?');">
+                                    <button type="submit"
+                                            class="btn-acao-icon"
+                                            title="Inativar">
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
+                                </form>
+                                {% else %}
+                                <form method="POST"
+                                      action="{{ url_for('main.ativar_equipamento', id=equipamento.id) }}"
+                                      onsubmit="return confirm('Deseja ativar este equipamento?');">
+                                    <button type="submit"
+                                            class="btn-acao-icon"
+                                            title="Ativar">
+                                        <i class="bi bi-check-circle"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center">
+                            Nenhum equipamento cadastrado.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- MODAL CADASTRAR -->
+<div class="modal fade"
+     id="modalCadastrarEquipamento"
+     tabindex="-1"
+     aria-labelledby="modalCadastrarEquipamentoLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-lg">
+
+        <div class="modal-content">
+
+            <form method="POST"
+                  action="{{ url_for('main.cadastrar_equipamento') }}">
+
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalCadastrarEquipamentoLabel">
+                        <i class="bi bi-plus-circle"></i>
+                        Novo Equipamento
+                    </h5>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Fechar">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="row g-3">
+
+                        <div class="col-md-6">
+                            <label for="cad_tipo_equipamento_id" class="form-label">Tipo de Equipamento</label>
+                            <select class="form-select"
+                                    id="cad_tipo_equipamento_id"
+                                    name="tipo_equipamento_id"
+                                    required>
+                                <option value="">Selecione</option>
+                                {% for tipo in tipos_equipamento %}
+                                    <option value="{{ tipo.id }}"
+                                            data-tag="{{ tipo.tag }}">
+                                        {{ tipo.tag }} - {{ tipo.nome }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="cad_codigo_frota" class="form-label">Número da Frota</label>
+                            <div class="input-group">
+                                <span class="input-group-text" id="cad_prefixo_frota">TAG-</span>
+                                <input type="text"
+                                       name="codigo_frota"
+                                       id="cad_codigo_frota"
+                                       class="form-control"
+                                       maxlength="4"
+                                       pattern="\d{4}"
+                                       inputmode="numeric"
+                                       required
+                                       placeholder="2682"
+                                       oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0,4)">
+                            </div>
+                            <div class="form-text" id="cad_ajuda_codigo_frota">
+                                Selecione o tipo de equipamento para definir a TAG.
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="cad_marca" class="form-label">Marca</label>
+                            <input type="text"
+                                   name="marca"
+                                   id="cad_marca"
+                                   class="form-control"
+                                   maxlength="100"
+                                   required
+                                   placeholder="Ex: Yale">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="cad_modelo" class="form-label">Modelo</label>
+                            <input type="text"
+                                   name="modelo"
+                                   id="cad_modelo"
+                                   class="form-control"
+                                   maxlength="100"
+                                   required
+                                   placeholder="Ex: GDP25VX">
+                        </div>
+
+                        <div class="col-12">
+                            <label for="cad_centro_custo_id" class="form-label">Centro de Custo</label>
+                            <select class="form-select"
+                                    id="cad_centro_custo_id"
+                                    name="centro_custo_id"
+                                    required>
+                                <option value="">Selecione</option>
+                                {% for cc in centros_custos %}
+                                    <option value="{{ cc.id }}">
+                                        {{ cc.codigo }} - {{ cc.descricao }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-cinza"
+                            data-bs-dismiss="modal">
+                        Voltar
+                    </button>
+
+                    <button type="submit"
+                            class="btn btn-laranja">
+                        Salvar
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- MODAL EDITAR -->
+<div class="modal fade"
+     id="modalEditarEquipamento"
+     tabindex="-1"
+     aria-labelledby="modalEditarEquipamentoLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-lg">
+
+        <div class="modal-content">
+
+            <form method="POST"
+                  action="{{ url_for('main.editar_equipamento', id=0) }}"
+                  id="formEditarEquipamento"
+                  data-action-template="{{ url_for('main.editar_equipamento', id=0) }}">
+
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title" id="modalEditarEquipamentoLabel">
+                        <i class="bi bi-pencil-square"></i>
+                        Editar Equipamento
+                    </h5>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Fechar">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="row g-3">
+
+                        <div class="col-md-6">
+                            <label for="edit_tipo_equipamento_id" class="form-label">Tipo de Equipamento</label>
+                            <select class="form-select"
+                                    id="edit_tipo_equipamento_id"
+                                    name="tipo_equipamento_id"
+                                    required>
+                                <option value="">Selecione</option>
+                                {% for tipo in tipos_equipamento %}
+                                    <option value="{{ tipo.id }}"
+                                            data-tag="{{ tipo.tag }}">
+                                        {{ tipo.tag }} - {{ tipo.nome }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="edit_codigo_frota" class="form-label">Número da Frota</label>
+                            <div class="input-group">
+                                <span class="input-group-text" id="edit_prefixo_frota">TAG-</span>
+                                <input type="text"
+                                       name="codigo_frota"
+                                       id="edit_codigo_frota"
+                                       class="form-control"
+                                       maxlength="4"
+                                       pattern="\d{4}"
+                                       inputmode="numeric"
+                                       required
+                                       oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0,4)">
+                            </div>
+                            <div class="form-text" id="edit_ajuda_codigo_frota">
+                                Selecione o tipo de equipamento para definir a TAG.
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="edit_marca" class="form-label">Marca</label>
+                            <input type="text"
+                                   name="marca"
+                                   id="edit_marca"
+                                   class="form-control"
+                                   maxlength="100"
+                                   required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="edit_modelo" class="form-label">Modelo</label>
+                            <input type="text"
+                                   name="modelo"
+                                   id="edit_modelo"
+                                   class="form-control"
+                                   maxlength="100"
+                                   required>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="edit_centro_custo_id" class="form-label">Centro de Custo</label>
+                            <select class="form-select"
+                                    id="edit_centro_custo_id"
+                                    name="centro_custo_id"
+                                    required>
+                                <option value="">Selecione</option>
+                                {% for cc in centros_custos %}
+                                    <option value="{{ cc.id }}">
+                                        {{ cc.codigo }} - {{ cc.descricao }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-cinza"
+                            data-bs-dismiss="modal">
+                        Voltar
+                    </button>
+
+                    <button type="submit"
+                            class="btn btn-laranja">
+                        Salvar alterações
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+function atualizarPrefixoFrota(selectId, prefixoId, ajudaId) {
+    const select = document.getElementById(selectId);
+    const prefixo = document.getElementById(prefixoId);
+    const ajuda = document.getElementById(ajudaId);
+
+    if (!select || !prefixo || !ajuda) return;
+
+    const option = select.options[select.selectedIndex];
+    const tag = option ? option.getAttribute('data-tag') : '';
+
+    if (tag) {
+        prefixo.textContent = `${tag}-`;
+        ajuda.textContent = `Informe apenas os 4 últimos dígitos. Exemplo final: ${tag}-2682`;
+    } else {
+        prefixo.textContent = 'TAG-';
+        ajuda.textContent = 'Selecione o tipo de equipamento para definir a TAG.';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const cadTipo = document.getElementById('cad_tipo_equipamento_id');
+    if (cadTipo) {
+        cadTipo.addEventListener('change', function () {
+            atualizarPrefixoFrota('cad_tipo_equipamento_id', 'cad_prefixo_frota', 'cad_ajuda_codigo_frota');
+        });
+    }
+
+    const editTipo = document.getElementById('edit_tipo_equipamento_id');
+    if (editTipo) {
+        editTipo.addEventListener('change', function () {
+            atualizarPrefixoFrota('edit_tipo_equipamento_id', 'edit_prefixo_frota', 'edit_ajuda_codigo_frota');
+        });
+    }
+
+    const modalEditar = document.getElementById('modalEditarEquipamento');
+
+    if (modalEditar) {
+        modalEditar.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+
+            const id = button.getAttribute('data-id');
+            const tipoId = button.getAttribute('data-tipo-id');
+            const centroCustoId = button.getAttribute('data-centro-custo-id');
+            const numeroFrota = button.getAttribute('data-numero-frota');
+            const marca = button.getAttribute('data-marca');
+            const modelo = button.getAttribute('data-modelo');
+
+            const form = document.getElementById('formEditarEquipamento');
+            const actionTemplate = form.getAttribute('data-action-template');
+
+            form.action = actionTemplate.replace('/0', '/' + id);
+
+            document.getElementById('edit_tipo_equipamento_id').value = tipoId;
+            document.getElementById('edit_centro_custo_id').value = centroCustoId;
+            document.getElementById('edit_codigo_frota').value = numeroFrota;
+            document.getElementById('edit_marca').value = marca;
+            document.getElementById('edit_modelo').value = modelo;
+
+            atualizarPrefixoFrota('edit_tipo_equipamento_id', 'edit_prefixo_frota', 'edit_ajuda_codigo_frota');
+        });
+    }
+});
+</script>
+
+{% endblock %}
