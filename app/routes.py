@@ -703,6 +703,7 @@ def usuarios():
             return redirect(url_for('main.usuarios'))
 
         if tem_acesso_sistema == 1:
+
             if not email:
                 flash('Funcionários com acesso ao sistema devem possuir e-mail.', 'danger')
                 conn.close()
@@ -717,6 +718,7 @@ def usuarios():
                 flash('Funcionários com acesso ao sistema devem possuir senha inicial.', 'danger')
                 conn.close()
                 return redirect(url_for('main.usuarios'))
+
         else:
             perfil = None
             senha_plana = None
@@ -732,6 +734,7 @@ def usuarios():
             responsavel_revisao_padrao = 0
 
         try:
+
             cursor.execute("""
                 SELECT id
                 FROM usuarios
@@ -744,6 +747,8 @@ def usuarios():
                 conn.close()
                 return redirect(url_for('main.usuarios'))
 
+            usuario_existente = None
+
             if email:
                 cursor.execute("""
                     SELECT id
@@ -751,7 +756,12 @@ def usuarios():
                     WHERE email = %s
                 """, (email,))
                 usuario_existente = cursor.fetchone()
-            
+
+                if usuario_existente:
+                    flash('Já existe um funcionário cadastrado com este e-mail.', 'warning')
+                    conn.close()
+                    return redirect(url_for('main.usuarios'))
+
             if uid_rfid:
                 cursor.execute("""
                     SELECT id
@@ -762,11 +772,6 @@ def usuarios():
 
                 if rfid_existente:
                     flash('Já existe um funcionário cadastrado com este RFID.', 'warning')
-                    conn.close()
-                    return redirect(url_for('main.usuarios'))
-
-                if usuario_existente:
-                    flash('Já existe um funcionário cadastrado com este e-mail.', 'warning')
                     conn.close()
                     return redirect(url_for('main.usuarios'))
 
@@ -790,8 +795,12 @@ def usuarios():
                     return redirect(url_for('main.usuarios'))
 
             hash_senha = None
+
             if senha_plana:
-                hash_senha = generate_password_hash(senha_plana, method="pbkdf2:sha256")
+                hash_senha = generate_password_hash(
+                    senha_plana,
+                    method="pbkdf2:sha256"
+                )
 
             cursor.execute("""
                 INSERT INTO usuarios (
@@ -817,7 +826,11 @@ def usuarios():
                     acesso_procedimentos,
                     acesso_pcpm
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 1, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (
+                    %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, 1, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s, %s
+                )
             """, (
                 nome,
                 matricula,
@@ -845,6 +858,7 @@ def usuarios():
             combinacoes_inseridas = set()
 
             for funcao_id, setor_id in zip(funcao_ids, setor_ids):
+
                 funcao_id = (funcao_id or '').strip()
                 setor_id = (setor_id or '').strip()
 
@@ -864,13 +878,18 @@ def usuarios():
                         ativo
                     )
                     VALUES (%s, %s, %s, 1)
-                """, (usuario_id, funcao_id, setor_id))
+                """, (
+                    usuario_id,
+                    funcao_id,
+                    setor_id
+                ))
 
                 combinacoes_inseridas.add(chave)
 
             conn.commit()
 
             if tem_acesso_sistema == 1 and email and senha_plana:
+
                 try:
                     link_login = url_for('main.login', _external=True)
 
@@ -882,34 +901,70 @@ def usuarios():
                     msg.html = f"""
                     <div style="font-family: Arial, sans-serif; font-size: 15px; color:#333;">
                       <div style="text-align:center; margin-bottom:18px;">
-                        <img src="https://www.trackplan.com.br/imagens/barra_email.png" alt="TrackPlan" style="height:50px;">
+                        <img src="https://www.trackplan.com.br/imagens/barra_email.png"
+                             alt="TrackPlan"
+                             style="height:50px;">
                       </div>
 
                       <p>Olá <strong>{nome}</strong>,</p>
-                      <p>Seu acesso ao <strong>TrackPlan</strong> foi criado com sucesso. Seguem seus dados de login:</p>
 
-                      <div style="background:#f7f7f7; border:1px solid #eee; border-radius:6px; padding:12px 14px; margin:12px 0;">
-                        <p style="margin:6px 0;"><strong>Endereço:</strong> <a href="{link_login}" target="_blank">{link_login}</a></p>
-                        <p style="margin:6px 0;"><strong>Usuário (e-mail):</strong> {email}</p>
-                        <p style="margin:6px 0;"><strong>Senha inicial:</strong> {senha_plana}</p>
+                      <p>
+                        Seu acesso ao <strong>TrackPlan</strong>
+                        foi criado com sucesso.
+                      </p>
+
+                      <div style="
+                          background:#f7f7f7;
+                          border:1px solid #eee;
+                          border-radius:6px;
+                          padding:12px 14px;
+                          margin:12px 0;
+                      ">
+                        <p><strong>Endereço:</strong>
+                           <a href="{link_login}" target="_blank">
+                             {link_login}
+                           </a>
+                        </p>
+
+                        <p><strong>Usuário:</strong> {email}</p>
+
+                        <p><strong>Senha inicial:</strong> {senha_plana}</p>
                       </div>
 
                       <p style="margin:22px 0; text-align:center;">
-                        <a href="{link_login}" target="_blank"
-                           style="display:inline-block; background:#ea6a23; color:#fff; text-decoration:none; padding:10px 18px; border-radius:5px;">
+                        <a href="{link_login}"
+                           target="_blank"
+                           style="
+                             display:inline-block;
+                             background:#ea6a23;
+                             color:#fff;
+                             text-decoration:none;
+                             padding:10px 18px;
+                             border-radius:5px;
+                           ">
                           Acessar o TrackPlan
                         </a>
                       </p>
 
-                      <p style="font-size:13px; color:#666;">Equipe TrackPlan</p>
+                      <p style="font-size:13px; color:#666;">
+                        Equipe TrackPlan
+                      </p>
                     </div>
                     """
 
                     mail.send(msg)
-                    flash('Funcionário cadastrado e e-mail de boas-vindas enviado!', 'success')
+
+                    flash(
+                        'Funcionário cadastrado e e-mail de boas-vindas enviado!',
+                        'success'
+                    )
 
                 except Exception:
-                    flash('Funcionário cadastrado, mas não foi possível enviar o e-mail de boas-vindas.', 'warning')
+                    flash(
+                        'Funcionário cadastrado, mas não foi possível enviar o e-mail de boas-vindas.',
+                        'warning'
+                    )
+
             else:
                 flash('Funcionário cadastrado com sucesso!', 'success')
 
@@ -923,23 +978,42 @@ def usuarios():
         return redirect(url_for('main.usuarios'))
 
     cursor.execute("""
-        SELECT cc.id, cc.codigo, cc.descricao,
-               s.id AS superintendencia_id,
-               s.nome AS superintendencia_nome
+        SELECT
+            cc.id,
+            cc.codigo,
+            cc.descricao,
+            s.id AS superintendencia_id,
+            s.nome AS superintendencia_nome
         FROM centros_custos cc
-        LEFT JOIN superintendencias s ON s.id = cc.superintendencia_id
+        LEFT JOIN superintendencias s
+            ON s.id = cc.superintendencia_id
         WHERE cc.ativo = 1
         ORDER BY cc.codigo, cc.descricao
     """)
     centros_custos = cursor.fetchall()
 
-    cursor.execute("SELECT id, nome FROM setores WHERE ativo = 1 ORDER BY nome")
+    cursor.execute("""
+        SELECT id, nome
+        FROM setores
+        WHERE ativo = 1
+        ORDER BY nome
+    """)
     setores = cursor.fetchall()
 
-    cursor.execute("SELECT id, nome FROM cargos WHERE ativo = 1 ORDER BY nome")
+    cursor.execute("""
+        SELECT id, nome
+        FROM cargos
+        WHERE ativo = 1
+        ORDER BY nome
+    """)
     cargos = cursor.fetchall()
 
-    cursor.execute("SELECT id, nome FROM funcoes WHERE ativo = 1 ORDER BY nome")
+    cursor.execute("""
+        SELECT id, nome
+        FROM funcoes
+        WHERE ativo = 1
+        ORDER BY nome
+    """)
     funcoes = cursor.fetchall()
 
     conn.close()
