@@ -71,21 +71,30 @@
 
         <div class="col-md-6">
             <div class="mb-3">
-                <label for="responsavel_id" class="form-label">Responsável</label>
-                <select name="responsavel_id"
-                        id="responsavel_id"
-                        class="form-select {% if not pode_editar_completo %}campo-bloqueado{% endif %}"
-                        required
-                        {% if not pode_editar_completo %}disabled{% endif %}>
+                <label for="responsavel_busca" class="form-label">Responsável</label>
+
+                <input type="text"
+                       id="responsavel_busca"
+                       class="form-control {% if not pode_editar_completo %}campo-bloqueado{% endif %}"
+                       list="lista_responsaveis"
+                       placeholder="Digite nome ou matrícula"
+                       autocomplete="off"
+                       value="{% for usuario in usuarios %}{% if usuario.id == acao.responsavel_id %}{{ usuario.matricula }} - {{ usuario.nome }}{% endif %}{% endfor %}"
+                       required
+                       {% if not pode_editar_completo %}readonly{% endif %}>
+
+                <datalist id="lista_responsaveis">
                     {% for usuario in usuarios %}
-                        <option value="{{ usuario.id }}" {% if usuario.id == acao.responsavel_id %}selected{% endif %}>
-                            {{ usuario.nome }}
+                        <option value="{{ usuario.matricula }} - {{ usuario.nome }}"
+                                data-id="{{ usuario.id }}">
                         </option>
                     {% endfor %}
-                </select>
-                {% if not pode_editar_completo %}
-                    <input type="hidden" name="responsavel_id" value="{{ acao.responsavel_id }}">
-                {% endif %}
+                </datalist>
+
+                <input type="hidden"
+                       name="responsavel_id"
+                       id="responsavel_id"
+                       value="{{ acao.responsavel_id }}">
             </div>
         </div>
     </div>
@@ -204,7 +213,6 @@
         <button type="submit" class="btn btn-laranja">Salvar</button>
         <a href="{{ request.args.get('next') or url_for('main.dashboard') }}" class="btn btn-cinza">Voltar</a>
     </div>
-
 </form>
 
 <script>
@@ -213,6 +221,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const status = document.getElementById('status');
     const dataConclusao = document.getElementById('data_conclusao');
     const observacoes = document.getElementById('observacoes');
+
+    const inputResponsavel = document.getElementById('responsavel_busca');
+    const hiddenResponsavel = document.getElementById('responsavel_id');
+    const optionsResponsavel = document.querySelectorAll('#lista_responsaveis option');
 
     function hojeISO() {
         const hoje = new Date();
@@ -238,6 +250,19 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    if (inputResponsavel) {
+        inputResponsavel.addEventListener('input', function () {
+            const valorDigitado = this.value;
+            hiddenResponsavel.value = '';
+
+            optionsResponsavel.forEach(option => {
+                if (option.value === valorDigitado) {
+                    hiddenResponsavel.value = option.dataset.id;
+                }
+            });
+        });
+    }
+
     dataConclusao.addEventListener('change', function () {
         if (!validarDataFutura()) return;
         sincronizarStatusComData();
@@ -257,6 +282,13 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     form.addEventListener('submit', function (e) {
+        if (!hiddenResponsavel.value) {
+            alert('Selecione um responsável válido na lista.');
+            inputResponsavel.focus();
+            e.preventDefault();
+            return;
+        }
+
         if (dataConclusao.value && dataConclusao.value > hojeISO()) {
             alert('A data de conclusão não pode ser superior à data de hoje.');
             dataConclusao.focus();

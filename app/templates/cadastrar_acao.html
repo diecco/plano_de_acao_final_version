@@ -21,14 +21,29 @@
                 {% endfor %}
             </select>
         </div>
+
         <div class="col-md-6">
-            <label for="responsavel_id" class="form-label">Responsável</label>
-            <select name="responsavel_id" id="responsavel_id" class="form-select" required>
-                <option value="">Selecione</option>
+            <label for="responsavel_busca" class="form-label">Responsável</label>
+
+            <input type="text"
+                   id="responsavel_busca"
+                   class="form-control"
+                   list="lista_responsaveis"
+                   placeholder="Digite nome ou matrícula"
+                   autocomplete="off"
+                   required>
+
+            <datalist id="lista_responsaveis">
                 {% for usuario in usuarios %}
-                    <option value="{{ usuario.id }}">{{ usuario.nome }}</option>
+                    <option value="{{ usuario.matricula }} - {{ usuario.nome }}"
+                            data-id="{{ usuario.id }}">
+                    </option>
                 {% endfor %}
-            </select>
+            </datalist>
+
+            <input type="hidden"
+                   name="responsavel_id"
+                   id="responsavel_id">
         </div>
     </div>
 
@@ -44,6 +59,7 @@
             <label for="prazo" class="form-label">Prazo</label>
             <input type="date" name="prazo" id="prazo" class="form-control" required>
         </div>
+
         <div class="col-md-6">
             <label for="status" class="form-label">Status</label>
             <select name="status" id="status" class="form-select" required>
@@ -61,5 +77,33 @@
         <a href="/dashboard" class="btn btn-cinza">Voltar</a>
     </div>
 </form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const inputResponsavel = document.getElementById('responsavel_busca');
+    const hiddenResponsavel = document.getElementById('responsavel_id');
+    const options = document.querySelectorAll('#lista_responsaveis option');
+    const form = document.querySelector('form');
+
+    inputResponsavel.addEventListener('input', function () {
+        const valorDigitado = this.value;
+        hiddenResponsavel.value = '';
+
+        options.forEach(option => {
+            if (option.value === valorDigitado) {
+                hiddenResponsavel.value = option.dataset.id;
+            }
+        });
+    });
+
+    form.addEventListener('submit', function (e) {
+        if (!hiddenResponsavel.value) {
+            alert('Selecione um responsável válido na lista.');
+            inputResponsavel.focus();
+            e.preventDefault();
+        }
+    });
+});
+</script>
 
 {% endblock %}

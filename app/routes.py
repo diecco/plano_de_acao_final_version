@@ -2042,7 +2042,7 @@ def cadastrar_acao():
     # GET: carregar responsáveis conforme perfil
     if perfil == 'basico':
         cursor.execute("""
-            SELECT id, nome
+            SELECT id, nome, matricula
             FROM usuarios
             WHERE ativo = TRUE
               AND centro_custos_id = %s
@@ -2051,7 +2051,7 @@ def cadastrar_acao():
 
     elif perfil == 'intermediario':
         cursor.execute("""
-            SELECT id, nome
+            SELECT id, nome, matricula
             FROM usuarios
             WHERE ativo = TRUE
               AND centro_custos_id = %s
@@ -2060,7 +2060,7 @@ def cadastrar_acao():
 
     else:
         cursor.execute("""
-            SELECT id, nome
+            SELECT id, nome, matricula
             FROM usuarios
             WHERE ativo = TRUE
             ORDER BY nome
@@ -2387,7 +2387,7 @@ def editar_acao(id):
 
     if perfil == 'basico':
         cursor.execute("""
-            SELECT id, nome
+            SELECT id, nome, matricula
             FROM usuarios
             WHERE ativo = TRUE
               AND centro_custos_id = %s
@@ -2395,7 +2395,7 @@ def editar_acao(id):
         """, (usuario_logado['centro_custos_id'],))
     elif perfil == 'intermediario':
         cursor.execute("""
-            SELECT id, nome
+            SELECT id, nome, matricula
             FROM usuarios
             WHERE ativo = TRUE
               AND superintendencia_id = %s
@@ -2403,7 +2403,7 @@ def editar_acao(id):
         """, (usuario_logado['superintendencia_id'],))
     else:
         cursor.execute("""
-            SELECT id, nome
+            SELECT id, nome, matricula
             FROM usuarios
             WHERE ativo = TRUE
             ORDER BY nome
