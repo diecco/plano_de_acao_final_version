@@ -4,51 +4,60 @@
 
 {% block conteudo %}
 
-<div class="d-flex align-items-center justify-content-between mb-4">
-
-    <div style="width: 40px;"></div>
-
-    <div class="text-center flex-grow-1">
-        <h2 class="page-title">
-            <i class="bi bi-award me-2"></i>
-            Cadastrar Reconhecimento
-        </h2>
-    </div>
-
-    <div style="width: 40px;"></div>
-
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-award me-2"></i>
+        Cadastrar Reconhecimento
+    </h2>
 </div>
-
-<div class="page-header-line"></div>
 <hr>
 
-<form method="POST" action="/lancar_reconhecimento">
+<form method="POST" action="/lancar_reconhecimento" id="formLancarReconhecimento">
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
             <h5 class="text-laranja mb-3">Dados do Reconhecimento</h5>
 
             <div class="row g-3">
                 <!-- Apoiador -->
-                <div class="col-md-5">
-                    <label class="form-label">Apoiador</label>
-                    <select name="apoiador_id" class="form-select" required>
-                        <option value="">Selecione...</option>
-                        {% for u in usuarios %}
-                            <option value="{{ u.id }}">
-                                {{ u.nome }}
-                            </option>
-                        {% endfor %}
-                    </select>
+                <div class="col-md-5 position-relative">
+                    <label for="apoiador_busca" class="form-label">Apoiador</label>
+
+                    <input type="hidden"
+                           name="apoiador_id"
+                           id="apoiador_id">
+
+                    <input type="text"
+                           id="apoiador_busca"
+                           class="form-control"
+                           placeholder="Digite matrícula ou nome..."
+                           autocomplete="off"
+                           required>
+
+                    <div id="listaApoiadores"
+                         class="list-group position-absolute w-100 shadow-sm"
+                         style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+                    </div>
                 </div>
+
                 <!-- Reconhecido -->
-                <div class="col-md-5">
-                    <label class="form-label">Reconhecido</label>
-                    <select name="id_reconhecido" class="form-select" required>
-                        <option value="">Selecione...</option>
-                        {% for u in usuarios %}
-                            <option value="{{ u.id }}">{{ u.nome }}</option>
-                        {% endfor %}
-                    </select>
+                <div class="col-md-5 position-relative">
+                    <label for="reconhecido_busca" class="form-label">Reconhecido</label>
+
+                    <input type="hidden"
+                           name="id_reconhecido"
+                           id="id_reconhecido">
+
+                    <input type="text"
+                           id="reconhecido_busca"
+                           class="form-control"
+                           placeholder="Digite matrícula ou nome..."
+                           autocomplete="off"
+                           required>
+
+                    <div id="listaReconhecidos"
+                         class="list-group position-absolute w-100 shadow-sm"
+                         style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+                    </div>
                 </div>
 
                 <!-- Data -->
@@ -78,5 +87,137 @@
         </div>
     </div>
 </form>
+
+<script id="usuarios-data-reconhecimento" type="application/json">
+    {{ usuarios | tojson }}
+</script>
+
+<script>
+const usuariosDisponiveisReconhecimento = JSON.parse(
+    document.getElementById('usuarios-data-reconhecimento').textContent
+);
+
+function normalizarTextoReconhecimento(texto) {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+}
+
+function formatarUsuarioReconhecimento(usuario) {
+    const matricula = usuario.matricula || 'Sem matrícula';
+    const nome = usuario.nome || '';
+    return `${matricula} - ${nome}`;
+}
+
+function configurarBuscaUsuarioReconhecimento(inputId, hiddenId, listaId) {
+    const input = document.getElementById(inputId);
+    const hidden = document.getElementById(hiddenId);
+    const lista = document.getElementById(listaId);
+
+    if (!input || !hidden || !lista) return;
+
+    input.addEventListener('input', function () {
+        const termo = normalizarTextoReconhecimento(input.value);
+
+        hidden.value = '';
+        lista.innerHTML = '';
+        lista.style.display = 'none';
+
+        if (termo.length < 2) {
+            return;
+        }
+
+        const resultados = usuariosDisponiveisReconhecimento
+            .filter(u => {
+                const textoBusca = normalizarTextoReconhecimento(`${u.matricula || ''} ${u.nome || ''}`);
+                return textoBusca.includes(termo);
+            })
+            .slice(0, 12);
+
+        if (resultados.length === 0) {
+            lista.innerHTML = `
+                <div class="list-group-item text-muted">
+                    Nenhum funcionário encontrado.
+                </div>
+            `;
+            lista.style.display = 'block';
+            return;
+        }
+
+        resultados.forEach(usuario => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'list-group-item list-group-item-action text-start';
+
+            item.innerHTML = `
+                <strong>${usuario.matricula || '-'}</strong><br>
+                <small>${usuario.nome || ''}</small>
+            `;
+
+            item.addEventListener('click', function () {
+                input.value = formatarUsuarioReconhecimento(usuario);
+                hidden.value = usuario.id;
+                lista.style.display = 'none';
+            });
+
+            lista.appendChild(item);
+        });
+
+        lista.style.display = 'block';
+    });
+
+    input.addEventListener('blur', function () {
+        setTimeout(function () {
+            lista.style.display = 'none';
+        }, 200);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    configurarBuscaUsuarioReconhecimento(
+        'apoiador_busca',
+        'apoiador_id',
+        'listaApoiadores'
+    );
+
+    configurarBuscaUsuarioReconhecimento(
+        'reconhecido_busca',
+        'id_reconhecido',
+        'listaReconhecidos'
+    );
+
+    const form = document.getElementById('formLancarReconhecimento');
+    const apoiadorInput = document.getElementById('apoiador_busca');
+    const apoiadorHidden = document.getElementById('apoiador_id');
+    const reconhecidoInput = document.getElementById('reconhecido_busca');
+    const reconhecidoHidden = document.getElementById('id_reconhecido');
+
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            if (!apoiadorHidden.value) {
+                alert('Selecione um apoiador válido na lista.');
+                apoiadorInput.focus();
+                e.preventDefault();
+                return;
+            }
+
+            if (!reconhecidoHidden.value) {
+                alert('Selecione um reconhecido válido na lista.');
+                reconhecidoInput.focus();
+                e.preventDefault();
+                return;
+            }
+
+            if (apoiadorHidden.value === reconhecidoHidden.value) {
+                alert('O apoiador e o reconhecido não podem ser a mesma pessoa.');
+                reconhecidoInput.focus();
+                e.preventDefault();
+                return;
+            }
+        });
+    }
+});
+</script>
 
 {% endblock %}

@@ -23,7 +23,7 @@
     {% endif %}
 {% endwith %}
 
-<form method="POST" action="/lancar_recusa">
+<form method="POST" action="/lancar_recusa" id="formLancarRecusa">
 
     <!-- Linha 1: Data, Hora, Pessoa e Local -->
     <div class="row mb-3">
@@ -37,14 +37,24 @@
             <input type="time" name="hora" id="hora" class="form-control" required>
         </div>
 
-        <div class="col-md-4">
-            <label for="usuario_id" class="form-label">Pessoa que Recusou</label>
-            <select name="usuario_id" id="usuario_id" class="form-select" required>
-                <option value="">Selecione</option>
-                {% for u in usuarios %}
-                    <option value="{{ u.id }}">{{ u.nome }}</option>
-                {% endfor %}
-            </select>
+        <div class="col-md-4 position-relative">
+            <label for="usuario_busca" class="form-label">Pessoa que Recusou</label>
+
+            <input type="hidden"
+                   name="usuario_id"
+                   id="usuario_id">
+
+            <input type="text"
+                   id="usuario_busca"
+                   class="form-control"
+                   placeholder="Digite matrícula ou nome..."
+                   autocomplete="off"
+                   required>
+
+            <div id="listaUsuariosRecusa"
+                 class="list-group position-absolute w-100 shadow-sm"
+                 style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+            </div>
         </div>
 
         <div class="col-md-3">
@@ -99,5 +109,110 @@
     </div>
 
 </form>
+
+<script id="usuarios-data-recusa" type="application/json">
+    {{ usuarios | tojson }}
+</script>
+
+<script>
+const usuariosDisponiveisRecusa = JSON.parse(
+    document.getElementById('usuarios-data-recusa').textContent
+);
+
+function normalizarTextoRecusa(texto) {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+}
+
+function formatarUsuarioRecusa(usuario) {
+    const matricula = usuario.matricula || 'Sem matrícula';
+    const nome = usuario.nome || '';
+    return `${matricula} - ${nome}`;
+}
+
+function configurarBuscaUsuarioRecusa() {
+    const input = document.getElementById('usuario_busca');
+    const hidden = document.getElementById('usuario_id');
+    const lista = document.getElementById('listaUsuariosRecusa');
+
+    if (!input || !hidden || !lista) return;
+
+    input.addEventListener('input', function () {
+        const termo = normalizarTextoRecusa(input.value);
+
+        hidden.value = '';
+        lista.innerHTML = '';
+        lista.style.display = 'none';
+
+        if (termo.length < 2) {
+            return;
+        }
+
+        const resultados = usuariosDisponiveisRecusa
+            .filter(u => {
+                const textoBusca = normalizarTextoRecusa(`${u.matricula || ''} ${u.nome || ''}`);
+                return textoBusca.includes(termo);
+            })
+            .slice(0, 12);
+
+        if (resultados.length === 0) {
+            lista.innerHTML = `
+                <div class="list-group-item text-muted">
+                    Nenhum funcionário encontrado.
+                </div>
+            `;
+            lista.style.display = 'block';
+            return;
+        }
+
+        resultados.forEach(usuario => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'list-group-item list-group-item-action text-start';
+
+            item.innerHTML = `
+                <strong>${usuario.matricula || '-'}</strong><br>
+                <small>${usuario.nome || ''}</small>
+            `;
+
+            item.addEventListener('click', function () {
+                input.value = formatarUsuarioRecusa(usuario);
+                hidden.value = usuario.id;
+                lista.style.display = 'none';
+            });
+
+            lista.appendChild(item);
+        });
+
+        lista.style.display = 'block';
+    });
+
+    input.addEventListener('blur', function () {
+        setTimeout(function () {
+            lista.style.display = 'none';
+        }, 200);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    configurarBuscaUsuarioRecusa();
+
+    const form = document.getElementById('formLancarRecusa');
+    const input = document.getElementById('usuario_busca');
+    const hidden = document.getElementById('usuario_id');
+
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            if (!hidden.value) {
+                alert('Selecione uma pessoa válida na lista.');
+                input.focus();
+                e.preventDefault();
+            }
+        });
+    }
+});
+</script>
 
 {% endblock %}

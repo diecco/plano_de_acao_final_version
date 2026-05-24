@@ -3,83 +3,251 @@
 {% block titulo %}Editar Recusa à Tarefa{% endblock %}
 
 {% block conteudo %}
-<h2 class="mb-4 text-center text-laranja">EDITAR RECUSA À TAREFA</h2>
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        Editar Recusa à Tarefa
+    </h2>
+</div>
 <hr>
 
 {% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, message in messages %}
-      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
-    {% endfor %}
-  {% endif %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
 {% endwith %}
 
-<form method="POST">
-  <div class="row mb-3">
-    <div class="col-md-3">
-      <label for="data" class="form-label">Data</label>
-      <input type="date" name="data" id="data" class="form-control" value="{{ recusa.data_recusa or '' }}" required>
-    </div>
-    <div class="col-md-2">
-      <label for="hora" class="form-label">Hora</label>
-      <input type="time" name="hora" id="hora" class="form-control" value="{{ recusa.hora_recusa or '' }}" required>
-    </div>
-    <div class="col-md-4">
-      <label for="usuario_id" class="form-label">Pessoa que recusou</label>
-      <select name="usuario_id" id="usuario_id" class="form-select" required>
-        {% for u in usuarios %}
-          <option value="{{ u.id }}" {% if recusa.usuario_id == u.id %}selected{% endif %}>
-            {{ u.nome }}
-          </option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-md-3">
-      <label for="local" class="form-label">Área/Local</label>
-      <input type="text" name="local" id="local" class="form-control" value="{{ recusa.local }}">
-    </div>
-  </div>
+<form method="POST" id="formEditarRecusa">
 
-  <div class="row mb-3">
-    <div class="col-md-4">
-      <label for="classificacao" class="form-label">Classificação</label>
-      <select name="classificacao" id="classificacao" class="form-select" required>
-        <option value="CONDIÇÃO ABAIXO DO PADRÃO" {% if recusa.classificacao == "CONDIÇÃO ABAIXO DO PADRÃO" %}selected{% endif %}>CONDIÇÃO ABAIXO DO PADRÃO</option>
-        <option value="ATO ABAIXO DO PADRÃO" {% if recusa.classificacao == "ATO ABAIXO DO PADRÃO" %}selected{% endif %}>ATO ABAIXO DO PADRÃO</option>
-        <option value="PROCEDIMENTO ABAIXO DO PADRÃO" {% if recusa.classificacao == "PROCEDIMENTO ABAIXO DO PADRÃO" %}selected{% endif %}>PROCEDIMENTO ABAIXO DO PADRÃO</option>
-      </select>
-    </div>
-    <div class="col-md-4">
-      <label for="potencial" class="form-label">Potencial de Severidade</label>
-      <select name="potencial" id="potencial" class="form-select" required>
-        <option value="A" {% if recusa.potencial == "A" %}selected{% endif %}>A</option>
-        <option value="B" {% if recusa.potencial == "B" %}selected{% endif %}>B</option>
-        <option value="C" {% if recusa.potencial == "C" %}selected{% endif %}>C</option>
-      </select>
-    </div>
-    <div class="col-md-4">
-      <label for="causa_id" class="form-label">Causa</label>
-      <select name="causa_id" id="causa_id" class="form-select" required>
-        {% for c in causas %}
-          <option value="{{ c.id }}" {% if recusa.causa_id == c.id %}selected{% endif %}>
-            {{ c.descricao }}
-          </option>
-        {% endfor %}
-      </select>
-    </div>
-  </div>
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <label for="data" class="form-label">Data</label>
+            <input type="date"
+                   name="data"
+                   id="data"
+                   class="form-control"
+                   value="{{ recusa.data_recusa or '' }}"
+                   required>
+        </div>
 
-  <div class="mb-3">
-    <label for="descricao" class="form-label">Descrição da Recusa</label>
-    <textarea name="descricao" id="descricao" class="form-control" rows="4" required>{{ recusa.descricao }}</textarea>
-  </div>
+        <div class="col-md-2">
+            <label for="hora" class="form-label">Hora</label>
+            <input type="time"
+                   name="hora"
+                   id="hora"
+                   class="form-control"
+                   value="{{ recusa.hora_recusa or '' }}"
+                   required>
+        </div>
 
-<div class="d-flex justify-content-between mt-3">
-  <a href="{{ url_for('main.listar_recusa') }}" class="btn btn-cinza">Voltar</a>
-  <button type="submit" class="btn btn-laranja">Salvar</button>
-</div>
+        <div class="col-md-4 position-relative">
+            <label for="usuario_busca" class="form-label">Pessoa que recusou</label>
+
+            <input type="hidden"
+                   name="usuario_id"
+                   id="usuario_id"
+                   value="{{ recusa.usuario_id }}">
+
+            <input type="text"
+                   id="usuario_busca"
+                   class="form-control"
+                   placeholder="Digite matrícula ou nome..."
+                   autocomplete="off"
+                   required>
+
+            <div id="listaUsuariosRecusa"
+                 class="list-group position-absolute w-100 shadow-sm"
+                 style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <label for="local" class="form-label">Área/Local</label>
+            <input type="text"
+                   name="local"
+                   id="local"
+                   class="form-control"
+                   value="{{ recusa.local }}"
+                   required>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <label for="classificacao" class="form-label">Classificação</label>
+            <select name="classificacao" id="classificacao" class="form-select" required>
+                <option value="CONDIÇÃO ABAIXO DO PADRÃO" {% if recusa.classificacao == "CONDIÇÃO ABAIXO DO PADRÃO" %}selected{% endif %}>
+                    CONDIÇÃO ABAIXO DO PADRÃO
+                </option>
+                <option value="ATO ABAIXO DO PADRÃO" {% if recusa.classificacao == "ATO ABAIXO DO PADRÃO" %}selected{% endif %}>
+                    ATO ABAIXO DO PADRÃO
+                </option>
+                <option value="PROCEDIMENTO ABAIXO DO PADRÃO" {% if recusa.classificacao == "PROCEDIMENTO ABAIXO DO PADRÃO" %}selected{% endif %}>
+                    PROCEDIMENTO ABAIXO DO PADRÃO
+                </option>
+            </select>
+        </div>
+
+        <div class="col-md-4">
+            <label for="potencial" class="form-label">Potencial de Severidade</label>
+            <select name="potencial" id="potencial" class="form-select" required>
+                <option value="A" {% if recusa.potencial == "A" %}selected{% endif %}>A</option>
+                <option value="B" {% if recusa.potencial == "B" %}selected{% endif %}>B</option>
+                <option value="C" {% if recusa.potencial == "C" %}selected{% endif %}>C</option>
+            </select>
+        </div>
+
+        <div class="col-md-4">
+            <label for="causa_id" class="form-label">Causa</label>
+            <select name="causa_id" id="causa_id" class="form-select" required>
+                {% for c in causas %}
+                    <option value="{{ c.id }}" {% if recusa.causa_id == c.id %}selected{% endif %}>
+                        {{ c.descricao }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label for="descricao" class="form-label">Descrição da Recusa</label>
+        <textarea name="descricao"
+                  id="descricao"
+                  class="form-control"
+                  rows="4"
+                  required>{{ recusa.descricao }}</textarea>
+    </div>
+
+    <div class="d-flex justify-content-between mt-3">
+        <a href="{{ url_for('main.listar_recusa') }}" class="btn btn-cinza">Voltar</a>
+        <button type="submit" class="btn btn-laranja">Salvar</button>
+    </div>
+
 </form>
+
+<script id="usuarios-data-recusa" type="application/json">
+    {{ usuarios | tojson }}
+</script>
+
+<script>
+const usuariosDisponiveisRecusa = JSON.parse(
+    document.getElementById('usuarios-data-recusa').textContent
+);
+
+function normalizarTextoRecusa(texto) {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+}
+
+function formatarUsuarioRecusa(usuario) {
+    const matricula = usuario.matricula || 'Sem matrícula';
+    const nome = usuario.nome || '';
+    return `${matricula} - ${nome}`;
+}
+
+function configurarBuscaUsuarioRecusa() {
+    const input = document.getElementById('usuario_busca');
+    const hidden = document.getElementById('usuario_id');
+    const lista = document.getElementById('listaUsuariosRecusa');
+
+    if (!input || !hidden || !lista) return;
+
+    input.addEventListener('input', function () {
+        const termo = normalizarTextoRecusa(input.value);
+
+        hidden.value = '';
+        lista.innerHTML = '';
+        lista.style.display = 'none';
+
+        if (termo.length < 2) {
+            return;
+        }
+
+        const resultados = usuariosDisponiveisRecusa
+            .filter(u => {
+                const textoBusca = normalizarTextoRecusa(`${u.matricula || ''} ${u.nome || ''}`);
+                return textoBusca.includes(termo);
+            })
+            .slice(0, 12);
+
+        if (resultados.length === 0) {
+            lista.innerHTML = `
+                <div class="list-group-item text-muted">
+                    Nenhum funcionário encontrado.
+                </div>
+            `;
+            lista.style.display = 'block';
+            return;
+        }
+
+        resultados.forEach(usuario => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'list-group-item list-group-item-action text-start';
+
+            item.innerHTML = `
+                <strong>${usuario.matricula || '-'}</strong><br>
+                <small>${usuario.nome || ''}</small>
+            `;
+
+            item.addEventListener('click', function () {
+                input.value = formatarUsuarioRecusa(usuario);
+                hidden.value = usuario.id;
+                lista.style.display = 'none';
+            });
+
+            lista.appendChild(item);
+        });
+
+        lista.style.display = 'block';
+    });
+
+    input.addEventListener('blur', function () {
+        setTimeout(function () {
+            lista.style.display = 'none';
+        }, 200);
+    });
+}
+
+function preencherUsuarioAtualRecusa() {
+    const input = document.getElementById('usuario_busca');
+    const hidden = document.getElementById('usuario_id');
+
+    if (!input || !hidden || !hidden.value) return;
+
+    const usuario = usuariosDisponiveisRecusa.find(u => String(u.id) === String(hidden.value));
+
+    if (usuario) {
+        input.value = formatarUsuarioRecusa(usuario);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    configurarBuscaUsuarioRecusa();
+    preencherUsuarioAtualRecusa();
+
+    const form = document.getElementById('formEditarRecusa');
+    const input = document.getElementById('usuario_busca');
+    const hidden = document.getElementById('usuario_id');
+
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            if (!hidden.value) {
+                alert('Selecione uma pessoa válida na lista.');
+                input.focus();
+                e.preventDefault();
+            }
+        });
+    }
+});
+</script>
+
 {% endblock %}

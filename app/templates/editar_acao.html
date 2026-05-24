@@ -69,32 +69,27 @@
             </div>
         </div>
 
-        <div class="col-md-6">
+        <div class="col-md-6 position-relative">
             <div class="mb-3">
                 <label for="responsavel_busca" class="form-label">Responsável</label>
-
-                <input type="text"
-                       id="responsavel_busca"
-                       class="form-control {% if not pode_editar_completo %}campo-bloqueado{% endif %}"
-                       list="lista_responsaveis"
-                       placeholder="Digite nome ou matrícula"
-                       autocomplete="off"
-                       value="{% for usuario in usuarios %}{% if usuario.id == acao.responsavel_id %}{{ usuario.matricula }} - {{ usuario.nome }}{% endif %}{% endfor %}"
-                       required
-                       {% if not pode_editar_completo %}readonly{% endif %}>
-
-                <datalist id="lista_responsaveis">
-                    {% for usuario in usuarios %}
-                        <option value="{{ usuario.matricula }} - {{ usuario.nome }}"
-                                data-id="{{ usuario.id }}">
-                        </option>
-                    {% endfor %}
-                </datalist>
 
                 <input type="hidden"
                        name="responsavel_id"
                        id="responsavel_id"
                        value="{{ acao.responsavel_id }}">
+
+                <input type="text"
+                       id="responsavel_busca"
+                       class="form-control {% if not pode_editar_completo %}campo-bloqueado{% endif %}"
+                       placeholder="Digite matrícula ou nome..."
+                       autocomplete="off"
+                       required
+                       {% if not pode_editar_completo %}readonly{% endif %}>
+
+                <div id="listaResponsaveis"
+                     class="list-group position-absolute w-100 shadow-sm"
+                     style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+                </div>
             </div>
         </div>
     </div>
@@ -215,16 +210,115 @@
     </div>
 </form>
 
+<script id="usuarios-data" type="application/json">
+    {{ usuarios | tojson }}
+</script>
+
 <script>
+const usuariosDisponiveis = JSON.parse(
+    document.getElementById('usuarios-data').textContent
+);
+
+function normalizarTexto(texto) {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+}
+
+function formatarUsuario(usuario) {
+    const matricula = usuario.matricula || 'Sem matrícula';
+    const nome = usuario.nome || '';
+    return `${matricula} - ${nome}`;
+}
+
+function configurarBuscaResponsavel() {
+    const input = document.getElementById('responsavel_busca');
+    const hidden = document.getElementById('responsavel_id');
+    const lista = document.getElementById('listaResponsaveis');
+
+    if (!input || !hidden || !lista) return;
+
+    input.addEventListener('input', function () {
+        const termo = normalizarTexto(input.value);
+
+        hidden.value = '';
+        lista.innerHTML = '';
+        lista.style.display = 'none';
+
+        if (termo.length < 2) {
+            return;
+        }
+
+        const resultados = usuariosDisponiveis
+            .filter(u => {
+                const textoBusca = normalizarTexto(`${u.matricula || ''} ${u.nome || ''}`);
+                return textoBusca.includes(termo);
+            })
+            .slice(0, 12);
+
+        if (resultados.length === 0) {
+            lista.innerHTML = `
+                <div class="list-group-item text-muted">
+                    Nenhum funcionário encontrado.
+                </div>
+            `;
+            lista.style.display = 'block';
+            return;
+        }
+
+        resultados.forEach(usuario => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'list-group-item list-group-item-action text-start';
+
+            item.innerHTML = `
+                <strong>${usuario.matricula || '-'}</strong><br>
+                <small>${usuario.nome || ''}</small>
+            `;
+
+            item.addEventListener('click', function () {
+                input.value = formatarUsuario(usuario);
+                hidden.value = usuario.id;
+                lista.style.display = 'none';
+            });
+
+            lista.appendChild(item);
+        });
+
+        lista.style.display = 'block';
+    });
+
+    input.addEventListener('blur', function () {
+        setTimeout(function () {
+            lista.style.display = 'none';
+        }, 200);
+    });
+}
+
+function preencherResponsavelAtual() {
+    const input = document.getElementById('responsavel_busca');
+    const hidden = document.getElementById('responsavel_id');
+
+    if (!input || !hidden || !hidden.value) return;
+
+    const usuario = usuariosDisponiveis.find(u => String(u.id) === String(hidden.value));
+
+    if (usuario) {
+        input.value = formatarUsuario(usuario);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('formEditarAcao');
     const status = document.getElementById('status');
     const dataConclusao = document.getElementById('data_conclusao');
     const observacoes = document.getElementById('observacoes');
-
     const inputResponsavel = document.getElementById('responsavel_busca');
     const hiddenResponsavel = document.getElementById('responsavel_id');
-    const optionsResponsavel = document.querySelectorAll('#lista_responsaveis option');
+
+    configurarBuscaResponsavel();
+    preencherResponsavelAtual();
 
     function hojeISO() {
         const hoje = new Date();
@@ -248,19 +342,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (dataConclusao.value) {
             status.value = 'Concluída';
         }
-    }
-
-    if (inputResponsavel) {
-        inputResponsavel.addEventListener('input', function () {
-            const valorDigitado = this.value;
-            hiddenResponsavel.value = '';
-
-            optionsResponsavel.forEach(option => {
-                if (option.value === valorDigitado) {
-                    hiddenResponsavel.value = option.dataset.id;
-                }
-            });
-        });
     }
 
     dataConclusao.addEventListener('change', function () {

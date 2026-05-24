@@ -4,20 +4,12 @@
 
 {% block conteudo %}
 
-<div class="d-flex align-items-center justify-content-between mb-4">
-    <div style="width: 40px;"></div>
-
-    <div class="text-center flex-grow-1">
-        <h2 class="page-title">
-            <i class="bi bi-shield-check me-2"></i>
-            Registrar Hora de Segurança
-        </h2>
-    </div>
-
-    <div style="width: 40px;"></div>
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-shield-check me-2"></i>
+        Registrar Hora de Segurança
+    </h2>
 </div>
-
-<div class="page-header-line"></div>
 <hr>
 
 <form method="POST" action="/lancar_hs" id="formLancarHS">
@@ -196,7 +188,7 @@
                             <input type="text"
                                    id="buscarParticipante"
                                    class="form-control"
-                                   placeholder="Digite o nome do participante..."
+                                   placeholder="Digite matrícula ou nome..."
                                    autocomplete="off">
                         </div>
 
@@ -220,6 +212,7 @@
                             <table class="table table-bordered align-middle mb-0">
                                 <thead class="table-light">
                                     <tr>
+                                        <th style="width: 130px;">Matrícula</th>
                                         <th>Nome</th>
                                         <th style="width: 80px;">Ação</th>
                                     </tr>
@@ -270,6 +263,12 @@ function normalizarTexto(texto) {
         .toLowerCase()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "");
+}
+
+function formatarParticipante(participante) {
+    const matricula = participante.matricula || "Sem matrícula";
+    const nome = participante.nome || "";
+    return `${matricula} - ${nome}`;
 }
 
 function definirTurnoAutomaticamente() {
@@ -336,7 +335,7 @@ function atualizarParticipantes() {
         const badge = document.createElement("span");
         badge.className = "badge badge-participante";
         badge.innerHTML = `
-            ${p.nome}
+            ${p.matricula ? p.matricula + " - " : ""}${p.nome}
             <button type="button"
                     class="btn-close btn-close-white ms-2"
                     style="font-size: 0.6rem;"
@@ -367,7 +366,7 @@ function atualizarListaSelecionadosModal() {
         const badge = document.createElement("span");
         badge.className = "badge badge-participante";
         badge.innerHTML = `
-            ${p.nome}
+            ${p.matricula ? p.matricula + " - " : ""}${p.nome}
             <button type="button"
                     class="btn-close btn-close-white ms-2"
                     style="font-size: 0.6rem;"
@@ -382,12 +381,13 @@ function participanteJaSelecionado(id) {
     return participantesSelecionados.some(p => String(p.id) === String(id));
 }
 
-function adicionarParticipante(id, nome) {
+function adicionarParticipante(id, nome, matricula) {
     if (participanteJaSelecionado(id)) return;
 
     participantesSelecionados.push({
         id: String(id),
-        nome: nome
+        nome: nome,
+        matricula: matricula || ""
     });
 
     atualizarParticipantes();
@@ -423,7 +423,7 @@ function renderizarResultadosParticipantes() {
 
     const resultados = participantesDisponiveis
         .filter(u => {
-            const textoBusca = normalizarTexto(`${u.nome || ""}`);
+            const textoBusca = normalizarTexto(`${u.matricula || ""} ${u.nome || ""}`);
             return textoBusca.includes(termo);
         })
         .slice(0, 20);
@@ -441,13 +441,18 @@ function renderizarResultadosParticipantes() {
         const tr = document.createElement("tr");
 
         tr.innerHTML = `
+            <td>${usuario.matricula || "-"}</td>
             <td>${usuario.nome || "-"}</td>
             <td class="text-center">
                 <button type="button"
                         class="btn-acao-icon"
                         title="${jaSelecionado ? "Participante já selecionado" : "Adicionar participante"}"
                         ${jaSelecionado ? "disabled" : ""}
-                        onclick='adicionarParticipante(${JSON.stringify(String(usuario.id))}, ${JSON.stringify(usuario.nome || "")})'>
+                        onclick='adicionarParticipante(
+                            ${JSON.stringify(String(usuario.id))},
+                            ${JSON.stringify(usuario.nome || "")},
+                            ${JSON.stringify(usuario.matricula || "")}
+                        )'>
                     <i class="bi ${jaSelecionado ? "bi-check-circle" : "bi-plus-circle"}"></i>
                 </button>
             </td>

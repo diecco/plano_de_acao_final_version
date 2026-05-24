@@ -3540,14 +3540,14 @@ def lancar_hs():
 
     if perfil in ['administrador', 'avancado']:
         cursor.execute("""
-            SELECT id, nome
+            SELECT id, nome, matricula
             FROM usuarios
             WHERE ativo = 1
             ORDER BY nome
         """)
     else:
         cursor.execute("""
-            SELECT id, nome
+            SELECT id, nome, matricula
             FROM usuarios
             WHERE ativo = 1
               AND centro_custos_id = %s
@@ -3619,7 +3619,7 @@ def lancar_hs():
         temas=temas,
         usuarios=usuarios,
         usuarios_json=json.dumps(
-            [{"id": u["id"], "nome": u["nome"]} for u in usuarios],
+            [{"id": u["id"], "nome": u["nome"], "matricula": u.get("matricula")} for u in usuarios],
             ensure_ascii=False
         ),
         itens=itens,
@@ -3843,7 +3843,7 @@ def editar_hs(id):
     cursor.execute("SELECT * FROM hs_temas WHERE status=1 ORDER BY nome")
     temas = cursor.fetchall()
 
-    cursor.execute("SELECT id, nome FROM usuarios WHERE ativo=1 ORDER BY nome")
+    cursor.execute("SELECT id, nome, matricula FROM usuarios WHERE ativo=1 ORDER BY nome")
     usuarios = cursor.fetchall()
 
     cursor.execute("""
@@ -4304,7 +4304,15 @@ def lancar_recusa():
 
         criado_por = usuario_logado_id
 
-        if not (data_recusa and hora_recusa and id_usuario and classificacao and descricao and potencial_severidade and id_causa):
+        if not (
+            data_recusa and
+            hora_recusa and
+            id_usuario and
+            classificacao and
+            descricao and
+            potencial_severidade and
+            id_causa
+        ):
             flash("Preencha todos os campos obrigatórios.", "danger")
             conn.close()
             return redirect(url_for("main.lancar_recusa"))
@@ -4334,7 +4342,17 @@ def lancar_recusa():
 
         cursor.execute("""
             INSERT INTO recusa_tarefa
-                (data_recusa, hora_recusa, id_usuario, local, classificacao, descricao, potencial_severidade, id_causa, criado_por)
+                (
+                    data_recusa,
+                    hora_recusa,
+                    id_usuario,
+                    local,
+                    classificacao,
+                    descricao,
+                    potencial_severidade,
+                    id_causa,
+                    criado_por
+                )
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             data_recusa,
@@ -4349,20 +4367,23 @@ def lancar_recusa():
         ))
 
         conn.commit()
+
         flash("Recusa registrada com sucesso!", "success")
+
         conn.close()
+
         return redirect(url_for("main.lancar_recusa"))
 
     if perfil in ["administrador", "avancado"]:
         cursor.execute("""
-            SELECT id, nome
+            SELECT id, nome, matricula
             FROM usuarios
             WHERE ativo = 1
             ORDER BY nome
         """)
     else:
         cursor.execute("""
-            SELECT id, nome
+            SELECT id, nome, matricula
             FROM usuarios
             WHERE ativo = 1
               AND centro_custos_id = %s
@@ -4377,6 +4398,7 @@ def lancar_recusa():
         WHERE ativo = 1
         ORDER BY descricao
     """)
+
     causas = cursor.fetchall()
 
     conn.close()
@@ -4404,7 +4426,10 @@ def editar_recusa(id):
 
     if not recusa:
         conn.close()
-        flash("Recusa não encontrada ou você não possui permissão para editá-la.", "warning")
+        flash(
+            "Recusa não encontrada ou você não possui permissão para editá-la.",
+            "warning"
+        )
         return redirect(url_for("main.listar_recusa"))
 
     if request.method == "POST":
@@ -4417,7 +4442,15 @@ def editar_recusa(id):
         potencial_severidade = request.form.get("potencial")
         id_causa = request.form.get("causa_id")
 
-        if not (data_recusa and hora_recusa and id_usuario and classificacao and descricao and potencial_severidade and id_causa):
+        if not (
+            data_recusa and
+            hora_recusa and
+            id_usuario and
+            classificacao and
+            descricao and
+            potencial_severidade and
+            id_causa
+        ):
             flash("Preencha todos os campos obrigatórios.", "danger")
             conn.close()
             return redirect(url_for("main.editar_recusa", id=id))
@@ -4442,41 +4475,68 @@ def editar_recusa(id):
 
         if not usuario_valido:
             conn.close()
-            flash("Usuário selecionado não pertence ao seu centro de custo.", "danger")
+            flash(
+                "Usuário selecionado não pertence ao seu centro de custo.",
+                "danger"
+            )
             return redirect(url_for("main.editar_recusa", id=id))
 
         cursor.execute("""
             UPDATE recusa_tarefa
-            SET data_recusa=%s, hora_recusa=%s, id_usuario=%s, local=%s,
-                classificacao=%s, descricao=%s, potencial_severidade=%s, id_causa=%s
-            WHERE id=%s
+            SET
+                data_recusa = %s,
+                hora_recusa = %s,
+                id_usuario = %s,
+                local = %s,
+                classificacao = %s,
+                descricao = %s,
+                potencial_severidade = %s,
+                id_causa = %s
+            WHERE id = %s
         """, (
-            data_recusa, hora_recusa, id_usuario, local,
-            classificacao, descricao, potencial_severidade, id_causa, id
+            data_recusa,
+            hora_recusa,
+            id_usuario,
+            local,
+            classificacao,
+            descricao,
+            potencial_severidade,
+            id_causa,
+            id
         ))
 
         conn.commit()
+
         conn.close()
 
         flash("Recusa atualizada com sucesso!", "success")
+
         return redirect(url_for("main.listar_recusa"))
 
     cursor.execute("""
-        SELECT r.*, u.nome AS usuario_nome, c.descricao AS causa_nome
+        SELECT
+            r.*,
+            u.nome AS usuario_nome,
+            c.descricao AS causa_nome
         FROM recusa_tarefa r
         JOIN usuarios u ON r.id_usuario = u.id
         JOIN causas_recusa c ON r.id_causa = c.id
         WHERE r.id = %s
     """, (id,))
+
     recusa = cursor.fetchone()
 
     if recusa:
+
         if recusa["data_recusa"]:
             if hasattr(recusa["data_recusa"], "strftime"):
                 recusa["data_recusa"] = recusa["data_recusa"].strftime("%Y-%m-%d")
             else:
                 try:
-                    recusa["data_recusa"] = datetime.strptime(str(recusa["data_recusa"]), "%Y-%m-%d").strftime("%Y-%m-%d")
+                    recusa["data_recusa"] = datetime.strptime(
+                        str(recusa["data_recusa"]),
+                        "%Y-%m-%d"
+                    ).strftime("%Y-%m-%d")
                 except:
                     recusa["data_recusa"] = ""
 
@@ -4485,20 +4545,23 @@ def editar_recusa(id):
                 recusa["hora_recusa"] = recusa["hora_recusa"].strftime("%H:%M")
             else:
                 try:
-                    recusa["hora_recusa"] = datetime.strptime(str(recusa["hora_recusa"]), "%H:%M:%S").strftime("%H:%M")
+                    recusa["hora_recusa"] = datetime.strptime(
+                        str(recusa["hora_recusa"]),
+                        "%H:%M:%S"
+                    ).strftime("%H:%M")
                 except:
                     recusa["hora_recusa"] = ""
 
     if perfil in ["administrador", "avancado"]:
         cursor.execute("""
-            SELECT id, nome
+            SELECT id, nome, matricula
             FROM usuarios
             WHERE ativo = 1
             ORDER BY nome
         """)
     else:
         cursor.execute("""
-            SELECT id, nome
+            SELECT id, nome, matricula
             FROM usuarios
             WHERE ativo = 1
               AND centro_custos_id = %s
@@ -4513,6 +4576,7 @@ def editar_recusa(id):
         WHERE ativo = 1
         ORDER BY descricao
     """)
+
     causas = cursor.fetchall()
 
     conn.close()
@@ -4755,14 +4819,14 @@ def lancar_reconhecimento():
 
     if perfil in ["administrador", "avancado"]:
         cur.execute("""
-            SELECT id, nome
+            SELECT id, nome, matricula
             FROM usuarios
             WHERE ativo = 1
             ORDER BY nome
         """)
     else:
         cur.execute("""
-            SELECT id, nome
+            SELECT id, nome, matricula
             FROM usuarios
             WHERE ativo = 1
               AND centro_custos_id = %s
@@ -4782,7 +4846,16 @@ def lancar_reconhecimento():
             flash("Preencha todos os campos obrigatórios.", "warning")
             cur.close()
             conn.close()
+            return render_template(
+                "lancar_reconhecimento.html",
+                usuarios=usuarios,
+                current_date=date.today().isoformat()
+            )
 
+        if apoiador_id == id_reconhecido:
+            flash("O apoiador e o reconhecido não podem ser a mesma pessoa.", "warning")
+            cur.close()
+            conn.close()
             return render_template(
                 "lancar_reconhecimento.html",
                 usuarios=usuarios,
@@ -4811,7 +4884,6 @@ def lancar_reconhecimento():
             flash("Apoiador e reconhecido devem pertencer ao seu escopo de acesso.", "warning")
             cur.close()
             conn.close()
-
             return render_template(
                 "lancar_reconhecimento.html",
                 usuarios=usuarios,
@@ -5004,7 +5076,6 @@ def listar_reconhecimento():
         total_paginas=total_paginas
     )
 
-
 @main_routes.route("/editar_reconhecimento/<int:id>", methods=["GET", "POST"])
 @login_required
 @module_required('acesso_gestao_pessoas')
@@ -5035,10 +5106,8 @@ def editar_reconhecimento(id):
         flash("Reconhecimento não encontrado.", "danger")
         return redirect(url_for("main.listar_reconhecimento"))
 
-    # 🔒 PERMISSIONAMENTO
     if perfil not in ["administrador", "avancado"]:
         if perfil == "intermediario":
-            # precisa garantir que ambos pertencem ao mesmo CC
             cur.execute("""
                 SELECT 1
                 FROM usuarios u1
@@ -5052,6 +5121,7 @@ def editar_reconhecimento(id):
                 centro_custo_id,
                 centro_custo_id
             ))
+
             if not cur.fetchone():
                 cur.close()
                 conn.close()
@@ -5065,9 +5135,6 @@ def editar_reconhecimento(id):
                 flash("Você não tem permissão para editar este reconhecimento.", "danger")
                 return redirect(url_for("main.listar_reconhecimento"))
 
-    # ======================================================
-    # POST
-    # ======================================================
     if request.method == "POST":
         apoiador_id = request.form.get("apoiador_id")
         id_reconhecido = request.form.get("id_reconhecido")
@@ -5078,7 +5145,10 @@ def editar_reconhecimento(id):
             flash("Preencha todos os campos obrigatórios.", "warning")
             return redirect(url_for("main.editar_reconhecimento", id=id))
 
-        # 🔒 valida usuários conforme perfil
+        if apoiador_id == id_reconhecido:
+            flash("O apoiador e o reconhecido não podem ser a mesma pessoa.", "warning")
+            return redirect(url_for("main.editar_reconhecimento", id=id))
+
         if perfil in ["administrador", "avancado"]:
             cur.execute("""
                 SELECT id
@@ -5124,19 +5194,16 @@ def editar_reconhecimento(id):
         flash("Reconhecimento atualizado com sucesso!", "success")
         return redirect(url_for("main.listar_reconhecimento"))
 
-    # ======================================================
-    # GET
-    # ======================================================
     if perfil in ["administrador", "avancado"]:
         cur.execute("""
-            SELECT id, nome
+            SELECT id, nome, matricula
             FROM usuarios
             WHERE ativo = 1
             ORDER BY nome
         """)
     else:
         cur.execute("""
-            SELECT id, nome
+            SELECT id, nome, matricula
             FROM usuarios
             WHERE ativo = 1
               AND centro_custos_id = %s
@@ -5156,7 +5223,6 @@ def editar_reconhecimento(id):
         reconhecimento=reconhecimento,
         usuarios=usuarios
     )
-
 
 @main_routes.route("/excluir_reconhecimento/<int:id>", methods=["POST"])
 @login_required

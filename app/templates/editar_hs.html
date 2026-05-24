@@ -4,25 +4,12 @@
 
 {% block conteudo %}
 
-<div class="d-flex align-items-center justify-content-between mb-4">
-
-    <!-- Espaço à esquerda -->
-    <div style="width: 40px;"></div>
-
-    <!-- Título central -->
-    <div class="text-center flex-grow-1">
-        <h2 class="page-title">
-            <i class="bi bi-shield-check me-2"></i>
-            Editar Hora de Segurança
-        </h2>
-    </div>
-
-    <!-- Espaço à direita -->
-    <div style="width: 40px;"></div>
-
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-shield-check me-2"></i>
+        Editar Hora de Segurança
+    </h2>
 </div>
-
-<div class="page-header-line"></div>
 <hr class="mb-3">
 
 <style>
@@ -189,14 +176,16 @@
                     <input type="text"
                            id="buscarParticipante"
                            class="form-control"
-                           placeholder="Digite para pesquisar participantes..."
+                           placeholder="Digite matrícula ou nome..."
                            autocomplete="off">
                 </div>
+
                 <div class="col-md-2 d-grid">
                     <button type="button" class="btn btn-cinza" id="btnSelecionarTodos">
                         Selecionar resultados
                     </button>
                 </div>
+
                 <div class="col-md-2 d-grid">
                     <button type="button" class="btn btn-cinza" id="btnLimparParticipantes">
                         Limpar
@@ -210,7 +199,8 @@
 
             <div class="lista-busca" id="listaParticipantes">
                 {% for usuario in usuarios %}
-                    <div class="lista-busca-item" data-nome="{{ usuario.nome|lower }}">
+                    <div class="lista-busca-item"
+                         data-busca="{{ ((usuario.matricula or '') ~ ' ' ~ (usuario.nome or ''))|lower }}">
                         <input
                             class="form-check-input chk-participante"
                             type="checkbox"
@@ -219,13 +209,19 @@
                             name="participantes"
                             {% if usuario.id|string in parts %}checked{% endif %}
                         >
-                        <label for="p{{ usuario.id }}" class="mb-0 flex-grow-1">{{ usuario.nome }}</label>
+
+                        <label for="p{{ usuario.id }}" class="mb-0 flex-grow-1">
+                            <strong>{{ usuario.matricula or '-' }}</strong>
+                            - {{ usuario.nome }}
+                        </label>
                     </div>
                 {% endfor %}
             </div>
 
             <div class="mt-3">
-                <small class="text-muted fw-semibold" id="contadorParticipantes">Nenhum participante selecionado.</small>
+                <small class="text-muted fw-semibold" id="contadorParticipantes">
+                    Nenhum participante selecionado.
+                </small>
             </div>
 
             <div id="resumoParticipantes" class="mt-3 d-flex flex-wrap gap-2"></div>
@@ -247,6 +243,7 @@
                             <th style="width: 12%;">Prazo</th>
                         </tr>
                     </thead>
+
                     <tbody>
                         {% for item in itens %}
                         <tr>
@@ -289,15 +286,16 @@
                             <td>
                                 <div id="prazo_wrap_{{ item.id }}" class="{% if item.resultado != 'NC' %}d-none{% endif %}">
                                     <input type="date"
-                                            name="prazo_{{ item.id }}"
-                                            id="prazo_{{ item.id }}"
-                                            class="form-control"
-                                            value="{{ item.prazo_acao.strftime('%Y-%m-%d') if item.prazo_acao and item.prazo_acao.strftime else item.prazo_acao or '' }}">
+                                           name="prazo_{{ item.id }}"
+                                           id="prazo_{{ item.id }}"
+                                           class="form-control"
+                                           value="{{ item.prazo_acao.strftime('%Y-%m-%d') if item.prazo_acao and item.prazo_acao.strftime else item.prazo_acao or '' }}">
                                 </div>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
+
                 </table>
             </div>
 
@@ -310,6 +308,13 @@
 </form>
 
 <script>
+function normalizarTextoHS(texto) {
+    return String(texto || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+}
+
 function definirTurnoAutomaticamente() {
     const campoHora = document.getElementById("hora");
     const campoTurno = document.getElementById("turno");
@@ -350,6 +355,7 @@ function toggleCamposNC(id) {
         campoDesvio.disabled = true;
         campoAcaoWrap.classList.add("d-none");
         campoPrazoWrap.classList.add("d-none");
+
         if (campoAcao) campoAcao.value = "";
         if (campoPrazo) campoPrazo.value = "";
     }
@@ -371,6 +377,7 @@ function atualizarResumoParticipantes() {
 
     selecionados.forEach(function(chk) {
         const label = document.querySelector('label[for="' + chk.id + '"]');
+
         if (label) {
             const badge = document.createElement("span");
             badge.className = "badge badge-participante d-inline-flex align-items-center gap-2";
@@ -398,7 +405,10 @@ function atualizarResumoParticipantes() {
 }
 
 function filtrarParticipantes() {
-    const termo = document.getElementById("buscarParticipante").value.toLowerCase().trim();
+    const termo = normalizarTextoHS(
+        document.getElementById("buscarParticipante").value
+    );
+
     const lista = document.getElementById("listaParticipantes");
     const placeholder = document.getElementById("participantesPlaceholder");
     const itens = document.querySelectorAll(".lista-busca-item");
@@ -407,18 +417,22 @@ function filtrarParticipantes() {
         lista.classList.remove("show");
         placeholder.style.display = "block";
         placeholder.textContent = "Digite no campo de pesquisa para localizar e selecionar os participantes.";
+
         itens.forEach(function(item) {
             item.style.display = "none";
         });
+
         return;
     }
 
     let encontrou = false;
 
     itens.forEach(function(item) {
-        const nome = item.getAttribute("data-nome");
-        const mostrar = nome.includes(termo);
+        const textoBusca = normalizarTextoHS(item.getAttribute("data-busca") || "");
+        const mostrar = textoBusca.includes(termo);
+
         item.style.display = mostrar ? "flex" : "none";
+
         if (mostrar) encontrou = true;
     });
 
@@ -449,12 +463,14 @@ document.getElementById("hora").addEventListener("input", function() {
 });
 
 document.getElementById("btnSelecionarTodos").addEventListener("click", function() {
-    const termo = document.getElementById("buscarParticipante").value.toLowerCase().trim();
+    const termo = normalizarTextoHS(document.getElementById("buscarParticipante").value);
+
     if (termo === "") return;
 
     document.querySelectorAll(".lista-busca-item").forEach(function(item) {
         if (item.style.display !== "none") {
             const chk = item.querySelector(".chk-participante");
+
             if (chk) chk.checked = true;
         }
     });

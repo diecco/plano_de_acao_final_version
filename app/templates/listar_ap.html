@@ -130,25 +130,237 @@
             <table class="table table-bordered align-middle table-fixed" id="tabelaAuditoriasPadrao">
                 <thead class="table-light">
                     <tr>
+
                         <th style="width: 130px;">
-                            <span class="th-label">Data</span>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Data</span>
+
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                    title="Ordenar crescente"
+                                    href="{{ url_for('main.listar_ap',
+                                        auditor_id=filtros.get('auditor_id',''),
+                                        auditado_id=filtros.get('auditado_id',''),
+                                        procedimento_id=filtros.get('procedimento_id',''),
+                                        data_inicio=filtros.get('data_inicio',''),
+                                        data_fim=filtros.get('data_fim',''),
+                                        sort='data_auditoria',
+                                        order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                    title="Ordenar decrescente"
+                                    href="{{ url_for('main.listar_ap',
+                                        auditor_id=filtros.get('auditor_id',''),
+                                        auditado_id=filtros.get('auditado_id',''),
+                                        procedimento_id=filtros.get('procedimento_id',''),
+                                        data_inicio=filtros.get('data_inicio',''),
+                                        data_fim=filtros.get('data_fim',''),
+                                        sort='data_auditoria',
+                                        order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 ps-1 text-muted"
+                                    title="Filtrar"
+                                    href="#filtroHeaderDataAP"
+                                    data-bs-toggle="collapse"
+                                    role="button">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderDataAP" class="collapse mt-2">
+                                <div class="d-flex flex-column gap-1">
+                                    <input type="date"
+                                        class="form-control form-control-sm"
+                                        value="{{ filtros.get('data_inicio', '') }}"
+                                        onchange="aplicarFiltro('data_inicio', this.value);">
+
+                                    <input type="date"
+                                        class="form-control form-control-sm"
+                                        value="{{ filtros.get('data_fim', '') }}"
+                                        onchange="aplicarFiltro('data_fim', this.value);">
+                                </div>
+                            </div>
                         </th>
 
                         <th style="width: 220px;">
-                            <span class="th-label">Auditor</span>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Auditor</span>
+
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                    title="Ordenar crescente"
+                                    href="{{ url_for('main.listar_ap',
+                                        auditor_id=filtros.get('auditor_id',''),
+                                        auditado_id=filtros.get('auditado_id',''),
+                                        procedimento_id=filtros.get('procedimento_id',''),
+                                        data_inicio=filtros.get('data_inicio',''),
+                                        data_fim=filtros.get('data_fim',''),
+                                        sort='auditor_nome',
+                                        order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                    title="Ordenar decrescente"
+                                    href="{{ url_for('main.listar_ap',
+                                        auditor_id=filtros.get('auditor_id',''),
+                                        auditado_id=filtros.get('auditado_id',''),
+                                        procedimento_id=filtros.get('procedimento_id',''),
+                                        data_inicio=filtros.get('data_inicio',''),
+                                        data_fim=filtros.get('data_fim',''),
+                                        sort='auditor_nome',
+                                        order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 ps-1 text-muted"
+                                    title="Filtrar"
+                                    href="#filtroHeaderAuditorAP"
+                                    data-bs-toggle="collapse"
+                                    role="button">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderAuditorAP" class="collapse mt-2">
+                                <select class="form-select form-select-sm"
+                                        onchange="aplicarFiltro('auditor_id', this.value);">
+                                    <option value="">Todos</option>
+
+                                    {% for u in usuarios %}
+                                        <option value="{{ u.id }}"
+                                            {% if filtros.get('auditor_id') == u.id|string %}selected{% endif %}>
+                                            {% if u.matricula %}{{ u.matricula }} - {% endif %}{{ u.nome }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                         </th>
 
                         <th style="width: 220px;">
-                            <span class="th-label">Auditado</span>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Auditado</span>
+
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                    title="Ordenar crescente"
+                                    href="{{ url_for('main.listar_ap',
+                                        auditor_id=filtros.get('auditor_id',''),
+                                        auditado_id=filtros.get('auditado_id',''),
+                                        procedimento_id=filtros.get('procedimento_id',''),
+                                        data_inicio=filtros.get('data_inicio',''),
+                                        data_fim=filtros.get('data_fim',''),
+                                        sort='auditado_nome',
+                                        order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                    title="Ordenar decrescente"
+                                    href="{{ url_for('main.listar_ap',
+                                        auditor_id=filtros.get('auditor_id',''),
+                                        auditado_id=filtros.get('auditado_id',''),
+                                        procedimento_id=filtros.get('procedimento_id',''),
+                                        data_inicio=filtros.get('data_inicio',''),
+                                        data_fim=filtros.get('data_fim',''),
+                                        sort='auditado_nome',
+                                        order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 ps-1 text-muted"
+                                    title="Filtrar"
+                                    href="#filtroHeaderAuditadoAP"
+                                    data-bs-toggle="collapse"
+                                    role="button">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderAuditadoAP" class="collapse mt-2">
+                                <select class="form-select form-select-sm"
+                                        onchange="aplicarFiltro('auditado_id', this.value);">
+                                    <option value="">Todos</option>
+
+                                    {% for u in usuarios %}
+                                        <option value="{{ u.id }}"
+                                            {% if filtros.get('auditado_id') == u.id|string %}selected{% endif %}>
+                                            {% if u.matricula %}{{ u.matricula }} - {% endif %}{{ u.nome }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                         </th>
 
                         <th>
-                            <span class="th-label">Procedimento</span>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Procedimento</span>
+
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                    title="Ordenar crescente"
+                                    href="{{ url_for('main.listar_ap',
+                                        auditor_id=filtros.get('auditor_id',''),
+                                        auditado_id=filtros.get('auditado_id',''),
+                                        procedimento_id=filtros.get('procedimento_id',''),
+                                        data_inicio=filtros.get('data_inicio',''),
+                                        data_fim=filtros.get('data_fim',''),
+                                        sort='titulo',
+                                        order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                    title="Ordenar decrescente"
+                                    href="{{ url_for('main.listar_ap',
+                                        auditor_id=filtros.get('auditor_id',''),
+                                        auditado_id=filtros.get('auditado_id',''),
+                                        procedimento_id=filtros.get('procedimento_id',''),
+                                        data_inicio=filtros.get('data_inicio',''),
+                                        data_fim=filtros.get('data_fim',''),
+                                        sort='titulo',
+                                        order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 ps-1 text-muted"
+                                    title="Filtrar"
+                                    href="#filtroHeaderProcedimentoAP"
+                                    data-bs-toggle="collapse"
+                                    role="button">
+                                        <i class="bi bi-funnel"></i>
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div id="filtroHeaderProcedimentoAP" class="collapse mt-2">
+                                <select class="form-select form-select-sm"
+                                        onchange="aplicarFiltro('procedimento_id', this.value);">
+
+                                    <option value="">Todos</option>
+
+                                    {% for p in procedimentos %}
+                                        <option value="{{ p.id }}"
+                                            {% if filtros.get('procedimento_id') == p.id|string %}selected{% endif %}>
+                                            {{ p.sigla }} - {{ p.numero_documento }} - {{ p.titulo }}
+                                        </option>
+                                    {% endfor %}
+
+                                </select>
+                            </div>
                         </th>
 
                         <th style="width: 120px;" class="text-center">
                             <span class="th-label">Ações</span>
                         </th>
+
                     </tr>
                 </thead>
 
