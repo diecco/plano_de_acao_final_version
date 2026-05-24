@@ -1029,7 +1029,29 @@
     'main.cargos',
     'main.funcoes',
     'main.instrutores',
-    'main.matriz_capacitacao'
+    'main.matriz_capacitacao',
+    'main.pcpm_empresas',
+    'main.equipamentos',
+    'main.pcpm_checklist_modelos'
+] %}
+
+{% if session['perfil'] == 'administrador' %}
+
+{% set administracao_endpoints = [
+    'main.superintendencias',
+    'main.centros_custos',
+    'main.origens',
+    'main.listar_usuarios',
+    'main.causas_recusas',
+    'main.cadastrar_hs',
+    'main.cargos',
+    'main.funcoes',
+    'main.setores',
+    'main.instrutores',
+    'main.matriz_capacitacao',
+    'main.pcpm_empresas',
+    'main.equipamentos',
+    'main.pcpm_checklist_modelos'
 ] %}
 
 <a class="nav-link {% if request.endpoint in administracao_endpoints %}active{% endif %}"
@@ -1046,6 +1068,8 @@
 
 <div class="collapse ps-3 {% if request.endpoint in administracao_endpoints %}show{% endif %}" id="administracao">
 
+    <div class="px-3 pt-3 pb-1 text-white-50 small fw-bold">ESTRUTURA</div>
+
     <a href="/superintendencias" class="nav-link {% if request.endpoint == 'main.superintendencias' %}active{% endif %}">
         <i class="bi bi-diagram-3"></i>
         <span class="menu-text">Superintendências</span>
@@ -1056,15 +1080,17 @@
         <span class="menu-text">Centros de Custos</span>
     </a>
 
-    <a href="/origens" class="nav-link {% if request.endpoint == 'main.origens' %}active{% endif %}">
-        <i class="bi bi-tags"></i>
-        <span class="menu-text">Origens</span>
-    </a>
-
     <a href="/listar_usuarios" class="nav-link {% if request.endpoint == 'main.listar_usuarios' %}active{% endif %}">
         <i class="bi bi-people"></i>
-        <span class="menu-text">Usuários</span>
+        <span class="menu-text">Usuários / Funcionários</span>
     </a>
+
+    <a href="/origens" class="nav-link {% if request.endpoint == 'main.origens' %}active{% endif %}">
+        <i class="bi bi-tags"></i>
+        <span class="menu-text">Origens de Ações</span>
+    </a>
+
+    <div class="px-3 pt-3 pb-1 text-white-50 small fw-bold">SSMA</div>
 
     <a href="/causas_recusa" class="nav-link {% if request.endpoint == 'main.causas_recusas' %}active{% endif %}">
         <i class="bi bi-exclamation-diamond"></i>
@@ -1076,6 +1102,8 @@
         <span class="menu-text">Temas HS</span>
     </a>
 
+    <div class="px-3 pt-3 pb-1 text-white-50 small fw-bold">TREINAMENTOS</div>
+
     <a href="/cargos" class="nav-link {% if request.endpoint == 'main.cargos' %}active{% endif %}">
         <i class="bi bi-person-badge"></i>
         <span class="menu-text">Cargos</span>
@@ -1086,7 +1114,7 @@
         <span class="menu-text">Funções</span>
     </a>
 
-        <a href="/setores" class="nav-link {% if request.endpoint == 'main.setores' %}active{% endif %}">
+    <a href="/setores" class="nav-link {% if request.endpoint == 'main.setores' %}active{% endif %}">
         <i class="bi bi-building-fill"></i>
         <span class="menu-text">Setores</span>
     </a>
@@ -1101,66 +1129,53 @@
         <span class="menu-text">Matriz</span>
     </a>
 
+    <div class="px-3 pt-3 pb-1 text-white-50 small fw-bold">PCP-M</div>
+
+    <a href="/pcpm_empresas" class="nav-link {% if request.endpoint == 'main.pcpm_empresas' %}active{% endif %}">
+        <i class="bi bi-buildings"></i>
+        <span class="menu-text">Empresas</span>
+    </a>
+
+    <a href="/equipamentos" class="nav-link {% if request.endpoint == 'main.equipamentos' %}active{% endif %}">
+        <i class="bi bi-truck"></i>
+        <span class="menu-text">Equipamentos</span>
+    </a>
+
+    <a href="/pcpm_checklist_modelos" class="nav-link {% if request.endpoint == 'main.pcpm_checklist_modelos' %}active{% endif %}">
+        <i class="bi bi-card-checklist"></i>
+        <span class="menu-text">Modelos de Checklist</span>
+    </a>
+
 </div>
 
-<!-- FLYOUT ADMINISTRAÇÃO -->
 <div class="sidebar-flyout" id="flyoutAdministracao">
     <div class="sidebar-flyout-title">Administração</div>
 
-    <a href="/superintendencias">
-        <i class="bi bi-diagram-3"></i>
-        Superintendências
-    </a>
+    <div class="sidebar-flyout-title">Estrutura</div>
 
-    <a href="/centros_custos">
-        <i class="bi bi-building"></i>
-        Centros de Custos
-    </a>
+    <a href="/superintendencias"><i class="bi bi-diagram-3"></i> Superintendências</a>
+    <a href="/centros_custos"><i class="bi bi-building"></i> Centros de Custos</a>
+    <a href="/listar_usuarios"><i class="bi bi-people"></i> Usuários / Funcionários</a>
+    <a href="/origens"><i class="bi bi-tags"></i> Origens de Ações</a>
 
-    <a href="/origens">
-        <i class="bi bi-tags"></i>
-        Origens
-    </a>
+    <div class="sidebar-flyout-title">SSMA</div>
 
-    <a href="/usuarios">
-        <i class="bi bi-people"></i>
-        Usuários
-    </a>
+    <a href="/causas_recusa"><i class="bi bi-exclamation-diamond"></i> Causas de Recusa</a>
+    <a href="/cadastrar_hs"><i class="bi bi-shield-plus"></i> Temas HS</a>
 
-    <a href="/causas_recusa">
-        <i class="bi bi-exclamation-diamond"></i>
-        Causas de Recusa
-    </a>
+    <div class="sidebar-flyout-title">Treinamentos</div>
 
-    <a href="/cadastrar_hs">
-        <i class="bi bi-shield-plus"></i>
-        Temas HS
-    </a>
+    <a href="/cargos"><i class="bi bi-person-badge"></i> Cargos</a>
+    <a href="/funcoes"><i class="bi bi-diagram-2"></i> Funções</a>
+    <a href="/setores"><i class="bi bi-building-fill"></i> Setores</a>
+    <a href="/instrutores"><i class="bi bi-person-video3"></i> Instrutores</a>
+    <a href="/matriz_capacitacao"><i class="bi bi-table"></i> Matriz</a>
 
-    <a href="/cargos">
-        <i class="bi bi-person-badge"></i>
-        Cargos
-    </a>
+    <div class="sidebar-flyout-title">PCP-M</div>
 
-    <a href="/funcoes">
-        <i class="bi bi-diagram-2"></i>
-        Funções
-    </a>
-
-        <a href="/setores">
-        <i class="bi bi-building-fill"></i>
-        Setores
-    </a>
-
-    <a href="/instrutores">
-        <i class="bi bi-person-video3"></i>
-        Instrutores
-    </a>
-
-    <a href="/matriz_capacitacao">
-        <i class="bi bi-table"></i>
-        Matriz
-    </a>
+    <a href="/pcpm_empresas"><i class="bi bi-buildings"></i> Empresas</a>
+    <a href="/equipamentos"><i class="bi bi-truck"></i> Equipamentos</a>
+    <a href="/pcpm_checklist_modelos"><i class="bi bi-card-checklist"></i> Modelos de Checklist</a>
 </div>
 
 {% endif %}
