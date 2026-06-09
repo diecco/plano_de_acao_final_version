@@ -57,19 +57,23 @@ def index():
 @main_routes.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form['email']
-        senha = request.form['senha']
+        email = request.form.get('email', '').strip().lower()
+        senha = request.form.get('senha', '')
 
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
+
         cursor.execute("""
             SELECT *
             FROM usuarios
             WHERE email = %s
-              AND ativo = TRUE
+              AND ativo = 1
               AND tem_acesso_sistema = 1
         """, (email,))
+
         usuario = cursor.fetchone()
+
+        cursor.close()
         conn.close()
 
         from werkzeug.security import check_password_hash
@@ -77,40 +81,48 @@ def login():
         if usuario and check_password_hash(usuario['senha_hash'], senha):
             session.clear()
 
-            # 🔹 Dados básicos
+            def permissao(valor):
+                return bool(int(valor or 0))
+
+            # Dados básicos
             session['usuario_id'] = usuario['id']
             session['nome'] = usuario['nome']
             session['perfil'] = usuario['perfil']
 
-            # 🔹 Escopo (ESSENCIAL)
+            # Escopo
             session['centro_custos_id'] = usuario.get('centro_custos_id')
             session['superintendencia_id'] = usuario.get('superintendencia_id')
 
-            # 🔹 Permissões por módulo
-            session['acesso_plano_acao'] = usuario.get('acesso_plano_acao', 0)
-            session['acesso_ssma'] = usuario.get('acesso_ssma', 0)
-            session['acesso_melhoria'] = usuario.get('acesso_melhoria', 0)
-            session['acesso_gestao_pessoas'] = usuario.get('acesso_gestao_pessoas', 0)
-            session['acesso_treinamentos'] = usuario.get('acesso_treinamentos', 0)
-            session['acesso_procedimentos'] = usuario.get('acesso_procedimentos', 0)
-            session['acesso_pcpm'] = usuario.get('acesso_pcpm', 0)
+            # Permissões por módulo
+            session['acesso_plano_acao'] = permissao(usuario.get('acesso_plano_acao'))
+            session['acesso_ssma'] = permissao(usuario.get('acesso_ssma'))
+            session['acesso_melhoria'] = permissao(usuario.get('acesso_melhoria'))
+            session['acesso_gestao_pessoas'] = permissao(usuario.get('acesso_gestao_pessoas'))
+            session['acesso_treinamentos'] = permissao(usuario.get('acesso_treinamentos'))
+            session['acesso_procedimentos'] = permissao(usuario.get('acesso_procedimentos'))
+            session['acesso_pcpm'] = permissao(usuario.get('acesso_pcpm'))
 
-            # 🔹 Flags adicionais (se quiser usar depois)
-            session['pode_ser_instrutor'] = usuario.get('pode_ser_instrutor', 0)
-            session['responsavel_revisao_padrao'] = usuario.get('responsavel_revisao_padrao', 0)
+            # Flags adicionais
+            session['pode_ser_instrutor'] = permissao(usuario.get('pode_ser_instrutor'))
+            session['responsavel_revisao_padrao'] = permissao(usuario.get('responsavel_revisao_padrao'))
 
-            # 🔹 Forçar troca de senha
+            # Segurança extra para perfil básico
+            if session['perfil'] == 'basico' and not session['centro_custos_id']:
+                session.clear()
+                flash('Usuário básico sem Centro de Custo vinculado. Contate o administrador.', 'danger')
+                return redirect('/login')
+
+            # Forçar troca de senha
             if usuario.get('precisa_alterar_senha'):
                 return redirect('/alterar_senha')
 
-            # 🔹 Redirecionamento
-            if usuario['perfil'] == 'administrador':
+            # Redirecionamento
+            if session['perfil'] == 'administrador':
                 return redirect('/admin')
-            else:
-                return redirect('/dashboard')
 
-        else:
-            flash('Email ou senha inválidos.', 'warning')
+            return redirect('/dashboard')
+
+        flash('Email ou senha inválidos.', 'warning')
 
     return render_template('login.html')
 

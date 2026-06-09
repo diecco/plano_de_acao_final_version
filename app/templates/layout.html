@@ -875,93 +875,93 @@
         {% endif %}
 
 
-        <div class="sidebar-flyout" id="flyoutTreinamentos">
-            <div class="sidebar-flyout-title">Gestão de Treinamentos</div>
-
-            <a href="{{ url_for('main.listar_treinamentos') }}">
-                <i class="bi bi-list-ul"></i>
-                Treinamentos
-            </a>
-
-            <a href="{{ url_for('main.relatorio_treinamentos_a_vencer') }}">
-                <i class="bi bi-clock-history"></i>
-                Treinamentos a vencer
-            </a>
-
-            <a href="{{ url_for('main.relatorio_treinamentos_pendentes') }}">
-                <i class="bi bi-exclamation-circle"></i>
-                Treinamentos pendentes
-            </a>
-
-            <a href="{{ url_for('main.relatorio_treinamentos_realizados') }}">
-                <i class="bi bi-check-circle"></i>
-                Treinamentos realizados
-            </a>
-
-            <a href="{{ url_for('main.relatorio_treinamentos_vencidos') }}">
-                <i class="bi bi-x-circle"></i>
-                Treinamentos vencidos
-            </a>
-        </div>
-
-        {% endif %}
-
-
         {% if session.get('acesso_treinamentos') %}
 
-        {% set treinamentos_endpoints = [
-            'main.listar_treinamentos',
-            'main.relatorio_treinamentos_a_vencer',
-            'main.relatorio_treinamentos_pendentes',
-            'main.relatorio_treinamentos_realizados',
-            'main.relatorio_treinamentos_vencidos'
-        ] %}
+{% set treinamentos_endpoints = [
+    'main.listar_treinamentos',
+    'main.relatorio_treinamentos_a_vencer',
+    'main.relatorio_treinamentos_pendentes',
+    'main.relatorio_treinamentos_realizados',
+    'main.relatorio_treinamentos_vencidos'
+] %}
 
-        <a class="nav-link {% if request.endpoint in treinamentos_endpoints %}active{% endif %}"
-           data-bs-toggle="collapse"
-           href="#treinamentos"
-           role="button"
-           title="Gestão de Treinamentos"
-           aria-expanded="{% if request.endpoint in treinamentos_endpoints %}true{% else %}false{% endif %}"
-           aria-controls="treinamentos"
-           data-flyout="flyoutTreinamentos">
-            <i class="bi bi-mortarboard"></i>
-            <span class="menu-text">Gestão de Treinamentos</span>
-        </a>
+<a class="nav-link {% if request.endpoint in treinamentos_endpoints %}active{% endif %}"
+   data-bs-toggle="collapse"
+   href="#treinamentos"
+   role="button"
+   title="Gestão de Treinamentos"
+   aria-expanded="{% if request.endpoint in treinamentos_endpoints %}true{% else %}false{% endif %}"
+   aria-controls="treinamentos"
+   data-flyout="flyoutTreinamentos">
+    <i class="bi bi-mortarboard"></i>
+    <span class="menu-text">Gestão de Treinamentos</span>
+</a>
 
-        <div class="collapse ps-3 {% if request.endpoint in treinamentos_endpoints %}show{% endif %}" id="treinamentos">
+<div class="collapse ps-3 {% if request.endpoint in treinamentos_endpoints %}show{% endif %}" id="treinamentos">
 
-            <a href="{{ url_for('main.listar_treinamentos') }}"
-               class="nav-link {% if request.endpoint == 'main.listar_treinamentos' %}active{% endif %}">
-                <i class="bi bi-list-ul"></i>
-                <span class="menu-text">Treinamentos</span>
-            </a>
+    <a href="{{ url_for('main.listar_treinamentos') }}"
+       class="nav-link {% if request.endpoint == 'main.listar_treinamentos' %}active{% endif %}">
+        <i class="bi bi-list-ul"></i>
+        <span class="menu-text">Treinamentos</span>
+    </a>
 
-            <a href="{{ url_for('main.relatorio_treinamentos_a_vencer') }}"
-               class="nav-link {% if request.endpoint == 'main.relatorio_treinamentos_a_vencer' %}active{% endif %}">
-                <i class="bi bi-clock-history"></i>
-                <span class="menu-text">Treinamentos a vencer</span>
-            </a>
+    <a href="{{ url_for('main.relatorio_treinamentos_a_vencer') }}"
+       class="nav-link {% if request.endpoint == 'main.relatorio_treinamentos_a_vencer' %}active{% endif %}">
+        <i class="bi bi-clock-history"></i>
+        <span class="menu-text">Treinamentos a vencer</span>
+    </a>
 
-            <a href="{{ url_for('main.relatorio_treinamentos_pendentes') }}"
-               class="nav-link {% if request.endpoint == 'main.relatorio_treinamentos_pendentes' %}active{% endif %}">
-                <i class="bi bi-exclamation-circle"></i>
-                <span class="menu-text">Treinamentos pendentes</span>
-            </a>
+    <a href="{{ url_for('main.relatorio_treinamentos_pendentes') }}"
+       class="nav-link {% if request.endpoint == 'main.relatorio_treinamentos_pendentes' %}active{% endif %}">
+        <i class="bi bi-exclamation-circle"></i>
+        <span class="menu-text">Treinamentos pendentes</span>
+    </a>
 
-            <a href="{{ url_for('main.relatorio_treinamentos_realizados') }}"
-               class="nav-link {% if request.endpoint == 'main.relatorio_treinamentos_realizados' %}active{% endif %}">
-                <i class="bi bi-check-circle"></i>
-                <span class="menu-text">Treinamentos realizados</span>
-            </a>
+    <a href="{{ url_for('main.relatorio_treinamentos_realizados') }}"
+       class="nav-link {% if request.endpoint == 'main.relatorio_treinamentos_realizados' %}active{% endif %}">
+        <i class="bi bi-check-circle"></i>
+        <span class="menu-text">Treinamentos realizados</span>
+    </a>
 
-            <a href="{{ url_for('main.relatorio_treinamentos_vencidos') }}"
-               class="nav-link {% if request.endpoint == 'main.relatorio_treinamentos_vencidos' %}active{% endif %}">
-                <i class="bi bi-x-circle"></i>
-                <span class="menu-text">Treinamentos vencidos</span>
-            </a>
+    <a href="{{ url_for('main.relatorio_treinamentos_vencidos') }}"
+       class="nav-link {% if request.endpoint == 'main.relatorio_treinamentos_vencidos' %}active{% endif %}">
+        <i class="bi bi-x-circle"></i>
+        <span class="menu-text">Treinamentos vencidos</span>
+    </a>
 
-        </div>
+</div>
+
+<div class="sidebar-flyout" id="flyoutTreinamentos">
+    <div class="sidebar-flyout-title">Gestão de Treinamentos</div>
+
+    <a href="{{ url_for('main.listar_treinamentos') }}">
+        <i class="bi bi-list-ul"></i>
+        Treinamentos
+    </a>
+
+    <a href="{{ url_for('main.relatorio_treinamentos_a_vencer') }}">
+        <i class="bi bi-clock-history"></i>
+        Treinamentos a vencer
+    </a>
+
+    <a href="{{ url_for('main.relatorio_treinamentos_pendentes') }}">
+        <i class="bi bi-exclamation-circle"></i>
+        Treinamentos pendentes
+    </a>
+
+    <a href="{{ url_for('main.relatorio_treinamentos_realizados') }}">
+        <i class="bi bi-check-circle"></i>
+        Treinamentos realizados
+    </a>
+
+    <a href="{{ url_for('main.relatorio_treinamentos_vencidos') }}">
+        <i class="bi bi-x-circle"></i>
+        Treinamentos vencidos
+    </a>
+</div>
+
+{% endif %}
+
 
 {% if session.get('acesso_pcpm') or session.get('perfil') == 'administrador' %}
 
@@ -1017,25 +1017,8 @@
 
 {% endif %}
 
-{% if session['perfil'] == 'administrador' %}
 
-{% set administracao_endpoints = [
-    'main.superintendencias',
-    'main.centros_custos',
-    'main.origens',
-    'main.listar_usuarios',
-    'main.causas_recusas',
-    'main.cadastrar_hs',
-    'main.cargos',
-    'main.funcoes',
-    'main.instrutores',
-    'main.matriz_capacitacao',
-    'main.pcpm_empresas',
-    'main.equipamentos',
-    'main.pcpm_checklist_modelos'
-] %}
-
-{% if session['perfil'] == 'administrador' %}
+{% if session.get('perfil') == 'administrador' %}
 
 {% set administracao_endpoints = [
     'main.superintendencias',
@@ -1108,13 +1091,13 @@
     <div class="px-3 pt-3 pb-1 text-white-50 small fw-bold">PROCEDIMENTOS</div>
 
     <a href="/tipos_documento" class="nav-link {% if request.endpoint == 'main.tipos_documento' %}active{% endif %}">
-    <i class="bi bi-person-badge"></i>
-    <span class="menu-text">Tipos Documentos</span>
+        <i class="bi bi-file-earmark-text"></i>
+        <span class="menu-text">Tipos Documentos</span>
     </a>
 
     <a href="/listar_procedimentos" class="nav-link {% if request.endpoint == 'main.listar_procedimentos' %}active{% endif %}">
-    <i class="bi bi-person-badge"></i>
-    <span class="menu-text">Procedimentos</span>
+        <i class="bi bi-journal-text"></i>
+        <span class="menu-text">Procedimentos</span>
     </a>
 
     <div class="px-3 pt-3 pb-1 text-white-50 small fw-bold">TREINAMENTOS</div>
@@ -1143,12 +1126,17 @@
         <i class="bi bi-table"></i>
         <span class="menu-text">Matriz</span>
     </a>
-    
+
     <div class="px-3 pt-3 pb-1 text-white-50 small fw-bold">PCP-M</div>
 
     <a href="/pcpm_empresas" class="nav-link {% if request.endpoint == 'main.pcpm_empresas' %}active{% endif %}">
         <i class="bi bi-buildings"></i>
         <span class="menu-text">Empresas</span>
+    </a>
+
+    <a href="/tipos_equipamento" class="nav-link {% if request.endpoint == 'main.tipos_equipamento' %}active{% endif %}">
+        <i class="bi bi-truck"></i>
+        <span class="menu-text">Tipos Eqpto</span>
     </a>
 
     <a href="/equipamentos" class="nav-link {% if request.endpoint == 'main.equipamentos' %}active{% endif %}">
@@ -1163,58 +1151,28 @@
 
 </div>
 
-<div class="sidebar-flyout" id="flyoutAdministracao">
-    <div class="sidebar-flyout-title">Administração</div>
+{% endif %}
 
-    <div class="sidebar-flyout-title">Estrutura</div>
-
-    <a href="/superintendencias"><i class="bi bi-diagram-3"></i> Superintendências</a>
-    <a href="/centros_custos"><i class="bi bi-building"></i> Centros de Custos</a>
-    <a href="/listar_usuarios"><i class="bi bi-people"></i> Usuários / Funcionários</a>
-    <a href="/origens"><i class="bi bi-tags"></i> Origens de Ações</a>
-
-    <div class="sidebar-flyout-title">SSMA</div>
-
-    <a href="/causas_recusa"><i class="bi bi-exclamation-diamond"></i> Causas de Recusa</a>
-    <a href="/cadastrar_hs"><i class="bi bi-shield-plus"></i> Temas HS</a>
-
-    <div class="sidebar-flyout-title">Treinamentos</div>
-
-    <a href="/cargos"><i class="bi bi-person-badge"></i> Cargos</a>
-    <a href="/funcoes"><i class="bi bi-diagram-2"></i> Funções</a>
-    <a href="/setores"><i class="bi bi-building-fill"></i> Setores</a>
-    <a href="/instrutores"><i class="bi bi-person-video3"></i> Instrutores</a>
-    <a href="/matriz_capacitacao"><i class="bi bi-table"></i> Matriz</a>
-
-    <div class="sidebar-flyout-title">PCP-M</div>
-
-    <a href="/pcpm_empresas"><i class="bi bi-buildings"></i> Empresas</a>
-    <a href="/tipos_equipamento"><i class="bi bi-truck"></i> Tipos Eqpto</a>
-    <a href="/equipamentos"><i class="bi bi-truck"></i> Equipamentos</a>
-    <a href="/pcpm_checklist_modelos"><i class="bi bi-card-checklist"></i> Modelos de Checklist</a>
 </div>
 
-{% endif %}
-    </div>
+<div class="header">
+    <button id="toggleSidebar" class="btn btn-outline-light btn-toggle-sidebar" type="button" aria-label="Recolher ou expandir menu">
+        <i class="bi bi-list"></i>
+    </button>
 
-    <div class="header">
-        <button id="toggleSidebar" class="btn btn-outline-light btn-toggle-sidebar" type="button" aria-label="Recolher ou expandir menu">
-            <i class="bi bi-list"></i>
+    <span class="header-text">ORGANIZE, ACOMPANHE, ENTREGUE.</span>
+    <div class="dropdown">
+        <button class="btn btn-outline-light dropdown-toggle d-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-person-circle"></i>
         </button>
-
-        <span class="header-text">ORGANIZE, ACOMPANHE, ENTREGUE.</span>
-        <div class="dropdown">
-            <button class="btn btn-outline-light dropdown-toggle d-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-person-circle"></i>
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item" href="/alterar_senha">Alterar Senha</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item text-danger" href="/logout">Sair</a></li>
-            </ul>
-        </div>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="/alterar_senha">Alterar Senha</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item text-danger" href="/logout">Sair</a></li>
+        </ul>
     </div>
-    {% endif %}
+</div>
+
 {% endif %}
 
 <div class="{% if 'login' in request.path %}main-content-login{% else %}main-content{% endif %}">
