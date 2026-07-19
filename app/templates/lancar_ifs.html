@@ -4,28 +4,109 @@
 
 {% block conteudo %}
 
+<style>
+    .ifs-contexto-agendamento {
+        border-left: 4px solid #ea6a23;
+        background: #fff8f2;
+    }
+
+    .ifs-resumo-agendamento {
+        min-width: 190px;
+    }
+</style>
+
 <div class="page-header">
     <h2 class="page-title">
         <i class="bi bi-clipboard2-check me-2"></i>
         IFS - Inspeção de Frente de Serviço
     </h2>
 </div>
+
 <hr>
 
-<form method="POST" action="{{ url_for('main.lancar_ifs') }}" id="formIFS">
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
 
-    <input type="hidden" name="respostas_json" id="respostas_json">
-    <input type="hidden" name="desvios_json" id="desvios_json">
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                        aria-label="Fechar">
+                </button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<form method="POST"
+      action="{{ url_for('main.lancar_ifs') }}"
+      id="formIFS">
+
+    <input type="hidden"
+           name="agendamento_id"
+           id="agendamento_id"
+           value="{{ agendamento_id or '' }}">
+
+    <input type="hidden"
+           name="next"
+           id="next_url"
+           value="{{ next_url or url_for('main.listar_ifs') }}">
+
+    <input type="hidden"
+           name="respostas_json"
+           id="respostas_json">
+
+    <input type="hidden"
+           name="desvios_json"
+           id="desvios_json">
+
+    {% if agendamento %}
+        <div class="card shadow-sm border-0 mb-4 ifs-contexto-agendamento">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+
+                    <div>
+                        <h5 class="text-laranja mb-1">
+                            <i class="bi bi-calendar-check me-2"></i>
+                            Execução de prática agendada
+                        </h5>
+
+                        <div class="text-muted">
+                            Agendamento #{{ agendamento.id }}
+                        </div>
+                    </div>
+
+                    <div class="ifs-resumo-agendamento">
+                        <small class="text-muted d-block">
+                            Data programada
+                        </small>
+
+                        <strong>
+                            {{ agendamento.data_programada.strftime('%d/%m/%Y') if agendamento.data_programada else '—' }}
+                        </strong>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    {% endif %}
 
     <!-- DADOS DA INSPEÇÃO -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
-            <h5 class="text-laranja mb-3">Dados da Inspeção</h5>
+
+            <h5 class="text-laranja mb-3">
+                <i class="bi bi-clipboard-data me-2"></i>
+                Dados da Inspeção
+            </h5>
 
             <div class="row g-3">
 
                 <div class="col-md-4">
                     <label class="form-label">Gerência</label>
+
                     <input type="text"
                            name="gerencia"
                            class="form-control campo-readonly"
@@ -34,7 +115,10 @@
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label">Administrador de Contrato</label>
+                    <label class="form-label">
+                        Administrador de Contrato
+                    </label>
+
                     <input type="text"
                            name="administrador_contrato"
                            class="form-control campo-readonly"
@@ -44,6 +128,7 @@
 
                 <div class="col-md-4">
                     <label class="form-label">Contratada</label>
+
                     <input type="text"
                            name="contratada"
                            class="form-control campo-readonly"
@@ -51,47 +136,55 @@
                            readonly>
                 </div>
 
-                <div class="col-md-4 position-relative">
-                    <label for="profissional_sesmt_busca" class="form-label">Profissional do SESMT</label>
+                <div class="col-md-4">
+                    <label class="form-label">
+                        Profissional responsável
+                    </label>
+
+                    <input type="text"
+                           class="form-control campo-readonly"
+                           value="{% if profissional_logado %}{% if profissional_logado.matricula %}{{ profissional_logado.matricula }} - {% endif %}{{ profissional_logado.nome }}{% else %}{{ session.get('nome') }}{% endif %}"
+                           readonly>
 
                     <input type="hidden"
                            name="profissional_sesmt_id"
-                           id="profissional_sesmt_id"
-                           required>
-
-                    <input type="text"
-                           class="form-control"
-                           id="profissional_sesmt_busca"
-                           placeholder="Digite matrícula ou nome..."
-                           autocomplete="off"
-                           required>
-
-                    <div id="listaProfissionaisSESMT"
-                         class="list-group position-absolute w-100 shadow-sm"
-                         style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
-                    </div>
+                           value="{{ session.get('usuario_id') }}">
                 </div>
 
                 <div class="col-md-4">
-                    <label for="data_inspecao" class="form-label">Data da Inspeção</label>
+                    <label for="data_inspecao"
+                           class="form-label">
+                        Data da Inspeção
+                    </label>
+
                     <input type="date"
                            name="data_inspecao"
                            id="data_inspecao"
                            class="form-control"
+                           value="{{ data_inicial or '' }}"
                            required>
                 </div>
 
                 <div class="col-md-4">
-                    <label for="hora_inspecao" class="form-label">Hora da Inspeção</label>
+                    <label for="hora_inspecao"
+                           class="form-label">
+                        Hora da Inspeção
+                    </label>
+
                     <input type="time"
                            name="hora_inspecao"
                            id="hora_inspecao"
                            class="form-control"
+                           value="{{ hora_inicial or '' }}"
                            required>
                 </div>
 
                 <div class="col-md-6">
-                    <label for="local_inspecao" class="form-label">Local da Inspeção</label>
+                    <label for="local_inspecao"
+                           class="form-label">
+                        Local da Inspeção
+                    </label>
+
                     <input type="text"
                            name="local_inspecao"
                            id="local_inspecao"
@@ -100,7 +193,11 @@
                 </div>
 
                 <div class="col-md-6">
-                    <label for="participantes" class="form-label">Participantes da Inspeção</label>
+                    <label for="participantes"
+                           class="form-label">
+                        Participantes da Inspeção
+                    </label>
+
                     <input type="text"
                            name="participantes"
                            id="participantes"
@@ -109,7 +206,11 @@
                 </div>
 
                 <div class="col-12">
-                    <label for="descricao_atividade_os" class="form-label">Descrição das Atividades / Nº da OS</label>
+                    <label for="descricao_atividade_os"
+                           class="form-label">
+                        Descrição das Atividades / Nº da OS
+                    </label>
+
                     <textarea name="descricao_atividade_os"
                               id="descricao_atividade_os"
                               class="form-control"
@@ -124,7 +225,11 @@
     <!-- RESUMO -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
-            <h5 class="text-laranja mb-3">Resumo da Inspeção</h5>
+
+            <h5 class="text-laranja mb-3">
+                <i class="bi bi-bar-chart me-2"></i>
+                Resumo da Inspeção
+            </h5>
 
             <div class="row g-3 text-center">
 
@@ -178,7 +283,6 @@
                 </div>
 
             </div>
-
         </div>
     </div>
 
@@ -187,180 +291,212 @@
         <div class="card-body">
 
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                <h5 class="text-laranja mb-0">Itens de Verificação</h5>
+
+                <h5 class="text-laranja mb-0">
+                    <i class="bi bi-list-check me-2"></i>
+                    Itens de Verificação
+                </h5>
 
                 <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-cinza btn-sm" id="btnRecolherTodos">
+                    <button type="button"
+                            class="btn btn-cinza btn-sm"
+                            id="btnRecolherTodos">
                         Recolher todos
                     </button>
 
-                    <button type="button" class="btn btn-laranja btn-sm" id="btnExpandirTodos">
+                    <button type="button"
+                            class="btn btn-laranja btn-sm"
+                            id="btnExpandirTodos">
                         Expandir todos
                     </button>
                 </div>
+
             </div>
 
             <div class="accordion" id="accordionIFS">
 
                 {% for bloco in blocos %}
-                <div class="accordion-item mb-2 border rounded">
+                    <div class="accordion-item mb-2 border rounded">
 
-                    <h2 class="accordion-header" id="headingBloco{{ bloco.id }}">
-                        <button class="accordion-button collapsed"
-                                type="button"
-                                data-bs-toggle="collapse"
-                                data-bs-target="#collapseBloco{{ bloco.id }}"
-                                aria-expanded="false"
-                                aria-controls="collapseBloco{{ bloco.id }}">
+                        <h2 class="accordion-header"
+                            id="headingBloco{{ bloco.id }}">
 
-                            <div class="d-flex justify-content-between align-items-center w-100 me-3">
-                                <span class="fw-semibold">
-                                    {{ bloco.nome }}
-                                </span>
+                            <button class="accordion-button collapsed"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#collapseBloco{{ bloco.id }}"
+                                    aria-expanded="false"
+                                    aria-controls="collapseBloco{{ bloco.id }}">
 
-                                <span class="badge bg-secondary badge-nc-bloco"
-                                      id="badge_nc_bloco_{{ bloco.id }}">
-                                    0 NC
-                                </span>
+                                <div class="d-flex justify-content-between align-items-center w-100 me-3">
+
+                                    <span class="fw-semibold">
+                                        {{ bloco.nome }}
+                                    </span>
+
+                                    <span class="badge bg-secondary badge-nc-bloco"
+                                          id="badge_nc_bloco_{{ bloco.id }}">
+                                        0 NC
+                                    </span>
+
+                                </div>
+                            </button>
+                        </h2>
+
+                        <div id="collapseBloco{{ bloco.id }}"
+                             class="accordion-collapse collapse"
+                             aria-labelledby="headingBloco{{ bloco.id }}"
+                             data-bs-parent="#accordionIFS">
+
+                            <div class="accordion-body">
+
+                                <div class="table-responsive">
+                                    <table class="table table-bordered align-middle mb-0">
+
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width: 90px;">Item</th>
+                                                <th>Verificação</th>
+                                                <th style="width: 100px;" class="text-center">Potencial</th>
+                                                <th style="width: 170px;" class="text-center">Resultado</th>
+                                                <th style="width: 150px;" class="text-center">Desvio / Ação</th>
+                                            </tr>
+                                        </thead>
+
+                                        <tbody>
+                                            {% for item in itens_por_bloco.get(bloco.id, []) %}
+                                                <tr data-bloco-id="{{ bloco.id }}"
+                                                    data-item-id="{{ item.id }}"
+                                                    data-potencial="{{ item.potencial }}">
+
+                                                    <td class="text-center fw-semibold">
+                                                        {{ item.codigo }}
+                                                    </td>
+
+                                                    <td>
+                                                        {{ item.descricao }}
+                                                    </td>
+
+                                                    <td class="text-center">
+                                                        {% if item.potencial == 'A' %}
+                                                            <span class="badge bg-danger">A</span>
+                                                        {% elif item.potencial == 'B' %}
+                                                            <span class="badge bg-warning text-dark">B</span>
+                                                        {% else %}
+                                                            <span class="badge bg-success">C</span>
+                                                        {% endif %}
+                                                    </td>
+
+                                                    <td>
+                                                        <select class="form-select resultado-ifs"
+                                                                data-bloco-id="{{ bloco.id }}"
+                                                                data-item-id="{{ item.id }}"
+                                                                data-codigo="{{ item.codigo }}"
+                                                                data-descricao="{{ item.descricao|e }}"
+                                                                data-potencial="{{ item.potencial }}">
+                                                            <option value="S">Sim</option>
+                                                            <option value="N">Não</option>
+                                                            <option value="NA" selected>NA</option>
+                                                        </select>
+                                                    </td>
+
+                                                    <td class="text-center">
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-laranja btn-desvio-ifs"
+                                                                data-bloco-id="{{ bloco.id }}"
+                                                                data-item-id="{{ item.id }}"
+                                                                data-codigo="{{ item.codigo }}"
+                                                                data-descricao="{{ item.descricao|e }}"
+                                                                data-potencial="{{ item.potencial }}"
+                                                                style="display:none;"
+                                                                title="Registrar desvio">
+                                                            <i class="bi bi-plus-circle"></i>
+                                                        </button>
+
+                                                        <span class="badge bg-success badge-desvio-ifs"
+                                                              id="badge_desvio_{{ item.id }}"
+                                                              style="display:none;">
+                                                            Registrado
+                                                        </span>
+                                                    </td>
+
+                                                </tr>
+
+                                            {% else %}
+                                                <tr>
+                                                    <td colspan="5"
+                                                        class="text-center text-muted">
+                                                        Nenhum item cadastrado para este bloco.
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+
+                                    </table>
+                                </div>
                             </div>
-
-                        </button>
-                    </h2>
-
-                    <div id="collapseBloco{{ bloco.id }}"
-                         class="accordion-collapse collapse"
-                         aria-labelledby="headingBloco{{ bloco.id }}"
-                         data-bs-parent="#accordionIFS">
-
-                        <div class="accordion-body">
-
-                            <div class="table-responsive">
-                                <table class="table table-bordered align-middle mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th style="width: 90px;">Item</th>
-                                            <th>Verificação</th>
-                                            <th style="width: 100px;" class="text-center">Potencial</th>
-                                            <th style="width: 170px;" class="text-center">Resultado</th>
-                                            <th style="width: 150px;" class="text-center">Desvio / Ação</th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        {% for item in itens_por_bloco.get(bloco.id, []) %}
-                                        <tr data-bloco-id="{{ bloco.id }}"
-                                            data-item-id="{{ item.id }}"
-                                            data-potencial="{{ item.potencial }}">
-
-                                            <td class="text-center fw-semibold">
-                                                {{ item.codigo }}
-                                            </td>
-
-                                            <td>
-                                                {{ item.descricao }}
-                                            </td>
-
-                                            <td class="text-center">
-                                                {% if item.potencial == 'A' %}
-                                                    <span class="badge bg-danger">A</span>
-                                                {% elif item.potencial == 'B' %}
-                                                    <span class="badge bg-warning text-dark">B</span>
-                                                {% else %}
-                                                    <span class="badge bg-success">C</span>
-                                                {% endif %}
-                                            </td>
-
-                                            <td>
-                                                <select class="form-select resultado-ifs"
-                                                        data-bloco-id="{{ bloco.id }}"
-                                                        data-item-id="{{ item.id }}"
-                                                        data-codigo="{{ item.codigo }}"
-                                                        data-descricao="{{ item.descricao|e }}"
-                                                        data-potencial="{{ item.potencial }}">
-                                                    <option value="S">Sim</option>
-                                                    <option value="N">Não</option>
-                                                    <option value="NA" selected>NA</option>
-                                                </select>
-                                            </td>
-
-                                            <td class="text-center">
-                                                <button type="button"
-                                                        class="btn btn-sm btn-laranja btn-desvio-ifs"
-                                                        data-bloco-id="{{ bloco.id }}"
-                                                        data-item-id="{{ item.id }}"
-                                                        data-codigo="{{ item.codigo }}"
-                                                        data-descricao="{{ item.descricao|e }}"
-                                                        data-potencial="{{ item.potencial }}"
-                                                        style="display:none;">
-                                                    <i class="bi bi-plus-circle me-1"></i>
-                                                    Registrar
-                                                </button>
-
-                                                <span class="badge bg-success badge-desvio-ifs"
-                                                      id="badge_desvio_{{ item.id }}"
-                                                      style="display:none;">
-                                                    Registrado
-                                                </span>
-                                            </td>
-
-                                        </tr>
-                                        {% else %}
-                                        <tr>
-                                            <td colspan="5" class="text-center text-muted">
-                                                Nenhum item cadastrado para este bloco.
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-
-                                </table>
-                            </div>
-
                         </div>
-                    </div>
 
-                </div>
+                    </div>
                 {% endfor %}
 
             </div>
-
         </div>
     </div>
 
     <div class="d-flex justify-content-between mt-4 gap-2">
-        <a href="{{ url_for('main.listar_ifs') }}" class="btn btn-cinza">
+
+        <a href="{{ next_url or url_for('main.listar_ifs') }}"
+           class="btn btn-cinza">
             Voltar
         </a>
 
-        <button type="submit" class="btn btn-laranja">
+        <button type="submit"
+                class="btn btn-laranja">
             Salvar
         </button>
+
     </div>
 
 </form>
 
 <!-- MODAL DESVIO -->
-<div class="modal fade" id="modalDesvioIFS" tabindex="-1" aria-labelledby="modalDesvioIFSLabel" aria-hidden="true">
+<div class="modal fade"
+     id="modalDesvioIFS"
+     tabindex="-1"
+     aria-labelledby="modalDesvioIFSLabel"
+     aria-hidden="true">
+
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
 
             <div class="modal-header modal-header-trackplan">
-                <h5 class="modal-title" id="modalDesvioIFSLabel">
-                    <i class="bi bi-exclamation-triangle"></i>
+                <h5 class="modal-title"
+                    id="modalDesvioIFSLabel">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
                     Registrar Desvio e Ação
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Fechar">
+                </button>
             </div>
 
             <div class="modal-body">
 
-                <input type="hidden" id="modal_ifs_item_id">
-                <input type="hidden" id="modal_ifs_bloco_id">
+                <input type="hidden"
+                       id="modal_ifs_item_id">
+
+                <input type="hidden"
+                       id="modal_ifs_bloco_id">
 
                 <div class="row g-3 mb-3">
 
                     <div class="col-md-2">
                         <label class="form-label">Item</label>
+
                         <input type="text"
                                id="modal_ifs_codigo"
                                class="form-control campo-readonly"
@@ -369,6 +505,7 @@
 
                     <div class="col-md-2">
                         <label class="form-label">Potencial</label>
+
                         <input type="text"
                                id="modal_ifs_potencial"
                                class="form-control campo-readonly"
@@ -377,6 +514,7 @@
 
                     <div class="col-md-8">
                         <label class="form-label">Descrição do Item</label>
+
                         <input type="text"
                                id="modal_ifs_descricao"
                                class="form-control campo-readonly"
@@ -386,48 +524,74 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Desvio Observado</label>
+                    <label for="modal_ifs_desvio_observado"
+                           class="form-label">
+                        Desvio Observado
+                    </label>
+
                     <textarea id="modal_ifs_desvio_observado"
                               class="form-control"
                               rows="4"></textarea>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Ação Proposta</label>
+                    <label for="modal_ifs_acao_proposta"
+                           class="form-label">
+                        Ação Proposta
+                    </label>
+
                     <textarea id="modal_ifs_acao_proposta"
                               class="form-control"
                               rows="4"></textarea>
                 </div>
 
                 <div class="row g-3">
+
                     <div class="col-md-8">
-                        <label class="form-label">Responsável pela Ação</label>
-                        <select id="modal_ifs_responsavel_id" class="form-select">
+                        <label for="modal_ifs_responsavel_id"
+                               class="form-label">
+                            Responsável pela Ação
+                        </label>
+
+                        <select id="modal_ifs_responsavel_id"
+                                class="form-select">
                             <option value="">Selecione</option>
-                            {% for u in usuarios %}
-                                <option value="{{ u.id }}">
-                                    {% if u.matricula %}{{ u.matricula }} - {% endif %}{{ u.nome }}
+
+                            {% for usuario in usuarios %}
+                                <option value="{{ usuario.id }}">
+                                    {% if usuario.matricula %}
+                                        {{ usuario.matricula }} -
+                                    {% endif %}
+                                    {{ usuario.nome }}
                                 </option>
                             {% endfor %}
                         </select>
                     </div>
 
                     <div class="col-md-4">
-                        <label class="form-label">Prazo</label>
+                        <label for="modal_ifs_prazo"
+                               class="form-label">
+                            Prazo
+                        </label>
+
                         <input type="date"
                                id="modal_ifs_prazo"
                                class="form-control">
                     </div>
-                </div>
 
+                </div>
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">
+                <button type="button"
+                        class="btn btn-cinza"
+                        data-bs-dismiss="modal">
                     Fechar
                 </button>
 
-                <button type="button" class="btn btn-laranja" id="btnSalvarDesvioIFS">
+                <button type="button"
+                        class="btn btn-laranja"
+                        id="btnSalvarDesvioIFS">
                     Salvar Desvio
                 </button>
             </div>
@@ -436,132 +600,134 @@
     </div>
 </div>
 
-<script id="usuarios-data-ifs" type="application/json">
-    {{ usuarios | tojson }}
-</script>
-
 <script>
-const usuariosDisponiveisIFS = JSON.parse(
-    document.getElementById('usuarios-data-ifs').textContent
-);
-
 let desviosIFS = {};
 
-function normalizarTextoIFS(texto) {
-    return String(texto || '')
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
-}
+function abrirModalDesvioIFS(botao) {
+    const itemId =
+        botao.getAttribute("data-item-id");
 
-function formatarUsuarioIFS(usuario) {
-    const matricula = usuario.matricula || 'Sem matrícula';
-    const nome = usuario.nome || '';
-    return `${matricula} - ${nome}`;
-}
+    const blocoId =
+        botao.getAttribute("data-bloco-id");
 
-function configurarBuscaUsuarioIFS(inputId, hiddenId, listaId) {
-    const input = document.getElementById(inputId);
-    const hidden = document.getElementById(hiddenId);
-    const lista = document.getElementById(listaId);
+    const codigo =
+        botao.getAttribute("data-codigo");
 
-    if (!input || !hidden || !lista) return;
+    const descricao =
+        botao.getAttribute("data-descricao");
 
-    input.addEventListener('input', function () {
-        const termo = normalizarTextoIFS(input.value);
+    const potencial =
+        botao.getAttribute("data-potencial");
 
-        hidden.value = '';
-        lista.innerHTML = '';
-        lista.style.display = 'none';
+    document.getElementById(
+        "modal_ifs_item_id"
+    ).value = itemId;
 
-        if (termo.length < 2) {
-            return;
-        }
+    document.getElementById(
+        "modal_ifs_bloco_id"
+    ).value = blocoId;
 
-        const resultados = usuariosDisponiveisIFS
-            .filter(u => {
-                const textoBusca = normalizarTextoIFS(`${u.matricula || ''} ${u.nome || ''}`);
-                return textoBusca.includes(termo);
-            })
-            .slice(0, 12);
+    document.getElementById(
+        "modal_ifs_codigo"
+    ).value = codigo;
 
-        if (resultados.length === 0) {
-            lista.innerHTML = `
-                <div class="list-group-item text-muted">
-                    Nenhum funcionário encontrado.
-                </div>
-            `;
-            lista.style.display = 'block';
-            return;
-        }
+    document.getElementById(
+        "modal_ifs_descricao"
+    ).value = descricao;
 
-        resultados.forEach(usuario => {
-            const item = document.createElement('button');
-            item.type = 'button';
-            item.className = 'list-group-item list-group-item-action text-start';
+    document.getElementById(
+        "modal_ifs_potencial"
+    ).value = potencial;
 
-            item.innerHTML = `
-                <strong>${usuario.matricula || '-'}</strong><br>
-                <small>${usuario.nome || ''}</small>
-            `;
+    const existente =
+        desviosIFS[itemId];
 
-            item.addEventListener('click', function () {
-                input.value = formatarUsuarioIFS(usuario);
-                hidden.value = usuario.id;
-                lista.style.display = 'none';
-            });
+    document.getElementById(
+        "modal_ifs_desvio_observado"
+    ).value =
+        existente?.desvio_observado || "";
 
-            lista.appendChild(item);
-        });
+    document.getElementById(
+        "modal_ifs_acao_proposta"
+    ).value =
+        existente?.acao_proposta || "";
 
-        lista.style.display = 'block';
-    });
+    document.getElementById(
+        "modal_ifs_responsavel_id"
+    ).value =
+        existente?.responsavel_id || "";
 
-    input.addEventListener('blur', function () {
-        setTimeout(function () {
-            lista.style.display = 'none';
-        }, 200);
-    });
-}
+    document.getElementById(
+        "modal_ifs_prazo"
+    ).value =
+        existente?.prazo || "";
 
-function abrirModalDesvioIFS(button) {
-    const itemId = button.getAttribute('data-item-id');
-    const blocoId = button.getAttribute('data-bloco-id');
-    const codigo = button.getAttribute('data-codigo');
-    const descricao = button.getAttribute('data-descricao');
-    const potencial = button.getAttribute('data-potencial');
-
-    document.getElementById('modal_ifs_item_id').value = itemId;
-    document.getElementById('modal_ifs_bloco_id').value = blocoId;
-    document.getElementById('modal_ifs_codigo').value = codigo;
-    document.getElementById('modal_ifs_descricao').value = descricao;
-    document.getElementById('modal_ifs_potencial').value = potencial;
-
-    const existente = desviosIFS[itemId];
-
-    document.getElementById('modal_ifs_desvio_observado').value = existente?.desvio_observado || '';
-    document.getElementById('modal_ifs_acao_proposta').value = existente?.acao_proposta || '';
-    document.getElementById('modal_ifs_responsavel_id').value = existente?.responsavel_id || '';
-    document.getElementById('modal_ifs_prazo').value = existente?.prazo || '';
-
-    const modal = new bootstrap.Modal(document.getElementById('modalDesvioIFS'));
-    modal.show();
+    bootstrap.Modal
+        .getOrCreateInstance(
+            document.getElementById(
+                "modalDesvioIFS"
+            )
+        )
+        .show();
 }
 
 function salvarDesvioIFS() {
-    const itemId = document.getElementById('modal_ifs_item_id').value;
-    const blocoId = document.getElementById('modal_ifs_bloco_id').value;
-    const codigo = document.getElementById('modal_ifs_codigo').value;
-    const descricao = document.getElementById('modal_ifs_descricao').value;
-    const potencial = document.getElementById('modal_ifs_potencial').value;
+    const itemId =
+        document.getElementById(
+            "modal_ifs_item_id"
+        ).value;
 
-    const desvio = document.getElementById('modal_ifs_desvio_observado').value.trim();
-    const acao = document.getElementById('modal_ifs_acao_proposta').value.trim();
-    const responsavelId = document.getElementById('modal_ifs_responsavel_id').value;
-    const prazo = document.getElementById('modal_ifs_prazo').value;
+    const blocoId =
+        document.getElementById(
+            "modal_ifs_bloco_id"
+        ).value;
 
-    if (!desvio || !acao || !responsavelId || !prazo) {
-        alert('Preencha o desvio, a ação proposta, o responsável e o prazo.');
+    const codigo =
+        document.getElementById(
+            "modal_ifs_codigo"
+        ).value;
+
+    const descricao =
+        document.getElementById(
+            "modal_ifs_descricao"
+        ).value;
+
+    const potencial =
+        document.getElementById(
+            "modal_ifs_potencial"
+        ).value;
+
+    const desvio =
+        document.getElementById(
+            "modal_ifs_desvio_observado"
+        ).value.trim();
+
+    const acao =
+        document.getElementById(
+            "modal_ifs_acao_proposta"
+        ).value.trim();
+
+    const responsavelId =
+        document.getElementById(
+            "modal_ifs_responsavel_id"
+        ).value;
+
+    const prazo =
+        document.getElementById(
+            "modal_ifs_prazo"
+        ).value;
+
+    if (
+        !desvio
+        || !acao
+        || !responsavelId
+        || !prazo
+    ) {
+        alert(
+            "Preencha o desvio, a ação proposta, "
+            + "o responsável e o prazo."
+        );
+
         return;
     }
 
@@ -577,28 +743,45 @@ function salvarDesvioIFS() {
         prazo: prazo
     };
 
-    const badge = document.getElementById(`badge_desvio_${itemId}`);
+    const badge =
+        document.getElementById(
+            `badge_desvio_${itemId}`
+        );
+
     if (badge) {
-        badge.style.display = '';
+        badge.style.display = "";
     }
 
-    const botao = document.querySelector(`.btn-desvio-ifs[data-item-id="${itemId}"]`);
+    const botao =
+        document.querySelector(
+            `.btn-desvio-ifs[data-item-id="${itemId}"]`
+        );
+
     if (botao) {
-        botao.innerHTML = '<i class="bi bi-pencil-square me-1"></i>Editar';
+        botao.innerHTML =
+            '<i class="bi bi-pencil-square"></i>';
     }
 
     atualizarResumoIFS();
 
-    const modal = bootstrap.Modal.getInstance(document.getElementById('modalDesvioIFS'));
-    modal.hide();
+    bootstrap.Modal
+        .getInstance(
+            document.getElementById(
+                "modalDesvioIFS"
+            )
+        )
+        ?.hide();
 }
 
 function atualizarResumoIFS() {
-    const selects = document.querySelectorAll('.resultado-ifs');
+    const selects =
+        document.querySelectorAll(
+            ".resultado-ifs"
+        );
 
     let avaliados = 0;
     let conformes = 0;
-    let nc = 0;
+    let naoConformidades = 0;
     let potencialA = 0;
     let potencialB = 0;
     let potencialC = 0;
@@ -607,35 +790,56 @@ function atualizarResumoIFS() {
     const ncPorBloco = {};
 
     selects.forEach(select => {
-        const resultado = select.value;
-        const potencial = select.getAttribute('data-potencial');
-        const blocoId = select.getAttribute('data-bloco-id');
+        const resultado =
+            select.value;
+
+        const potencial =
+            select.getAttribute(
+                "data-potencial"
+            );
+
+        const blocoId =
+            select.getAttribute(
+                "data-bloco-id"
+            );
 
         if (!ncPorBloco[blocoId]) {
             ncPorBloco[blocoId] = 0;
         }
 
-        if (resultado === 'S' || resultado === 'N') {
+        if (
+            resultado === "S"
+            || resultado === "N"
+        ) {
             avaliados += 1;
 
-            if (resultado === 'S') {
+            if (resultado === "S") {
                 conformes += 1;
                 denominadorPonderado += 1;
             }
 
-            if (resultado === 'N') {
-                nc += 1;
+            if (resultado === "N") {
+                naoConformidades += 1;
 
-                const peso = potencial === 'A' ? 2 : 1;
-                denominadorPonderado += peso;
+                const peso =
+                    potencial === "A"
+                        ? 2
+                        : 1;
+
+                denominadorPonderado +=
+                    peso;
 
                 ncPorBloco[blocoId] += 1;
 
-                if (potencial === 'A') {
+                if (potencial === "A") {
                     potencialA += 1;
-                } else if (potencial === 'B') {
+                } else if (
+                    potencial === "B"
+                ) {
                     potencialB += 1;
-                } else if (potencial === 'C') {
+                } else if (
+                    potencial === "C"
+                ) {
                     potencialC += 1;
                 }
             }
@@ -645,75 +849,167 @@ function atualizarResumoIFS() {
     let aderencia = 0;
 
     if (denominadorPonderado > 0) {
-        aderencia = (conformes / denominadorPonderado) * 100;
+        aderencia =
+            (
+                conformes
+                / denominadorPonderado
+            ) * 100;
     }
 
-    const conceito = aderencia >= 85 && denominadorPonderado > 0
-        ? 'Satisfatório'
-        : denominadorPonderado > 0
-            ? 'Insatisfatório'
-            : '-';
+    const conceito =
+        aderencia >= 85
+        && denominadorPonderado > 0
+            ? "Satisfatório"
+            : denominadorPonderado > 0
+                ? "Insatisfatório"
+                : "-";
 
-    document.getElementById('resumo_itens_avaliados').textContent = avaliados;
-    document.getElementById('resumo_nc').textContent = nc;
-    document.getElementById('resumo_potencial_a').textContent = potencialA;
-    document.getElementById('resumo_potencial_b').textContent = potencialB;
-    document.getElementById('resumo_potencial_c').textContent = potencialC;
-    document.getElementById('resumo_aderencia').textContent = `${aderencia.toFixed(2)}%`;
+    document.getElementById(
+        "resumo_itens_avaliados"
+    ).textContent = avaliados;
 
-    const conceitoEl = document.getElementById('resumo_conceito');
-    conceitoEl.textContent = conceito;
-    conceitoEl.classList.remove('text-success', 'text-danger', 'text-muted');
+    document.getElementById(
+        "resumo_nc"
+    ).textContent = naoConformidades;
 
-    if (conceito === 'Satisfatório') {
-        conceitoEl.classList.add('text-success');
-    } else if (conceito === 'Insatisfatório') {
-        conceitoEl.classList.add('text-danger');
+    document.getElementById(
+        "resumo_potencial_a"
+    ).textContent = potencialA;
+
+    document.getElementById(
+        "resumo_potencial_b"
+    ).textContent = potencialB;
+
+    document.getElementById(
+        "resumo_potencial_c"
+    ).textContent = potencialC;
+
+    document.getElementById(
+        "resumo_aderencia"
+    ).textContent =
+        `${aderencia.toFixed(2)}%`;
+
+    const conceitoEl =
+        document.getElementById(
+            "resumo_conceito"
+        );
+
+    conceitoEl.textContent =
+        conceito;
+
+    conceitoEl.classList.remove(
+        "text-success",
+        "text-danger",
+        "text-muted"
+    );
+
+    if (conceito === "Satisfatório") {
+        conceitoEl.classList.add(
+            "text-success"
+        );
+    } else if (
+        conceito === "Insatisfatório"
+    ) {
+        conceitoEl.classList.add(
+            "text-danger"
+        );
     } else {
-        conceitoEl.classList.add('text-muted');
+        conceitoEl.classList.add(
+            "text-muted"
+        );
     }
 
-    Object.keys(ncPorBloco).forEach(blocoId => {
-        const badge = document.getElementById(`badge_nc_bloco_${blocoId}`);
+    Object.keys(
+        ncPorBloco
+    ).forEach(blocoId => {
+        const badge =
+            document.getElementById(
+                `badge_nc_bloco_${blocoId}`
+            );
 
-        if (badge) {
-            const total = ncPorBloco[blocoId];
-            badge.textContent = `${total} NC`;
-
-            if (total > 0) {
-                badge.classList.remove('bg-secondary');
-                badge.classList.add('bg-danger');
-            } else {
-                badge.classList.remove('bg-danger');
-                badge.classList.add('bg-secondary');
-            }
+        if (!badge) {
+            return;
         }
+
+        const total =
+            ncPorBloco[blocoId];
+
+        badge.textContent =
+            `${total} NC`;
+
+        badge.classList.toggle(
+            "bg-danger",
+            total > 0
+        );
+
+        badge.classList.toggle(
+            "bg-secondary",
+            total === 0
+        );
     });
 }
 
-function validarFormularioIFS(event) {
+function validarFormularioIFS(evento) {
     const respostas = [];
-    const selects = document.querySelectorAll('.resultado-ifs');
+
+    const selects =
+        document.querySelectorAll(
+            ".resultado-ifs"
+        );
 
     for (const select of selects) {
-        const itemId = select.getAttribute('data-item-id');
-        const resultado = select.value;
+        const itemId =
+            select.getAttribute(
+                "data-item-id"
+            );
 
-        if (resultado === 'N' && !desviosIFS[itemId]) {
-            event.preventDefault();
+        const resultado =
+            select.value;
 
-            const codigo = select.getAttribute('data-codigo');
-            alert(`O item ${codigo} foi marcado como Não. Registre o desvio e a ação antes de salvar.`);
+        if (
+            resultado === "N"
+            && !desviosIFS[itemId]
+        ) {
+            evento.preventDefault();
 
-            const collapse = select.closest('.accordion-collapse');
-            if (collapse && !collapse.classList.contains('show')) {
-                new bootstrap.Collapse(collapse, { show: true });
+            const codigo =
+                select.getAttribute(
+                    "data-codigo"
+                );
+
+            alert(
+                `O item ${codigo} foi marcado como Não. `
+                + "Registre o desvio e a ação antes de salvar."
+            );
+
+            const collapse =
+                select.closest(
+                    ".accordion-collapse"
+                );
+
+            if (
+                collapse
+                && !collapse.classList.contains(
+                    "show"
+                )
+            ) {
+                bootstrap.Collapse
+                    .getOrCreateInstance(
+                        collapse,
+                        {
+                            toggle: false
+                        }
+                    )
+                    .show();
             }
 
             return false;
         }
 
-        if (resultado === 'S' || resultado === 'N') {
+        if (
+            resultado === "S"
+            || resultado === "N"
+        ) {
             respostas.push({
                 item_id: itemId,
                 resultado: resultado
@@ -721,105 +1017,195 @@ function validarFormularioIFS(event) {
         }
     }
 
-    document.getElementById('respostas_json').value = JSON.stringify(respostas);
-    document.getElementById('desvios_json').value = JSON.stringify(Object.values(desviosIFS));
+    if (respostas.length === 0) {
+        evento.preventDefault();
+
+        alert(
+            "Avalie pelo menos um item antes de salvar."
+        );
+
+        return false;
+    }
+
+    document.getElementById(
+        "respostas_json"
+    ).value =
+        JSON.stringify(
+            respostas
+        );
+
+    document.getElementById(
+        "desvios_json"
+    ).value =
+        JSON.stringify(
+            Object.values(
+                desviosIFS
+            )
+        );
 
     return true;
 }
 
 function configurarResultadosIFS() {
-    document.querySelectorAll('.resultado-ifs').forEach(select => {
-        select.addEventListener('change', function () {
-            const itemId = this.getAttribute('data-item-id');
-            const botao = document.querySelector(`.btn-desvio-ifs[data-item-id="${itemId}"]`);
-            const badge = document.getElementById(`badge_desvio_${itemId}`);
+    document
+        .querySelectorAll(
+            ".resultado-ifs"
+        )
+        .forEach(select => {
+            select.addEventListener(
+                "change",
+                function () {
+                    const itemId =
+                        this.getAttribute(
+                            "data-item-id"
+                        );
 
-            if (this.value === 'N') {
-                if (botao) {
-                    botao.style.display = '';
+                    const botao =
+                        document.querySelector(
+                            `.btn-desvio-ifs[data-item-id="${itemId}"]`
+                        );
+
+                    const badge =
+                        document.getElementById(
+                            `badge_desvio_${itemId}`
+                        );
+
+                    if (this.value === "N") {
+                        if (botao) {
+                            botao.style.display =
+                                "";
+                        }
+                    } else {
+                        if (botao) {
+                            botao.style.display =
+                                "none";
+
+                            botao.innerHTML =
+                                '<i class="bi bi-plus-circle"></i>';
+                        }
+
+                        if (badge) {
+                            badge.style.display =
+                                "none";
+                        }
+
+                        delete desviosIFS[
+                            itemId
+                        ];
+                    }
+
+                    atualizarResumoIFS();
                 }
-            } else {
-                if (botao) {
-                    botao.style.display = 'none';
-                    botao.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Registrar';
-                }
-
-                if (badge) {
-                    badge.style.display = 'none';
-                }
-
-                delete desviosIFS[itemId];
-            }
-
-            atualizarResumoIFS();
+            );
         });
-    });
 }
 
 function configurarBotoesDesvioIFS() {
-    document.querySelectorAll('.btn-desvio-ifs').forEach(button => {
-        button.addEventListener('click', function () {
-            abrirModalDesvioIFS(this);
+    document
+        .querySelectorAll(
+            ".btn-desvio-ifs"
+        )
+        .forEach(botao => {
+            botao.addEventListener(
+                "click",
+                function () {
+                    abrirModalDesvioIFS(
+                        this
+                    );
+                }
+            );
         });
-    });
 }
 
 function configurarAccordionIFS() {
-    const btnExpandir = document.getElementById('btnExpandirTodos');
-    const btnRecolher = document.getElementById('btnRecolherTodos');
+    const btnExpandir =
+        document.getElementById(
+            "btnExpandirTodos"
+        );
+
+    const btnRecolher =
+        document.getElementById(
+            "btnRecolherTodos"
+        );
 
     if (btnExpandir) {
-        btnExpandir.addEventListener('click', function () {
-            document.querySelectorAll('.accordion-collapse').forEach(collapse => {
-                new bootstrap.Collapse(collapse, { show: true });
-            });
-        });
+        btnExpandir.addEventListener(
+            "click",
+            function () {
+                document
+                    .querySelectorAll(
+                        ".accordion-collapse"
+                    )
+                    .forEach(collapse => {
+                        bootstrap.Collapse
+                            .getOrCreateInstance(
+                                collapse,
+                                {
+                                    toggle: false
+                                }
+                            )
+                            .show();
+                    });
+            }
+        );
     }
 
     if (btnRecolher) {
-        btnRecolher.addEventListener('click', function () {
-            document.querySelectorAll('.accordion-collapse.show').forEach(collapse => {
-                new bootstrap.Collapse(collapse, { hide: true });
-            });
-        });
+        btnRecolher.addEventListener(
+            "click",
+            function () {
+                document
+                    .querySelectorAll(
+                        ".accordion-collapse.show"
+                    )
+                    .forEach(collapse => {
+                        bootstrap.Collapse
+                            .getOrCreateInstance(
+                                collapse,
+                                {
+                                    toggle: false
+                                }
+                            )
+                            .hide();
+                    });
+            }
+        );
     }
 }
 
-document.addEventListener('DOMContentLoaded', function () {
-    configurarBuscaUsuarioIFS(
-        'profissional_sesmt_busca',
-        'profissional_sesmt_id',
-        'listaProfissionaisSESMT'
-    );
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+        configurarResultadosIFS();
+        configurarBotoesDesvioIFS();
+        configurarAccordionIFS();
+        atualizarResumoIFS();
 
-    configurarResultadosIFS();
-    configurarBotoesDesvioIFS();
-    configurarAccordionIFS();
-    atualizarResumoIFS();
+        const btnSalvarDesvio =
+            document.getElementById(
+                "btnSalvarDesvioIFS"
+            );
 
-    const dataInspecao = document.getElementById('data_inspecao');
-    if (dataInspecao && !dataInspecao.value) {
-        dataInspecao.valueAsDate = new Date();
+        if (btnSalvarDesvio) {
+            btnSalvarDesvio.addEventListener(
+                "click",
+                salvarDesvioIFS
+            );
+        }
+
+        const formIFS =
+            document.getElementById(
+                "formIFS"
+            );
+
+        if (formIFS) {
+            formIFS.addEventListener(
+                "submit",
+                validarFormularioIFS
+            );
+        }
     }
-
-    const horaInspecao = document.getElementById('hora_inspecao');
-    if (horaInspecao && !horaInspecao.value) {
-        const agora = new Date();
-        const horas = String(agora.getHours()).padStart(2, '0');
-        const minutos = String(agora.getMinutes()).padStart(2, '0');
-        horaInspecao.value = `${horas}:${minutos}`;
-    }
-
-    const btnSalvarDesvio = document.getElementById('btnSalvarDesvioIFS');
-    if (btnSalvarDesvio) {
-        btnSalvarDesvio.addEventListener('click', salvarDesvioIFS);
-    }
-
-    const formIFS = document.getElementById('formIFS');
-    if (formIFS) {
-        formIFS.addEventListener('submit', validarFormularioIFS);
-    }
-});
+);
 </script>
 
 {% endblock %}

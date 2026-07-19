@@ -1,0 +1,500 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Novo Agendamento de SSMA{% endblock %}
+
+{% block conteudo %}
+
+<style>
+.autocomplete-wrapper{position:relative}
+.autocomplete-resultados{position:absolute;top:calc(100% + 2px);left:0;right:0;z-index:1060;max-height:240px;overflow-y:auto;display:none;background:#fff;border:1px solid #dee2e6;border-radius:.375rem;box-shadow:0 .5rem 1rem rgba(0,0,0,.12)}
+.autocomplete-item{width:100%;padding:.6rem .75rem;border:0;border-bottom:1px solid #f1f1f1;background:#fff;text-align:left;cursor:pointer}
+.autocomplete-item:last-child{border-bottom:0}
+.autocomplete-item:hover,.autocomplete-item:focus{background:#f8f9fa;outline:none}
+.autocomplete-vazio{padding:.75rem;color:#6c757d}
+.calendario-container{overflow-x:auto}
+.calendario-mensal{width:100%;min-width:1080px;table-layout:fixed;border-collapse:separate;border-spacing:0}
+.calendario-mensal th{padding:.75rem .5rem;background:#f8f9fa;border:1px solid #dee2e6;color:#495057;font-size:.8rem;font-weight:600;text-align:center;text-transform:uppercase}
+.calendario-mensal td{height:180px;padding:0;vertical-align:top;background:#fff;border:1px solid #dee2e6}
+.calendario-dia{min-height:178px;padding:.55rem}
+.calendario-dia-fora{background:#f8f9fa;color:#adb5bd}
+.calendario-dia-cabecalho{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem}
+.calendario-numero{font-size:.95rem;font-weight:600;color:#212529}
+.calendario-dia-fora .calendario-numero{color:#adb5bd}
+.calendario-domingo .calendario-numero{color:#dc3545}
+.btn-adicionar-dia{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #ea6a23;border-radius:50%;background:#fff;color:#ea6a23;padding:0;line-height:1}
+.btn-adicionar-dia:hover,.btn-adicionar-dia:focus{background:#ea6a23;color:#fff;outline:none}
+.calendario-dia-fora .btn-adicionar-dia{display:none}
+.lista-agendamentos-dia{display:flex;flex-direction:column;gap:.4rem}
+.card-agendamento-dia{border:1px solid #dee2e6;border-radius:.45rem;padding:.45rem .5rem;background:#fff;font-size:.77rem;line-height:1.25}
+.card-agendamento-hs{border-left:4px solid #198754;background:#f3fbf6}
+.card-agendamento-ap{border-left:4px solid #0d6efd;background:#f4f8ff}
+.card-agendamento-ifs{border-left:4px solid #6f42c1;background:#f8f5ff}
+.card-agendamento-titulo{font-weight:600;margin-bottom:.2rem}
+.card-agendamento-detalhe{color:#495057;margin-bottom:.1rem;word-break:break-word}
+.card-agendamento-acoes{display:flex;justify-content:flex-end;gap:.25rem;margin-top:.25rem}
+.btn-acao-icon{border:0;background:transparent;color:#ea6a23;padding:.1rem .2rem;line-height:1}
+.btn-acao-icon:hover,.btn-acao-icon:focus{color:#c65318}
+.btn-acao-excluir{color:#dc3545}
+.btn-acao-excluir:hover,.btn-acao-excluir:focus{color:#a71d2a}
+.modal-data-resumo{font-size:.9rem;color:#6c757d}
+@media(max-width:767.98px){.calendario-mensal td{height:150px}.calendario-dia{min-height:148px}}
+</style>
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-calendar-plus me-2"></i>
+        Novo Agendamento de SSMA
+    </h2>
+</div>
+<hr>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <h5 class="text-laranja mb-3">
+            <i class="bi bi-calendar3 me-2"></i>
+            Identificação do Cronograma
+        </h5>
+
+        <form method="GET" action="{{ url_for('main.novo_agendamento_ssma') }}" id="formCarregarCronograma">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label for="mes" class="form-label">Mês</label>
+                    <input type="month" class="form-control" id="mes" name="mes" value="{{ mes_selecionado or '' }}" required>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="lider_busca" class="form-label">Líder</label>
+                    <div class="autocomplete-wrapper">
+                        <input type="text" class="form-control" id="lider_busca" autocomplete="off" placeholder="Digite o nome ou a matrícula" value="{{ lider_selecionado.nome if lider_selecionado else '' }}" required>
+                        <input type="hidden" id="lider_id" name="lider_id" value="{{ lider_selecionado.id if lider_selecionado else '' }}">
+                        <div id="lider_resultados" class="autocomplete-resultados"></div>
+                    </div>
+                </div>
+
+                <div class="col-md-2">
+                    <div class="d-flex justify-content-end align-items-end h-100">
+
+                        <button type="submit"
+                                class="btn btn-laranja"
+                                title="Carregar cronograma">
+                            <i class="bi bi-plus-circle"></i>
+                        </button>
+
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if mes_selecionado and lider_selecionado %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <div>
+                <h5 class="text-laranja mb-1">
+                    <i class="bi bi-calendar-check me-2"></i>
+                    Cronograma de Práticas
+                </h5>
+                <div class="text-muted">
+                    {{ lider_selecionado.nome }}
+                    {% if lider_selecionado.matricula %} — {{ lider_selecionado.matricula }}{% endif %}
+                </div>
+            </div>
+            <div class="fw-semibold">{{ mes_exibicao or mes_selecionado }}</div>
+        </div>
+
+        <div class="calendario-container">
+            <table class="calendario-mensal">
+                <thead>
+                    <tr><th>Seg</th><th>Ter</th><th>Qua</th><th>Qui</th><th>Sex</th><th>Sáb</th><th>Dom</th></tr>
+                </thead>
+                <tbody>
+                    {% for semana in calendario_semanas %}
+                        <tr>
+                            {% for dia in semana %}
+                                <td class="{% if not dia.no_mes %}calendario-dia-fora{% endif %} {% if loop.index == 7 %}calendario-domingo{% endif %}">
+                                    <div class="calendario-dia">
+                                        <div class="calendario-dia-cabecalho">
+                                            <span class="calendario-numero">{{ dia.numero }}</span>
+                                            {% if dia.no_mes %}
+                                                <button type="button" class="btn-adicionar-dia" data-data="{{ dia.data }}" data-bs-toggle="modal" data-bs-target="#modalAgendamento" title="Adicionar prática" aria-label="Adicionar prática em {{ dia.data }}">
+                                                    <i class="bi bi-plus"></i>
+                                                </button>
+                                            {% endif %}
+                                        </div>
+
+                                        {% if dia.no_mes %}
+                                            <div class="lista-agendamentos-dia">
+                                                {% for item in dia.agendamentos %}
+                                                    <div class="card-agendamento-dia {% if item.pratica == 'hora_seguranca' %}card-agendamento-hs{% elif item.pratica == 'auditoria_padrao' %}card-agendamento-ap{% elif item.pratica == 'ifs' %}card-agendamento-ifs{% endif %}">
+                                                        <div class="card-agendamento-titulo">
+                                                            {% if item.pratica == 'hora_seguranca' %}Hora de Segurança
+                                                            {% elif item.pratica == 'auditoria_padrao' %}Auditoria de Padrão
+                                                            {% elif item.pratica == 'ifs' %}IFS
+                                                            {% else %}{{ item.pratica }}{% endif %}
+                                                        </div>
+
+                                                        {% if item.pratica == 'hora_seguranca' %}
+                                                            <div class="card-agendamento-detalhe">Tema: {{ item.nome_tema or '—' }}</div>
+                                                            <div class="card-agendamento-detalhe">Colaborador: {{ item.nome_colaborador_previsto or '—' }}</div>
+                                                        {% elif item.pratica == 'auditoria_padrao' %}
+                                                            <div class="card-agendamento-detalhe">Procedimento: {{ item.nome_procedimento or '—' }}</div>
+                                                            <div class="card-agendamento-detalhe">Colaborador: {{ item.nome_colaborador_previsto or '—' }}</div>
+                                                        {% elif item.pratica == 'ifs' %}
+                                                            <div class="card-agendamento-detalhe">Inspeção de Frente de Serviço</div>
+                                                        {% endif %}
+
+                                                        <div class="card-agendamento-acoes">
+                                                            <button type="button"
+                                                                    class="btn-acao-icon btn-editar-agendamento"
+                                                                    data-id="{{ item.id }}"
+                                                                    data-data="{{ item.data_programada.strftime('%Y-%m-%d') if item.data_programada else '' }}"
+                                                                    data-pratica="{{ item.pratica }}"
+                                                                    data-tema-id="{{ item.tema_id or '' }}"
+                                                                    data-colaborador-id="{{ item.colaborador_previsto_id or '' }}"
+                                                                    data-colaborador-texto="{{ ((item.nome_colaborador_previsto or '') ~ ((' — ' ~ item.matricula_colaborador_previsto) if item.matricula_colaborador_previsto else '')) | e }}"
+                                                                    data-procedimento-id="{{ item.procedimento_id or '' }}"
+                                                                    data-procedimento-texto="{{ (item.nome_procedimento or '') | e }}"
+                                                                    data-observacao="{{ (item.observacao or '') | e }}"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#modalAgendamento"
+                                                                    title="Editar"
+                                                                    aria-label="Editar">
+                                                                <i class="bi bi-pencil-square"></i>
+                                                            </button>
+
+                                                            <form method="POST" action="{{ url_for('main.excluir_agendamento_ssma', id=item.id) }}" class="d-inline" onsubmit="return confirm('Deseja excluir este agendamento?');">
+                                                                <input type="hidden" name="mes" value="{{ mes_selecionado }}">
+                                                                <input type="hidden" name="lider_id" value="{{ lider_selecionado.id }}">
+                                                                <button type="submit" class="btn-acao-icon btn-acao-excluir" title="Excluir" aria-label="Excluir">
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="7" class="text-center text-muted p-4">Não foi possível montar o calendário do mês selecionado.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex justify-content-end">
+    <a href="{{ url_for('main.listar_agendamentos_ssma') }}" class="btn btn-cinza">Voltar</a>
+</div>
+{% endif %}
+
+<div class="modal fade" id="modalAgendamento" tabindex="-1" aria-labelledby="modalAgendamentoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('main.novo_agendamento_ssma') }}" id="formModalAgendamento">
+                <input type="hidden" name="mes" value="{{ mes_selecionado or '' }}">
+                <input type="hidden" name="lider_id" value="{{ lider_selecionado.id if lider_selecionado else '' }}">
+                <input type="hidden" id="agendamento_id" name="agendamento_id" value="">
+
+                <div class="modal-header modal-header-trackplan">
+                    <div>
+                        <h5 class="modal-title" id="modalAgendamentoLabel">
+                            <i class="bi bi-calendar-plus me-2"></i>
+                            Novo Agendamento
+                        </h5>
+                        <div class="modal-data-resumo" id="modalDataResumo"></div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="data_modal" class="form-label">Data</label>
+                            <input type="date"
+                                   class="form-control"
+                                   id="data_modal"
+                                   name="data_programada"
+                                   min="{{ primeiro_dia_mes or '' }}"
+                                   max="{{ ultimo_dia_mes or '' }}"
+                                   required>
+                        </div>
+
+                        <div class="col-md-8">
+                            <label for="pratica_modal" class="form-label">Prática</label>
+                            <select class="form-select" id="pratica_modal" name="pratica" required>
+                                <option value="">Selecione</option>
+                                <option value="hora_seguranca">Hora de Segurança</option>
+                                <option value="auditoria_padrao">Auditoria de Padrão</option>
+                                <option value="ifs">IFS — Inspeção de Frente de Serviço</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 campo-tema d-none">
+                            <label for="tema_id" class="form-label">Tema da Hora de Segurança</label>
+                            <select class="form-select" id="tema_id" name="tema_id">
+                                <option value="">Selecione</option>
+                                {% for tema in temas %}
+                                    <option value="{{ tema.id }}">{{ tema.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12 campo-colaborador d-none">
+                            <label for="colaborador_busca" class="form-label">Colaborador previsto</label>
+                            <div class="autocomplete-wrapper">
+                                <input type="text" class="form-control" id="colaborador_busca" autocomplete="off" placeholder="Digite o nome ou a matrícula">
+                                <input type="hidden" id="colaborador_previsto_id" name="colaborador_previsto_id">
+                                <div id="colaborador_resultados" class="autocomplete-resultados"></div>
+                            </div>
+                            <div class="form-text">O líder poderá alterar o colaborador no momento da execução, mediante justificativa.</div>
+                        </div>
+
+                        <div class="col-12 campo-procedimento d-none">
+                            <label for="procedimento_busca" class="form-label">Procedimento</label>
+                            <div class="autocomplete-wrapper">
+                                <input type="text" class="form-control" id="procedimento_busca" autocomplete="off" placeholder="Digite a sigla, o número ou o título">
+                                <input type="hidden" id="procedimento_id" name="procedimento_id">
+                                <div id="procedimento_resultados" class="autocomplete-resultados"></div>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="observacao" class="form-label">Observação</label>
+                            <textarea class="form-control" id="observacao" name="observacao" rows="3" maxlength="2000" placeholder="Informe orientações adicionais, se necessário."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" class="btn btn-laranja" id="btnSalvarAgendamento">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script id="dados-lideres" type="application/json">{{ lideres | tojson }}</script>
+<script id="dados-colaboradores" type="application/json">{{ colaboradores | tojson }}</script>
+<script id="dados-procedimentos" type="application/json">{{ procedimentos | tojson }}</script>
+
+<script>
+const LIDERES=JSON.parse(document.getElementById('dados-lideres').textContent||'[]');
+const COLABORADORES=JSON.parse(document.getElementById('dados-colaboradores').textContent||'[]');
+const PROCEDIMENTOS=JSON.parse(document.getElementById('dados-procedimentos').textContent||'[]');
+
+function normalizarTexto(valor){return String(valor||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()}
+function montarTextoPessoa(item){let texto=item.nome||'';if(item.matricula){texto+=` — ${item.matricula}`}return texto}
+function montarTextoProcedimento(item){const codigo=[item.sigla,item.numero_documento].filter(Boolean).join(' ');if(codigo&&item.titulo){return `${codigo} — ${item.titulo}`}return item.titulo||codigo||''}
+function filtrarPessoas(lista,termo){const busca=normalizarTexto(termo);return lista.filter(item=>normalizarTexto(`${item.nome||''} ${item.matricula||''}`).includes(busca)).slice(0,20)}
+function filtrarProcedimentos(lista,termo){const busca=normalizarTexto(termo);return lista.filter(item=>normalizarTexto(`${item.sigla||''} ${item.numero_documento||''} ${item.titulo||''}`).includes(busca)).slice(0,20)}
+function fecharResultados(){document.querySelectorAll('.autocomplete-resultados').forEach(el=>{el.style.display='none';el.innerHTML=''})}
+
+function configurarAutocomplete({inputId,hiddenId,resultadosId,lista,tipo}){
+    const input=document.getElementById(inputId);
+    const hidden=document.getElementById(hiddenId);
+    const resultados=document.getElementById(resultadosId);
+    if(!input||!hidden||!resultados)return;
+
+    function renderizar(){
+        const termo=input.value.trim();
+        hidden.value='';
+        if(termo.length<2){resultados.style.display='none';resultados.innerHTML='';return}
+
+        const itens=tipo==='procedimento'?filtrarProcedimentos(lista,termo):filtrarPessoas(lista,termo);
+        resultados.innerHTML='';
+
+        if(!itens.length){
+            resultados.innerHTML='<div class="autocomplete-vazio">Nenhum resultado encontrado.</div>';
+            resultados.style.display='block';
+            return;
+        }
+
+        itens.forEach(item=>{
+            const botao=document.createElement('button');
+            botao.type='button';
+            botao.className='autocomplete-item';
+            botao.textContent=tipo==='procedimento'?montarTextoProcedimento(item):montarTextoPessoa(item);
+            botao.addEventListener('click',()=>{
+                input.value=botao.textContent;
+                hidden.value=item.id;
+                resultados.style.display='none';
+                resultados.innerHTML='';
+            });
+            resultados.appendChild(botao);
+        });
+
+        resultados.style.display='block';
+    }
+
+    input.addEventListener('input',renderizar);
+    input.addEventListener('focus',()=>{if(input.value.trim().length>=2)renderizar()});
+}
+
+function limparAutocomplete(inputId,hiddenId,resultadosId){
+    const input=document.getElementById(inputId);
+    const hidden=document.getElementById(hiddenId);
+    const resultados=document.getElementById(resultadosId);
+    if(input)input.value='';
+    if(hidden)hidden.value='';
+    if(resultados){resultados.innerHTML='';resultados.style.display='none'}
+}
+
+function atualizarCamposModal(){
+    const pratica=document.getElementById('pratica_modal').value;
+    const campoTema=document.querySelector('.campo-tema');
+    const campoColaborador=document.querySelector('.campo-colaborador');
+    const campoProcedimento=document.querySelector('.campo-procedimento');
+    const tema=document.getElementById('tema_id');
+
+    const exigeTema=pratica==='hora_seguranca';
+    const exigeColaborador=pratica==='hora_seguranca'||pratica==='auditoria_padrao';
+    const exigeProcedimento=pratica==='auditoria_padrao';
+
+    campoTema.classList.toggle('d-none',!exigeTema);
+    campoColaborador.classList.toggle('d-none',!exigeColaborador);
+    campoProcedimento.classList.toggle('d-none',!exigeProcedimento);
+
+    tema.required=exigeTema;
+    if(!exigeTema)tema.value='';
+    if(!exigeColaborador)limparAutocomplete('colaborador_busca','colaborador_previsto_id','colaborador_resultados');
+    if(!exigeProcedimento)limparAutocomplete('procedimento_busca','procedimento_id','procedimento_resultados');
+}
+
+function formatarDataModal(dataIso){
+    if(!dataIso)return'';
+    const partes=dataIso.split('-');
+    if(partes.length!==3)return dataIso;
+    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+}
+
+function definirTituloModal(modo){
+    const titulo=document.getElementById('modalAgendamentoLabel');
+    const botaoSalvar=document.getElementById('btnSalvarAgendamento');
+
+    if(modo==='editar'){
+        titulo.innerHTML='<i class="bi bi-pencil-square me-2"></i>Editar Agendamento';
+        botaoSalvar.textContent='Salvar Alterações';
+    }else{
+        titulo.innerHTML='<i class="bi bi-calendar-plus me-2"></i>Novo Agendamento';
+        botaoSalvar.textContent='Salvar';
+    }
+}
+
+function prepararModalNovo(dataSelecionada){
+    document.getElementById('agendamento_id').value='';
+    definirTituloModal('novo');
+
+    document.getElementById('data_modal').value=dataSelecionada;
+    document.getElementById('modalDataResumo').textContent=formatarDataModal(dataSelecionada);
+    document.getElementById('pratica_modal').value='';
+    document.getElementById('tema_id').value='';
+    document.getElementById('observacao').value='';
+
+    limparAutocomplete('colaborador_busca','colaborador_previsto_id','colaborador_resultados');
+    limparAutocomplete('procedimento_busca','procedimento_id','procedimento_resultados');
+
+    atualizarCamposModal();
+}
+
+function prepararModalEdicao(botao){
+    const dataSelecionada=botao.dataset.data||'';
+    const pratica=botao.dataset.pratica||'';
+
+    document.getElementById('agendamento_id').value=botao.dataset.id||'';
+    definirTituloModal('editar');
+
+    document.getElementById('data_modal').value=dataSelecionada;
+    document.getElementById('modalDataResumo').textContent=formatarDataModal(dataSelecionada);
+    document.getElementById('pratica_modal').value=pratica;
+
+    atualizarCamposModal();
+
+    document.getElementById('tema_id').value=botao.dataset.temaId||'';
+    document.getElementById('observacao').value=botao.dataset.observacao||'';
+
+    document.getElementById('colaborador_previsto_id').value=botao.dataset.colaboradorId||'';
+    document.getElementById('colaborador_busca').value=botao.dataset.colaboradorTexto||'';
+
+    document.getElementById('procedimento_id').value=botao.dataset.procedimentoId||'';
+    document.getElementById('procedimento_busca').value=botao.dataset.procedimentoTexto||'';
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+    configurarAutocomplete({inputId:'lider_busca',hiddenId:'lider_id',resultadosId:'lider_resultados',lista:LIDERES,tipo:'pessoa'});
+    configurarAutocomplete({inputId:'colaborador_busca',hiddenId:'colaborador_previsto_id',resultadosId:'colaborador_resultados',lista:COLABORADORES,tipo:'pessoa'});
+    configurarAutocomplete({inputId:'procedimento_busca',hiddenId:'procedimento_id',resultadosId:'procedimento_resultados',lista:PROCEDIMENTOS,tipo:'procedimento'});
+
+    const formCarregar=document.getElementById('formCarregarCronograma');
+    if(formCarregar){
+        formCarregar.addEventListener('submit',e=>{
+            if(!document.getElementById('lider_id').value){
+                e.preventDefault();
+                alert('Selecione um líder na lista de resultados.');
+            }
+        });
+    }
+
+    document.querySelectorAll('.btn-adicionar-dia').forEach(botao=>{
+        botao.addEventListener('click',()=>prepararModalNovo(botao.dataset.data||''));
+    });
+
+    document.querySelectorAll('.btn-editar-agendamento').forEach(botao=>{
+        botao.addEventListener('click',()=>prepararModalEdicao(botao));
+    });
+
+    const praticaModal=document.getElementById('pratica_modal');
+    if(praticaModal)praticaModal.addEventListener('change',atualizarCamposModal);
+
+    const formModal=document.getElementById('formModalAgendamento');
+    if(formModal){
+        formModal.addEventListener('submit',e=>{
+            const pratica=document.getElementById('pratica_modal').value;
+            const temaId=document.getElementById('tema_id').value;
+            const colaboradorId=document.getElementById('colaborador_previsto_id').value;
+            const procedimentoId=document.getElementById('procedimento_id').value;
+
+            if(pratica==='hora_seguranca'&&!temaId){
+                e.preventDefault();
+                alert('Selecione o tema da Hora de Segurança.');
+                return;
+            }
+
+            if((pratica==='hora_seguranca'||pratica==='auditoria_padrao')&&!colaboradorId){
+                e.preventDefault();
+                alert('Selecione o colaborador na lista de resultados.');
+                return;
+            }
+
+            if(pratica==='auditoria_padrao'&&!procedimentoId){
+                e.preventDefault();
+                alert('Selecione o procedimento na lista de resultados.');
+            }
+        });
+    }
+
+    document.addEventListener('click',e=>{
+        if(!e.target.closest('.autocomplete-wrapper'))fecharResultados();
+    });
+});
+</script>
+
+{% endblock %}

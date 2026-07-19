@@ -1,15 +1,13 @@
 import os
 
 class Config:
-    SQLALCHEMY_DATABASE_URI = (
-        "mysql+mysqlconnector://trackplan:Trackplan%40123@localhost:3306/plano_de_acao_teste"
-    )
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # E-mail local (não obrigatório funcionar agora)
-    MAIL_SERVER = 'smtps.uhserver.com'
-    MAIL_PORT = 465
-    MAIL_USE_SSL = True
-    MAIL_USERNAME = 'trackplan@trackplan.com.br'
-    MAIL_PASSWORD = '7EE@@95a3h'
-    MAIL_DEFAULT_SENDER = 'trackplan@trackplan.com.br'
+    MAIL_SERVER = os.getenv("MAIL_SERVER")
+    MAIL_PORT = int(os.getenv("MAIL_PORT", "465"))
+    MAIL_USE_SSL = os.getenv("MAIL_USE_SSL", "true").lower() == "true"
+    MAIL_USERNAME = os.getenv("MAIL_USERNAME")
+    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
+    MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER") or MAIL_USERNAME

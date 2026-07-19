@@ -1,0 +1,1250 @@
+{% extends "layout.html" %}
+
+{% block title %}Relatório de Aderência SSMA{% endblock %}
+
+{% block conteudo %}
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-clipboard2-data me-2"></i>
+        Relatório de Aderência SSMA
+    </h2>
+</div>
+<hr>
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('main.relatorio_aderencia_ssma') }}" autocomplete="off">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-4 col-xl-3">
+                        <label for="mes" class="form-label">Mês</label>
+                        <input type="month" class="form-control" id="mes" name="mes" value="{{ mes_selecionado }}">
+                    </div>
+
+                    <div class="col-12 col-md-4 col-xl-3">
+                        <label for="pratica" class="form-label">Prática</label>
+                        <select class="form-select" id="pratica" name="pratica">
+                            <option value="">Todas</option>
+                            <option value="hora_seguranca" {% if pratica_selecionada == 'hora_seguranca' %}selected{% endif %}>Hora de Segurança</option>
+                            <option value="auditoria_padrao" {% if pratica_selecionada == 'auditoria_padrao' %}selected{% endif %}>Auditoria de Padrão</option>
+                            <option value="ifs" {% if pratica_selecionada == 'ifs' %}selected{% endif %}>IFS</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-4 col-xl-4 position-relative">
+                        <label for="lider_busca" class="form-label">Líder</label>
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="lider_busca"
+                            placeholder="Digite o nome ou a matrícula"
+                            value="{% if lider_selecionado %}{{ lider_selecionado.nome }}{% if lider_selecionado.matricula %} — {{ lider_selecionado.matricula }}{% endif %}{% endif %}">
+                        <input type="hidden" id="lider_id" name="lider_id" value="{{ lider_id_selecionado or '' }}">
+                        <div id="lider_resultados" class="autocomplete-list shadow-sm d-none"></div>
+                    </div>
+
+                    <div class="col-12 col-xl-2">
+                        <div class="d-flex gap-2 justify-content-end flex-wrap">
+                            <button type="submit" class="btn btn-laranja btn-icon-minimal" title="Filtrar" aria-label="Filtrar">
+                                <i class="bi bi-funnel"></i>
+                            
+                            </button>
+                            <a href="{{ url_for('main.relatorio_aderencia_ssma') }}" class="btn btn-cinza" title="Limpar">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        {% set indicadores_principais = [
+            ('Programadas', indicadores.total_programado, 'bi-calendar-check', 'card-accent-neutral'),
+            ('Concluídas', indicadores.total_concluido, 'bi-check-circle', 'card-accent-success'),
+            ('No prazo', indicadores.total_no_prazo, 'bi-clock-history', 'card-accent-primary'),
+            ('Com atraso', indicadores.total_com_atraso, 'bi-exclamation-triangle', 'card-accent-warning')
+        ] %}
+
+        {% for titulo, valor, icone, classe in indicadores_principais %}
+            <div class="col-6 col-lg-3">
+                <div class="card h-100 shadow-sm metric-card {{ classe }}">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="metric-icon"><i class="bi {{ icone }}"></i></div>
+                        <div>
+                            <div class="text-muted small">{{ titulo }}</div>
+                            <div class="fs-3 fw-bold">{{ valor }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="row g-3 mb-4">
+
+    <!-- ADERÊNCIA -->
+    <div class="col-12 col-lg-6">
+
+        <div class="card shadow-sm h-100">
+
+            <div class="card-body py-3">
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+
+                    <span class="text-muted fw-semibold">
+                        Aderência estrita
+                    </span>
+
+                    <span class="small text-muted">
+                        {{ indicadores.total_aderente }} aderente(s)
+                    </span>
+
+                </div>
+
+                <div
+                    class="progress progress-track"
+                    role="progressbar"
+                    aria-valuemin="0"
+                    aria-valuemax="100">
+
+                    <div
+                        class="progress-bar progress-bar-trackplan js-progress-bar"
+                        data-progress="{{ indicadores.percentual_aderencia }}">
+
+                        {{ '%.2f'|format(indicadores.percentual_aderencia) }}%
+
+                    </div>
+
+                </div>
+
+                <div class="small text-muted mt-2 mb-0">
+                    Considera os registros avaliados como aderentes,
+                    com ressalva ou não aderentes.
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- CUMPRIMENTO -->
+    <div class="col-12 col-lg-6">
+
+        <div class="card shadow-sm h-100">
+
+            <div class="card-body py-3">
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+
+                    <span class="text-muted fw-semibold">
+                        Cumprimento da programação
+                    </span>
+
+                    <span class="small text-muted">
+                        {{ indicadores.total_concluido }} execução(ões)
+                    </span>
+
+                </div>
+
+                <div
+                    class="progress progress-track"
+                    role="progressbar"
+                    aria-valuemin="0"
+                    aria-valuemax="100">
+
+                    <div
+                        class="progress-bar progress-bar-trackplan js-progress-bar"
+                        data-progress="{{ indicadores.percentual_execucao }}">
+
+                        {{ '%.2f'|format(indicadores.percentual_execucao) }}%
+
+                    </div>
+
+                </div>
+
+                <div class="small text-muted mt-2 mb-0">
+                    Relação entre atividades concluídas e atividades
+                    programadas não canceladas.
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-5 g-3 mb-4">
+        {% set distribuicao = [
+            ('Aderentes', indicadores.total_aderente, 'text-success'),
+            ('Com ressalva', indicadores.total_com_ressalva, 'text-warning'),
+            ('Não aderentes', indicadores.total_nao_aderente, 'text-danger'),
+            ('Pendentes', indicadores.total_pendente, 'text-secondary'),
+            ('Canceladas', indicadores.total_cancelado, 'text-dark')
+        ] %}
+
+        {% for titulo, valor, classe in distribuicao %}
+            <div class="col">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center py-4">
+                        <div class="fw-semibold {{ classe }}">{{ titulo }}</div>
+                        <div class="fs-3 fw-bold mt-1">{{ valor }}</div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <strong><i class="bi bi-bar-chart-line me-2"></i>Resumo por prática</strong>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Prática</th>
+                            <th class="text-center">Programadas</th>
+                            <th class="text-center">Concluídas</th>
+                            <th class="text-center">Aderentes</th>
+                            <th class="text-center">Com ressalva</th>
+                            <th class="text-center">Não aderentes</th>
+                            <th class="text-center">Pendentes</th>
+                            <th class="text-center">Canceladas</th>
+                            <th style="min-width: 190px;">Aderência</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for resumo in resumo_praticas %}
+                            <tr>
+                                <td class="fw-semibold">{{ resumo.pratica_nome }}</td>
+                                <td class="text-center">{{ resumo.total_programado }}</td>
+                                <td class="text-center">{{ resumo.total_concluido }}</td>
+                                <td class="text-center text-success">{{ resumo.total_aderente }}</td>
+                                <td class="text-center text-warning">{{ resumo.total_com_ressalva }}</td>
+                                <td class="text-center text-danger">{{ resumo.total_nao_aderente }}</td>
+                                <td class="text-center">{{ resumo.total_pendente }}</td>
+                                <td class="text-center">{{ resumo.total_cancelado }}</td>
+                                <td>
+                                    <div class="small mb-1">{{ '%.2f'|format(resumo.percentual_aderencia) }}%</div>
+                                    <div class="progress progress-track progress-sm">
+                                        <div class="progress-bar progress-bar-trackplan js-progress-bar" data-progress="{{ resumo.percentual_aderencia }}"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">Nenhum registro encontrado para o mês informado.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm" id="detalhamento-agendamentos">
+
+    <div class="card-header bg-white">
+        <strong>
+            <i class="bi bi-list-check me-2"></i>
+            Detalhamento dos agendamentos
+        </strong>
+    </div>
+
+    <div class="card-body p-0">
+
+        <div class="table-responsive">
+
+            <table class="table table-hover align-middle mb-0 report-table">
+
+                {% macro cabecalho_ordenavel(
+                    campo,
+                    titulo,
+                    alinhamento='text-center',
+                    classe_coluna=''
+                ) %}
+
+                    <th class="{{ alinhamento }} {{ classe_coluna }}">
+
+                        <div class="header-sort">
+
+                            <span class="th-label">
+                                {{ titulo }}
+                            </span>
+
+                            <span class="sort-buttons">
+
+                                <a
+                                    class="btn btn-link p-0 text-muted"
+                                    title="Ordenar crescente"
+                                    href="{{ url_for(
+                                        'main.relatorio_aderencia_ssma',
+                                        mes=mes_selecionado,
+                                        pratica=pratica_selecionada,
+                                        lider_id=lider_id_selecionado,
+                                        ordenar_por=campo,
+                                        direcao='asc',
+                                        pagina=1
+                                    ) }}#detalhamento-agendamentos">
+
+                                    <i class="bi bi-caret-up-fill
+                                        {% if ordenar_por == campo and direcao == 'asc' %}
+                                            text-trackplan
+                                        {% endif %}">
+                                    </i>
+
+                                </a>
+
+                                <a
+                                    class="btn btn-link p-0 text-muted"
+                                    title="Ordenar decrescente"
+                                    href="{{ url_for(
+                                        'main.relatorio_aderencia_ssma',
+                                        mes=mes_selecionado,
+                                        pratica=pratica_selecionada,
+                                        lider_id=lider_id_selecionado,
+                                        ordenar_por=campo,
+                                        direcao='desc',
+                                        pagina=1
+                                    ) }}#detalhamento-agendamentos">
+
+                                    <i class="bi bi-caret-down-fill
+                                        {% if ordenar_por == campo and direcao == 'desc' %}
+                                            text-trackplan
+                                        {% endif %}">
+                                    </i>
+
+                                </a>
+
+                            </span>
+
+                        </div>
+
+                    </th>
+
+                {% endmacro %}
+
+
+                <thead class="table-light">
+
+                    <tr>
+
+                        {{ cabecalho_ordenavel(
+                            'agendamento_id',
+                            'ID',
+                            'text-center',
+                            'col-id'
+                        ) }}
+
+                        {{ cabecalho_ordenavel(
+                            'data_programada',
+                            'Programado',
+                            'text-center',
+                            'col-data'
+                        ) }}
+
+                        {{ cabecalho_ordenavel(
+                            'data_realizada',
+                            'Realizado',
+                            'text-center',
+                            'col-data'
+                        ) }}
+
+                        {{ cabecalho_ordenavel(
+                            'pratica',
+                            'Prática',
+                            'text-start',
+                            'col-pratica'
+                        ) }}
+
+                        {{ cabecalho_ordenavel(
+                            'lider',
+                            'Líder',
+                            'text-start',
+                            'col-lider'
+                        ) }}
+
+                        {{ cabecalho_ordenavel(
+                            'resultado_programacao',
+                            'Resultado',
+                            'text-start',
+                            'col-resultado'
+                        ) }}
+
+                        {{ cabecalho_ordenavel(
+                            'classificacao_aderencia',
+                            'Aderência',
+                            'text-start',
+                            'col-aderencia'
+                        ) }}
+
+                        {{ cabecalho_ordenavel(
+                            'desvios_identificados',
+                            'Desvio',
+                            'text-start',
+                            'col-desvio'
+                        ) }}
+
+                        <th class="text-center col-detalhes">
+                            Detalhes
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                    {% for registro in registros %}
+
+                        <tr>
+
+                            <!-- ID -->
+                            <td class="text-center text-nowrap">
+                                #{{ registro.agendamento_id }}
+                            </td>
+
+
+                            <!-- Data programada -->
+                            <td class="text-center text-nowrap">
+
+                                {% if registro.data_programada %}
+
+                                    {{ registro.data_programada.strftime('%d/%m/%Y') }}
+
+                                {% else %}
+
+                                    —
+
+                                {% endif %}
+
+                            </td>
+
+
+                            <!-- Data realizada sem hora -->
+                            <td class="text-center text-nowrap">
+
+                                {% if registro.data_realizada %}
+
+                                    {{ registro.data_realizada.strftime('%d/%m/%Y') }}
+
+                                {% else %}
+
+                                    —
+
+                                {% endif %}
+
+                            </td>
+
+
+                            <!-- Prática sem badge -->
+                            <td class="text-start">
+
+                                {% if registro.pratica == 'hora_seguranca' %}
+
+                                    Hora de Segurança
+
+                                {% elif registro.pratica == 'auditoria_padrao' %}
+
+                                    Auditoria de Padrão
+
+                                {% elif registro.pratica == 'ifs' %}
+
+                                    IFS
+
+                                {% else %}
+
+                                    {{ registro.pratica or '—' }}
+
+                                {% endif %}
+
+                            </td>
+
+
+                            <!-- Líder -->
+                            <td class="text-start lider-cell">
+
+                                <div class="fw-semibold">
+                                    {{ registro.lider_nome or '—' }}
+                                </div>
+
+                                {% if registro.lider_matricula %}
+
+                                    <div class="small text-muted">
+                                        {{ registro.lider_matricula }}
+                                    </div>
+
+                                {% endif %}
+
+                            </td>
+
+
+                            <!-- Resultado sem badge -->
+                            <td class="text-start">
+
+                                {% if registro.resultado_programacao ==
+                                      'Cumprida na data programada' %}
+
+                                    Na data programada
+
+                                {% elif registro.resultado_programacao ==
+                                        'Cumprida antecipadamente' %}
+
+                                    Antecipada
+
+                                {% elif registro.resultado_programacao ==
+                                        'Cumprida com atraso' %}
+
+                                    Com atraso
+
+                                {% elif registro.resultado_programacao ==
+                                        'Não cumprida' %}
+
+                                    Não cumprida
+
+                                {% elif registro.resultado_programacao ==
+                                        'Pendente' %}
+
+                                    Pendente
+
+                                {% elif registro.resultado_programacao ==
+                                        'Cancelada' %}
+
+                                    Cancelada
+
+                                {% else %}
+
+                                    {{ registro.resultado_programacao or '—' }}
+
+                                {% endif %}
+
+                            </td>
+
+
+                            <!-- Aderência sem badge -->
+                            <td class="text-start">
+
+                                {% if registro.classificacao_aderencia ==
+                                      'Aderente com ressalva' %}
+
+                                    Com ressalva
+
+                                {% else %}
+
+                                    {{ registro.classificacao_aderencia or '—' }}
+
+                                {% endif %}
+
+                            </td>
+
+
+                            <!-- Desvio sem destaque visual -->
+                            <td class="text-start deviation-cell">
+
+                                {% if registro.desvios_identificados %}
+
+                                    {{ registro.desvios_identificados }}
+
+                                {% else %}
+
+                                    Sem desvios identificados
+
+                                {% endif %}
+
+                            </td>
+
+
+                            <!-- Detalhes -->
+                            <td class="text-center">
+
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-laranja detail-toggle"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#detalhes-{{ registro.agendamento_id }}"
+                                    aria-expanded="false"
+                                    aria-controls="detalhes-{{ registro.agendamento_id }}">
+
+                                    <i class="bi bi-chevron-down"></i>
+
+                                    <span class="detail-toggle-label">
+                                        Ver
+                                    </span>
+
+                                </button>
+
+                            </td>
+
+                        </tr>
+
+
+                        <!-- Linha expansível -->
+                        <tr
+                            class="collapse detail-row"
+                            id="detalhes-{{ registro.agendamento_id }}">
+
+                            <td colspan="9" class="bg-light">
+
+                                <div class="p-3">
+
+                                    <div class="row g-4">
+
+                                        <!-- Programado -->
+                                        <div class="col-12 col-lg-4">
+
+                                            <div class="detail-panel h-100">
+
+                                                <h6 class="detail-title">
+
+                                                    <i class="bi bi-calendar-event me-2"></i>
+
+                                                    Programado
+
+                                                </h6>
+
+                                                <dl class="row mb-0">
+
+                                                    <dt class="col-5">
+                                                        Data
+                                                    </dt>
+
+                                                    <dd class="col-7">
+
+                                                        {% if registro.data_programada %}
+
+                                                            {{ registro.data_programada.strftime('%d/%m/%Y') }}
+
+                                                        {% else %}
+
+                                                            —
+
+                                                        {% endif %}
+
+                                                    </dd>
+
+
+                                                    <dt class="col-5">
+                                                        Líder
+                                                    </dt>
+
+                                                    <dd class="col-7">
+                                                        {{ registro.lider_nome or '—' }}
+                                                    </dd>
+
+
+                                                    {% if registro.pratica ==
+                                                          'hora_seguranca' %}
+
+                                                        <dt class="col-5">
+                                                            Tema
+                                                        </dt>
+
+                                                        <dd class="col-7">
+                                                            {{ registro.tema_programado_nome or '—' }}
+                                                        </dd>
+
+                                                        <dt class="col-5">
+                                                            Participante
+                                                        </dt>
+
+                                                        <dd class="col-7">
+                                                            {{ registro.colaborador_previsto_nome or '—' }}
+                                                        </dd>
+
+                                                    {% elif registro.pratica ==
+                                                            'auditoria_padrao' %}
+
+                                                        <dt class="col-5">
+                                                            Auditado
+                                                        </dt>
+
+                                                        <dd class="col-7">
+                                                            {{ registro.colaborador_previsto_nome or '—' }}
+                                                        </dd>
+
+                                                        <dt class="col-5">
+                                                            Procedimento
+                                                        </dt>
+
+                                                        <dd class="col-7">
+                                                            {{ registro.procedimento_programado_nome or '—' }}
+                                                        </dd>
+
+                                                    {% endif %}
+
+
+                                                    <dt class="col-5">
+                                                        Observação
+                                                    </dt>
+
+                                                    <dd class="col-7">
+                                                        {{ registro.observacao_programacao or '—' }}
+                                                    </dd>
+
+                                                </dl>
+
+                                            </div>
+
+                                        </div>
+
+
+                                        <!-- Realizado -->
+                                        <div class="col-12 col-lg-4">
+
+                                            <div class="detail-panel h-100">
+
+                                                <h6 class="detail-title">
+
+                                                    <i class="bi bi-check2-circle me-2"></i>
+
+                                                    Realizado
+
+                                                </h6>
+
+                                                <dl class="row mb-0">
+
+                                                    <dt class="col-5">
+                                                        Data
+                                                    </dt>
+
+                                                    <dd class="col-7">
+
+                                                        {% if registro.data_realizada %}
+
+                                                            {{ registro.data_realizada.strftime('%d/%m/%Y') }}
+
+                                                        {% else %}
+
+                                                            —
+
+                                                        {% endif %}
+
+                                                    </dd>
+
+
+                                                    <dt class="col-5">
+                                                        Executor
+                                                    </dt>
+
+                                                    <dd class="col-7">
+                                                        {{ registro.executor_nome or '—' }}
+                                                    </dd>
+
+
+                                                    {% if registro.pratica ==
+                                                          'hora_seguranca' %}
+
+                                                        <dt class="col-5">
+                                                            Tema
+                                                        </dt>
+
+                                                        <dd class="col-7">
+                                                            {{ registro.tema_realizado_nome or '—' }}
+                                                        </dd>
+
+                                                        <dt class="col-5">
+                                                            Participantes
+                                                        </dt>
+
+                                                        <dd class="col-7">
+                                                            {{ registro.participantes_realizados_hs or '—' }}
+                                                        </dd>
+
+                                                        <dt class="col-5">
+                                                            Local
+                                                        </dt>
+
+                                                        <dd class="col-7">
+                                                            {{ registro.local_realizado_hs or '—' }}
+                                                        </dd>
+
+                                                    {% elif registro.pratica ==
+                                                            'auditoria_padrao' %}
+
+                                                        <dt class="col-5">
+                                                            Auditado
+                                                        </dt>
+
+                                                        <dd class="col-7">
+                                                            {{ registro.auditado_realizado_nome or '—' }}
+                                                        </dd>
+
+                                                        <dt class="col-5">
+                                                            Procedimento
+                                                        </dt>
+
+                                                        <dd class="col-7">
+                                                            {{ registro.procedimento_realizado_nome or '—' }}
+                                                        </dd>
+                                                        <dt class="col-5">
+                                                            Área
+                                                        </dt>
+                                                        <dd class="col-7">
+                                                            {{ registro.area_auditada or '—' }}
+                                                        </dd>
+                                                    {% elif registro.pratica ==
+                                                            'ifs' %}
+                                                        <dt class="col-5">
+                                                            Local
+                                                        </dt>
+                                                        <dd class="col-7">
+                                                            {{ registro.local_inspecao or '—' }}
+                                                        </dd>
+                                                        <dt class="col-5">
+                                                            Participantes
+                                                        </dt>
+                                                        <dd class="col-7">
+                                                            {{ registro.participantes_realizados_ifs or '—' }}
+                                                        </dd>
+                                                        <dt class="col-5">
+                                                            Itens avaliados
+                                                        </dt>
+                                                        <dd class="col-7">
+                                                            {{ registro.total_itens_avaliados or 0 }}
+                                                        </dd>
+                                                        <dt class="col-5">
+                                                            Não conformidades
+                                                        </dt>
+                                                        <dd class="col-7">
+                                                            {{ registro.total_nao_conformidades or 0 }}
+                                                        </dd>
+                                                    {% endif %}
+                                                </dl>
+                                            </div>
+                                        </div>
+                                        <!-- Validação -->
+                                        <div class="col-12 col-lg-4">
+                                            <div class="detail-panel h-100">
+                                                <h6 class="detail-title">
+                                                    <i class="bi bi-shield-check me-2"></i>
+                                                    Validação
+                                                </h6>
+                                                <dl class="row mb-0">
+                                                    <dt class="col-5">
+                                                        Classificação
+                                                    </dt>
+                                                    <dd class="col-7">
+                                                        {{ registro.classificacao_aderencia or '—' }}
+                                                    </dd>
+                                                    <dt class="col-5">
+                                                        Desvio em dias
+                                                    </dt>
+                                                    <dd class="col-7">
+                                                        {% if registro.dias_desvio_data is not none %}
+                                                            {{ registro.dias_desvio_data }}
+                                                        {% else %}
+                                                            —
+                                                        {% endif %}
+                                                    </dd>
+                                                    <dt class="col-5">
+                                                        Desvios
+                                                    </dt>
+                                                    <dd class="col-7">
+                                                        {{ registro.desvios_identificados or 'Sem desvios identificados' }}
+                                                    </dd>
+                                                    <dt class="col-5">
+                                                        Justificativa
+                                                    </dt>
+                                                    <dd class="col-7">
+                                                        {{ registro.justificativa_alteracao or 'Não informada' }}
+                                                    </dd>
+                                                </dl>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td
+                                colspan="9"
+                                class="text-center text-muted py-5">
+                                Nenhum agendamento encontrado com os filtros selecionados.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+    {% if paginacao.total_paginas %}
+        <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+
+            <div class="text-muted small">
+                Exibindo página {{ paginacao.pagina_atual }}
+                de {{ paginacao.total_paginas }}
+                — {{ paginacao.total_registros }} registro(s)
+            </div>
+
+            <nav aria-label="Paginação do relatório">
+                <ul class="pagination pagination-sm mb-0">
+
+                    <li class="page-item {% if not paginacao.tem_anterior %}disabled{% endif %}">
+                        <a
+                            class="page-link"
+                            href="{{ url_for(
+                                'main.relatorio_aderencia_ssma',
+                                mes=mes_selecionado,
+                                pratica=pratica_selecionada,
+                                lider_id=lider_id_selecionado,
+                                ordenar_por=ordenar_por,
+                                direcao=direcao,
+                                pagina=paginacao.pagina_anterior or 1
+                            ) }}#detalhamento-agendamentos">
+                            Anterior
+                        </a>
+                    </li>
+
+                    {% for numero in range(1, paginacao.total_paginas + 1) %}
+
+                        {% if
+                            numero == 1
+                            or numero == paginacao.total_paginas
+                            or (
+                                numero >= paginacao.pagina_atual - 2
+                                and numero <= paginacao.pagina_atual + 2
+                            )
+                        %}
+
+                            <li class="page-item {% if numero == paginacao.pagina_atual %}active{% endif %}">
+                                <a
+                                    class="page-link"
+                                    href="{{ url_for(
+                                        'main.relatorio_aderencia_ssma',
+                                        mes=mes_selecionado,
+                                        pratica=pratica_selecionada,
+                                        lider_id=lider_id_selecionado,
+                                        ordenar_por=ordenar_por,
+                                        direcao=direcao,
+                                        pagina=numero
+                                    ) }}#detalhamento-agendamentos">
+                                    {{ numero }}
+                                </a>
+                            </li>
+
+                        {% elif
+                            numero == paginacao.pagina_atual - 3
+                            or numero == paginacao.pagina_atual + 3
+                        %}
+
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+
+                        {% endif %}
+
+                    {% endfor %}
+
+                    <li class="page-item {% if not paginacao.tem_proxima %}disabled{% endif %}">
+                        <a
+                            class="page-link"
+                            href="{{ url_for(
+                                'main.relatorio_aderencia_ssma',
+                                mes=mes_selecionado,
+                                pratica=pratica_selecionada,
+                                lider_id=lider_id_selecionado,
+                                ordenar_por=ordenar_por,
+                                direcao=direcao,
+                                pagina=paginacao.pagina_proxima or paginacao.total_paginas
+                            ) }}#detalhamento-agendamentos">
+                            Próxima
+                        </a>
+                    </li>
+
+                </ul>
+            </nav>
+
+        </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.js-progress-bar').forEach(function (barra) {
+        const valor = parseFloat(barra.dataset.progress);
+        const valorSeguro = Number.isFinite(valor) ? Math.min(Math.max(valor, 0), 100) : 0;
+        barra.style.width = valorSeguro + '%';
+        barra.setAttribute('aria-valuenow', valorSeguro);
+    });
+
+    const lideres = Array.from(
+        document.querySelectorAll('.js-lider-dado')
+    ).map(function (elemento) {
+        return {
+            id: elemento.dataset.id,
+            nome: elemento.dataset.nome || '',
+            matricula: elemento.dataset.matricula || ''
+        };
+    });
+
+    const campoBusca = document.getElementById('lider_busca');
+    const campoId = document.getElementById('lider_id');
+    const listaResultados = document.getElementById('lider_resultados');
+
+    function normalizarTexto(valor) {
+        return (valor || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    }
+
+    function fecharResultados() {
+        listaResultados.innerHTML = '';
+        listaResultados.classList.add('d-none');
+    }
+
+    function selecionarLider(lider) {
+        campoBusca.value = lider.nome + (lider.matricula ? ' — ' + lider.matricula : '');
+        campoId.value = lider.id;
+        fecharResultados();
+    }
+
+    function renderizarResultados(termo) {
+        const termoNormalizado = normalizarTexto(termo);
+        if (!termoNormalizado) {
+            fecharResultados();
+            return;
+        }
+
+        const encontrados = lideres.filter(function (lider) {
+            return normalizarTexto(lider.nome).includes(termoNormalizado)
+                || normalizarTexto(lider.matricula).includes(termoNormalizado);
+        }).slice(0, 10);
+
+        listaResultados.innerHTML = '';
+
+        if (!encontrados.length) {
+            const vazio = document.createElement('div');
+            vazio.className = 'autocomplete-empty';
+            vazio.textContent = 'Nenhum líder encontrado.';
+            listaResultados.appendChild(vazio);
+            listaResultados.classList.remove('d-none');
+            return;
+        }
+
+        encontrados.forEach(function (lider) {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'autocomplete-item';
+
+            const nome = document.createElement('span');
+            nome.className = 'fw-semibold';
+            nome.textContent = lider.nome;
+
+            const matricula = document.createElement('small');
+            matricula.className = 'text-muted';
+            matricula.textContent = lider.matricula || '';
+
+            item.appendChild(nome);
+            item.appendChild(matricula);
+            item.addEventListener('click', function () { selecionarLider(lider); });
+            listaResultados.appendChild(item);
+        });
+
+        listaResultados.classList.remove('d-none');
+    }
+
+    campoBusca.addEventListener('input', function () {
+        campoId.value = '';
+        renderizarResultados(campoBusca.value);
+    });
+
+    campoBusca.addEventListener('focus', function () {
+        if (campoBusca.value.trim()) renderizarResultados(campoBusca.value);
+    });
+
+    document.addEventListener('click', function (evento) {
+        if (!campoBusca.contains(evento.target) && !listaResultados.contains(evento.target)) fecharResultados();
+    });
+
+    document.querySelectorAll('.detail-row').forEach(function (linha) {
+        const botao = document.querySelector('[data-bs-target="#' + linha.id + '"]');
+        if (!botao) return;
+
+        const rotulo = botao.querySelector('.detail-toggle-label');
+        const icone = botao.querySelector('i');
+
+        linha.addEventListener('shown.bs.collapse', function () {
+            rotulo.textContent = 'Rec.';
+            icone.classList.remove('bi-chevron-down');
+            icone.classList.add('bi-chevron-up');
+            botao.setAttribute('aria-expanded', 'true');
+        });
+
+        linha.addEventListener('hidden.bs.collapse', function () {
+            rotulo.textContent = 'Ver';
+            icone.classList.remove('bi-chevron-up');
+            icone.classList.add('bi-chevron-down');
+            botao.setAttribute('aria-expanded', 'false');
+        });
+    });
+});
+</script>
+
+<style>
+.page-header-line { width: 90px; height: 3px; border-radius: 999px; background: #ea6a23; }
+.btn-icon-minimal { width: 42px; height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.metric-card { border-left: 4px solid #adb5bd; }
+.card-accent-success { border-left-color: #198754; }
+.card-accent-primary { border-left-color: #0d6efd; }
+.card-accent-warning { border-left-color: #ffc107; }
+.metric-icon { width: 42px; height: 42px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #f8f9fa; font-size: 1.25rem; flex: 0 0 auto; }
+.progress-track { height: 18px; }
+.progress-sm { height: 8px; }
+.autocomplete-list { position: absolute; top: 100%; left: calc(var(--bs-gutter-x) * .5); right: calc(var(--bs-gutter-x) * .5); z-index: 1050; max-height: 280px; overflow-y: auto; background: #fff; border: 1px solid #dee2e6; border-radius: .375rem; margin-top: 4px; }
+.autocomplete-item { width: 100%; border: 0; background: #fff; padding: .65rem .85rem; display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
+.autocomplete-item:hover, .autocomplete-item:focus { background: #fff4eb; }
+.autocomplete-empty { padding: .75rem .85rem; color: #6c757d; }
+.th-label { font-weight: 600; }
+.text-trackplan { color: #ea6a23 !important; }
+.progress-bar-trackplan { background-color: #ea6a23 !important; }
+.report-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+.report-table th {
+    vertical-align: middle;
+    padding: 0.55rem 0.35rem;
+    font-size: 0.86rem;
+}
+
+.report-table td {
+    vertical-align: middle;
+    padding: 0.6rem 0.45rem;
+    font-size: 0.86rem;
+    overflow-wrap: break-word;
+}
+
+/* ID */
+.report-table .col-id {
+    width: 4%;
+}
+
+/* Data programada e realizada */
+.report-table .col-data {
+    width: 11%;
+}
+
+/* Prática */
+.report-table .col-pratica {
+    width: 10%;
+}
+
+/* Líder */
+.report-table .col-lider {
+    width: 19%;
+}
+
+/* Resultado */
+.report-table .col-resultado {
+    width: 10%;
+}
+
+/* Aderência */
+.report-table .col-aderencia {
+    width: 10%;
+}
+
+/* Desvio */
+.report-table .col-desvio {
+    width: 18%;
+}
+
+/* Detalhes */
+.report-table .col-detalhes {
+    width: 7%;
+}
+
+/* Impede quebra nas colunas compactas */
+.report-table th.col-id,
+.report-table td:nth-child(1),
+.report-table th.col-data,
+.report-table td:nth-child(2),
+.report-table td:nth-child(3),
+.report-table th.col-detalhes,
+.report-table td:nth-child(9) {
+    white-space: nowrap;
+}
+
+/* Mais espaço útil para o nome do líder */
+.lider-cell {
+    white-space: normal;
+    line-height: 1.35;
+}
+
+/* Permite quebra controlada no desvio */
+.deviation-cell {
+    min-width: 0;
+    max-width: none;
+    white-space: normal;
+    line-height: 1.35;
+}
+
+/* Evita quebra dentro do botão */
+.detail-toggle {
+    white-space: nowrap;
+}
+.detail-panel { background: #fff; border: 1px solid #dee2e6; border-radius: .5rem; padding: 1rem; }
+.detail-title { color: #ea6a23; border-bottom: 1px solid #e9ecef; padding-bottom: .65rem; margin-bottom: 1rem; }
+.detail-panel dt { font-size: .85rem; color: #6c757d; }
+.detail-panel dd { font-size: .9rem; word-break: break-word; }
+.header-sort {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 14px;
+    align-items: center;
+    column-gap: 0.25rem;
+    width: 100%;
+}
+
+.header-sort .th-label {
+    min-width: 0;
+    line-height: 1.15;
+    font-weight: 600;
+    overflow-wrap: normal;
+    word-break: normal;
+}
+
+.sort-buttons {
+    width: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    gap: 0;
+}
+
+.sort-buttons .btn {
+    width: 14px;
+    height: 10px;
+    min-height: 0;
+    margin: 0;
+    padding: 0 !important;
+    border: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.sort-buttons .btn:hover,
+.sort-buttons .btn:focus {
+    background: transparent;
+    box-shadow: none;
+}
+
+.sort-buttons i {
+    display: block;
+    font-size: 0.62rem;
+    line-height: 1;
+}
+
+</style>
+{% endblock %}

@@ -19,3 +19,13 @@ instance/
 .DS_Store
 .vscode/
 .idea/
+
+# Arquivos locais de trabalho e backups
+work/
+*.bak-*
+
+# Uploads gerados em execução
+app/static/aprs/
+app/static/evidencias/
+app/static/evidencias_treinamentos/
+app/static/pcpm_movimentacoes/

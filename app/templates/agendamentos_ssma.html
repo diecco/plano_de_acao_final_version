@@ -1,0 +1,447 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Agenda de Práticas de SSMA{% endblock %}
+
+{% block conteudo %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-calendar-check me-2"></i>
+        Agenda de Práticas de SSMA
+    </h2>
+</div>
+
+<hr>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                        aria-label="Fechar">
+                </button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- FILTROS -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET"
+              action="{{ url_for('main.listar_agendamentos_ssma') }}">
+
+            <input type="hidden"
+                   name="sort"
+                   value="{{ filtros.get('sort', 'data') }}">
+
+            <input type="hidden"
+                   name="order"
+                   value="{{ filtros.get('order', 'desc') }}">
+
+            <div class="row g-3 align-items-end">
+
+                <div class="col-md-4">
+                    <label for="lider_id"
+                           class="form-label">
+                        Líder
+                    </label>
+
+                    <select class="form-select"
+                            id="lider_id"
+                            name="lider_id">
+
+                        <option value="">Todos</option>
+
+                        {% for lider in lideres %}
+                            <option value="{{ lider.id }}"
+                                    {% if filtros.get('lider_id', '') == lider.id|string %}
+                                        selected
+                                    {% endif %}>
+                                {{ lider.nome }}
+                                {% if lider.matricula %}
+                                    — {{ lider.matricula }}
+                                {% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="mes"
+                           class="form-label">
+                        Mês/Ano
+                    </label>
+
+                    <input type="month"
+                           class="form-control"
+                           id="mes"
+                           name="mes"
+                           value="{{ filtros.get('mes', '') }}">
+                </div>
+
+                <div class="col-md-3">
+                    <label for="pratica"
+                           class="form-label">
+                        Prática
+                    </label>
+
+                    <select class="form-select"
+                            id="pratica"
+                            name="pratica">
+
+                        <option value="">Todas</option>
+
+                        <option value="hora_seguranca"
+                                {% if filtros.get('pratica', '') == 'hora_seguranca' %}
+                                    selected
+                                {% endif %}>
+                            Hora de Segurança
+                        </option>
+
+                        <option value="auditoria_padrao"
+                                {% if filtros.get('pratica', '') == 'auditoria_padrao' %}
+                                    selected
+                                {% endif %}>
+                            Auditoria de Padrão
+                        </option>
+
+                        <option value="ifs"
+                                {% if filtros.get('pratica', '') == 'ifs' %}
+                                    selected
+                                {% endif %}>
+                            IFS
+                        </option>
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <div class="d-flex gap-2 justify-content-end">
+
+                        <button type="submit"
+                                class="btn btn-laranja"
+                                title="Filtrar"
+                                aria-label="Filtrar">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+
+                        <a href="{{ url_for('main.listar_agendamentos_ssma', limpar=1) }}"
+                           class="btn btn-cinza"
+                           title="Limpar filtros"
+                           aria-label="Limpar filtros">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+
+                        <a href="{{ url_for('main.novo_agendamento_ssma') }}"
+                           class="btn btn-laranja"
+                           title="Novo agendamento"
+                           aria-label="Novo agendamento">
+                            <i class="bi bi-plus-circle"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- TABELA -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+
+            <table class="table table-bordered align-middle table-fixed"
+                   id="tabelaAgendamentosSSMA">
+
+                <thead class="table-light">
+                    <tr>
+
+                        <th style="width: 90px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">ID</span>
+
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar crescente"
+                                       href="{{ url_for(
+                                           'main.listar_agendamentos_ssma',
+                                           lider_id=filtros.get('lider_id', ''),
+                                           mes=filtros.get('mes', ''),
+                                           pratica=filtros.get('pratica', ''),
+                                           sort='id',
+                                           order='asc'
+                                       ) }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar decrescente"
+                                       href="{{ url_for(
+                                           'main.listar_agendamentos_ssma',
+                                           lider_id=filtros.get('lider_id', ''),
+                                           mes=filtros.get('mes', ''),
+                                           pratica=filtros.get('pratica', ''),
+                                           sort='id',
+                                           order='desc'
+                                       ) }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 320px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Líder</span>
+
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar crescente"
+                                       href="{{ url_for(
+                                           'main.listar_agendamentos_ssma',
+                                           lider_id=filtros.get('lider_id', ''),
+                                           mes=filtros.get('mes', ''),
+                                           pratica=filtros.get('pratica', ''),
+                                           sort='lider',
+                                           order='asc'
+                                       ) }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar decrescente"
+                                       href="{{ url_for(
+                                           'main.listar_agendamentos_ssma',
+                                           lider_id=filtros.get('lider_id', ''),
+                                           mes=filtros.get('mes', ''),
+                                           pratica=filtros.get('pratica', ''),
+                                           sort='lider',
+                                           order='desc'
+                                       ) }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 150px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Data</span>
+
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar crescente"
+                                       href="{{ url_for(
+                                           'main.listar_agendamentos_ssma',
+                                           lider_id=filtros.get('lider_id', ''),
+                                           mes=filtros.get('mes', ''),
+                                           pratica=filtros.get('pratica', ''),
+                                           sort='data',
+                                           order='asc'
+                                       ) }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar decrescente"
+                                       href="{{ url_for(
+                                           'main.listar_agendamentos_ssma',
+                                           lider_id=filtros.get('lider_id', ''),
+                                           mes=filtros.get('mes', ''),
+                                           pratica=filtros.get('pratica', ''),
+                                           sort='data',
+                                           order='desc'
+                                       ) }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 240px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Prática</span>
+
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar crescente"
+                                       href="{{ url_for(
+                                           'main.listar_agendamentos_ssma',
+                                           lider_id=filtros.get('lider_id', ''),
+                                           mes=filtros.get('mes', ''),
+                                           pratica=filtros.get('pratica', ''),
+                                           sort='pratica',
+                                           order='asc'
+                                       ) }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar decrescente"
+                                       href="{{ url_for(
+                                           'main.listar_agendamentos_ssma',
+                                           lider_id=filtros.get('lider_id', ''),
+                                           mes=filtros.get('mes', ''),
+                                           pratica=filtros.get('pratica', ''),
+                                           sort='pratica',
+                                           order='desc'
+                                       ) }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 120px;">
+                            <span class="th-label">Ações</span>
+                        </th>
+
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for item in agendamentos %}
+                        <tr>
+
+                            <td class="text-center">
+                                {{ item.id }}
+                            </td>
+
+                            <td class="td-truncate"
+                                title="{{ item.nome_lider or '' }}">
+                                {{ item.nome_lider or '-' }}
+                            </td>
+
+                            <td class="text-center">
+                                {{ item.data_programada.strftime('%d/%m/%Y') if item.data_programada else '-' }}
+                            </td>
+
+                            <td>
+                                {% if item.pratica == 'hora_seguranca' %}
+                                    Hora de Segurança
+                                {% elif item.pratica == 'auditoria_padrao' %}
+                                    Auditoria de Padrão
+                                {% elif item.pratica == 'ifs' %}
+                                    IFS
+                                {% else %}
+                                    {{ item.pratica or '-' }}
+                                {% endif %}
+                            </td>
+
+                            <td class="text-center">
+                                {% if item.data_programada and item.lider_id %}
+                                    <a href="{{ url_for(
+                                                'main.novo_agendamento_ssma',
+                                                mes=item.data_programada.strftime('%Y-%m'),
+                                                lider_id=item.lider_id
+                                            ) }}"
+                                       class="btn-acao-icon"
+                                       title="Abrir calendário"
+                                       aria-label="Abrir calendário">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+
+                        </tr>
+
+                    {% else %}
+                        <tr>
+                            <td colspan="5"
+                                class="text-center text-muted">
+                                Nenhum agendamento encontrado.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+
+        </div>
+    </div>
+</div>
+
+{% if total_paginas %}
+<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+
+    <div class="text-muted small">
+        Exibindo página {{ page }} de {{ total_paginas }}
+        — {{ total_registros }} registro(s)
+    </div>
+
+    <nav aria-label="Paginação dos agendamentos">
+        <ul class="pagination pagination-sm mb-0">
+
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for(
+                       'main.listar_agendamentos_ssma',
+                       lider_id=filtros.get('lider_id', ''),
+                       mes=filtros.get('mes', ''),
+                       pratica=filtros.get('pratica', ''),
+                       sort=filtros.get('sort', 'data'),
+                       order=filtros.get('order', 'desc'),
+                       page=page-1
+                   ) }}">
+                    Anterior
+                </a>
+            </li>
+
+            {% for p in range(1, total_paginas + 1) %}
+                {% if
+                    p == 1
+                    or p == total_paginas
+                    or (p >= page - 2 and p <= page + 2)
+                %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link"
+                           href="{{ url_for(
+                               'main.listar_agendamentos_ssma',
+                               lider_id=filtros.get('lider_id', ''),
+                               mes=filtros.get('mes', ''),
+                               pratica=filtros.get('pratica', ''),
+                               sort=filtros.get('sort', 'data'),
+                               order=filtros.get('order', 'desc'),
+                               page=p
+                           ) }}">
+                            {{ p }}
+                        </a>
+                    </li>
+
+                {% elif p == page - 3 or p == page + 3 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            <li class="page-item {% if page >= total_paginas %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for(
+                       'main.listar_agendamentos_ssma',
+                       lider_id=filtros.get('lider_id', ''),
+                       mes=filtros.get('mes', ''),
+                       pratica=filtros.get('pratica', ''),
+                       sort=filtros.get('sort', 'data'),
+                       order=filtros.get('order', 'desc'),
+                       page=page+1
+                   ) }}">
+                    Próxima
+                </a>
+            </li>
+
+        </ul>
+    </nav>
+
+</div>
+{% endif %}
+
+{% endblock %}

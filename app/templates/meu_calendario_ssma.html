@@ -1,0 +1,478 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Meu Calendário de SSMA{% endblock %}
+
+{% block conteudo %}
+
+<style>
+    .resumo-card {
+        border: 0;
+        border-left: 4px solid #dee2e6;
+        box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.06);
+    }
+
+    .resumo-card .resumo-valor {
+        font-size: 1.5rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .resumo-agendada {
+        border-left-color: #0d6efd;
+    }
+
+    .resumo-concluida {
+        border-left-color: #198754;
+    }
+
+    .resumo-vencida {
+        border-left-color: #dc3545;
+    }
+
+    .resumo-alteracao {
+        border-left-color: #fd7e14;
+    }
+
+    .calendario-container {
+        overflow-x: auto;
+    }
+
+    .calendario-mensal {
+        width: 100%;
+        min-width: 1080px;
+        table-layout: fixed;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .calendario-mensal th {
+        padding: 0.75rem 0.5rem;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        color: #495057;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-align: center;
+        text-transform: uppercase;
+    }
+
+    .calendario-mensal td {
+        height: 190px;
+        padding: 0;
+        vertical-align: top;
+        background: #fff;
+        border: 1px solid #dee2e6;
+    }
+
+    .calendario-dia {
+        min-height: 188px;
+        padding: 0.55rem;
+    }
+
+    .calendario-dia-fora {
+        background: #f8f9fa;
+        color: #adb5bd;
+    }
+
+    .calendario-dia-cabecalho {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+
+    .calendario-numero {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #212529;
+    }
+
+    .calendario-dia-fora .calendario-numero {
+        color: #adb5bd;
+    }
+
+    .calendario-domingo .calendario-numero {
+        color: #dc3545;
+    }
+
+    .calendario-hoje {
+        background: #fff8ef;
+    }
+
+    .calendario-hoje .calendario-numero {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        height: 28px;
+        padding: 0 0.35rem;
+        border-radius: 50%;
+        background: #ea6a23;
+        color: #fff;
+    }
+
+    .lista-praticas-dia {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+    }
+
+    .pratica-card {
+        border: 1px solid #dee2e6;
+        border-left-width: 4px;
+        border-radius: 0.45rem;
+        padding: 0.5rem;
+        background: #fff;
+        font-size: 0.77rem;
+        line-height: 1.3;
+    }
+
+    .status-agendada {
+        border-left-color: #0d6efd;
+        background: #f4f8ff;
+    }
+
+    .status-hoje {
+        border-left-color: #ffc107;
+        background: #fffaf0;
+    }
+
+    .status-vencida {
+        border-left-color: #dc3545;
+        background: #fff5f5;
+    }
+
+    .status-concluida {
+        border-left-color: #198754;
+        background: #f3fbf6;
+    }
+
+    .status-concluida_com_alteracao {
+        border-left-color: #fd7e14;
+        background: #fff7f0;
+    }
+
+    .status-concluida_com_atraso {
+        border-left-color: #6f42c1;
+        background: #f8f5ff;
+    }
+
+    .status-cancelada {
+        border-left-color: #6c757d;
+        background: #f8f9fa;
+    }
+
+    .pratica-titulo {
+        font-weight: 600;
+        margin-bottom: 0.2rem;
+    }
+
+    .pratica-detalhe {
+        color: #495057;
+        margin-bottom: 0.1rem;
+        word-break: break-word;
+    }
+
+    .pratica-status {
+        margin-top: 0.35rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .btn-executar-pratica {
+        width: 100%;
+        padding: 0.25rem 0.45rem;
+        font-size: 0.75rem;
+    }
+
+    .navegacao-mes {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    @media (max-width: 767.98px) {
+        .calendario-mensal td {
+            height: 160px;
+        }
+
+        .calendario-dia {
+            min-height: 158px;
+        }
+    }
+</style>
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-calendar-check me-2"></i>
+        Meu Calendário de SSMA
+    </h2>
+</div>
+
+<hr>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                        aria-label="Fechar">
+                </button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- RESUMO -->
+<div class="row g-3 mb-4">
+
+    <div class="col-md-3">
+        <div class="card resumo-card resumo-agendada h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-2">Agendadas</div>
+                <div class="resumo-valor">{{ resumo.agendadas or 0 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card resumo-card resumo-concluida h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-2">Concluídas</div>
+                <div class="resumo-valor">{{ resumo.concluidas or 0 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card resumo-card resumo-vencida h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-2">Vencidas</div>
+                <div class="resumo-valor">{{ resumo.vencidas or 0 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card resumo-card resumo-alteracao h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-2">Com alteração</div>
+                <div class="resumo-valor">{{ resumo.com_alteracao or 0 }}</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- CALENDÁRIO -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+
+            <div>
+                <h5 class="text-laranja mb-1">
+                    <i class="bi bi-calendar3 me-2"></i>
+                    {{ mes_exibicao }}
+                </h5>
+
+                <div class="text-muted">
+                    {{ lider.nome }}
+                    {% if lider.matricula %}
+                        — {{ lider.matricula }}
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="navegacao-mes">
+
+                <a href="{{ url_for(
+                            'main.meu_calendario_ssma',
+                            mes=mes_anterior
+                        ) }}"
+                   class="btn btn-cinza"
+                   title="Mês anterior"
+                   aria-label="Mês anterior">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+
+                <a href="{{ url_for('main.meu_calendario_ssma') }}"
+                   class="btn btn-laranja"
+                   title="Mês atual"
+                   aria-label="Mês atual">
+                    <i class="bi bi-calendar-event"></i>
+                </a>
+
+                <a href="{{ url_for(
+                            'main.meu_calendario_ssma',
+                            mes=proximo_mes
+                        ) }}"
+                   class="btn btn-cinza"
+                   title="Próximo mês"
+                   aria-label="Próximo mês">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+
+            </div>
+        </div>
+
+        <div class="calendario-container">
+            <table class="calendario-mensal">
+                <thead>
+                    <tr>
+                        <th>Seg</th>
+                        <th>Ter</th>
+                        <th>Qua</th>
+                        <th>Qui</th>
+                        <th>Sex</th>
+                        <th>Sáb</th>
+                        <th>Dom</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for semana in calendario_semanas %}
+                        <tr>
+                            {% for dia in semana %}
+                                <td class="
+                                    {% if not dia.no_mes %}calendario-dia-fora{% endif %}
+                                    {% if loop.index == 7 %}calendario-domingo{% endif %}
+                                    {% if dia.hoje %}calendario-hoje{% endif %}
+                                ">
+
+                                    <div class="calendario-dia">
+
+                                        <div class="calendario-dia-cabecalho">
+                                            <span class="calendario-numero">
+                                                {{ dia.numero }}
+                                            </span>
+                                        </div>
+
+                                        {% if dia.no_mes %}
+                                            <div class="lista-praticas-dia">
+
+                                                {% for item in dia.agendamentos %}
+                                                    <div class="pratica-card status-{{ item.status_visual }}">
+
+                                                        <div class="pratica-titulo">
+                                                            {% if item.pratica == 'hora_seguranca' %}
+                                                                Hora de Segurança
+                                                            {% elif item.pratica == 'auditoria_padrao' %}
+                                                                Auditoria de Padrão
+                                                            {% elif item.pratica == 'ifs' %}
+                                                                IFS
+                                                            {% else %}
+                                                                {{ item.pratica }}
+                                                            {% endif %}
+                                                        </div>
+
+                                                        {% if item.pratica == 'hora_seguranca' %}
+                                                            <div class="pratica-detalhe">
+                                                                Tema: {{ item.nome_tema or '—' }}
+                                                            </div>
+
+                                                            <div class="pratica-detalhe">
+                                                                Colaborador: {{ item.nome_colaborador_previsto or '—' }}
+                                                            </div>
+
+                                                        {% elif item.pratica == 'auditoria_padrao' %}
+                                                            <div class="pratica-detalhe">
+                                                                Procedimento: {{ item.nome_procedimento or '—' }}
+                                                            </div>
+
+                                                            <div class="pratica-detalhe">
+                                                                Colaborador: {{ item.nome_colaborador_previsto or '—' }}
+                                                            </div>
+
+                                                        {% elif item.pratica == 'ifs' %}
+                                                            <div class="pratica-detalhe">
+                                                                Inspeção de Frente de Serviço
+                                                            </div>
+                                                        {% endif %}
+
+                                                        <div class="pratica-status">
+                                                            {% if item.status_visual == 'agendada' %}
+                                                                <span class="badge bg-primary">Agendada</span>
+
+                                                            {% elif item.status_visual == 'hoje' %}
+                                                                <span class="badge bg-warning text-dark">Hoje</span>
+
+                                                            {% elif item.status_visual == 'vencida' %}
+                                                                <span class="badge bg-danger">Vencida</span>
+
+                                                            {% elif item.status_visual == 'concluida' %}
+                                                                <span class="badge bg-success">Concluída</span>
+
+                                                            {% elif item.status_visual == 'concluida_com_alteracao' %}
+                                                                <span class="badge bg-warning text-dark">
+                                                                    Concluída com alteração
+                                                                </span>
+
+                                                            {% elif item.status_visual == 'concluida_com_atraso' %}
+                                                                <span class="badge bg-secondary">
+                                                                    Concluída com atraso
+                                                                </span>
+
+                                                            {% elif item.status_visual == 'cancelada' %}
+                                                                <span class="badge bg-secondary">Cancelada</span>
+
+                                                            {% else %}
+                                                                <span class="badge bg-light text-dark">
+                                                                    {{ item.status_visual }}
+                                                                </span>
+                                                            {% endif %}
+                                                        </div>
+
+                                                        {% if item.pode_executar %}
+                                                            <a href="{{ url_for(
+                                                                        'main.executar_agendamento_ssma',
+                                                                        id=item.id
+                                                                    ) }}"
+                                                               class="btn btn-laranja btn-executar-pratica"
+                                                               title="Executar prática">
+                                                                <i class="bi bi-play-circle me-1"></i>
+                                                                Executar
+                                                            </a>
+
+                                                        {% elif item.registro_executado_id %}
+                                                            <span class="text-success small">
+                                                                <i class="bi bi-check-circle me-1"></i>
+                                                                Prática executada
+                                                            </span>
+                                                        {% endif %}
+
+                                                    </div>
+
+                                                {% else %}
+                                                    <div class="text-muted small">
+                                                        Sem práticas.
+                                                    </div>
+                                                {% endfor %}
+
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+                                </td>
+                            {% endfor %}
+                        </tr>
+
+                    {% else %}
+                        <tr>
+                            <td colspan="7"
+                                class="text-center text-muted p-4">
+                                Nenhum calendário disponível.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

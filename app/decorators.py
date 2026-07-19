@@ -1,5 +1,13 @@
 from functools import wraps
-from flask import redirect, session, flash
+from flask import flash, jsonify, redirect, session, url_for
+
+
+PERFIS_VALIDOS = {
+    'basico',
+    'intermediario',
+    'avancado',
+    'administrador',
+}
 
 
 def login_required(f):
@@ -8,6 +16,25 @@ def login_required(f):
         if 'usuario_id' not in session:
             flash('Faça login para acessar esta página.', 'warning')
             return redirect('/login')
+
+        perfil = session.get('perfil')
+
+        if perfil not in PERFIS_VALIDOS:
+            session.clear()
+            flash('Sua sessão possui um perfil de acesso inválido.', 'danger')
+            return redirect('/login')
+
+        if (
+            perfil == 'intermediario'
+            and not session.get('centro_custos_id')
+        ):
+            session.clear()
+            flash(
+                'Usuário intermediário sem Centro de Custo vinculado.',
+                'danger'
+            )
+            return redirect('/login')
+
         return f(*args, **kwargs)
     return decorated_function
 
@@ -55,6 +82,57 @@ def perfil_required(*perfis_permitidos):
         return decorated_function
     return decorator
 
+
+def api_module_required(module_key):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if session.get('perfil') == 'administrador':
+                return f(*args, **kwargs)
+
+            if not session.get(module_key):
+                return jsonify({
+                    'sucesso': False,
+                    'mensagem': 'Você não possui permissão para acessar este módulo.'
+                }), 403
+
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+
+def gerenciar_agendamentos_ssma_required(func):
+    @wraps(func)
+    def decorated_function(*args, **kwargs):
+        if (
+            session.get('perfil') == 'administrador'
+            or session.get('pode_criar_agendamento_ssma', False)
+        ):
+            return func(*args, **kwargs)
+
+        flash(
+            'Você não possui permissão para gerenciar os agendamentos de SSMA.',
+            'danger'
+        )
+        return redirect(url_for('main.dashboard'))
+
+    return decorated_function
+
+
+def lider_ssma_required(func):
+    @wraps(func)
+    def decorated_function(*args, **kwargs):
+        if session.get('pode_ser_lider_ssma', False):
+            return func(*args, **kwargs)
+
+        flash(
+            'Seu usuário não está habilitado como líder de SSMA.',
+            'warning'
+        )
+        return redirect(url_for('main.dashboard'))
+
+    return decorated_function
+
 # =========================
 # FUNÇÕES AUXILIARES DE PERMISSÃO POR REGISTRO
 # =========================
@@ -83,6 +161,9 @@ def pode_acessar_acao(cursor, acao_id):
         return acao
 
     if perfil == 'intermediario':
+        if not centro_custos_id:
+            return None
+
         if acao.get('centro_custos_responsavel_id') == centro_custos_id:
             return acao
 
@@ -156,8 +237,12 @@ def pode_acessar_ssma(cursor, tipo_registro, registro_id):
     if perfil in ['administrador', 'avancado']:
         return registro
 
-    if perfil == 'intermediario' and registro.get('centro_custos_autor_id') == centro_custos_id:
-        return registro
+    if perfil == 'intermediario':
+        if not centro_custos_id:
+            return None
+
+        if registro.get('centro_custos_autor_id') == centro_custos_id:
+            return registro
 
     if perfil == 'basico' and registro.get(campo_autor) == usuario_id:
         return registro

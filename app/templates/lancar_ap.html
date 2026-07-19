@@ -4,96 +4,258 @@
 
 {% block conteudo %}
 
+<style>
+    .ap-contexto-agendamento {
+        border-left: 4px solid #ea6a23;
+        background: #fff8f2;
+    }
+
+    .ap-resumo-item {
+        min-width: 200px;
+    }
+
+    .ap-tabela-itens th,
+    .ap-tabela-itens td {
+        vertical-align: middle;
+    }
+
+    .ap-modal-textarea {
+        min-height: 120px;
+        resize: vertical;
+    }
+
+    .ap-autocomplete-lista {
+        z-index: 1050;
+        display: none;
+        max-height: 240px;
+        overflow-y: auto;
+    }
+</style>
+
 <div class="page-header">
     <h2 class="page-title">
         <i class="bi bi-clipboard-check me-2"></i>
         Auditoria de Padrão
     </h2>
 </div>
+
 <hr>
 
-<form method="POST" action="{{ url_for('main.lancar_ap') }}" id="formAuditoriaPadrao">
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
 
-    <input type="hidden" name="desvios_json" id="desvios_json">
-    <input type="hidden" name="solicitacao_revisao_json" id="solicitacao_revisao_json">
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                        aria-label="Fechar">
+                </button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
 
-    <!-- DADOS PRINCIPAIS -->
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
-            <h5 class="text-laranja mb-3">Dados da Auditoria</h5>
+<form method="POST"
+      action="{{ url_for('main.lancar_ap') }}"
+      id="formAuditoriaPadrao">
 
-            <div class="row g-3">
+    <input type="hidden"
+           name="agendamento_id"
+           id="agendamento_id"
+           value="{{ agendamento_id or '' }}">
 
-                <div class="col-md-4 position-relative">
-                    <label for="auditor_busca" class="form-label">Auditor</label>
+    <input type="hidden"
+           name="next"
+           id="next_url"
+           value="{{ next_url or url_for('main.listar_ap') }}">
 
-                    <input type="hidden" name="auditor_id" id="auditor_id" required>
+    <input type="hidden"
+           name="justificativa_alteracao"
+           id="justificativa_alteracao">
 
-                    <input type="text"
-                        class="form-control"
-                        id="auditor_busca"
-                        placeholder="Digite matrícula ou nome..."
-                        autocomplete="off"
-                        required>
+    <input type="hidden"
+           name="desvios_json"
+           id="desvios_json">
 
-                    <div id="listaAuditores"
-                        class="list-group position-absolute w-100 shadow-sm"
-                        style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+    <input type="hidden"
+           name="solicitacao_revisao_json"
+           id="solicitacao_revisao_json">
+
+    {% if agendamento %}
+        <div class="card shadow-sm border-0 mb-4 ap-contexto-agendamento">
+            <div class="card-body">
+
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+
+                    <div>
+                        <h5 class="text-laranja mb-1">
+                            <i class="bi bi-calendar-check me-2"></i>
+                            Execução de prática agendada
+                        </h5>
+
+                        <div class="text-muted">
+                            Agendamento #{{ agendamento.id }}
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-3">
+
+                        <div class="ap-resumo-item">
+                            <small class="text-muted d-block">
+                                Data programada
+                            </small>
+
+                            <strong>
+                                {{ agendamento.data_programada.strftime('%d/%m/%Y') if agendamento.data_programada else '—' }}
+                            </strong>
+                        </div>
+
+                        <div class="ap-resumo-item">
+                            <small class="text-muted d-block">
+                                Colaborador previsto
+                            </small>
+
+                            <strong>
+                                {{ auditado_previsto_nome or '—' }}
+                            </strong>
+                        </div>
+
+                        <div class="ap-resumo-item">
+                            <small class="text-muted d-block">
+                                Procedimento previsto
+                            </small>
+
+                            <strong>
+                                {{ procedimento_previsto_texto or '—' }}
+                            </strong>
+                        </div>
+
                     </div>
                 </div>
 
-                <div class="col-md-4 position-relative">
-                    <label for="auditado_busca" class="form-label">Auditado</label>
+            </div>
+        </div>
+    {% endif %}
 
-                    <input type="hidden" name="auditado_id" id="auditado_id" required>
+    <!-- DADOS DA AUDITORIA -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+
+            <h5 class="text-laranja mb-3">
+                <i class="bi bi-clipboard-data me-2"></i>
+                Dados da Auditoria
+            </h5>
+
+            <div class="row g-3">
+
+                <div class="col-md-4">
+                    <label class="form-label">Auditor</label>
 
                     <input type="text"
-                        class="form-control"
-                        id="auditado_busca"
-                        placeholder="Digite matrícula ou nome..."
-                        autocomplete="off"
-                        required>
+                           class="form-control campo-readonly"
+                           value="{{ session.get('nome') }}"
+                           readonly>
+
+                    <input type="hidden"
+                           name="auditor_id"
+                           id="auditor_id"
+                           value="{{ session.get('usuario_id') }}">
+                </div>
+
+                <div class="col-md-4 position-relative">
+                    <label for="auditado_busca"
+                           class="form-label">
+                        Auditado
+                    </label>
+
+                    <input type="hidden"
+                           name="auditado_id"
+                           id="auditado_id"
+                           value="{{ auditado_previsto_id or '' }}"
+                           required>
+
+                    <input type="text"
+                           class="form-control"
+                           id="auditado_busca"
+                           value="{{ auditado_previsto_texto or '' }}"
+                           placeholder="Digite matrícula ou nome..."
+                           autocomplete="off"
+                           required>
 
                     <div id="listaAuditados"
-                        class="list-group position-absolute w-100 shadow-sm"
-                        style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+                         class="list-group position-absolute w-100 shadow-sm ap-autocomplete-lista">
                     </div>
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label">Data da Auditoria</label>
-                    <input type="date" name="data_auditoria" class="form-control" required>
+                    <label for="data_auditoria"
+                           class="form-label">
+                        Data da Auditoria
+                    </label>
+
+                    <input type="date"
+                           name="data_auditoria"
+                           id="data_auditoria"
+                           class="form-control"
+                           value="{{ data_inicial or hoje or '' }}"
+                           required>
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">Área Auditada</label>
-                    <input type="text" name="area_auditada" class="form-control" required>
+                    <label for="area_auditada"
+                           class="form-label">
+                        Área Auditada
+                    </label>
+
+                    <input type="text"
+                           name="area_auditada"
+                           id="area_auditada"
+                           class="form-control"
+                           required>
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">Atividade Auditada</label>
-                    <input type="text" name="atividade_auditada" class="form-control" required>
+                    <label for="atividade_auditada"
+                           class="form-label">
+                        Atividade Auditada
+                    </label>
+
+                    <input type="text"
+                           name="atividade_auditada"
+                           id="atividade_auditada"
+                           class="form-control"
+                           required>
                 </div>
 
                 <div class="col-md-12 position-relative">
+                    <label for="procedimento_busca"
+                           class="form-label">
+                        Procedimento / Revisão Vigente
+                    </label>
 
-                    <label class="form-label">Procedimento / Revisão Vigente</label>
+                    <input type="hidden"
+                           name="procedimento_id"
+                           id="procedimento_id"
+                           value="{{ procedimento_previsto_id or '' }}">
 
-                    <input type="hidden" name="procedimento_id" id="procedimento_id">
-                    <input type="hidden" name="procedimento_revisao_id" id="procedimento_revisao_id">
+                    <input type="hidden"
+                           name="procedimento_revisao_id"
+                           id="procedimento_revisao_id"
+                           value="{{ procedimento_revisao_prevista_id or '' }}">
 
                     <input type="text"
-                        class="form-control"
-                        id="procedimento_busca"
-                        placeholder="Digite número, título ou sigla..."
-                        autocomplete="off"
-                        required>
+                           class="form-control"
+                           id="procedimento_busca"
+                           value="{{ procedimento_previsto_texto or '' }}"
+                           placeholder="Digite número, título ou sigla..."
+                           autocomplete="off"
+                           required>
 
                     <div id="listaProcedimentos"
-                        class="list-group position-absolute w-100 shadow-sm"
-                        style="z-index: 1050; display: none; max-height: 240px; overflow-y: auto;">
+                         class="list-group position-absolute w-100 shadow-sm ap-autocomplete-lista">
                     </div>
-
                 </div>
 
             </div>
@@ -103,10 +265,15 @@
     <!-- CHECKLIST -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
-            <h5 class="text-laranja mb-3">Itens de Verificação</h5>
+
+            <h5 class="text-laranja mb-3">
+                <i class="bi bi-list-check me-2"></i>
+                Itens de Verificação
+            </h5>
 
             <div class="table-responsive">
-                <table class="table table-bordered align-middle">
+                <table class="table table-bordered align-middle ap-tabela-itens">
+
                     <thead class="table-light">
                         <tr>
                             <th style="width: 70px;">Item</th>
@@ -131,154 +298,239 @@
                         ] %}
 
                         {% for item in itens %}
-                        <tr data-item="{{ loop.index }}">
-                            <td class="text-center fw-semibold">{{ loop.index }}</td>
+                            <tr data-item="{{ loop.index }}">
 
-                            <td>
-                                {{ item }}
-                                <input type="hidden" name="item_texto_{{ loop.index }}" value="{{ item }}">
-                            </td>
+                                <td class="text-center fw-semibold">
+                                    {{ loop.index }}
+                                </td>
 
-                            <td>
-                                <select name="resultado_{{ loop.index }}"
-                                        class="form-select resultado-item"
-                                        data-item="{{ loop.index }}">
-                                    <option value="C" selected>Conforme</option>
-                                    <option value="NC">Não Conforme</option>
-                                    <option value="NA">Não se aplica</option>
-                                </select>
-                            </td>
+                                <td>
+                                    {{ item }}
 
-                            <td class="text-center">
-                                <button type="button"
-                                        class="btn btn-sm btn-laranja btn-desvio"
-                                        data-item="{{ loop.index }}"
-                                        data-texto="{{ item|e }}"
-                                        style="display:none;">
-                                    <i class="bi bi-plus-circle me-1"></i>
-                                    Registrar
-                                </button>
+                                    <input type="hidden"
+                                           name="item_texto_{{ loop.index }}"
+                                           value="{{ item }}">
+                                </td>
 
-                                <span class="badge bg-success badge-desvio" id="badge_desvio_{{ loop.index }}" style="display:none;">
-                                    Registrado
-                                </span>
-                            </td>
-                        </tr>
+                                <td>
+                                    <select name="resultado_{{ loop.index }}"
+                                            class="form-select resultado-item"
+                                            data-item="{{ loop.index }}">
+                                        <option value="C" selected>Conforme</option>
+                                        <option value="NC">Não Conforme</option>
+                                        <option value="NA">Não se aplica</option>
+                                    </select>
+                                </td>
+
+                                <td class="text-center">
+                                    <button type="button"
+                                            class="btn btn-sm btn-laranja btn-desvio"
+                                            data-item="{{ loop.index }}"
+                                            data-texto="{{ item|e }}"
+                                            style="display:none;"
+                                            title="Registrar desvio">
+                                        <i class="bi bi-plus-circle"></i>
+                                    </button>
+
+                                    <span class="badge bg-success badge-desvio"
+                                          id="badge_desvio_{{ loop.index }}"
+                                          style="display:none;">
+                                        Registrado
+                                    </span>
+                                </td>
+
+                            </tr>
                         {% endfor %}
                     </tbody>
+
                 </table>
             </div>
 
             <div class="alert alert-light border mb-0">
-                Ao marcar um item como <strong>Não Conforme</strong>, será necessário registrar o desvio e a ação correspondente.
+                Ao marcar um item como <strong>Não Conforme</strong>,
+                será necessário registrar o desvio e a ação correspondente.
             </div>
+
         </div>
     </div>
 
     <!-- OBSERVAÇÕES -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
-            <h5 class="text-laranja mb-3">Pontos Observados / Oportunidades de Melhoria</h5>
+
+            <h5 class="text-laranja mb-3">
+                <i class="bi bi-chat-left-text me-2"></i>
+                Pontos Observados / Oportunidades de Melhoria
+            </h5>
 
             <textarea name="pontos_observados"
+                      id="pontos_observados"
                       class="form-control"
                       rows="5"
                       placeholder="Descreva pontos relevantes observados durante a auditoria, boas práticas, oportunidades de melhoria ou comentários gerais."></textarea>
+
         </div>
     </div>
 
-    <!-- SOLICITAÇÃO DE REVISÃO -->
+    <!-- REVISÃO DO PADRÃO -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
+
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+
                 <div>
-                    <h5 class="text-laranja mb-1">Solicitação de Revisão do Padrão</h5>
+                    <h5 class="text-laranja mb-1">
+                        <i class="bi bi-file-earmark-text me-2"></i>
+                        Solicitação de Revisão do Padrão
+                    </h5>
+
                     <div class="text-muted small">
-                        Use esta opção quando a prática de campo indicar necessidade de revisar o procedimento vigente.
+                        Use esta opção quando a prática de campo indicar necessidade
+                        de revisar o procedimento vigente.
                     </div>
                 </div>
 
                 <button type="button"
                         class="btn btn-laranja"
                         data-bs-toggle="modal"
-                        data-bs-target="#modalRevisaoPadrao">
-                    <i class="bi bi-file-earmark-text me-1"></i>
-                    Solicitar Revisão
+                        data-bs-target="#modalRevisaoPadrao"
+                        title="Solicitar revisão"
+                        aria-label="Solicitar revisão">
+                    <i class="bi bi-plus-circle"></i>
                 </button>
+
             </div>
 
-            <div id="resumoSolicitacaoRevisao" class="alert alert-light border mt-3 mb-0" style="display:none;">
+            <div id="resumoSolicitacaoRevisao"
+                 class="alert alert-light border mt-3 mb-0"
+                 style="display:none;">
                 Solicitação de revisão registrada para envio ao salvar a auditoria.
             </div>
+
         </div>
     </div>
 
     <div class="d-flex justify-content-between mt-4 gap-2">
-        <a href="{{ url_for('main.listar_ap') }}" class="btn btn-cinza">
-             Voltar
+
+        <a href="{{ next_url or url_for('main.listar_ap') }}"
+           class="btn btn-cinza">
+            Voltar
         </a>
 
-        <button type="submit" class="btn btn-laranja">
+        <button type="submit"
+                class="btn btn-laranja">
             Salvar
         </button>
+
     </div>
 
 </form>
 
 <!-- MODAL DESVIO -->
-<div class="modal fade" id="modalDesvioAP" tabindex="-1" aria-labelledby="modalDesvioAPLabel" aria-hidden="true">
+<div class="modal fade"
+     id="modalDesvioAP"
+     tabindex="-1"
+     aria-labelledby="modalDesvioAPLabel"
+     aria-hidden="true">
+
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
 
             <div class="modal-header modal-header-trackplan">
-                <h5 class="modal-title" id="modalDesvioAPLabel">
-                    <i class="bi bi-exclamation-triangle"></i>
+                <h5 class="modal-title"
+                    id="modalDesvioAPLabel">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
                     Registrar Desvio e Ação
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Fechar">
+                </button>
             </div>
 
             <div class="modal-body">
 
-                <input type="hidden" id="modal_desvio_item_numero">
+                <input type="hidden"
+                       id="modal_desvio_item_numero">
 
                 <div class="mb-3">
-                    <label class="form-label">Item de Verificação</label>
-                    <input type="text" id="modal_desvio_item_texto" class="form-control campo-readonly" readonly>
+                    <label for="modal_desvio_item_texto"
+                           class="form-label">
+                        Item de Verificação
+                    </label>
+
+                    <input type="text"
+                           id="modal_desvio_item_texto"
+                           class="form-control campo-readonly"
+                           readonly>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Desvio Observado</label>
-                    <textarea id="modal_desvio_observado" class="form-control" rows="4"></textarea>
+                    <label for="modal_desvio_observado"
+                           class="form-label">
+                        Desvio Observado
+                    </label>
+
+                    <textarea id="modal_desvio_observado"
+                              class="form-control ap-modal-textarea"></textarea>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Ação Proposta</label>
-                    <textarea id="modal_acao_proposta" class="form-control" rows="4"></textarea>
+                    <label for="modal_acao_proposta"
+                           class="form-label">
+                        Ação Proposta
+                    </label>
+
+                    <textarea id="modal_acao_proposta"
+                              class="form-control ap-modal-textarea"></textarea>
                 </div>
 
                 <div class="row g-3">
+
                     <div class="col-md-8">
-                        <label class="form-label">Responsável pela Ação</label>
-                        <select id="modal_responsavel_id" class="form-select">
+                        <label for="modal_responsavel_id"
+                               class="form-label">
+                            Responsável pela Ação
+                        </label>
+
+                        <select id="modal_responsavel_id"
+                                class="form-select">
                             <option value="">Selecione</option>
-                            {% for u in usuarios %}
-                                <option value="{{ u.id }}">{{ u.nome }}</option>
+
+                            {% for usuario in usuarios %}
+                                <option value="{{ usuario.id }}">
+                                    {{ usuario.nome }}
+                                </option>
                             {% endfor %}
                         </select>
                     </div>
 
                     <div class="col-md-4">
-                        <label class="form-label">Prazo</label>
-                        <input type="date" id="modal_prazo" class="form-control">
-                    </div>
-                </div>
+                        <label for="modal_prazo"
+                               class="form-label">
+                            Prazo
+                        </label>
 
+                        <input type="date"
+                               id="modal_prazo"
+                               class="form-control">
+                    </div>
+
+                </div>
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button>
-                <button type="button" class="btn btn-laranja" id="btnSalvarDesvio">
+                <button type="button"
+                        class="btn btn-cinza"
+                        data-bs-dismiss="modal">
+                    Fechar
+                </button>
+
+                <button type="button"
+                        class="btn btn-laranja"
+                        id="btnSalvarDesvio">
                     Salvar Desvio
                 </button>
             </div>
@@ -287,51 +539,163 @@
     </div>
 </div>
 
-<!-- MODAL REVISÃO DO PADRÃO -->
-<div class="modal fade" id="modalRevisaoPadrao" tabindex="-1" aria-labelledby="modalRevisaoPadraoLabel" aria-hidden="true">
+<!-- MODAL REVISÃO -->
+<div class="modal fade"
+     id="modalRevisaoPadrao"
+     tabindex="-1"
+     aria-labelledby="modalRevisaoPadraoLabel"
+     aria-hidden="true">
+
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
 
             <div class="modal-header modal-header-trackplan">
-                <h5 class="modal-title" id="modalRevisaoPadraoLabel">
-                    <i class="bi bi-file-earmark-text"></i>
+                <h5 class="modal-title"
+                    id="modalRevisaoPadraoLabel">
+                    <i class="bi bi-file-earmark-text me-2"></i>
                     Solicitação de Revisão do Padrão
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Fechar">
+                </button>
             </div>
 
             <div class="modal-body">
 
                 <div class="alert alert-light border">
-                    A solicitação será convertida automaticamente em uma ação para o responsável por revisão de padrão, com prazo de 30 dias.
+                    A solicitação será convertida automaticamente em uma ação
+                    para o responsável por revisão de padrão, com prazo de 30 dias.
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Procedimento / Revisão Vigente</label>
-                    <input type="text" id="modal_revisao_procedimento_texto" class="form-control campo-readonly" readonly>
+                    <label for="modal_revisao_procedimento_texto"
+                           class="form-label">
+                        Procedimento / Revisão Vigente
+                    </label>
+
+                    <input type="text"
+                           id="modal_revisao_procedimento_texto"
+                           class="form-control campo-readonly"
+                           readonly>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Oportunidade de Revisão Identificada</label>
-                    <textarea id="modal_oportunidade_revisao" class="form-control" rows="4"></textarea>
+                    <label for="modal_oportunidade_revisao"
+                           class="form-label">
+                        Oportunidade de Revisão Identificada
+                    </label>
+
+                    <textarea id="modal_oportunidade_revisao"
+                              class="form-control ap-modal-textarea"></textarea>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Justificativa / Evidência Observada em Campo</label>
-                    <textarea id="modal_justificativa_revisao" class="form-control" rows="4"></textarea>
+                    <label for="modal_justificativa_revisao"
+                           class="form-label">
+                        Justificativa / Evidência Observada em Campo
+                    </label>
+
+                    <textarea id="modal_justificativa_revisao"
+                              class="form-control ap-modal-textarea"></textarea>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Sugestão de Alteração</label>
-                    <textarea id="modal_sugestao_revisao" class="form-control" rows="4"></textarea>
+                    <label for="modal_sugestao_revisao"
+                           class="form-label">
+                        Sugestão de Alteração
+                    </label>
+
+                    <textarea id="modal_sugestao_revisao"
+                              class="form-control ap-modal-textarea"></textarea>
                 </div>
 
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button>
-                <button type="button" class="btn btn-laranja" id="btnSalvarRevisaoPadrao">
+                <button type="button"
+                        class="btn btn-cinza"
+                        data-bs-dismiss="modal">
+                    Fechar
+                </button>
+
+                <button type="button"
+                        class="btn btn-laranja"
+                        id="btnSalvarRevisaoPadrao">
                     Registrar Solicitação
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- MODAL JUSTIFICATIVA DE ALTERAÇÃO -->
+<div class="modal fade"
+     id="modalJustificativaAlteracao"
+     tabindex="-1"
+     aria-labelledby="modalJustificativaAlteracaoLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+
+            <div class="modal-header modal-header-trackplan">
+                <h5 class="modal-title"
+                    id="modalJustificativaAlteracaoLabel">
+                    <i class="bi bi-exclamation-circle me-2"></i>
+                    Justificar alteração
+                </h5>
+
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Fechar">
+                </button>
+            </div>
+
+            <div class="modal-body">
+
+                <div class="alert alert-warning">
+                    A execução está diferente do que foi programado.
+                    Informe o motivo antes de concluir.
+                </div>
+
+                <div class="mb-3">
+                    <label for="textoJustificativaAlteracao"
+                           class="form-label">
+                        Justificativa
+                    </label>
+
+                    <textarea id="textoJustificativaAlteracao"
+                              class="form-control ap-modal-textarea"
+                              maxlength="1000"
+                              placeholder="Descreva o motivo da alteração"></textarea>
+
+                    <div class="invalid-feedback">
+                        Informe a justificativa da alteração.
+                    </div>
+                </div>
+
+                <div id="motivosAlteracao"
+                     class="small text-muted">
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="button"
+                        class="btn btn-cinza"
+                        data-bs-dismiss="modal">
+                    Voltar
+                </button>
+
+                <button type="button"
+                        class="btn btn-laranja"
+                        id="btnConfirmarJustificativa">
+                    Confirmar e salvar
                 </button>
             </div>
 
@@ -347,127 +711,102 @@
     {{ usuarios | tojson }}
 </script>
 
+<script id="auditado-previsto-data" type="application/json">
+    {{ (auditado_previsto_id or '') | tojson }}
+</script>
+
+<script id="procedimento-previsto-data" type="application/json">
+    {{ (procedimento_previsto_id or '') | tojson }}
+</script>
+
 <script>
 let desviosAP = {};
 let solicitacaoRevisaoAP = null;
+let envioConfirmado = false;
+
+const AGENDAMENTO_ID =
+    document.getElementById("agendamento_id")?.value || "livre";
 
 const procedimentosAP = JSON.parse(
-    document.getElementById('procedimentos-data').textContent
+    document.getElementById("procedimentos-data").textContent || "[]"
 );
 
-function formatarProcedimento(p) {
-    return `${p.sigla} - ${p.numero_documento} - ${p.titulo} | Rev. ${p.numero_revisao}`;
-}
-
-function configurarBuscaProcedimento() {
-    const input = document.getElementById('procedimento_busca');
-    const lista = document.getElementById('listaProcedimentos');
-
-    if (!input || !lista) return;
-
-    input.addEventListener('input', function () {
-        const termo = normalizarTextoAP(input.value);
-
-        lista.innerHTML = '';
-        lista.style.display = 'none';
-
-        if (termo.length < 2) return;
-
-        const resultados = procedimentosAP.filter(p => {
-            const texto = normalizarTextoAP(
-                `${p.sigla} ${p.numero_documento} ${p.titulo}`
-            );
-            return texto.includes(termo);
-        }).slice(0, 12);
-
-        if (resultados.length === 0) {
-            lista.innerHTML = `
-                <div class="list-group-item text-muted">
-                    Nenhum procedimento encontrado.
-                </div>
-            `;
-            lista.style.display = 'block';
-            return;
-        }
-
-        resultados.forEach(p => {
-            const item = document.createElement('button');
-            item.type = 'button';
-            item.className = 'list-group-item list-group-item-action text-start';
-
-            item.innerHTML = `
-                <strong>${p.sigla} - ${p.numero_documento}</strong><br>
-                <small>${p.titulo}</small><br>
-                <span class="badge bg-secondary">Rev. ${p.numero_revisao}</span>
-            `;
-
-            item.addEventListener('click', function () {
-                input.value = formatarProcedimento(p);
-                document.getElementById('procedimento_id').value = p.procedimento_id;
-                document.getElementById('procedimento_revisao_id').value = p.revisao_id;
-
-                const inputModal = document.getElementById('modal_revisao_procedimento_texto');
-                if (inputModal) {
-                    inputModal.value = formatarProcedimento(p);
-                }
-
-                lista.style.display = 'none';
-            });
-
-            lista.appendChild(item);
-        });
-
-        lista.style.display = 'block';
-    });
-
-    input.addEventListener('blur', function () {
-        setTimeout(() => {
-            lista.style.display = 'none';
-        }, 200);
-    });
-}
-
 const usuariosDisponiveisAP = JSON.parse(
-    document.getElementById('usuarios-data').textContent
+    document.getElementById("usuarios-data").textContent || "[]"
+);
+
+const AUDITADO_PREVISTO_ID = JSON.parse(
+    document.getElementById("auditado-previsto-data").textContent || '""'
+);
+
+const PROCEDIMENTO_PREVISTO_ID = JSON.parse(
+    document.getElementById("procedimento-previsto-data").textContent || '""'
 );
 
 function normalizarTextoAP(texto) {
-    return String(texto || '')
+    return String(texto || "")
         .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+}
+
+function formatarProcedimento(procedimento) {
+    return `${procedimento.sigla} - ${procedimento.numero_documento} - ${procedimento.titulo} | Rev. ${procedimento.numero_revisao}`;
 }
 
 function formatarUsuarioAP(usuario) {
-    const matricula = usuario.matricula || 'Sem matrícula';
-    const nome = usuario.nome || '';
+    const matricula =
+        usuario.matricula || "Sem matrícula";
+
+    const nome =
+        usuario.nome || "";
+
     return `${matricula} - ${nome}`;
 }
 
-function configurarBuscaUsuarioAP(inputId, hiddenId, listaId) {
-    const input = document.getElementById(inputId);
-    const hidden = document.getElementById(hiddenId);
-    const lista = document.getElementById(listaId);
+function configurarBuscaUsuarioAP(
+    inputId,
+    hiddenId,
+    listaId
+) {
+    const input =
+        document.getElementById(inputId);
 
-    if (!input || !hidden || !lista) return;
+    const hidden =
+        document.getElementById(hiddenId);
 
-    input.addEventListener('input', function () {
-        const termo = normalizarTextoAP(input.value);
+    const lista =
+        document.getElementById(listaId);
 
-        hidden.value = '';
-        lista.innerHTML = '';
-        lista.style.display = 'none';
+    if (!input || !hidden || !lista) {
+        return;
+    }
+
+    input.addEventListener("input", function () {
+        const termo =
+            normalizarTextoAP(input.value);
+
+        hidden.value = "";
+        lista.innerHTML = "";
+        lista.style.display = "none";
 
         if (termo.length < 2) {
             return;
         }
 
-        const resultados = usuariosDisponiveisAP
-            .filter(u => {
-                const textoBusca = normalizarTextoAP(`${u.matricula || ''} ${u.nome || ''}`);
-                return textoBusca.includes(termo);
-            })
-            .slice(0, 12);
+        const resultados =
+            usuariosDisponiveisAP
+                .filter(usuario => {
+                    const textoBusca =
+                        normalizarTextoAP(
+                            `${usuario.matricula || ""} ${usuario.nome || ""}`
+                        );
+
+                    return textoBusca.includes(
+                        termo
+                    );
+                })
+                .slice(0, 12);
 
         if (resultados.length === 0) {
             lista.innerHTML = `
@@ -475,82 +814,306 @@ function configurarBuscaUsuarioAP(inputId, hiddenId, listaId) {
                     Nenhum funcionário encontrado.
                 </div>
             `;
-            lista.style.display = 'block';
+
+            lista.style.display = "block";
             return;
         }
 
         resultados.forEach(usuario => {
-            const item = document.createElement('button');
-            item.type = 'button';
-            item.className = 'list-group-item list-group-item-action text-start';
+            const item =
+                document.createElement("button");
+
+            item.type = "button";
+            item.className =
+                "list-group-item list-group-item-action text-start";
+
             item.innerHTML = `
-                <strong>${usuario.matricula || '-'}</strong><br>
-                <small>${usuario.nome || ''}</small>
+                <strong>${usuario.matricula || "-"}</strong><br>
+                <small>${usuario.nome || ""}</small>
             `;
 
-            item.addEventListener('click', function () {
-                input.value = formatarUsuarioAP(usuario);
-                hidden.value = usuario.id;
-                lista.style.display = 'none';
-            });
+            item.addEventListener(
+                "click",
+                function () {
+                    input.value =
+                        formatarUsuarioAP(usuario);
+
+                    hidden.value =
+                        usuario.id;
+
+                    lista.style.display =
+                        "none";
+                }
+            );
 
             lista.appendChild(item);
         });
 
-        lista.style.display = 'block';
+        lista.style.display = "block";
     });
 
-    input.addEventListener('blur', function () {
-        setTimeout(function () {
-            lista.style.display = 'none';
-        }, 200);
-    });
+    input.addEventListener(
+        "blur",
+        function () {
+            setTimeout(function () {
+                lista.style.display =
+                    "none";
+            }, 200);
+        }
+    );
 }
 
-function atualizarProcedimentoSelecionado() {
-    const procedimentoId = document.getElementById('procedimento_id');
-    const procedimentoRevisaoId = document.getElementById('procedimento_revisao_id');
-    const procedimentoBusca = document.getElementById('procedimento_busca');
-    const inputModal = document.getElementById('modal_revisao_procedimento_texto');
+function configurarBuscaProcedimento() {
+    const input =
+        document.getElementById("procedimento_busca");
 
-    if (!procedimentoId || !procedimentoRevisaoId || !procedimentoBusca || !inputModal) return;
+    const lista =
+        document.getElementById("listaProcedimentos");
 
-    if (!procedimentoId.value || !procedimentoRevisaoId.value) {
-        inputModal.value = '';
+    if (!input || !lista) {
         return;
     }
 
-    inputModal.value = procedimentoBusca.value || '';
+    input.addEventListener("input", function () {
+        const termo =
+            normalizarTextoAP(input.value);
+
+        document.getElementById(
+            "procedimento_id"
+        ).value = "";
+
+        document.getElementById(
+            "procedimento_revisao_id"
+        ).value = "";
+
+        lista.innerHTML = "";
+        lista.style.display = "none";
+
+        if (termo.length < 2) {
+            return;
+        }
+
+        const resultados =
+            procedimentosAP
+                .filter(procedimento => {
+                    const texto =
+                        normalizarTextoAP(
+                            `${procedimento.sigla} ${procedimento.numero_documento} ${procedimento.titulo}`
+                        );
+
+                    return texto.includes(
+                        termo
+                    );
+                })
+                .slice(0, 12);
+
+        if (resultados.length === 0) {
+            lista.innerHTML = `
+                <div class="list-group-item text-muted">
+                    Nenhum procedimento encontrado.
+                </div>
+            `;
+
+            lista.style.display = "block";
+            return;
+        }
+
+        resultados.forEach(procedimento => {
+            const item =
+                document.createElement("button");
+
+            item.type = "button";
+            item.className =
+                "list-group-item list-group-item-action text-start";
+
+            item.innerHTML = `
+                <strong>
+                    ${procedimento.sigla} - ${procedimento.numero_documento}
+                </strong><br>
+                <small>${procedimento.titulo}</small><br>
+                <span class="badge bg-secondary">
+                    Rev. ${procedimento.numero_revisao}
+                </span>
+            `;
+
+            item.addEventListener(
+                "click",
+                function () {
+                    input.value =
+                        formatarProcedimento(
+                            procedimento
+                        );
+
+                    document.getElementById(
+                        "procedimento_id"
+                    ).value =
+                        procedimento.procedimento_id;
+
+                    document.getElementById(
+                        "procedimento_revisao_id"
+                    ).value =
+                        procedimento.revisao_id;
+
+                    document.getElementById(
+                        "modal_revisao_procedimento_texto"
+                    ).value =
+                        formatarProcedimento(
+                            procedimento
+                        );
+
+                    lista.style.display =
+                        "none";
+                }
+            );
+
+            lista.appendChild(item);
+        });
+
+        lista.style.display = "block";
+    });
+
+    input.addEventListener(
+        "blur",
+        function () {
+            setTimeout(function () {
+                lista.style.display =
+                    "none";
+            }, 200);
+        }
+    );
 }
 
-function abrirModalDesvio(button) {
-    const item = button.getAttribute('data-item');
-    const texto = button.getAttribute('data-texto');
+function atualizarProcedimentoSelecionado() {
+    const procedimentoId =
+        document.getElementById(
+            "procedimento_id"
+        );
 
-    document.getElementById('modal_desvio_item_numero').value = item;
-    document.getElementById('modal_desvio_item_texto').value = `${item}. ${texto}`;
+    const procedimentoRevisaoId =
+        document.getElementById(
+            "procedimento_revisao_id"
+        );
 
-    const existente = desviosAP[item];
+    const procedimentoBusca =
+        document.getElementById(
+            "procedimento_busca"
+        );
 
-    document.getElementById('modal_desvio_observado').value = existente?.desvio_observado || '';
-    document.getElementById('modal_acao_proposta').value = existente?.acao_proposta || '';
-    document.getElementById('modal_responsavel_id').value = existente?.responsavel_id || '';
-    document.getElementById('modal_prazo').value = existente?.prazo || '';
+    const inputModal =
+        document.getElementById(
+            "modal_revisao_procedimento_texto"
+        );
 
-    const modal = new bootstrap.Modal(document.getElementById('modalDesvioAP'));
-    modal.show();
+    if (
+        !procedimentoId
+        || !procedimentoRevisaoId
+        || !procedimentoBusca
+        || !inputModal
+    ) {
+        return;
+    }
+
+    if (
+        !procedimentoId.value
+        || !procedimentoRevisaoId.value
+    ) {
+        inputModal.value = "";
+        return;
+    }
+
+    inputModal.value =
+        procedimentoBusca.value || "";
+}
+
+function abrirModalDesvio(botao) {
+    const item =
+        botao.getAttribute("data-item");
+
+    const texto =
+        botao.getAttribute("data-texto");
+
+    document.getElementById(
+        "modal_desvio_item_numero"
+    ).value = item;
+
+    document.getElementById(
+        "modal_desvio_item_texto"
+    ).value = `${item}. ${texto}`;
+
+    const existente =
+        desviosAP[item];
+
+    document.getElementById(
+        "modal_desvio_observado"
+    ).value =
+        existente?.desvio_observado || "";
+
+    document.getElementById(
+        "modal_acao_proposta"
+    ).value =
+        existente?.acao_proposta || "";
+
+    document.getElementById(
+        "modal_responsavel_id"
+    ).value =
+        existente?.responsavel_id || "";
+
+    document.getElementById(
+        "modal_prazo"
+    ).value =
+        existente?.prazo || "";
+
+    bootstrap.Modal
+        .getOrCreateInstance(
+            document.getElementById(
+                "modalDesvioAP"
+            )
+        )
+        .show();
 }
 
 function salvarDesvio() {
-    const item = document.getElementById('modal_desvio_item_numero').value;
-    const itemTexto = document.getElementById('modal_desvio_item_texto').value;
-    const desvio = document.getElementById('modal_desvio_observado').value.trim();
-    const acao = document.getElementById('modal_acao_proposta').value.trim();
-    const responsavelId = document.getElementById('modal_responsavel_id').value;
-    const prazo = document.getElementById('modal_prazo').value;
+    const item =
+        document.getElementById(
+            "modal_desvio_item_numero"
+        ).value;
 
-    if (!desvio || !acao || !responsavelId || !prazo) {
-        alert('Preencha o desvio, a ação proposta, o responsável e o prazo.');
+    const itemTexto =
+        document.getElementById(
+            "modal_desvio_item_texto"
+        ).value;
+
+    const desvio =
+        document.getElementById(
+            "modal_desvio_observado"
+        ).value.trim();
+
+    const acao =
+        document.getElementById(
+            "modal_acao_proposta"
+        ).value.trim();
+
+    const responsavelId =
+        document.getElementById(
+            "modal_responsavel_id"
+        ).value;
+
+    const prazo =
+        document.getElementById(
+            "modal_prazo"
+        ).value;
+
+    if (
+        !desvio
+        || !acao
+        || !responsavelId
+        || !prazo
+    ) {
+        alert(
+            "Preencha o desvio, a ação proposta, "
+            + "o responsável e o prazo."
+        );
+
         return;
     }
 
@@ -563,109 +1126,412 @@ function salvarDesvio() {
         prazo: prazo
     };
 
-    document.getElementById(`badge_desvio_${item}`).style.display = '';
+    document.getElementById(
+        `badge_desvio_${item}`
+    ).style.display = "";
 
-    const modal = bootstrap.Modal.getInstance(document.getElementById('modalDesvioAP'));
-    modal.hide();
+    bootstrap.Modal
+        .getInstance(
+            document.getElementById(
+                "modalDesvioAP"
+            )
+        )
+        ?.hide();
 }
 
 function salvarRevisaoPadrao() {
     atualizarProcedimentoSelecionado();
 
-    const procedimentoSelect = document.getElementById('procedimento_revisao_id');
-    const procedimentoRevisaoId = procedimentoSelect.value;
-    const procedimentoId = document.getElementById('procedimento_id').value;
-    const procedimentoTexto = document.getElementById('modal_revisao_procedimento_texto').value;
+    const procedimentoRevisaoId =
+        document.getElementById(
+            "procedimento_revisao_id"
+        ).value;
 
-    const oportunidade = document.getElementById('modal_oportunidade_revisao').value.trim();
-    const justificativa = document.getElementById('modal_justificativa_revisao').value.trim();
-    const sugestao = document.getElementById('modal_sugestao_revisao').value.trim();
+    const procedimentoId =
+        document.getElementById(
+            "procedimento_id"
+        ).value;
 
-    if (!procedimentoRevisaoId || !procedimentoId) {
-        alert('Selecione o procedimento/revisão vigente antes de registrar a solicitação.');
+    const procedimentoTexto =
+        document.getElementById(
+            "modal_revisao_procedimento_texto"
+        ).value;
+
+    const oportunidade =
+        document.getElementById(
+            "modal_oportunidade_revisao"
+        ).value.trim();
+
+    const justificativa =
+        document.getElementById(
+            "modal_justificativa_revisao"
+        ).value.trim();
+
+    const sugestao =
+        document.getElementById(
+            "modal_sugestao_revisao"
+        ).value.trim();
+
+    if (
+        !procedimentoRevisaoId
+        || !procedimentoId
+    ) {
+        alert(
+            "Selecione o procedimento/revisão vigente "
+            + "antes de registrar a solicitação."
+        );
+
         return;
     }
 
-    if (!oportunidade || !justificativa || !sugestao) {
-        alert('Preencha a oportunidade, a justificativa e a sugestão de alteração.');
+    if (
+        !oportunidade
+        || !justificativa
+        || !sugestao
+    ) {
+        alert(
+            "Preencha a oportunidade, a justificativa "
+            + "e a sugestão de alteração."
+        );
+
         return;
     }
 
     solicitacaoRevisaoAP = {
         procedimento_id: procedimentoId,
-        procedimento_revisao_id: procedimentoRevisaoId,
-        procedimento_texto: procedimentoTexto,
-        oportunidade_revisao: oportunidade,
-        justificativa_revisao: justificativa,
-        sugestao_revisao: sugestao
+        procedimento_revisao_id:
+            procedimentoRevisaoId,
+        procedimento_texto:
+            procedimentoTexto,
+        oportunidade_revisao:
+            oportunidade,
+        justificativa_revisao:
+            justificativa,
+        sugestao_revisao:
+            sugestao
     };
 
-    document.getElementById('resumoSolicitacaoRevisao').style.display = '';
+    document.getElementById(
+        "resumoSolicitacaoRevisao"
+    ).style.display = "";
 
-    const modal = bootstrap.Modal.getInstance(document.getElementById('modalRevisaoPadrao'));
-    modal.hide();
+    bootstrap.Modal
+        .getInstance(
+            document.getElementById(
+                "modalRevisaoPadrao"
+            )
+        )
+        ?.hide();
 }
 
-function validarFormularioAP(event) {
-    const resultadosNC = document.querySelectorAll('.resultado-item');
+function validarChecklistAP() {
+    const resultados =
+        document.querySelectorAll(
+            ".resultado-item"
+        );
 
-    for (const select of resultadosNC) {
-        const item = select.getAttribute('data-item');
+    for (const select of resultados) {
+        const item =
+            select.getAttribute(
+                "data-item"
+            );
 
-        if (select.value === 'NC' && !desviosAP[item]) {
-            event.preventDefault();
-            alert(`O item ${item} foi marcado como Não Conforme. Registre o desvio e a ação antes de salvar.`);
+        if (
+            select.value === "NC"
+            && !desviosAP[item]
+        ) {
+            alert(
+                `O item ${item} foi marcado como Não Conforme. `
+                + "Registre o desvio e a ação antes de salvar."
+            );
+
             return false;
         }
     }
 
-    document.getElementById('desvios_json').value = JSON.stringify(Object.values(desviosAP));
-    document.getElementById('solicitacao_revisao_json').value = solicitacaoRevisaoAP ? JSON.stringify(solicitacaoRevisaoAP) : '';
+    document.getElementById(
+        "desvios_json"
+    ).value =
+        JSON.stringify(
+            Object.values(desviosAP)
+        );
+
+    document.getElementById(
+        "solicitacao_revisao_json"
+    ).value =
+        solicitacaoRevisaoAP
+            ? JSON.stringify(
+                solicitacaoRevisaoAP
+            )
+            : "";
 
     return true;
 }
 
-document.addEventListener('DOMContentLoaded', function () {
-    configurarBuscaUsuarioAP('auditor_busca', 'auditor_id', 'listaAuditores');
-    configurarBuscaUsuarioAP('auditado_busca', 'auditado_id', 'listaAuditados');
-    const dataAuditoria = document.querySelector('input[name="data_auditoria"]');
-    if (dataAuditoria && !dataAuditoria.value) {
-        dataAuditoria.valueAsDate = new Date();
+function identificarAlteracoesAgendamento() {
+    const motivos = [];
+
+    if (
+        !AGENDAMENTO_ID
+        || AGENDAMENTO_ID === "livre"
+    ) {
+        return motivos;
     }
 
-    const procedimentoSelect = document.getElementById('procedimento_revisao_id');
-    if (procedimentoSelect) {
-        procedimentoSelect.addEventListener('change', atualizarProcedimentoSelecionado);
+    const auditadoAtual =
+        document.getElementById(
+            "auditado_id"
+        ).value;
+
+    const procedimentoAtual =
+        document.getElementById(
+            "procedimento_id"
+        ).value;
+
+    if (
+        AUDITADO_PREVISTO_ID
+        && String(auditadoAtual)
+        !== String(AUDITADO_PREVISTO_ID)
+    ) {
+        motivos.push(
+            "Colaborador auditado diferente do programado."
+        );
     }
 
-    document.querySelectorAll('.resultado-item').forEach(select => {
-        select.addEventListener('change', function () {
-            const item = this.getAttribute('data-item');
-            const btn = document.querySelector(`.btn-desvio[data-item="${item}"]`);
-            const badge = document.getElementById(`badge_desvio_${item}`);
+    if (
+        PROCEDIMENTO_PREVISTO_ID
+        && String(procedimentoAtual)
+        !== String(PROCEDIMENTO_PREVISTO_ID)
+    ) {
+        motivos.push(
+            "Procedimento diferente do programado."
+        );
+    }
 
-            if (this.value === 'NC') {
-                btn.style.display = '';
-            } else {
-                btn.style.display = 'none';
-                badge.style.display = 'none';
-                delete desviosAP[item];
+    return motivos;
+}
+
+function abrirModalJustificativa(motivos) {
+    const campo =
+        document.getElementById(
+            "textoJustificativaAlteracao"
+        );
+
+    const lista =
+        document.getElementById(
+            "motivosAlteracao"
+        );
+
+    campo.classList.remove(
+        "is-invalid"
+    );
+
+    campo.value = "";
+
+    lista.innerHTML = `
+        <strong>Alterações identificadas:</strong>
+        <ul class="mb-0 mt-1">
+            ${motivos
+                .map(
+                    motivo =>
+                        `<li>${motivo}</li>`
+                )
+                .join("")}
+        </ul>
+    `;
+
+    bootstrap.Modal
+        .getOrCreateInstance(
+            document.getElementById(
+                "modalJustificativaAlteracao"
+            )
+        )
+        .show();
+
+    setTimeout(
+        () => campo.focus(),
+        300
+    );
+}
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+        configurarBuscaUsuarioAP(
+            "auditado_busca",
+            "auditado_id",
+            "listaAuditados"
+        );
+
+        configurarBuscaProcedimento();
+
+        const dataAuditoria =
+            document.getElementById(
+                "data_auditoria"
+            );
+
+        if (
+            dataAuditoria
+            && !dataAuditoria.value
+        ) {
+            dataAuditoria.valueAsDate =
+                new Date();
+        }
+
+        atualizarProcedimentoSelecionado();
+
+        document
+            .querySelectorAll(
+                ".resultado-item"
+            )
+            .forEach(select => {
+                select.addEventListener(
+                    "change",
+                    function () {
+                        const item =
+                            this.getAttribute(
+                                "data-item"
+                            );
+
+                        const botao =
+                            document.querySelector(
+                                `.btn-desvio[data-item="${item}"]`
+                            );
+
+                        const badge =
+                            document.getElementById(
+                                `badge_desvio_${item}`
+                            );
+
+                        if (
+                            this.value === "NC"
+                        ) {
+                            botao.style.display =
+                                "";
+                        } else {
+                            botao.style.display =
+                                "none";
+
+                            badge.style.display =
+                                "none";
+
+                            delete desviosAP[item];
+                        }
+                    }
+                );
+            });
+
+        document
+            .querySelectorAll(
+                ".btn-desvio"
+            )
+            .forEach(botao => {
+                botao.addEventListener(
+                    "click",
+                    function () {
+                        abrirModalDesvio(
+                            this
+                        );
+                    }
+                );
+            });
+
+        document
+            .getElementById(
+                "btnSalvarDesvio"
+            )
+            .addEventListener(
+                "click",
+                salvarDesvio
+            );
+
+        document
+            .getElementById(
+                "btnSalvarRevisaoPadrao"
+            )
+            .addEventListener(
+                "click",
+                salvarRevisaoPadrao
+            );
+
+        const formulario =
+            document.getElementById(
+                "formAuditoriaPadrao"
+            );
+
+        formulario.addEventListener(
+            "submit",
+            function (evento) {
+                if (!validarChecklistAP()) {
+                    evento.preventDefault();
+                    return;
+                }
+
+                if (envioConfirmado) {
+                    return;
+                }
+
+                const motivos =
+                    identificarAlteracoesAgendamento();
+
+                if (motivos.length > 0) {
+                    evento.preventDefault();
+
+                    abrirModalJustificativa(
+                        motivos
+                    );
+                }
             }
-        });
-    });
+        );
 
-    document.querySelectorAll('.btn-desvio').forEach(button => {
-        button.addEventListener('click', function () {
-            abrirModalDesvio(this);
-        });
-    });
+        document
+            .getElementById(
+                "btnConfirmarJustificativa"
+            )
+            .addEventListener(
+                "click",
+                function () {
+                    const campo =
+                        document.getElementById(
+                            "textoJustificativaAlteracao"
+                        );
 
-    document.getElementById('btnSalvarDesvio').addEventListener('click', salvarDesvio);
-    document.getElementById('btnSalvarRevisaoPadrao').addEventListener('click', salvarRevisaoPadrao);
+                    const justificativa =
+                        campo.value.trim();
 
-    document.getElementById('formAuditoriaPadrao').addEventListener('submit', validarFormularioAP);
-});
-    configurarBuscaProcedimento();
+                    if (!justificativa) {
+                        campo.classList.add(
+                            "is-invalid"
+                        );
+
+                        campo.focus();
+                        return;
+                    }
+
+                    campo.classList.remove(
+                        "is-invalid"
+                    );
+
+                    document.getElementById(
+                        "justificativa_alteracao"
+                    ).value =
+                        justificativa;
+
+                    envioConfirmado = true;
+
+                    bootstrap.Modal
+                        .getInstance(
+                            document.getElementById(
+                                "modalJustificativaAlteracao"
+                            )
+                        )
+                        ?.hide();
+
+                    formulario.requestSubmit();
+                }
+            );
+    }
+);
 </script>
 
 {% endblock %}

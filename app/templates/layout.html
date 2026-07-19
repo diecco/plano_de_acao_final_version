@@ -657,7 +657,7 @@
 
         {% endif %}
 
-        {% if session.get('acesso_ssma') %}
+        {% if session.get('acesso_ssma') or session.get('pode_ser_lider_ssma') or session.get('perfil') == 'administrador' %}
 
         {% set ssma_endpoints = [
             'main.listar_hs',
@@ -666,7 +666,9 @@
             'main.editar_recusa',
             'main.listar_apr',
             'main.listar_ap',
-            'main.listar_ifs'
+            'main.listar_ifs',
+            'main.meu_calendario_ssma',
+            'main.executar_agendamento_ssma'
         ] %}
 
         <a class="nav-link {% if request.endpoint in ssma_endpoints %}active{% endif %}"
@@ -682,6 +684,16 @@
         </a>
 
         <div class="collapse ps-3 {% if request.endpoint in ssma_endpoints %}show{% endif %}" id="ssma">
+
+            {% if session.get('pode_ser_lider_ssma') %}
+            <a href="{{ url_for('main.meu_calendario_ssma') }}"
+               class="nav-link {% if request.endpoint in ['main.meu_calendario_ssma', 'main.executar_agendamento_ssma'] %}active{% endif %}">
+                <i class="bi bi-calendar-check"></i>
+                <span class="menu-text">Meu calendário</span>
+            </a>
+            {% endif %}
+
+            {% if session.get('acesso_ssma') or session.get('perfil') == 'administrador' %}
 
             <a href="{{ url_for('main.listar_hs') }}"
                class="nav-link {% if request.endpoint in ['main.listar_hs', 'main.editar_hs'] %}active{% endif %}">
@@ -713,10 +725,21 @@
                 <span class="menu-text">IFS</span>
             </a>
 
+            {% endif %}
+
         </div>
 
         <div class="sidebar-flyout" id="flyoutSSMA">
             <div class="sidebar-flyout-title">SSMA</div>
+
+            {% if session.get('pode_ser_lider_ssma') %}
+            <a href="{{ url_for('main.meu_calendario_ssma') }}">
+                <i class="bi bi-calendar-check"></i>
+                Meu calendário
+            </a>
+            {% endif %}
+
+            {% if session.get('acesso_ssma') or session.get('perfil') == 'administrador' %}
 
             <a href="{{ url_for('main.listar_hs') }}">
                 <i class="bi bi-clock-history"></i>
@@ -741,6 +764,57 @@
             <a href="{{ url_for('main.listar_ifs') }}">
                 <i class="bi bi-shield-exclamation"></i>
                 IFS
+            </a>
+            {% endif %}
+        </div>
+
+        {% endif %}
+
+        {% if session.get('perfil') == 'administrador' or session.get('pode_criar_agendamento_ssma') %}
+
+        {% set agenda_ssma_endpoints = [
+            'main.listar_agendamentos_ssma',
+            'main.novo_agendamento_ssma',
+            'main.relatorio_aderencia_ssma'
+        ] %}
+
+        <a class="nav-link {% if request.endpoint in agenda_ssma_endpoints %}active{% endif %}"
+           data-bs-toggle="collapse"
+           href="#agendaSSMA"
+           role="button"
+           title="Agenda SSMA"
+           aria-expanded="{% if request.endpoint in agenda_ssma_endpoints %}true{% else %}false{% endif %}"
+           aria-controls="agendaSSMA"
+           data-flyout="flyoutAgendaSSMA">
+            <i class="bi bi-calendar2-week"></i>
+            <span class="menu-text">Agenda SSMA</span>
+        </a>
+
+        <div class="collapse ps-3 {% if request.endpoint in agenda_ssma_endpoints %}show{% endif %}" id="agendaSSMA">
+            <a href="{{ url_for('main.novo_agendamento_ssma') }}"
+               class="nav-link {% if request.endpoint in ['main.listar_agendamentos_ssma', 'main.novo_agendamento_ssma'] %}active{% endif %}">
+                <i class="bi bi-calendar-plus"></i>
+                <span class="menu-text">Criar agendamentos</span>
+            </a>
+
+            <a href="{{ url_for('main.relatorio_aderencia_ssma') }}"
+               class="nav-link {% if request.endpoint == 'main.relatorio_aderencia_ssma' %}active{% endif %}">
+                <i class="bi bi-clipboard-data"></i>
+                <span class="menu-text">Relatório de aderência</span>
+            </a>
+        </div>
+
+        <div class="sidebar-flyout" id="flyoutAgendaSSMA">
+            <div class="sidebar-flyout-title">Agenda SSMA</div>
+
+            <a href="{{ url_for('main.novo_agendamento_ssma') }}">
+                <i class="bi bi-calendar-plus"></i>
+                Criar agendamentos
+            </a>
+
+            <a href="{{ url_for('main.relatorio_aderencia_ssma') }}">
+                <i class="bi bi-clipboard-data"></i>
+                Relatório de aderência
             </a>
         </div>
 

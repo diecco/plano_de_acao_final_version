@@ -5,6 +5,7 @@ from apscheduler.triggers.cron import CronTrigger
 from zoneinfo import ZoneInfo  # stdlib (Python 3.9+)
 from dotenv import load_dotenv, find_dotenv
 import os
+import secrets
 
 mail = Mail()
 
@@ -16,16 +17,20 @@ def create_app():
     app.config.from_object("app.config_local.Config")
 
     # --- Configs básicas
-    app.secret_key = 'sua_chave_secreta_segura'
+    app.secret_key = os.getenv('SECRET_KEY') or secrets.token_hex(32)
     app.config['UPLOAD_FOLDER'] = 'app/static/evidencias'
+    # Limite total por requisição, incluindo os campos do formulário.
+    app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024
 
     # --- E-mail
-    app.config['MAIL_SERVER'] = 'smtps.uhserver.com'
-    app.config['MAIL_PORT'] = 465
-    app.config['MAIL_USE_SSL'] = True
-    app.config['MAIL_USERNAME'] = 'trackplan@trackplan.com.br'
-    app.config['MAIL_PASSWORD'] = '7EE@@95a3h'
-    app.config['MAIL_DEFAULT_SENDER'] = 'trackplan@trackplan.com.br'
+    app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER')
+    app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', '465'))
+    app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', 'true').lower() == 'true'
+    app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+    app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+    app.config['MAIL_DEFAULT_SENDER'] = (
+        os.getenv('MAIL_DEFAULT_SENDER') or app.config['MAIL_USERNAME']
+    )
     mail.init_app(app)
 
     # --- Blueprints (importe aqui para evitar import circular)

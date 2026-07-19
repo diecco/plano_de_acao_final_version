@@ -4,47 +4,205 @@
 
 {% block conteudo %}
 
+<style>
+    .hs-contexto-agendamento {
+        border-left: 4px solid #ea6a23;
+        background: #fff8f2;
+    }
+
+    .hs-resumo-item {
+        min-width: 180px;
+    }
+
+    .hs-participantes-vazio {
+        min-height: 52px;
+        display: flex;
+        align-items: center;
+        color: #6c757d;
+    }
+
+    .hs-tabela-itens th,
+    .hs-tabela-itens td {
+        vertical-align: middle;
+    }
+
+    .hs-item-texto {
+        min-width: 260px;
+    }
+
+    .hs-campo-nc {
+        min-width: 180px;
+    }
+
+    .badge-participante {
+        display: inline-flex;
+        align-items: center;
+        background: #ea6a23;
+        color: #fff;
+        padding: 0.55rem 0.7rem;
+        border-radius: 0.45rem;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .participante-previsto {
+        box-shadow: 0 0 0 2px rgba(234, 106, 35, 0.2);
+    }
+
+    .modal-justificativa-texto {
+        resize: vertical;
+        min-height: 120px;
+    }
+</style>
+
 <div class="page-header">
     <h2 class="page-title">
         <i class="bi bi-shield-check me-2"></i>
         Registrar Hora de Segurança
     </h2>
 </div>
+
 <hr>
 
-<form method="POST" action="/lancar_hs" id="formLancarHS">
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
 
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                        aria-label="Fechar">
+                </button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<form method="POST"
+      action="{{ url_for('main.lancar_hs') }}"
+      id="formLancarHS">
+
+    <input type="hidden"
+           name="agendamento_id"
+           id="agendamento_id"
+           value="{{ agendamento_id or '' }}">
+
+    <input type="hidden"
+           name="next"
+           id="next_url"
+           value="{{ next_url or url_for('main.listar_hs') }}">
+
+    <input type="hidden"
+           name="turno"
+           id="turno">
+
+    <input type="hidden"
+           name="justificativa_alteracao"
+           id="justificativa_alteracao">
+
+    {% if agendamento %}
+        <div class="card shadow-sm border-0 mb-4 hs-contexto-agendamento">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+
+                    <div>
+                        <h5 class="text-laranja mb-1">
+                            <i class="bi bi-calendar-check me-2"></i>
+                            Execução de prática agendada
+                        </h5>
+
+                        <div class="text-muted">
+                            Agendamento #{{ agendamento.id }}
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-3">
+                        <div class="hs-resumo-item">
+                            <small class="text-muted d-block">Data programada</small>
+                            <strong>
+                                {{ agendamento.data_programada.strftime('%d/%m/%Y') if agendamento.data_programada else '—' }}
+                            </strong>
+                        </div>
+
+                        <div class="hs-resumo-item">
+                            <small class="text-muted d-block">Tema previsto</small>
+                            <strong>
+                                {% for tema in temas %}
+                                    {% if tema.id == agendamento.tema_id %}
+                                        {{ tema.nome }}
+                                    {% endif %}
+                                {% endfor %}
+                            </strong>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- DADOS GERAIS -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
+
             <h5 class="text-laranja mb-3">
                 <i class="bi bi-clipboard-data me-2"></i>
                 Dados Gerais
             </h5>
 
             <div class="row g-3">
+
                 <div class="col-md-3">
-                    <label class="form-label">Data</label>
-                    <input type="date" name="data" id="data" class="form-control" required>
+                    <label for="data" class="form-label">Data</label>
+
+                    <input type="date"
+                           name="data"
+                           id="data"
+                           class="form-control"
+                           value="{{ hoje or '' }}"
+                           required>
                 </div>
 
                 <div class="col-md-2">
-                    <label class="form-label">Hora</label>
-                    <input type="time" name="hora" id="hora" class="form-control" required>
+                    <label for="hora" class="form-label">Hora</label>
+
+                    <input type="time"
+                           name="hora"
+                           id="hora"
+                           class="form-control"
+                           value="{{ agora or '' }}"
+                           required>
                 </div>
 
-                <input type="hidden" name="turno" id="turno">
-
                 <div class="col-md-7">
-                    <label class="form-label">Local</label>
-                    <input type="text" name="local" id="local" class="form-control">
+                    <label for="local" class="form-label">Local</label>
+
+                    <input type="text"
+                           name="local"
+                           id="local"
+                           class="form-control"
+                           maxlength="255"
+                           placeholder="Informe o local da prática">
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">Tema</label>
-                    <select name="id_tema" id="id_tema" class="form-select" required>
+                    <label for="id_tema" class="form-label">Tema</label>
+
+                    <select name="id_tema"
+                            id="id_tema"
+                            class="form-select"
+                            required>
+
                         <option value="">Selecione</option>
+
                         {% for tema in temas %}
-                            <option value="{{ tema.id }}" {% if request.args.get('id_tema') == tema.id|string %}selected{% endif %}>
+                            <option value="{{ tema.id }}"
+                                    {% if id_tema_selecionado
+                                          and id_tema_selecionado|int == tema.id|int %}
+                                        selected
+                                    {% endif %}>
                                 {{ tema.nome }}
                             </option>
                         {% endfor %}
@@ -53,19 +211,26 @@
 
                 <div class="col-md-6">
                     <label class="form-label">Auditor</label>
+
                     <input type="text"
                            class="form-control campo-readonly"
                            value="{{ session.get('nome') }}"
                            readonly>
-                    <input type="hidden" name="id_auditor" value="{{ session.get('usuario_id') }}">
+
+                    <input type="hidden"
+                           name="id_auditor"
+                           value="{{ session.get('usuario_id') }}">
                 </div>
+
             </div>
         </div>
     </div>
 
+    <!-- PARTICIPANTES -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-3">
+
+            <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
                 <h5 class="text-laranja m-0">
                     <i class="bi bi-people me-2"></i>
                     Participantes
@@ -74,117 +239,170 @@
                 <button type="button"
                         class="btn btn-laranja"
                         data-bs-toggle="modal"
-                        data-bs-target="#modalParticipantes">
-                    <i class="bi bi-plus-circle me-1"></i>
-                    Participantes
+                        data-bs-target="#modalParticipantes"
+                        title="Selecionar participantes"
+                        aria-label="Selecionar participantes">
+                    <i class="bi bi-plus-circle"></i>
                 </button>
             </div>
 
-            <div id="resumoParticipantes" class="d-flex flex-wrap gap-2 mb-2"></div>
+            {% if agendamento and participante_previsto_id %}
+                <div class="alert alert-light border mb-3">
+                    <i class="bi bi-info-circle me-1"></i>
+                    O colaborador previsto foi incluído automaticamente. Outros participantes podem ser acrescentados.
+                    A remoção do colaborador previsto exigirá justificativa.
+                </div>
+            {% endif %}
 
-            <small class="text-muted" id="contadorParticipantes">
+            <div id="resumoParticipantes"
+                 class="d-flex flex-wrap gap-2 mb-2">
+            </div>
+
+            <div id="mensagemParticipantesVazio"
+                 class="hs-participantes-vazio">
                 Nenhum participante selecionado.
+            </div>
+
+            <small class="text-muted"
+                   id="contadorParticipantes">
             </small>
+
         </div>
     </div>
 
+    <!-- ITENS DE VERIFICAÇÃO -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
+
             <h5 class="text-laranja mb-3">
                 <i class="bi bi-list-check me-2"></i>
                 Itens de Verificação
             </h5>
 
             {% if itens %}
-            <div class="table-responsive">
-                <table class="table table-bordered align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th style="width: 28%;">Item</th>
-                            <th style="width: 12%;">Resultado</th>
-                            <th style="width: 24%;">Desvio</th>
-                            <th style="width: 24%;">Ação</th>
-                            <th style="width: 12%;">Prazo</th>
-                        </tr>
-                    </thead>
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle hs-tabela-itens">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 28%;">Item</th>
+                                <th style="width: 12%;">Resultado</th>
+                                <th style="width: 24%;">Desvio</th>
+                                <th style="width: 24%;">Ação</th>
+                                <th style="width: 12%;">Prazo</th>
+                            </tr>
+                        </thead>
 
-                    <tbody>
-                        {% for item in itens %}
-                        <tr>
-                            <td>{{ item.texto }}</td>
+                        <tbody>
+                            {% for item in itens %}
+                                <tr>
+                                    <td class="hs-item-texto">
+                                        {{ item.texto }}
+                                    </td>
 
-                            <td>
-                                <select name="resultado_{{ item.id }}"
-                                        class="form-select resultado-select"
-                                        data-id="{{ item.id }}"
-                                        required>
-                                    <option value="">Selecione</option>
-                                    <option value="C">C</option>
-                                    <option value="NC">NC</option>
-                                    <option value="NA">NA</option>
-                                </select>
-                            </td>
+                                    <td>
+                                        <select name="resultado_{{ item.id }}"
+                                                class="form-select resultado-select"
+                                                data-id="{{ item.id }}"
+                                                required>
+                                            <option value="">Selecione</option>
+                                            <option value="C">C</option>
+                                            <option value="NC">NC</option>
+                                            <option value="NA">NA</option>
+                                        </select>
+                                    </td>
 
-                            <td>
-                                <input type="text"
-                                       name="desvio_{{ item.id }}"
-                                       id="desvio_{{ item.id }}"
-                                       class="form-control"
-                                       disabled>
-                            </td>
+                                    <td class="hs-campo-nc">
+                                        <input type="text"
+                                               name="desvio_{{ item.id }}"
+                                               id="desvio_{{ item.id }}"
+                                               class="form-control"
+                                               placeholder="Descreva o desvio"
+                                               disabled>
+                                    </td>
 
-                            <td>
-                                <div id="acao_wrap_{{ item.id }}" class="d-none">
-                                    <input type="text"
-                                           name="acao_{{ item.id }}"
-                                           id="acao_{{ item.id }}"
-                                           class="form-control">
-                                </div>
-                            </td>
+                                    <td class="hs-campo-nc">
+                                        <div id="acao_wrap_{{ item.id }}"
+                                             class="d-none">
+                                            <input type="text"
+                                                   name="acao_{{ item.id }}"
+                                                   id="acao_{{ item.id }}"
+                                                   class="form-control"
+                                                   placeholder="Descreva a ação">
+                                        </div>
+                                    </td>
 
-                            <td>
-                                <div id="prazo_wrap_{{ item.id }}" class="d-none">
-                                    <input type="date"
-                                           name="prazo_{{ item.id }}"
-                                           id="prazo_{{ item.id }}"
-                                           class="form-control">
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                                    <td>
+                                        <div id="prazo_wrap_{{ item.id }}"
+                                             class="d-none">
+                                            <input type="date"
+                                                   name="prazo_{{ item.id }}"
+                                                   id="prazo_{{ item.id }}"
+                                                   class="form-control">
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
             {% else %}
                 <div class="bloco-placeholder">
                     Selecione um tema para carregar os itens de verificação.
                 </div>
             {% endif %}
 
-            <div class="d-flex justify-content-between gap-2 mt-3">
-                <a href="/dashboard" class="btn btn-cinza" id="btnVoltarHS">Voltar</a>
-                <button type="submit" class="btn btn-laranja">Salvar</button>
+            <div class="d-flex justify-content-between gap-2 mt-4">
+
+                <a href="{{ next_url or url_for('main.listar_hs') }}"
+                   class="btn btn-cinza"
+                   id="btnVoltarHS">
+                    Voltar
+                </a>
+
+                <button type="submit"
+                        class="btn btn-laranja"
+                        id="btnSalvarHS">
+                    Salvar
+                </button>
+
             </div>
         </div>
     </div>
 
-    <div class="modal fade" id="modalParticipantes" tabindex="-1" aria-labelledby="modalParticipantesLabel" aria-hidden="true">
+    <!-- MODAL PARTICIPANTES -->
+    <div class="modal fade"
+         id="modalParticipantes"
+         tabindex="-1"
+         aria-labelledby="modalParticipantesLabel"
+         aria-hidden="true">
+
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
 
                 <div class="modal-header modal-header-trackplan">
-                    <h5 class="modal-title" id="modalParticipantesLabel">
-                        <i class="bi bi-people"></i>
+                    <h5 class="modal-title"
+                        id="modalParticipantesLabel">
+                        <i class="bi bi-people me-2"></i>
                         Selecionar Participantes
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Fechar">
+                    </button>
                 </div>
 
                 <div class="modal-body">
 
                     <div class="row g-3 align-items-end mb-3">
                         <div class="col-md-10">
-                            <label for="buscarParticipante" class="form-label">Buscar participante</label>
+                            <label for="buscarParticipante"
+                                   class="form-label">
+                                Buscar participante
+                            </label>
+
                             <input type="text"
                                    id="buscarParticipante"
                                    class="form-control"
@@ -202,7 +420,10 @@
                         </div>
                     </div>
 
-                    <div id="areaResultadosParticipantes" class="mb-4" style="display: none;">
+                    <div id="areaResultadosParticipantes"
+                         class="mb-4"
+                         style="display: none;">
+
                         <h6 class="text-laranja mb-2">
                             <i class="bi bi-search me-1"></i>
                             Resultados da busca
@@ -217,12 +438,15 @@
                                         <th style="width: 80px;">Ação</th>
                                     </tr>
                                 </thead>
+
                                 <tbody id="tbodyResultadosParticipantes"></tbody>
                             </table>
                         </div>
                     </div>
 
-                    <div id="areaSemResultadosParticipantes" class="alert alert-light border mb-4" style="display: none;">
+                    <div id="areaSemResultadosParticipantes"
+                         class="alert alert-light border mb-4"
+                         style="display: none;">
                         Nenhum participante encontrado para a busca informada.
                     </div>
 
@@ -231,12 +455,87 @@
                         Participantes selecionados
                     </h6>
 
-                    <div id="listaSelecionados" class="d-flex flex-wrap gap-2"></div>
+                    <div id="listaSelecionados"
+                         class="d-flex flex-wrap gap-2">
+                    </div>
 
                 </div>
 
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button"
+                            class="btn btn-cinza"
+                            data-bs-dismiss="modal">
+                        Fechar
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL JUSTIFICATIVA -->
+    <div class="modal fade"
+         id="modalJustificativaAlteracao"
+         tabindex="-1"
+         aria-labelledby="modalJustificativaAlteracaoLabel"
+         aria-hidden="true">
+
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title"
+                        id="modalJustificativaAlteracaoLabel">
+                        <i class="bi bi-exclamation-circle me-2"></i>
+                        Justificar alteração
+                    </h5>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Fechar">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        A execução está diferente do que foi programado.
+                        Informe o motivo antes de concluir.
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="textoJustificativaAlteracao"
+                               class="form-label">
+                            Justificativa
+                        </label>
+
+                        <textarea id="textoJustificativaAlteracao"
+                                  class="form-control modal-justificativa-texto"
+                                  maxlength="1000"
+                                  placeholder="Descreva o motivo da alteração"></textarea>
+
+                        <div class="invalid-feedback">
+                            Informe a justificativa da alteração.
+                        </div>
+                    </div>
+
+                    <div id="motivosAlteracao"
+                         class="small text-muted">
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-cinza"
+                            data-bs-dismiss="modal">
+                        Voltar
+                    </button>
+
+                    <button type="button"
+                            class="btn btn-laranja"
+                            id="btnConfirmarJustificativa">
+                        Confirmar e salvar
+                    </button>
                 </div>
 
             </div>
@@ -249,26 +548,49 @@
     {{ usuarios | tojson }}
 </script>
 
+<script id="participante-previsto-data" type="application/json">
+    {{ (participante_previsto_id or '') | tojson }}
+</script>
+
+<script id="tema-previsto-data" type="application/json">
+    {{ (agendamento.tema_id if agendamento else '') | tojson }}
+</script>
+
+<script id="tema-selecionado-data" type="application/json">
+    {{ (id_tema_selecionado or '') | tojson }}
+</script>
+
 <script>
-const HS_DRAFT_KEY = "trackplan_hs_draft";
+const AGENDAMENTO_ID =
+    document.getElementById("agendamento_id")?.value || "livre";
+
+const HS_DRAFT_KEY =
+    `trackplan_hs_draft_${AGENDAMENTO_ID}`;
 
 const participantesDisponiveis = JSON.parse(
-    document.getElementById("participantes-data").textContent
+    document.getElementById("participantes-data").textContent || "[]"
+);
+
+const PARTICIPANTE_PREVISTO_ID = JSON.parse(
+    document.getElementById("participante-previsto-data").textContent || '""'
+);
+
+const TEMA_PREVISTO_ID = JSON.parse(
+    document.getElementById("tema-previsto-data").textContent || '""'
+);
+
+const TEMA_SELECIONADO_ID = JSON.parse(
+    document.getElementById("tema-selecionado-data").textContent || '""'
 );
 
 let participantesSelecionados = [];
+let envioConfirmado = false;
 
 function normalizarTexto(texto) {
     return String(texto || "")
         .toLowerCase()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "");
-}
-
-function formatarParticipante(participante) {
-    const matricula = participante.matricula || "Sem matrícula";
-    const nome = participante.nome || "";
-    return `${matricula} - ${nome}`;
 }
 
 function definirTurnoAutomaticamente() {
@@ -280,11 +602,11 @@ function definirTurnoAutomaticamente() {
         return;
     }
 
-    const h = parseInt(hora.split(":")[0], 10);
+    const horaInteira = parseInt(hora.split(":")[0], 10);
 
-    if (h >= 0 && h < 12) {
+    if (horaInteira >= 0 && horaInteira < 12) {
         turno.value = "Manhã";
-    } else if (h >= 12 && h < 18) {
+    } else if (horaInteira >= 12 && horaInteira < 18) {
         turno.value = "Tarde";
     } else {
         turno.value = "Noite";
@@ -292,112 +614,115 @@ function definirTurnoAutomaticamente() {
 }
 
 function toggleCamposNC(id) {
-    const select = document.querySelector(`[name="resultado_${id}"]`);
-    const desvio = document.getElementById(`desvio_${id}`);
-    const acaoWrap = document.getElementById(`acao_wrap_${id}`);
-    const prazoWrap = document.getElementById(`prazo_wrap_${id}`);
-    const acao = document.getElementById(`acao_${id}`);
-    const prazo = document.getElementById(`prazo_${id}`);
+    const select =
+        document.querySelector(`[name="resultado_${id}"]`);
 
-    if (!select || !desvio || !acaoWrap || !prazoWrap) return;
+    const desvio =
+        document.getElementById(`desvio_${id}`);
 
-    if (select.value === "NC") {
-        desvio.disabled = false;
-        acaoWrap.classList.remove("d-none");
-        prazoWrap.classList.remove("d-none");
-    } else {
+    const acaoWrap =
+        document.getElementById(`acao_wrap_${id}`);
+
+    const prazoWrap =
+        document.getElementById(`prazo_wrap_${id}`);
+
+    const acao =
+        document.getElementById(`acao_${id}`);
+
+    const prazo =
+        document.getElementById(`prazo_${id}`);
+
+    if (
+        !select
+        || !desvio
+        || !acaoWrap
+        || !prazoWrap
+    ) {
+        return;
+    }
+
+    const naoConforme = select.value === "NC";
+
+    desvio.disabled = !naoConforme;
+    desvio.required = naoConforme;
+
+    acaoWrap.classList.toggle(
+        "d-none",
+        !naoConforme
+    );
+
+    prazoWrap.classList.toggle(
+        "d-none",
+        !naoConforme
+    );
+
+    if (acao) {
+        acao.required = naoConforme;
+    }
+
+    if (prazo) {
+        prazo.required = naoConforme;
+    }
+
+    if (!naoConforme) {
         desvio.value = "";
-        desvio.disabled = true;
-        acaoWrap.classList.add("d-none");
-        prazoWrap.classList.add("d-none");
 
         if (acao) acao.value = "";
         if (prazo) prazo.value = "";
     }
 }
 
-function atualizarParticipantes() {
-    const resumo = document.getElementById("resumoParticipantes");
-    const contador = document.getElementById("contadorParticipantes");
-    const form = document.getElementById("formLancarHS");
-
-    resumo.innerHTML = "";
-    form.querySelectorAll(".input-participante-hidden").forEach(el => el.remove());
-
-    if (participantesSelecionados.length === 0) {
-        contador.textContent = "Nenhum participante selecionado.";
-        return;
-    }
-
-    contador.textContent = `${participantesSelecionados.length} participante(s) selecionado(s).`;
-
-    participantesSelecionados.forEach(p => {
-        const badge = document.createElement("span");
-        badge.className = "badge badge-participante";
-        badge.innerHTML = `
-            ${p.matricula ? p.matricula + " - " : ""}${p.nome}
-            <button type="button"
-                    class="btn-close btn-close-white ms-2"
-                    style="font-size: 0.6rem;"
-                    onclick="removerParticipante('${p.id}')">
-            </button>
-        `;
-        resumo.appendChild(badge);
-
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = "participantes";
-        input.value = p.id;
-        input.className = "input-participante-hidden";
-        form.appendChild(input);
-    });
-}
-
-function atualizarListaSelecionadosModal() {
-    const lista = document.getElementById("listaSelecionados");
-    lista.innerHTML = "";
-
-    if (participantesSelecionados.length === 0) {
-        lista.innerHTML = `<span class="text-muted small">Nenhum participante selecionado.</span>`;
-        return;
-    }
-
-    participantesSelecionados.forEach(p => {
-        const badge = document.createElement("span");
-        badge.className = "badge badge-participante";
-        badge.innerHTML = `
-            ${p.matricula ? p.matricula + " - " : ""}${p.nome}
-            <button type="button"
-                    class="btn-close btn-close-white ms-2"
-                    style="font-size: 0.6rem;"
-                    onclick="removerParticipante('${p.id}')">
-            </button>
-        `;
-        lista.appendChild(badge);
-    });
-}
-
 function participanteJaSelecionado(id) {
-    return participantesSelecionados.some(p => String(p.id) === String(id));
+    return participantesSelecionados.some(
+        participante =>
+            String(participante.id)
+            === String(id)
+    );
 }
 
-function adicionarParticipante(id, nome, matricula) {
-    if (participanteJaSelecionado(id)) return;
+function localizarParticipante(id) {
+    return participantesDisponiveis.find(
+        participante =>
+            String(participante.id)
+            === String(id)
+    );
+}
+
+function adicionarParticipante(
+    id,
+    nome,
+    matricula,
+    salvarRascunho = true
+) {
+    if (
+        !id
+        || participanteJaSelecionado(id)
+    ) {
+        return;
+    }
 
     participantesSelecionados.push({
         id: String(id),
-        nome: nome,
+        nome: nome || "",
         matricula: matricula || ""
     });
 
     atualizarParticipantes();
     atualizarListaSelecionadosModal();
     renderizarResultadosParticipantes();
-    salvarDraftHS();
+
+    if (salvarRascunho) {
+        salvarDraftHS();
+    }
 }
 
 function removerParticipante(id) {
-    participantesSelecionados = participantesSelecionados.filter(p => String(p.id) !== String(id));
+    participantesSelecionados =
+        participantesSelecionados.filter(
+            participante =>
+                String(participante.id)
+                !== String(id)
+        );
 
     atualizarParticipantes();
     atualizarListaSelecionadosModal();
@@ -405,13 +730,116 @@ function removerParticipante(id) {
     salvarDraftHS();
 }
 
-function renderizarResultadosParticipantes() {
-    const busca = document.getElementById("buscarParticipante");
-    const tbody = document.getElementById("tbodyResultadosParticipantes");
-    const areaResultados = document.getElementById("areaResultadosParticipantes");
-    const areaSemResultados = document.getElementById("areaSemResultadosParticipantes");
+function criarBadgeParticipante(participante) {
+    const badge = document.createElement("span");
 
-    const termo = normalizarTexto(busca.value);
+    const previsto =
+        PARTICIPANTE_PREVISTO_ID
+        && String(participante.id)
+        === String(PARTICIPANTE_PREVISTO_ID);
+
+    badge.className =
+        `badge badge-participante ${previsto ? "participante-previsto" : ""}`;
+
+    badge.innerHTML = `
+        ${participante.matricula ? participante.matricula + " - " : ""}
+        ${participante.nome}
+        ${previsto ? '<i class="bi bi-calendar-check ms-2" title="Participante previsto"></i>' : ''}
+        <button type="button"
+                class="btn-close btn-close-white ms-2"
+                style="font-size: 0.6rem;"
+                aria-label="Remover participante"
+                onclick="removerParticipante('${participante.id}')">
+        </button>
+    `;
+
+    return badge;
+}
+
+function atualizarParticipantes() {
+    const resumo =
+        document.getElementById("resumoParticipantes");
+
+    const contador =
+        document.getElementById("contadorParticipantes");
+
+    const vazio =
+        document.getElementById("mensagemParticipantesVazio");
+
+    const form =
+        document.getElementById("formLancarHS");
+
+    resumo.innerHTML = "";
+
+    form
+        .querySelectorAll(".input-participante-hidden")
+        .forEach(elemento => elemento.remove());
+
+    if (participantesSelecionados.length === 0) {
+        vazio.style.display = "flex";
+        contador.textContent = "";
+        return;
+    }
+
+    vazio.style.display = "none";
+
+    contador.textContent =
+        `${participantesSelecionados.length} participante(s) selecionado(s).`;
+
+    participantesSelecionados.forEach(participante => {
+        resumo.appendChild(
+            criarBadgeParticipante(participante)
+        );
+
+        const input = document.createElement("input");
+
+        input.type = "hidden";
+        input.name = "participantes";
+        input.value = participante.id;
+        input.className = "input-participante-hidden";
+
+        form.appendChild(input);
+    });
+}
+
+function atualizarListaSelecionadosModal() {
+    const lista =
+        document.getElementById("listaSelecionados");
+
+    lista.innerHTML = "";
+
+    if (participantesSelecionados.length === 0) {
+        lista.innerHTML = `
+            <span class="text-muted small">
+                Nenhum participante selecionado.
+            </span>
+        `;
+
+        return;
+    }
+
+    participantesSelecionados.forEach(participante => {
+        lista.appendChild(
+            criarBadgeParticipante(participante)
+        );
+    });
+}
+
+function renderizarResultadosParticipantes() {
+    const busca =
+        document.getElementById("buscarParticipante");
+
+    const tbody =
+        document.getElementById("tbodyResultadosParticipantes");
+
+    const areaResultados =
+        document.getElementById("areaResultadosParticipantes");
+
+    const areaSemResultados =
+        document.getElementById("areaSemResultadosParticipantes");
+
+    const termo =
+        normalizarTexto(busca.value);
 
     tbody.innerHTML = "";
     areaResultados.style.display = "none";
@@ -421,12 +849,16 @@ function renderizarResultadosParticipantes() {
         return;
     }
 
-    const resultados = participantesDisponiveis
-        .filter(u => {
-            const textoBusca = normalizarTexto(`${u.matricula || ""} ${u.nome || ""}`);
-            return textoBusca.includes(termo);
-        })
-        .slice(0, 20);
+    const resultados =
+        participantesDisponiveis
+            .filter(usuario => {
+                const textoBusca = normalizarTexto(
+                    `${usuario.matricula || ""} ${usuario.nome || ""}`
+                );
+
+                return textoBusca.includes(termo);
+            })
+            .slice(0, 20);
 
     if (resultados.length === 0) {
         areaSemResultados.style.display = "";
@@ -436,9 +868,11 @@ function renderizarResultadosParticipantes() {
     areaResultados.style.display = "";
 
     resultados.forEach(usuario => {
-        const jaSelecionado = participanteJaSelecionado(usuario.id);
+        const jaSelecionado =
+            participanteJaSelecionado(usuario.id);
 
-        const tr = document.createElement("tr");
+        const tr =
+            document.createElement("tr");
 
         tr.innerHTML = `
             <td>${usuario.matricula || "-"}</td>
@@ -463,10 +897,17 @@ function renderizarResultadosParticipantes() {
 }
 
 function limparBuscaParticipantes() {
-    const busca = document.getElementById("buscarParticipante");
-    const tbody = document.getElementById("tbodyResultadosParticipantes");
-    const areaResultados = document.getElementById("areaResultadosParticipantes");
-    const areaSemResultados = document.getElementById("areaSemResultadosParticipantes");
+    const busca =
+        document.getElementById("buscarParticipante");
+
+    const tbody =
+        document.getElementById("tbodyResultadosParticipantes");
+
+    const areaResultados =
+        document.getElementById("areaResultadosParticipantes");
+
+    const areaSemResultados =
+        document.getElementById("areaSemResultadosParticipantes");
 
     busca.value = "";
     tbody.innerHTML = "";
@@ -476,25 +917,46 @@ function limparBuscaParticipantes() {
 
 function coletarDraftHS() {
     const draft = {
-        data: document.getElementById("data")?.value || "",
-        hora: document.getElementById("hora")?.value || "",
-        turno: document.getElementById("turno")?.value || "",
-        local: document.getElementById("local")?.value || "",
-        id_tema: document.getElementById("id_tema")?.value || "",
-        participantes: participantesSelecionados,
+        data:
+            document.getElementById("data")?.value || "",
+
+        hora:
+            document.getElementById("hora")?.value || "",
+
+        turno:
+            document.getElementById("turno")?.value || "",
+
+        local:
+            document.getElementById("local")?.value || "",
+
+        id_tema:
+            document.getElementById("id_tema")?.value || "",
+
+        participantes:
+            participantesSelecionados,
+
         itens: {}
     };
 
-    document.querySelectorAll(".resultado-select").forEach(el => {
-        const id = el.dataset.id;
+    document
+        .querySelectorAll(".resultado-select")
+        .forEach(elemento => {
+            const id = elemento.dataset.id;
 
-        draft.itens[id] = {
-            resultado: el.value,
-            desvio: document.getElementById(`desvio_${id}`)?.value || "",
-            acao: document.getElementById(`acao_${id}`)?.value || "",
-            prazo: document.getElementById(`prazo_${id}`)?.value || ""
-        };
-    });
+            draft.itens[id] = {
+                resultado:
+                    elemento.value,
+
+                desvio:
+                    document.getElementById(`desvio_${id}`)?.value || "",
+
+                acao:
+                    document.getElementById(`acao_${id}`)?.value || "",
+
+                prazo:
+                    document.getElementById(`prazo_${id}`)?.value || ""
+            };
+        });
 
     return draft;
 }
@@ -502,25 +964,48 @@ function coletarDraftHS() {
 function salvarDraftHS() {
     try {
         definirTurnoAutomaticamente();
-        sessionStorage.setItem(HS_DRAFT_KEY, JSON.stringify(coletarDraftHS()));
-    } catch (e) {
-        console.error("Erro ao salvar rascunho da HS:", e);
+
+        sessionStorage.setItem(
+            HS_DRAFT_KEY,
+            JSON.stringify(coletarDraftHS())
+        );
+    } catch (erro) {
+        console.error(
+            "Erro ao salvar rascunho da HS:",
+            erro
+        );
     }
 }
 
 function restaurarDraftHS() {
     try {
-        const raw = sessionStorage.getItem(HS_DRAFT_KEY);
-        if (!raw) return;
+        const raw =
+            sessionStorage.getItem(HS_DRAFT_KEY);
+
+        if (!raw) {
+            return false;
+        }
 
         const draft = JSON.parse(raw);
 
-        if (draft.data) document.getElementById("data").value = draft.data;
-        if (draft.hora) document.getElementById("hora").value = draft.hora;
-        if (draft.local) document.getElementById("local").value = draft.local;
+        if (draft.data) {
+            document.getElementById("data").value =
+                draft.data;
+        }
+
+        if (draft.hora) {
+            document.getElementById("hora").value =
+                draft.hora;
+        }
+
+        if (draft.local) {
+            document.getElementById("local").value =
+                draft.local;
+        }
 
         if (Array.isArray(draft.participantes)) {
-            participantesSelecionados = draft.participantes;
+            participantesSelecionados =
+                draft.participantes;
         }
 
         definirTurnoAutomaticamente();
@@ -531,108 +1016,427 @@ function restaurarDraftHS() {
             Object.keys(draft.itens).forEach(id => {
                 const item = draft.itens[id];
 
-                const resultado = document.querySelector(`[name="resultado_${id}"]`);
-                const desvio = document.getElementById(`desvio_${id}`);
-                const acao = document.getElementById(`acao_${id}`);
-                const prazo = document.getElementById(`prazo_${id}`);
+                const resultado =
+                    document.querySelector(
+                        `[name="resultado_${id}"]`
+                    );
 
-                if (resultado) resultado.value = item.resultado || "";
+                const desvio =
+                    document.getElementById(`desvio_${id}`);
+
+                const acao =
+                    document.getElementById(`acao_${id}`);
+
+                const prazo =
+                    document.getElementById(`prazo_${id}`);
+
+                if (resultado) {
+                    resultado.value =
+                        item.resultado || "";
+                }
 
                 toggleCamposNC(id);
 
-                if (desvio) desvio.value = item.desvio || "";
-                if (acao) acao.value = item.acao || "";
-                if (prazo) prazo.value = item.prazo || "";
+                if (desvio) {
+                    desvio.value =
+                        item.desvio || "";
+                }
+
+                if (acao) {
+                    acao.value =
+                        item.acao || "";
+                }
+
+                if (prazo) {
+                    prazo.value =
+                        item.prazo || "";
+                }
             });
         }
-    } catch (e) {
-        console.error("Erro ao restaurar rascunho da HS:", e);
+
+        return true;
+
+    } catch (erro) {
+        console.error(
+            "Erro ao restaurar rascunho da HS:",
+            erro
+        );
+
+        return false;
     }
 }
 
 function limparDraftHS() {
-    sessionStorage.removeItem(HS_DRAFT_KEY);
+    sessionStorage.removeItem(
+        HS_DRAFT_KEY
+    );
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-    const buscarParticipante = document.getElementById("buscarParticipante");
-    const btnLimparBuscaParticipante = document.getElementById("btnLimparBuscaParticipante");
-    const modalParticipantes = document.getElementById("modalParticipantes");
-
-    if (buscarParticipante) {
-        buscarParticipante.addEventListener("input", renderizarResultadosParticipantes);
+function incluirParticipantePrevisto() {
+    if (!PARTICIPANTE_PREVISTO_ID) {
+        return;
     }
 
-    if (btnLimparBuscaParticipante) {
-        btnLimparBuscaParticipante.addEventListener("click", limparBuscaParticipantes);
+    const participante =
+        localizarParticipante(
+            PARTICIPANTE_PREVISTO_ID
+        );
+
+    if (!participante) {
+        return;
     }
 
-    if (modalParticipantes) {
-        modalParticipantes.addEventListener("show.bs.modal", function () {
-            limparBuscaParticipantes();
-            atualizarListaSelecionadosModal();
+    adicionarParticipante(
+        participante.id,
+        participante.nome,
+        participante.matricula,
+        false
+    );
+}
 
-            setTimeout(function () {
-                buscarParticipante.focus();
-            }, 300);
-        });
+function identificarAlteracoesAgendamento() {
+    const motivos = [];
+
+    if (!AGENDAMENTO_ID || AGENDAMENTO_ID === "livre") {
+        return motivos;
     }
 
-    document.querySelectorAll(".resultado-select").forEach(el => {
-        el.addEventListener("change", function () {
-            toggleCamposNC(this.dataset.id);
-            salvarDraftHS();
-        });
-    });
+    const temaAtual =
+        document.getElementById("id_tema")?.value || "";
 
-    document.getElementById("data").addEventListener("input", salvarDraftHS);
+    if (
+        TEMA_PREVISTO_ID
+        && String(temaAtual)
+        !== String(TEMA_PREVISTO_ID)
+    ) {
+        motivos.push(
+            "Tema diferente do programado."
+        );
+    }
 
-    document.getElementById("hora").addEventListener("input", function () {
-        definirTurnoAutomaticamente();
-        salvarDraftHS();
-    });
+    if (
+        PARTICIPANTE_PREVISTO_ID
+        && !participanteJaSelecionado(
+            PARTICIPANTE_PREVISTO_ID
+        )
+    ) {
+        motivos.push(
+            "O colaborador previsto não está entre os participantes."
+        );
+    }
 
-    document.getElementById("local").addEventListener("input", salvarDraftHS);
+    return motivos;
+}
 
-    document.querySelectorAll('input[id^="desvio_"], input[id^="acao_"], input[id^="prazo_"]').forEach(el => {
-        el.addEventListener("input", salvarDraftHS);
-        el.addEventListener("change", salvarDraftHS);
-    });
+function abrirModalJustificativa(motivos) {
+    const campo =
+        document.getElementById(
+            "textoJustificativaAlteracao"
+        );
 
-    document.getElementById("id_tema").addEventListener("change", function () {
-        salvarDraftHS();
+    const lista =
+        document.getElementById(
+            "motivosAlteracao"
+        );
 
-        const url = new URL(window.location.href);
+    campo.classList.remove("is-invalid");
+    campo.value = "";
 
-        if (this.value) {
-            url.searchParams.set("id_tema", this.value);
-        } else {
-            url.searchParams.delete("id_tema");
+    lista.innerHTML = `
+        <strong>Alterações identificadas:</strong>
+        <ul class="mb-0 mt-1">
+            ${motivos
+                .map(motivo => `<li>${motivo}</li>`)
+                .join("")}
+        </ul>
+    `;
+
+    const modal =
+        bootstrap.Modal.getOrCreateInstance(
+            document.getElementById(
+                "modalJustificativaAlteracao"
+            )
+        );
+
+    modal.show();
+
+    setTimeout(() => {
+        campo.focus();
+    }, 300);
+}
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+        const buscarParticipante =
+            document.getElementById(
+                "buscarParticipante"
+            );
+
+        const btnLimparBuscaParticipante =
+            document.getElementById(
+                "btnLimparBuscaParticipante"
+            );
+
+        const modalParticipantes =
+            document.getElementById(
+                "modalParticipantes"
+            );
+
+        const form =
+            document.getElementById(
+                "formLancarHS"
+            );
+
+        const btnConfirmarJustificativa =
+            document.getElementById(
+                "btnConfirmarJustificativa"
+            );
+
+        if (buscarParticipante) {
+            buscarParticipante.addEventListener(
+                "input",
+                renderizarResultadosParticipantes
+            );
         }
 
-        window.location.href = url.toString();
-    });
+        if (btnLimparBuscaParticipante) {
+            btnLimparBuscaParticipante.addEventListener(
+                "click",
+                limparBuscaParticipantes
+            );
+        }
 
-    document.getElementById("formLancarHS").addEventListener("submit", function () {
+        if (modalParticipantes) {
+            modalParticipantes.addEventListener(
+                "show.bs.modal",
+                function () {
+                    limparBuscaParticipantes();
+                    atualizarListaSelecionadosModal();
+
+                    setTimeout(function () {
+                        buscarParticipante.focus();
+                    }, 300);
+                }
+            );
+        }
+
+        document
+            .querySelectorAll(".resultado-select")
+            .forEach(elemento => {
+                elemento.addEventListener(
+                    "change",
+                    function () {
+                        toggleCamposNC(
+                            this.dataset.id
+                        );
+
+                        salvarDraftHS();
+                    }
+                );
+            });
+
+        document
+            .querySelectorAll(
+                'input[id^="desvio_"], input[id^="acao_"], input[id^="prazo_"]'
+            )
+            .forEach(elemento => {
+                elemento.addEventListener(
+                    "input",
+                    salvarDraftHS
+                );
+
+                elemento.addEventListener(
+                    "change",
+                    salvarDraftHS
+                );
+            });
+
+        document
+            .getElementById("data")
+            .addEventListener(
+                "input",
+                salvarDraftHS
+            );
+
+        document
+            .getElementById("hora")
+            .addEventListener(
+                "input",
+                function () {
+                    definirTurnoAutomaticamente();
+                    salvarDraftHS();
+                }
+            );
+
+        document
+            .getElementById("local")
+            .addEventListener(
+                "input",
+                salvarDraftHS
+            );
+
+        document
+            .getElementById("id_tema")
+            .addEventListener(
+                "change",
+                function () {
+                    salvarDraftHS();
+
+                    const url =
+                        new URL(window.location.href);
+
+                    if (this.value) {
+                        url.searchParams.set(
+                            "id_tema",
+                            this.value
+                        );
+                    } else {
+                        url.searchParams.delete(
+                            "id_tema"
+                        );
+                    }
+
+                    if (AGENDAMENTO_ID !== "livre") {
+                        url.searchParams.set(
+                            "agendamento_id",
+                            AGENDAMENTO_ID
+                        );
+                    }
+
+                    const nextUrl =
+                        document.getElementById(
+                            "next_url"
+                        ).value;
+
+                    if (nextUrl) {
+                        url.searchParams.set(
+                            "next",
+                            nextUrl
+                        );
+                    }
+
+                    window.location.href =
+                        url.toString();
+                }
+            );
+
+        if (form) {
+            form.addEventListener(
+                "submit",
+                function (event) {
+                    definirTurnoAutomaticamente();
+
+                    if (envioConfirmado) {
+                        limparDraftHS();
+                        return;
+                    }
+
+                    const motivos =
+                        identificarAlteracoesAgendamento();
+
+                    if (motivos.length > 0) {
+                        event.preventDefault();
+                        abrirModalJustificativa(
+                            motivos
+                        );
+                        return;
+                    }
+
+                    limparDraftHS();
+                }
+            );
+        }
+
+        if (btnConfirmarJustificativa) {
+            btnConfirmarJustificativa.addEventListener(
+                "click",
+                function () {
+                    const campo =
+                        document.getElementById(
+                            "textoJustificativaAlteracao"
+                        );
+
+                    const justificativa =
+                        campo.value.trim();
+
+                    if (!justificativa) {
+                        campo.classList.add(
+                            "is-invalid"
+                        );
+
+                        campo.focus();
+                        return;
+                    }
+
+                    campo.classList.remove(
+                        "is-invalid"
+                    );
+
+                    document.getElementById(
+                        "justificativa_alteracao"
+                    ).value = justificativa;
+
+                    envioConfirmado = true;
+                    limparDraftHS();
+
+                    bootstrap.Modal.getInstance(
+                        document.getElementById(
+                            "modalJustificativaAlteracao"
+                        )
+                    )?.hide();
+
+                    form.requestSubmit();
+                }
+            );
+        }
+
+        const btnVoltarHS =
+            document.getElementById(
+                "btnVoltarHS"
+            );
+
+        if (btnVoltarHS) {
+            btnVoltarHS.addEventListener(
+                "click",
+                limparDraftHS
+            );
+        }
+
+        const campoTema =
+            document.getElementById("id_tema");
+
+        if (
+            campoTema
+            && TEMA_SELECIONADO_ID
+            && String(campoTema.value)
+            !== String(TEMA_SELECIONADO_ID)
+        ) {
+            campoTema.value =
+                String(TEMA_SELECIONADO_ID);
+        }
+
         definirTurnoAutomaticamente();
-        limparDraftHS();
-    });
 
-    const btnVoltarHS = document.getElementById("btnVoltarHS");
-    if (btnVoltarHS) {
-        btnVoltarHS.addEventListener("click", limparDraftHS);
+        document
+            .querySelectorAll(".resultado-select")
+            .forEach(elemento => {
+                toggleCamposNC(
+                    elemento.dataset.id
+                );
+            });
+
+        const restaurouDraft =
+            restaurarDraftHS();
+
+        if (!restaurouDraft) {
+            incluirParticipantePrevisto();
+        }
+
+        atualizarParticipantes();
+        atualizarListaSelecionadosModal();
     }
-
-    definirTurnoAutomaticamente();
-
-    document.querySelectorAll(".resultado-select").forEach(el => {
-        toggleCamposNC(el.dataset.id);
-    });
-
-    restaurarDraftHS();
-    atualizarParticipantes();
-    atualizarListaSelecionadosModal();
-});
+);
 </script>
 
 {% endblock %}
