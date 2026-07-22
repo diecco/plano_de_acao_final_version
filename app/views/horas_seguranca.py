@@ -582,8 +582,10 @@ def register_horas_seguranca_routes(blueprint):
                     SELECT id
                     FROM origens
                     WHERE descricao = %s
+                      AND centro_custos_id = %s
                 """, (
                     "Hora de Segurança",
+                    centro_custos_id,
                 ))
 
                 origem = cursor.fetchone()
@@ -594,12 +596,16 @@ def register_horas_seguranca_routes(blueprint):
                 else:
                     cursor.execute("""
                         INSERT INTO origens (
+                            nome,
                             descricao,
+                            centro_custos_id,
                             ativo
                         )
-                        VALUES (%s, 1)
+                        VALUES (%s, %s, %s, 1)
                     """, (
                         "Hora de Segurança",
+                        "Hora de Segurança",
+                        centro_custos_id,
                     ))
 
                     origem_hs = cursor.lastrowid
@@ -1269,16 +1275,33 @@ def register_horas_seguranca_routes(blueprint):
                                 WHERE id=%s
                             """, (acao, prazo, id_auditor, id_acao_gerada))
                         else:
-                            cursor.execute("SELECT id FROM origens WHERE descricao=%s", ("Hora de Segurança",))
+                            cursor.execute("""
+                                SELECT id
+                                FROM origens
+                                WHERE descricao = %s
+                                  AND centro_custos_id = %s
+                            """, (
+                                "Hora de Segurança",
+                                centro_custos_id,
+                            ))
                             origem = cursor.fetchone()
 
                             if origem:
                                 origem_hs = origem["id"]
                             else:
-                                cursor.execute(
-                                    "INSERT INTO origens (descricao, ativo) VALUES (%s, 1)",
-                                    ("Hora de Segurança",)
-                                )
+                                cursor.execute("""
+                                    INSERT INTO origens (
+                                        nome,
+                                        descricao,
+                                        centro_custos_id,
+                                        ativo
+                                    )
+                                    VALUES (%s, %s, %s, 1)
+                                """, (
+                                    "Hora de Segurança",
+                                    "Hora de Segurança",
+                                    centro_custos_id,
+                                ))
                                 origem_hs = cursor.lastrowid
 
                             cursor.execute("""
@@ -1695,4 +1718,3 @@ def register_horas_seguranca_routes(blueprint):
             total_registros=total_registros,
             total_paginas=total_paginas
         )
-
