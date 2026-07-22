@@ -967,6 +967,7 @@
     {% endif %}
 </div>
 
+<script id="dados-lideres-aderencia" type="application/json">{{ lideres | tojson }}</script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.js-progress-bar').forEach(function (barra) {
@@ -976,15 +977,8 @@ document.addEventListener('DOMContentLoaded', function () {
         barra.setAttribute('aria-valuenow', valorSeguro);
     });
 
-    const lideres = Array.from(
-        document.querySelectorAll('.js-lider-dado')
-    ).map(function (elemento) {
-        return {
-            id: elemento.dataset.id,
-            nome: elemento.dataset.nome || '',
-            matricula: elemento.dataset.matricula || ''
-        };
-    });
+    const dadosLideres = document.getElementById('dados-lideres-aderencia');
+    const lideres = JSON.parse(dadosLideres.textContent || '[]');
 
     const campoBusca = document.getElementById('lider_busca');
     const campoId = document.getElementById('lider_id');
