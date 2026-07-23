@@ -13,7 +13,18 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 175)
+        self.assertEqual(len(self.routes), 180)
+
+    def test_detector_gas_routes_are_registered(self):
+        expected = {
+            ("/detectores_gas", ("GET",)): "main.detectores_gas",
+            ("/detectores_gas/cadastrar", ("POST",)): "main.cadastrar_detector_gas",
+            ("/detectores_gas/<int:detector_id>/editar", ("POST",)): "main.editar_detector_gas",
+            ("/detectores_gas/<int:detector_id>/inativar", ("POST",)): "main.inativar_detector_gas",
+            ("/detectores_gas/<int:detector_id>/reativar", ("POST",)): "main.reativar_detector_gas",
+        }
+        for route_contract, endpoint in expected.items():
+            self.assertEqual(self.routes.get(route_contract), endpoint)
 
     def test_cost_center_routes_preserve_urls_methods_and_endpoints(self):
         expected = {

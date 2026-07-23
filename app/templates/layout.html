@@ -1101,6 +1101,7 @@
     'main.listar_usuarios',
     'main.causas_recusas',
     'main.cadastrar_hs',
+    'main.detectores_gas',
     'main.cargos',
     'main.funcoes',
     'main.setores',
@@ -1160,6 +1161,12 @@
     <a href="/cadastrar_hs" class="nav-link {% if request.endpoint == 'main.cadastrar_hs' %}active{% endif %}">
         <i class="bi bi-shield-plus"></i>
         <span class="menu-text">Temas HS</span>
+    </a>
+
+    <a href="{{ url_for('main.detectores_gas') }}"
+       class="nav-link {% if request.endpoint == 'main.detectores_gas' %}active{% endif %}">
+        <i class="bi bi-broadcast-pin"></i>
+        <span class="menu-text">Detectores de Gás</span>
     </a>
 
     <div class="px-3 pt-3 pb-1 text-white-50 small fw-bold">PROCEDIMENTOS</div>

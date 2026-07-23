@@ -1,0 +1,415 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Detectores de Gás{% endblock %}
+
+{% block conteudo %}
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-broadcast-pin me-2"></i>
+        Cadastro de Detectores de Gás
+    </h2>
+</div>
+
+<hr>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('main.detectores_gas') }}">
+            <div class="row g-3 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label for="busca" class="form-label">Busca</label>
+                    <input type="search"
+                           class="form-control"
+                           id="busca"
+                           name="busca"
+                           value="{{ filtros.busca or '' }}"
+                           placeholder="Patrimônio, fabricante, marca ou modelo">
+                </div>
+
+                <div class="col-12 col-md-3">
+                    <label for="centro_custos_id" class="form-label">Centro de custos</label>
+                    <select class="form-select" id="centro_custos_id" name="centro_custos_id">
+                        <option value="">Todos</option>
+                        {% for cc in centros_custos %}
+                            <option value="{{ cc.id }}"
+                                    {% if filtros.centro_custos_id == cc.id %}selected{% endif %}>
+                                {{ cc.codigo }} — {{ cc.descricao }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-2">
+                    <label for="status" class="form-label">Situação</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">Todos</option>
+                        <option value="ativos" {% if filtros.status == 'ativos' %}selected{% endif %}>
+                            Ativos
+                        </option>
+                        <option value="inativos" {% if filtros.status == 'inativos' %}selected{% endif %}>
+                            Inativos
+                        </option>
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-3">
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="submit" class="btn btn-laranja" title="Filtrar">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+                        <a href="{{ url_for('main.detectores_gas') }}"
+                           class="btn btn-cinza"
+                           title="Limpar filtros">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+                        <button type="button"
+                                class="btn btn-laranja"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modalCadastrarDetector">
+                            <i class="bi bi-plus-circle me-1"></i>
+                            Novo
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Patrimônio</th>
+                        <th>Fabricante</th>
+                        <th>Marca / Modelo</th>
+                        <th>Calibração</th>
+                        <th>Validade</th>
+                        <th>Centro de custos</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Cadastro</th>
+                        <th class="text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for detector in detectores %}
+                        <tr class="{% if not detector.ativo %}table-secondary opacity-75{% endif %}">
+                            <td>
+                                <span class="badge text-bg-dark detector-patrimonio">
+                                    {{ detector.patrimonio }}
+                                </span>
+                            </td>
+                            <td>{{ detector.fabricante }}</td>
+                            <td>
+                                <div class="fw-semibold">{{ detector.marca }}</div>
+                                <small class="text-muted">{{ detector.modelo }}</small>
+                            </td>
+                            <td>
+                                {{ detector.data_calibracao.strftime('%d/%m/%Y') if detector.data_calibracao else '—' }}
+                            </td>
+                            <td>
+                                {{ detector.validade_calibracao.strftime('%d/%m/%Y') if detector.validade_calibracao else '—' }}
+                            </td>
+                            <td>
+                                <div>{{ detector.centro_custos_codigo }}</div>
+                                <small class="text-muted">{{ detector.centro_custos_descricao }}</small>
+                            </td>
+                            <td class="text-center">
+                                {% if detector.status_operacional == 'disponivel' %}
+                                    <span class="badge text-bg-success">Disponível</span>
+                                {% elif detector.status_operacional == 'em_uso' %}
+                                    <span class="badge text-bg-danger">Em uso</span>
+                                {% elif detector.status_operacional == 'em_calibracao' %}
+                                    <span class="badge text-bg-secondary">Em calibração</span>
+                                {% elif detector.status_operacional == 'com_defeito' %}
+                                    <span class="badge text-bg-warning">Com defeito</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if detector.ativo %}
+                                    <span class="badge bg-success-subtle text-success-emphasis">Ativo</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inativo</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex justify-content-center gap-2">
+                                    {% if detector.ativo and detector.status_operacional != 'em_uso' %}
+                                        <button type="button"
+                                                class="btn-acao-icon js-editar-detector"
+                                                title="Editar"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalEditarDetector"
+                                                data-id="{{ detector.id }}"
+                                                data-patrimonio="{{ detector.patrimonio }}"
+                                                data-fabricante="{{ detector.fabricante }}"
+                                                data-marca="{{ detector.marca }}"
+                                                data-modelo="{{ detector.modelo }}"
+                                                data-data-calibracao="{{ detector.data_calibracao.isoformat() if detector.data_calibracao else '' }}"
+                                                data-validade-calibracao="{{ detector.validade_calibracao.isoformat() if detector.validade_calibracao else '' }}"
+                                                data-centro-custos-id="{{ detector.centro_custos_id }}"
+                                                data-status-operacional="{{ detector.status_operacional }}">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+
+                                        <form method="POST"
+                                              action="{{ url_for('main.inativar_detector_gas', detector_id=detector.id) }}"
+                                              onsubmit="return confirm('Deseja inativar {{ detector.patrimonio }}?');">
+                                            <button type="submit"
+                                                    class="btn-acao-icon"
+                                                    title="Inativar">
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        </form>
+                                    {% elif not detector.ativo %}
+                                        <button type="button"
+                                                class="btn-acao-icon js-reativar-detector"
+                                                title="Reativar"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalReativarDetector"
+                                                data-id="{{ detector.id }}"
+                                                data-patrimonio="{{ detector.patrimonio }}">
+                                            <i class="bi bi-check-circle"></i>
+                                        </button>
+                                    {% else %}
+                                        <span class="text-muted" title="Detector em uso">
+                                            <i class="bi bi-lock"></i>
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">
+                                Nenhum detector de gás encontrado.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% macro campos_detector(prefixo, incluir_status=true) %}
+    <div class="row g-3">
+        <div class="col-md-4">
+            <label for="{{ prefixo }}_patrimonio" class="form-label">Patrimônio</label>
+            <input type="text"
+                   class="form-control text-uppercase"
+                   id="{{ prefixo }}_patrimonio"
+                   name="patrimonio"
+                   maxlength="9"
+                   pattern="[A-Za-z]{4}-[0-9]{4}"
+                   placeholder="PTDG-1921"
+                   autocomplete="off"
+                   required>
+            <div class="form-text">Quatro letras, hífen e quatro números.</div>
+        </div>
+
+        <div class="col-md-4">
+            <label for="{{ prefixo }}_fabricante" class="form-label">Fabricante</label>
+            <input type="text"
+                   class="form-control"
+                   id="{{ prefixo }}_fabricante"
+                   name="fabricante"
+                   maxlength="120"
+                   required>
+        </div>
+
+        <div class="col-md-4">
+            <label for="{{ prefixo }}_marca" class="form-label">Marca</label>
+            <input type="text"
+                   class="form-control"
+                   id="{{ prefixo }}_marca"
+                   name="marca"
+                   maxlength="120"
+                   required>
+        </div>
+
+        <div class="col-md-4">
+            <label for="{{ prefixo }}_modelo" class="form-label">Modelo</label>
+            <input type="text"
+                   class="form-control"
+                   id="{{ prefixo }}_modelo"
+                   name="modelo"
+                   maxlength="120"
+                   required>
+        </div>
+
+        <div class="col-md-4">
+            <label for="{{ prefixo }}_data_calibracao" class="form-label">Data da calibração</label>
+            <input type="date"
+                   class="form-control"
+                   id="{{ prefixo }}_data_calibracao"
+                   name="data_calibracao">
+        </div>
+
+        <div class="col-md-4">
+            <label for="{{ prefixo }}_validade_calibracao" class="form-label">Validade da calibração</label>
+            <input type="date"
+                   class="form-control"
+                   id="{{ prefixo }}_validade_calibracao"
+                   name="validade_calibracao">
+        </div>
+
+        <div class="col-md-8">
+            <label for="{{ prefixo }}_centro_custos_id" class="form-label">Centro de custos</label>
+            <select class="form-select"
+                    id="{{ prefixo }}_centro_custos_id"
+                    name="centro_custos_id"
+                    required>
+                <option value="">Selecione</option>
+                {% for cc in centros_custos %}
+                    <option value="{{ cc.id }}">{{ cc.codigo }} — {{ cc.descricao }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        {% if incluir_status %}
+            <div class="col-md-4">
+                <label for="{{ prefixo }}_status_operacional" class="form-label">Status operacional</label>
+                <select class="form-select"
+                        id="{{ prefixo }}_status_operacional"
+                        name="status_operacional"
+                        required>
+                    <option value="disponivel">Disponível</option>
+                    <option value="em_calibracao">Em calibração</option>
+                    <option value="com_defeito">Com defeito</option>
+                </select>
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+<div class="modal fade" id="modalCadastrarDetector" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('main.cadastrar_detector_gas') }}">
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title">
+                        <i class="bi bi-plus-circle me-2"></i>
+                        Novo Detector de Gás
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    {{ campos_detector('cad') }}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-laranja">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalEditarDetector" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST"
+                  id="formEditarDetector"
+                  action="{{ url_for('main.editar_detector_gas', detector_id=0) }}"
+                  data-action-template="{{ url_for('main.editar_detector_gas', detector_id=0) }}">
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title">
+                        <i class="bi bi-pencil-square me-2"></i>
+                        Editar Detector de Gás
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    {{ campos_detector('edit') }}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-laranja">Salvar alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalReativarDetector" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST"
+                  id="formReativarDetector"
+                  action="{{ url_for('main.reativar_detector_gas', detector_id=0) }}"
+                  data-action-template="{{ url_for('main.reativar_detector_gas', detector_id=0) }}">
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title">Reativar <span id="reativarPatrimonio"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label for="reativar_status_operacional" class="form-label">
+                        Condição operacional no retorno
+                    </label>
+                    <select class="form-select"
+                            id="reativar_status_operacional"
+                            name="status_operacional"
+                            required>
+                        <option value="disponivel">Disponível</option>
+                        <option value="em_calibracao">Em calibração</option>
+                        <option value="com_defeito">Com defeito</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-laranja">Reativar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    function aplicarMascaraPatrimonio(campo) {
+        campo.addEventListener('input', function () {
+            const bruto = campo.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            const letras = bruto.slice(0, 4).replace(/[^A-Z]/g, '');
+            const numeros = bruto.slice(4).replace(/\D/g, '').slice(0, 4);
+            campo.value = letras + (letras.length === 4 && numeros ? '-' : '') + numeros;
+        });
+    }
+
+    aplicarMascaraPatrimonio(document.getElementById('cad_patrimonio'));
+    aplicarMascaraPatrimonio(document.getElementById('edit_patrimonio'));
+
+    const formEditar = document.getElementById('formEditarDetector');
+    document.querySelectorAll('.js-editar-detector').forEach(function (botao) {
+        botao.addEventListener('click', function () {
+            formEditar.action = formEditar.dataset.actionTemplate.replace('/0/', '/' + botao.dataset.id + '/');
+            document.getElementById('edit_patrimonio').value = botao.dataset.patrimonio;
+            document.getElementById('edit_fabricante').value = botao.dataset.fabricante;
+            document.getElementById('edit_marca').value = botao.dataset.marca;
+            document.getElementById('edit_modelo').value = botao.dataset.modelo;
+            document.getElementById('edit_data_calibracao').value = botao.dataset.dataCalibracao;
+            document.getElementById('edit_validade_calibracao').value = botao.dataset.validadeCalibracao;
+            document.getElementById('edit_centro_custos_id').value = botao.dataset.centroCustosId;
+            document.getElementById('edit_status_operacional').value = botao.dataset.statusOperacional;
+        });
+    });
+
+    const formReativar = document.getElementById('formReativarDetector');
+    document.querySelectorAll('.js-reativar-detector').forEach(function (botao) {
+        botao.addEventListener('click', function () {
+            formReativar.action = formReativar.dataset.actionTemplate.replace('/0/', '/' + botao.dataset.id + '/');
+            document.getElementById('reativarPatrimonio').textContent = botao.dataset.patrimonio;
+        });
+    });
+});
+</script>
+
+<style>
+.detector-patrimonio {
+    font-size: .9rem;
+    letter-spacing: .06em;
+}
+</style>
+{% endblock %}
