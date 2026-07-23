@@ -1,4 +1,4 @@
-from flask import flash, redirect, render_template, request, session
+from flask import flash, redirect, render_template, request, session, url_for
 
 from app.decorators import admin_required, login_required, module_required
 from app.upload_security import UploadService
@@ -683,4 +683,3 @@ def register_procedimentos_routes(blueprint):
             tipos_documento=tipos_documento,
             filtros=filtros
         )
-
