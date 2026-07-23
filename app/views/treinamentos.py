@@ -2340,7 +2340,8 @@ def register_treinamentos_routes(blueprint):
                 WHERE trp.usuario_id = base.usuario_id
                   AND tr.procedimento_id = base.procedimento_id
                   AND tr.procedimento_revisao_id = rev_vigente.id
-                  AND trp.ativo = 1
+                  AND trp.presenca = 1
+                  AND trp.aprovado = 1
                   AND tr.ativo = 1
                   AND tr.data_validade IS NOT NULL
                   AND DATE(tr.data_validade) >= %s
