@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from io import BytesIO
 
 from flask import flash, redirect, render_template, request, send_file, session, url_for
@@ -2481,4 +2481,3 @@ def register_treinamentos_routes(blueprint):
             download_name="relatorio_treinamentos_pendentes.xlsx",
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-
