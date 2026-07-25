@@ -349,15 +349,12 @@ def register_detectores_gas_routes(blueprint):
                     m.devolvido_em,
                     m.condicao_devolucao,
                     m.origem_defeito,
-                    m.observacao_devolucao,
                     entregue.nome AS entregue_por_nome,
                     entregue.matricula AS entregue_por_matricula,
                     retirante.nome AS retirado_por_nome,
                     retirante.matricula AS retirado_por_matricula,
                     recebido.nome AS recebido_por_nome,
-                    recebido.matricula AS recebido_por_matricula,
-                    devolvente.nome AS devolvido_por_nome,
-                    devolvente.matricula AS devolvido_por_matricula
+                    recebido.matricula AS recebido_por_matricula
                 FROM detectores_gas_movimentacoes m
                 JOIN detectores_gas d
                     ON d.id = m.detector_id
@@ -367,8 +364,6 @@ def register_detectores_gas_routes(blueprint):
                     ON retirante.id = m.retirado_por_id
                 LEFT JOIN usuarios recebido
                     ON recebido.id = m.recebido_por_id
-                LEFT JOIN usuarios devolvente
-                    ON devolvente.id = m.devolvido_por_id
                 WHERE {" AND ".join(condicoes)}
                 ORDER BY m.retirado_em DESC, m.id DESC
             """, tuple(parametros))

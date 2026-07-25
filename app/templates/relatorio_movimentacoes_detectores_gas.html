@@ -128,13 +128,11 @@
                     <tr>
                         <th>Detector</th>
                         <th>Retirada</th>
-                        <th>Funcionário</th>
+                        <th>Retirado por</th>
                         <th>Entregue por</th>
                         <th>Devolução</th>
-                        <th>Devolvido por</th>
                         <th>Recebido por</th>
                         <th class="text-center">Condição</th>
-                        <th>Observações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -173,16 +171,6 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if movimento.devolvido_por_nome %}
-                                    {{ movimento.devolvido_por_nome }}
-                                    <small class="d-block text-muted">
-                                        {{ movimento.devolvido_por_matricula or 'Sem matrícula' }}
-                                    </small>
-                                {% else %}
-                                    —
-                                {% endif %}
-                            </td>
-                            <td>
                                 {% if movimento.recebido_por_nome %}
                                     {{ movimento.recebido_por_nome }}
                                     <small class="d-block text-muted">
@@ -210,13 +198,10 @@
                                     —
                                 {% endif %}
                             </td>
-                            <td class="observacao-coluna">
-                                {{ movimento.observacao_devolucao or '—' }}
-                            </td>
                         </tr>
                     {% else %}
                         <tr>
-                            <td colspan="9" class="text-center text-muted py-5">
+                            <td colspan="7" class="text-center text-muted py-5">
                                 <i class="bi bi-inbox d-block fs-2 mb-2"></i>
                                 Nenhuma movimentação encontrada.
                             </td>
@@ -265,13 +250,31 @@
 }
 
 .movimentacoes-tabela {
-    min-width: 1450px;
-    font-size: .86rem;
+    width: 100%;
+    table-layout: fixed;
+    font-size: .82rem;
 }
 
-.observacao-coluna {
-    min-width: 190px;
-    max-width: 280px;
+.movimentacoes-tabela th,
+.movimentacoes-tabela td {
+    overflow-wrap: anywhere;
+    white-space: normal;
+    vertical-align: middle;
+}
+
+.movimentacoes-tabela th:nth-child(1) { width: 13%; }
+.movimentacoes-tabela th:nth-child(2) { width: 13%; }
+.movimentacoes-tabela th:nth-child(3) { width: 17%; }
+.movimentacoes-tabela th:nth-child(4) { width: 17%; }
+.movimentacoes-tabela th:nth-child(5) { width: 13%; }
+.movimentacoes-tabela th:nth-child(6) { width: 17%; }
+.movimentacoes-tabela th:nth-child(7) { width: 10%; }
+
+.movimentacoes-tabela .text-nowrap {
+    white-space: normal !important;
+}
+
+.movimentacoes-tabela .badge {
     white-space: normal;
 }
 

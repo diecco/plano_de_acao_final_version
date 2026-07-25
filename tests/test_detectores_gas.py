@@ -111,6 +111,12 @@ class DetectoresGasTests(unittest.TestCase):
         self.assertIn("m.devolvido_em IS NULL", VIEW_SOURCE)
         self.assertIn("Relatório de Movimentações", REPORT_TEMPLATE)
 
+    def test_relatorio_compacto_nao_repete_devolvente(self):
+        self.assertIn("<th>Retirado por</th>", REPORT_TEMPLATE)
+        self.assertNotIn("<th>Devolvido por</th>", REPORT_TEMPLATE)
+        self.assertNotIn("<th>Observações</th>", REPORT_TEMPLATE)
+        self.assertIn("table-layout: fixed", REPORT_TEMPLATE)
+
 
 if __name__ == "__main__":
     unittest.main()
