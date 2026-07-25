@@ -36,4 +36,44 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="avisoNovaVersao" tabindex="-1"
+     aria-labelledby="avisoNovaVersaoTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-warning-subtle">
+                <h5 class="modal-title" id="avisoNovaVersaoTitulo">
+                    Nova versão do TrackPlan
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                        aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">
+                    Uma nova versão do sistema está disponível em produção.
+                </p>
+                <p class="mb-0">
+                    Em caso de dúvidas ou se identificar algum comportamento
+                    inesperado, entre em contato comigo.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-laranja"
+                        data-bs-dismiss="modal">
+                    Entendi
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const aviso = document.getElementById('avisoNovaVersao');
+
+    if (aviso && window.bootstrap) {
+        bootstrap.Modal.getOrCreateInstance(aviso).show();
+    }
+});
+</script>
 {% endblock %}
