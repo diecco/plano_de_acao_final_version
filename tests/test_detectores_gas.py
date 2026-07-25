@@ -66,8 +66,8 @@ class DetectoresGasTests(unittest.TestCase):
         )
 
     def test_dashboard_prepara_fluxos_de_entrega_e_devolucao(self):
-        self.assertIn("Iniciar entrega", DASHBOARD_TEMPLATE)
-        self.assertIn("Registrar devolução", DASHBOARD_TEMPLATE)
+        self.assertIn('"acao": "Iniciar entrega"', VIEW_SOURCE)
+        self.assertIn('"acao": "Registrar devolução"', VIEW_SOURCE)
         self.assertIn("validação RFID", DASHBOARD_TEMPLATE)
 
 
