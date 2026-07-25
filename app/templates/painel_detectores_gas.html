@@ -66,9 +66,10 @@
                     <div class="col-12 col-md-3">
                         <div class="d-flex gap-2">
                             <button type="submit"
-                                    class="btn btn-laranja flex-grow-1">
-                                <i class="bi bi-funnel me-1"></i>
-                                Filtrar
+                                    class="btn btn-laranja"
+                                    title="Filtrar"
+                                    aria-label="Filtrar">
+                                <i class="bi bi-funnel"></i>
                             </button>
                             <a href="{{ url_for('main.painel_detectores_gas') }}"
                                class="btn btn-cinza"
@@ -114,10 +115,6 @@
                 <span class="detector-patrimonio">{{ detector.patrimonio }}</span>
                 <span class="detector-modelo">
                     {{ detector.marca }} {{ detector.modelo }}
-                </span>
-                <span class="detector-centro">
-                    <i class="bi bi-building me-1"></i>
-                    {{ detector.centro_custos_codigo }}
                 </span>
                 <span class="detector-acao">{{ config.acao }}</span>
             </button>
@@ -311,13 +308,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
 .detectores-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
-    gap: .7rem;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: .6rem;
 }
 
 .detector-card {
     display: flex;
-    min-height: 155px;
+    min-height: 125px;
     flex-direction: column;
     align-items: stretch;
     padding: 0;
@@ -395,25 +392,18 @@ document.addEventListener('DOMContentLoaded', function () {
     letter-spacing: .06em;
 }
 
-.detector-modelo,
-.detector-centro {
+.detector-modelo {
     display: block;
     padding: 0 .65rem;
 }
 
 .detector-modelo {
-    min-height: 2.25rem;
+    min-height: 2rem;
+    margin-bottom: auto;
     color: #4d5965;
-    font-size: .78rem;
+    font-size: .74rem;
     font-weight: 600;
     line-height: 1.2;
-}
-
-.detector-centro {
-    margin-top: auto;
-    padding-bottom: .45rem;
-    color: #737d87;
-    font-size: .72rem;
 }
 
 .detector-acao {
@@ -488,12 +478,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     .detectores-grid {
-        grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));
     }
 
-    .detector-card {
-        min-height: 150px;
-    }
+    .detector-card { min-height: 125px; }
 }
 
 @media (max-width: 430px) {
@@ -506,9 +494,7 @@ document.addEventListener('DOMContentLoaded', function () {
         gap: .7rem;
     }
 
-    .detector-card {
-        min-height: 145px;
-    }
+    .detector-card { min-height: 120px; }
 
     .detector-patrimonio {
         font-size: 1.12rem;
