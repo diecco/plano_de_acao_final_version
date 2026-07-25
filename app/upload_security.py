@@ -1,8 +1,17 @@
 import os
+import shutil
 from pathlib import Path
 from uuid import uuid4
 
 from flask import current_app
+
+
+DIRETORIOS_PERSISTENTES = (
+    "evidencias",
+    "evidencias_treinamentos",
+    "aprs",
+    "pcpm_movimentacoes",
+)
 
 
 class UploadValidationError(ValueError):
@@ -19,6 +28,58 @@ _SIGNATURES = {
     "docx": (b"PK\x03\x04",),
     "xlsx": (b"PK\x03\x04",),
 }
+
+
+def _copiar_arquivos_ausentes(origem, destino):
+    """Copia o conteúdo empacotado sem substituir arquivos já persistidos."""
+    if not origem.is_dir():
+        return
+
+    for item in origem.rglob("*"):
+        relativo = item.relative_to(origem)
+        alvo = destino / relativo
+        if item.is_dir():
+            alvo.mkdir(parents=True, exist_ok=True)
+        elif item.is_file() and not alvo.exists():
+            alvo.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(item, alvo)
+
+
+def configurar_uploads_persistentes(app, raiz_uploads=None):
+    """Liga os diretórios públicos de upload ao disco persistente do servidor."""
+    valor_raiz = (
+        raiz_uploads if raiz_uploads is not None else os.getenv("UPLOAD_ROOT", "")
+    )
+    valor_raiz = str(valor_raiz).strip()
+    if not valor_raiz:
+        return False
+
+    raiz = Path(valor_raiz)
+    if not raiz.is_absolute():
+        raise RuntimeError("UPLOAD_ROOT deve apontar para um caminho absoluto.")
+
+    raiz.mkdir(parents=True, exist_ok=True)
+    raiz = raiz.resolve()
+    static_root = Path(app.static_folder).resolve()
+
+    for nome in DIRETORIOS_PERSISTENTES:
+        origem = static_root / nome
+        destino = raiz / nome
+        destino.mkdir(parents=True, exist_ok=True)
+
+        if origem.is_symlink():
+            origem.unlink()
+        elif origem.exists():
+            _copiar_arquivos_ausentes(origem, destino)
+            shutil.rmtree(origem)
+
+        origem.parent.mkdir(parents=True, exist_ok=True)
+        os.symlink(str(destino), str(origem), target_is_directory=True)
+
+    app.config["UPLOAD_ROOT"] = str(raiz)
+    app.config["UPLOAD_FOLDER"] = str(raiz / "evidencias")
+    app.logger.info("Uploads persistentes configurados em %s", raiz)
+    return True
 
 
 def validar_conteudo_upload(arquivo, extensoes_permitidas):

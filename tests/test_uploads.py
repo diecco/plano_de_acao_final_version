@@ -4,6 +4,7 @@ from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from flask import Flask
 
@@ -91,6 +92,48 @@ class UploadRegressionTests(unittest.TestCase):
             self.assertFalse(upload_security.UploadService.excluir("../fora.pdf", pasta))
             self.assertTrue(upload_security.UploadService.excluir(primeiro, pasta))
             self.assertFalse((Path(pasta) / primeiro).exists())
+
+    def test_uploads_persistentes_migram_arquivos_sem_sobrescrever(self):
+        with TemporaryDirectory() as pasta:
+            base = Path(pasta)
+            static = base / "static"
+            persistente = base / "persistente"
+            origem = static / "evidencias"
+            destino = persistente / "evidencias"
+            origem.mkdir(parents=True)
+            destino.mkdir(parents=True)
+            (origem / "novo.pdf").write_bytes(b"novo")
+            (origem / "existente.pdf").write_bytes(b"versao-pacote")
+            (destino / "existente.pdf").write_bytes(b"versao-disco")
+
+            app = Flask(__name__, static_folder=str(static))
+            with patch.object(upload_security.os, "symlink") as criar_link:
+                configurado = upload_security.configurar_uploads_persistentes(
+                    app, persistente
+                )
+
+            self.assertTrue(configurado)
+            self.assertEqual((destino / "novo.pdf").read_bytes(), b"novo")
+            self.assertEqual(
+                (destino / "existente.pdf").read_bytes(), b"versao-disco"
+            )
+            self.assertFalse(origem.exists())
+            self.assertEqual(criar_link.call_count, 4)
+            self.assertEqual(app.config["UPLOAD_FOLDER"], str(destino.resolve()))
+
+    def test_upload_root_relativo_e_rejeitado(self):
+        app = Flask(__name__)
+        with self.assertRaisesRegex(RuntimeError, "caminho absoluto"):
+            upload_security.configurar_uploads_persistentes(
+                app, "uploads-relativos"
+            )
+
+    def test_sem_upload_root_mantem_ambiente_local(self):
+        app = Flask(__name__)
+        with patch.dict(upload_security.os.environ, {}, clear=True):
+            self.assertFalse(
+                upload_security.configurar_uploads_persistentes(app)
+            )
 
     def test_rotas_nao_salvam_uploads_diretamente(self):
         self.assertNotIn("arquivo.save(", ROUTES_SOURCE)
