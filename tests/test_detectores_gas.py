@@ -80,6 +80,16 @@ class DetectoresGasTests(unittest.TestCase):
             VIEW_SOURCE,
         )
 
+    def test_modal_devolucao_exibe_usuario_em_posse(self):
+        self.assertIn("Em posse de", DASHBOARD_TEMPLATE)
+        self.assertIn("modalPosseDetector", DASHBOARD_TEMPLATE)
+        self.assertIn("card.dataset.usuarioPosse", DASHBOARD_TEMPLATE)
+
+    def test_modal_nao_exibe_centro_e_destaca_rfid_em_laranja(self):
+        self.assertNotIn("modalCentroDetector", DASHBOARD_TEMPLATE)
+        self.assertIn("rfid-identificado", DASHBOARD_TEMPLATE)
+        self.assertIn("color: #ea6a23", DASHBOARD_TEMPLATE)
+
     def test_responsavel_rfid_deve_ser_o_usuario_logado(self):
         self.assertGreaterEqual(
             VIEW_SOURCE.count(

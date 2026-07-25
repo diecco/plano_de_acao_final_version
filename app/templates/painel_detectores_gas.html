@@ -103,7 +103,6 @@
                     data-fabricante="{{ detector.fabricante }}"
                     data-marca="{{ detector.marca }}"
                     data-modelo="{{ detector.modelo }}"
-                    data-centro-custos="{{ detector.centro_custos_codigo }} — {{ detector.centro_custos_descricao }}"
                     data-status="{{ detector.status_operacional }}"
                     data-status-rotulo="{{ config.rotulo }}"
                     data-usuario-posse="{{ detector.usuario_posse_nome or '' }}"
@@ -161,9 +160,9 @@
                         <dt>Marca / modelo</dt>
                         <dd id="modalModeloDetector"></dd>
                     </div>
-                    <div>
-                        <dt>Centro de custos</dt>
-                        <dd id="modalCentroDetector"></dd>
+                    <div id="modalPosseDetectorContainer" class="d-none">
+                        <dt>Em posse de</dt>
+                        <dd id="modalPosseDetector" class="fw-semibold"></dd>
                     </div>
                 </dl>
                 <div id="modalMensagemOperacao" class="alert d-none"></div>
@@ -299,7 +298,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 throw new Error(dados.mensagem || 'RFID não reconhecido.');
             }
 
-            retorno.className = 'form-text text-success fw-semibold';
+            retorno.className = 'form-text rfid-identificado fw-semibold';
             retorno.textContent =
                 (dados.usuario.matricula ? dados.usuario.matricula + ' — ' : '') +
                 dados.usuario.nome;
@@ -373,8 +372,15 @@ document.addEventListener('DOMContentLoaded', function () {
             card.dataset.fabricante;
         document.getElementById('modalModeloDetector').textContent =
             card.dataset.marca + ' ' + card.dataset.modelo;
-        document.getElementById('modalCentroDetector').textContent =
-            card.dataset.centroCustos;
+        const posseContainer = document.getElementById(
+            'modalPosseDetectorContainer'
+        );
+        const posseDetector = document.getElementById('modalPosseDetector');
+        posseDetector.textContent = card.dataset.usuarioPosse || '';
+        posseContainer.classList.toggle(
+            'd-none',
+            status !== 'em_uso' || !card.dataset.usuarioPosse
+        );
 
         botaoOperacao.querySelector('span').textContent = card.dataset.acao;
         botaoOperacao.querySelector('i').className =
@@ -683,6 +689,10 @@ document.addEventListener('DOMContentLoaded', function () {
     color: #ef641c;
     font-weight: 700;
     text-transform: uppercase;
+}
+
+.rfid-identificado {
+    color: #ea6a23;
 }
 
 .detector-detalhes {
