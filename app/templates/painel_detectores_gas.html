@@ -14,11 +14,6 @@
                 Selecione um aparelho para iniciar uma entrega ou registrar uma devolução.
             </p>
         </div>
-        <a href="{{ url_for('main.detectores_gas') }}"
-           class="btn btn-outline-secondary">
-            <i class="bi bi-gear me-1"></i>
-            Gerenciar aparelhos
-        </a>
     </div>
 
     <div class="dashboard-resumo" aria-label="Resumo dos detectores">
@@ -47,7 +42,7 @@
             <form method="GET"
                   action="{{ url_for('main.painel_detectores_gas') }}">
                 <div class="row g-3 align-items-end">
-                    <div class="col-12 col-lg-4">
+                    <div class="col-12 col-md-6">
                         <label for="busca" class="form-label">Localizar aparelho</label>
                         <input type="search"
                                class="form-control"
@@ -56,23 +51,7 @@
                                value="{{ filtros.busca or '' }}"
                                placeholder="Patrimônio, fabricante, marca ou modelo">
                     </div>
-                    <div class="col-12 col-md-5 col-lg-3">
-                        <label for="centro_custos_id" class="form-label">
-                            Centro de custos
-                        </label>
-                        <select class="form-select"
-                                id="centro_custos_id"
-                                name="centro_custos_id">
-                            <option value="">Todos</option>
-                            {% for cc in centros_custos %}
-                                <option value="{{ cc.id }}"
-                                        {% if filtros.centro_custos_id == cc.id %}selected{% endif %}>
-                                    {{ cc.codigo }} — {{ cc.descricao }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-12 col-md-4 col-lg-3">
+                    <div class="col-12 col-md-3">
                         <label for="status" class="form-label">Condição</label>
                         <select class="form-select" id="status" name="status">
                             <option value="">Todas</option>
@@ -84,7 +63,7 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-12 col-md-3 col-lg-2">
+                    <div class="col-12 col-md-3">
                         <div class="d-flex gap-2">
                             <button type="submit"
                                     class="btn btn-laranja flex-grow-1">
@@ -259,11 +238,13 @@ document.addEventListener('DOMContentLoaded', function () {
 }
 
 .dashboard-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+    display: block;
     margin-bottom: 1.25rem;
+    text-align: center;
+}
+
+.dashboard-header .page-title {
+    justify-content: center;
 }
 
 .dashboard-resumo {
@@ -330,19 +311,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
 .detectores-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    gap: .7rem;
 }
 
 .detector-card {
     display: flex;
-    min-height: 205px;
+    min-height: 155px;
     flex-direction: column;
     align-items: stretch;
     padding: 0;
     overflow: hidden;
     border: 0;
-    border-radius: 1rem;
+    border-radius: .75rem;
     background: #fff;
     color: #25313c;
     text-align: left;
@@ -365,9 +346,9 @@ document.addEventListener('DOMContentLoaded', function () {
     display: flex;
     align-items: center;
     gap: .45rem;
-    padding: .7rem .85rem;
+    padding: .48rem .65rem;
     color: #fff;
-    font-size: .78rem;
+    font-size: .68rem;
     font-weight: 700;
     letter-spacing: .025em;
     text-transform: uppercase;
@@ -408,8 +389,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
 .detector-patrimonio {
     display: block;
-    padding: 1rem .9rem .15rem;
-    font-size: 1.55rem;
+    padding: .65rem .65rem .1rem;
+    font-size: 1.12rem;
     font-weight: 850;
     letter-spacing: .06em;
 }
@@ -417,27 +398,29 @@ document.addEventListener('DOMContentLoaded', function () {
 .detector-modelo,
 .detector-centro {
     display: block;
-    padding: 0 .9rem;
+    padding: 0 .65rem;
 }
 
 .detector-modelo {
-    min-height: 2.8rem;
+    min-height: 2.25rem;
     color: #4d5965;
+    font-size: .78rem;
     font-weight: 600;
+    line-height: 1.2;
 }
 
 .detector-centro {
     margin-top: auto;
-    padding-bottom: .7rem;
+    padding-bottom: .45rem;
     color: #737d87;
-    font-size: .85rem;
+    font-size: .72rem;
 }
 
 .detector-acao {
     display: block;
-    padding: .65rem .9rem;
+    padding: .42rem .65rem;
     color: #fff;
-    font-size: .86rem;
+    font-size: .72rem;
     font-weight: 700;
     text-align: center;
 }
@@ -496,11 +479,6 @@ document.addEventListener('DOMContentLoaded', function () {
 }
 
 @media (max-width: 767.98px) {
-    .dashboard-header {
-        align-items: stretch;
-        flex-direction: column;
-    }
-
     .dashboard-resumo {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -510,11 +488,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     .detectores-grid {
-        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
     }
 
     .detector-card {
-        min-height: 190px;
+        min-height: 150px;
     }
 }
 
@@ -529,7 +507,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     .detector-card {
-        min-height: 180px;
+        min-height: 145px;
     }
 
     .detector-patrimonio {

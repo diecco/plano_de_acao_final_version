@@ -136,10 +136,6 @@ def register_detectores_gas_routes(blueprint):
     def painel_detectores_gas():
         busca = (request.args.get("busca") or "").strip()
         status = (request.args.get("status") or "").strip()
-        centro_custos_id = request.args.get(
-            "centro_custos_id",
-            type=int,
-        )
 
         condicoes = ["d.ativo = 1"]
         parametros = []
@@ -161,10 +157,6 @@ def register_detectores_gas_routes(blueprint):
             """)
             termo = f"%{busca}%"
             parametros.extend([termo, termo, termo, termo])
-
-        if centro_custos_id:
-            condicoes.append("d.centro_custos_id = %s")
-            parametros.append(centro_custos_id)
 
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
@@ -192,14 +184,6 @@ def register_detectores_gas_routes(blueprint):
             detectores = cursor.fetchall()
 
             cursor.execute("""
-                SELECT id, codigo, descricao
-                FROM centros_custos
-                WHERE ativo = 1
-                ORDER BY codigo, descricao
-            """)
-            centros_custos = cursor.fetchall()
-
-            cursor.execute("""
                 SELECT
                     status_operacional,
                     COUNT(*) AS quantidade
@@ -224,11 +208,9 @@ def register_detectores_gas_routes(blueprint):
         return render_template(
             "painel_detectores_gas.html",
             detectores=detectores,
-            centros_custos=centros_custos,
             filtros={
                 "busca": busca,
                 "status": status,
-                "centro_custos_id": centro_custos_id,
             },
             status_dashboard=STATUS_DASHBOARD,
             totais=totais,
