@@ -1103,6 +1103,7 @@
     'main.cadastrar_hs',
     'main.painel_detectores_gas',
     'main.detectores_gas',
+    'main.relatorio_movimentacoes_detectores_gas',
     'main.cargos',
     'main.funcoes',
     'main.setores',
@@ -1174,6 +1175,12 @@
        class="nav-link {% if request.endpoint == 'main.detectores_gas' %}active{% endif %}">
         <i class="bi bi-clipboard-data"></i>
         <span class="menu-text">Cadastro de Detectores</span>
+    </a>
+
+    <a href="{{ url_for('main.relatorio_movimentacoes_detectores_gas') }}"
+       class="nav-link {% if request.endpoint == 'main.relatorio_movimentacoes_detectores_gas' %}active{% endif %}">
+        <i class="bi bi-clock-history"></i>
+        <span class="menu-text">Movimentações de Detectores</span>
     </a>
 
     <div class="px-3 pt-3 pb-1 text-white-50 small fw-bold">PROCEDIMENTOS</div>

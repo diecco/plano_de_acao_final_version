@@ -17,6 +17,11 @@ VIEW_SOURCE = (
 DASHBOARD_TEMPLATE = (
     ROOT / "app" / "templates" / "painel_detectores_gas.html"
 ).read_text(encoding="utf-8")
+REPORT_TEMPLATE = (
+    ROOT / "app" / "templates" / "relatorio_movimentacoes_detectores_gas.html"
+).read_text(encoding="utf-8") if (
+    ROOT / "app" / "templates" / "relatorio_movimentacoes_detectores_gas.html"
+).exists() else ""
 
 
 class DetectoresGasTests(unittest.TestCase):
@@ -97,6 +102,14 @@ class DetectoresGasTests(unittest.TestCase):
             ),
             2,
         )
+
+    def test_relatorio_reune_historico_e_movimentacoes_abertas(self):
+        self.assertIn(
+            '"/detectores_gas/movimentacoes"',
+            VIEW_SOURCE,
+        )
+        self.assertIn("m.devolvido_em IS NULL", VIEW_SOURCE)
+        self.assertIn("Relatório de Movimentações", REPORT_TEMPLATE)
 
 
 if __name__ == "__main__":

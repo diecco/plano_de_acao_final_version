@@ -260,6 +260,174 @@ def register_detectores_gas_routes(blueprint):
         )
 
     @blueprint.route(
+        "/detectores_gas/movimentacoes",
+        methods=["GET"],
+    )
+    @login_required
+    @admin_required
+    def relatorio_movimentacoes_detectores_gas():
+        data_inicio_texto = (request.args.get("data_inicio") or "").strip()
+        data_fim_texto = (request.args.get("data_fim") or "").strip()
+        detector_id = request.args.get("detector_id", type=int)
+        usuario_id = request.args.get("usuario_id", type=int)
+        situacao = (request.args.get("situacao") or "").strip()
+
+        situacoes_validas = {
+            "aberta",
+            "finalizada",
+            "perfeitas_condicoes",
+            "com_defeito",
+        }
+        if situacao not in situacoes_validas:
+            situacao = ""
+
+        try:
+            data_inicio = converter_data_opcional(data_inicio_texto)
+            data_fim = converter_data_opcional(data_fim_texto)
+        except ValueError:
+            flash("Informe um período válido para o relatório.", "warning")
+            return redirect(
+                url_for("main.relatorio_movimentacoes_detectores_gas")
+            )
+
+        if data_inicio and data_fim and data_fim < data_inicio:
+            flash(
+                "A data final não pode ser anterior à data inicial.",
+                "warning",
+            )
+            return redirect(
+                url_for("main.relatorio_movimentacoes_detectores_gas")
+            )
+
+        condicoes = ["1 = 1"]
+        parametros = []
+
+        if data_inicio:
+            condicoes.append("m.retirado_em >= %s")
+            parametros.append(data_inicio)
+
+        if data_fim:
+            condicoes.append(
+                "m.retirado_em < DATE_ADD(%s, INTERVAL 1 DAY)"
+            )
+            parametros.append(data_fim)
+
+        if detector_id:
+            condicoes.append("m.detector_id = %s")
+            parametros.append(detector_id)
+
+        if usuario_id:
+            condicoes.append(
+                "(m.retirado_por_id = %s OR m.devolvido_por_id = %s)"
+            )
+            parametros.extend([usuario_id, usuario_id])
+
+        if situacao == "aberta":
+            condicoes.append("m.devolvido_em IS NULL")
+        elif situacao == "finalizada":
+            condicoes.append("m.devolvido_em IS NOT NULL")
+        elif situacao == "perfeitas_condicoes":
+            condicoes.append(
+                "m.condicao_devolucao = 'perfeitas_condicoes'"
+            )
+        elif situacao == "com_defeito":
+            condicoes.append("m.condicao_devolucao = 'com_defeito'")
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        try:
+            cursor.execute(f"""
+                SELECT
+                    m.id,
+                    m.detector_id,
+                    d.patrimonio,
+                    d.fabricante,
+                    d.marca,
+                    d.modelo,
+                    m.retirado_em,
+                    m.devolvido_em,
+                    m.condicao_devolucao,
+                    m.origem_defeito,
+                    m.observacao_devolucao,
+                    entregue.nome AS entregue_por_nome,
+                    entregue.matricula AS entregue_por_matricula,
+                    retirante.nome AS retirado_por_nome,
+                    retirante.matricula AS retirado_por_matricula,
+                    recebido.nome AS recebido_por_nome,
+                    recebido.matricula AS recebido_por_matricula,
+                    devolvente.nome AS devolvido_por_nome,
+                    devolvente.matricula AS devolvido_por_matricula
+                FROM detectores_gas_movimentacoes m
+                JOIN detectores_gas d
+                    ON d.id = m.detector_id
+                JOIN usuarios entregue
+                    ON entregue.id = m.entregue_por_id
+                JOIN usuarios retirante
+                    ON retirante.id = m.retirado_por_id
+                LEFT JOIN usuarios recebido
+                    ON recebido.id = m.recebido_por_id
+                LEFT JOIN usuarios devolvente
+                    ON devolvente.id = m.devolvido_por_id
+                WHERE {" AND ".join(condicoes)}
+                ORDER BY m.retirado_em DESC, m.id DESC
+            """, tuple(parametros))
+            movimentacoes = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT id, patrimonio
+                FROM detectores_gas
+                ORDER BY
+                    CAST(RIGHT(patrimonio, 4) AS UNSIGNED),
+                    patrimonio
+            """)
+            detectores = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT id, nome, matricula
+                FROM usuarios
+                ORDER BY nome
+            """)
+            usuarios = cursor.fetchall()
+        finally:
+            cursor.close()
+            conn.close()
+
+        totais = {
+            "total": len(movimentacoes),
+            "abertas": sum(
+                1
+                for item in movimentacoes
+                if item["devolvido_em"] is None
+            ),
+            "finalizadas": sum(
+                1
+                for item in movimentacoes
+                if item["devolvido_em"] is not None
+            ),
+            "com_defeito": sum(
+                1
+                for item in movimentacoes
+                if item["condicao_devolucao"] == "com_defeito"
+            ),
+        }
+
+        return render_template(
+            "relatorio_movimentacoes_detectores_gas.html",
+            movimentacoes=movimentacoes,
+            detectores=detectores,
+            usuarios=usuarios,
+            filtros={
+                "data_inicio": data_inicio_texto,
+                "data_fim": data_fim_texto,
+                "detector_id": detector_id,
+                "usuario_id": usuario_id,
+                "situacao": situacao,
+            },
+            totais=totais,
+        )
+
+    @blueprint.route(
         "/api/detectores_gas/usuario_rfid",
         methods=["POST"],
     )
