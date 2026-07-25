@@ -6,6 +6,7 @@ from app.views.detectores_gas import (
     STATUS_DASHBOARD,
     converter_data_opcional,
     normalizar_patrimonio,
+    normalizar_rfid,
     patrimonio_valido,
 )
 
@@ -50,6 +51,9 @@ class DetectoresGasTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             converter_data_opcional("23/07/2026")
 
+    def test_normaliza_rfid_sem_alterar_o_codigo(self):
+        self.assertEqual(normalizar_rfid(" 0012345678\n"), "0012345678")
+
     def test_dashboard_contem_todos_os_status_operacionais(self):
         self.assertEqual(
             set(STATUS_DASHBOARD),
@@ -69,6 +73,20 @@ class DetectoresGasTests(unittest.TestCase):
         self.assertIn('"acao": "Iniciar entrega"', VIEW_SOURCE)
         self.assertIn('"acao": "Registrar devolução"', VIEW_SOURCE)
         self.assertIn("validação RFID", DASHBOARD_TEMPLATE)
+
+    def test_devolucao_exige_o_mesmo_usuario_da_retirada(self):
+        self.assertIn(
+            'devolvente["id"] != movimentacao["retirado_por_id"]',
+            VIEW_SOURCE,
+        )
+
+    def test_responsavel_rfid_deve_ser_o_usuario_logado(self):
+        self.assertGreaterEqual(
+            VIEW_SOURCE.count(
+                'responsavel["id"] != session.get("usuario_id")'
+            ),
+            2,
+        )
 
 
 if __name__ == "__main__":

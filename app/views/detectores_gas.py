@@ -1,7 +1,16 @@
 import re
 from datetime import date
 
-from flask import flash, redirect, render_template, request, session, url_for
+from flask import (
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 
 from app.decorators import admin_required, login_required
 from app.utils.db import get_db_connection
@@ -35,6 +44,8 @@ STATUS_DASHBOARD = {
         "icone": "bi-exclamation-triangle",
     },
 }
+CONDICOES_DEVOLUCAO = {"perfeitas_condicoes", "com_defeito"}
+ORIGENS_DEFEITO = {"mau_uso", "desgaste_normal"}
 
 
 def normalizar_patrimonio(valor):
@@ -50,6 +61,10 @@ def converter_data_opcional(valor):
     if not valor:
         return None
     return date.fromisoformat(valor)
+
+
+def normalizar_rfid(valor):
+    return (valor or "").strip()
 
 
 def register_detectores_gas_routes(blueprint):
@@ -130,6 +145,26 @@ def register_detectores_gas_routes(blueprint):
         """, (centro_custos_id,))
         return cursor.fetchone() is not None
 
+    def buscar_usuario_por_rfid(cursor, uid_rfid):
+        uid_rfid = normalizar_rfid(uid_rfid)
+        if not uid_rfid:
+            raise ValueError("Aproxime o crachá no leitor RFID.")
+
+        cursor.execute("""
+            SELECT id, nome, matricula, uid_rfid
+            FROM usuarios
+            WHERE uid_rfid = %s
+              AND ativo = 1
+        """, (uid_rfid,))
+        usuario = cursor.fetchone()
+
+        if not usuario:
+            raise ValueError(
+                "RFID não localizado entre os usuários ativos."
+            )
+
+        return usuario
+
     @blueprint.route("/detectores_gas/painel", methods=["GET"])
     @login_required
     @admin_required
@@ -172,10 +207,18 @@ def register_detectores_gas_routes(blueprint):
                     d.status_operacional,
                     d.centro_custos_id,
                     cc.codigo AS centro_custos_codigo,
-                    cc.descricao AS centro_custos_descricao
+                    cc.descricao AS centro_custos_descricao,
+                    retirada.retirado_por_id,
+                    usuario_posse.nome AS usuario_posse_nome,
+                    usuario_posse.matricula AS usuario_posse_matricula
                 FROM detectores_gas d
                 JOIN centros_custos cc
                     ON cc.id = d.centro_custos_id
+                LEFT JOIN detectores_gas_movimentacoes retirada
+                    ON retirada.detector_id = d.id
+                   AND retirada.devolvido_em IS NULL
+                LEFT JOIN usuarios usuario_posse
+                    ON usuario_posse.id = retirada.retirado_por_id
                 WHERE {" AND ".join(condicoes)}
                 ORDER BY
                     CAST(RIGHT(d.patrimonio, 4) AS UNSIGNED),
@@ -215,6 +258,294 @@ def register_detectores_gas_routes(blueprint):
             status_dashboard=STATUS_DASHBOARD,
             totais=totais,
         )
+
+    @blueprint.route(
+        "/api/detectores_gas/usuario_rfid",
+        methods=["POST"],
+    )
+    @login_required
+    @admin_required
+    def api_detector_usuario_rfid():
+        dados = request.get_json(silent=True) or {}
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        try:
+            usuario = buscar_usuario_por_rfid(
+                cursor,
+                dados.get("uid_rfid"),
+            )
+            return jsonify({
+                "sucesso": True,
+                "usuario": {
+                    "id": usuario["id"],
+                    "nome": usuario["nome"],
+                    "matricula": usuario.get("matricula"),
+                },
+            })
+        except ValueError as exc:
+            return jsonify({
+                "sucesso": False,
+                "mensagem": str(exc),
+            }), 404
+        finally:
+            cursor.close()
+            conn.close()
+
+    @blueprint.route(
+        "/api/detectores_gas/<int:detector_id>/entregar",
+        methods=["POST"],
+    )
+    @login_required
+    @admin_required
+    def entregar_detector_gas(detector_id):
+        dados = request.get_json(silent=True) or {}
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        try:
+            cursor.execute("""
+                SELECT id, patrimonio, ativo, status_operacional
+                FROM detectores_gas
+                WHERE id = %s
+                FOR UPDATE
+            """, (detector_id,))
+            detector = cursor.fetchone()
+
+            if not detector or not detector["ativo"]:
+                raise ValueError("Detector ativo não encontrado.")
+
+            if detector["status_operacional"] != "disponivel":
+                raise ValueError(
+                    "Este detector não está disponível para entrega."
+                )
+
+            responsavel = buscar_usuario_por_rfid(
+                cursor,
+                dados.get("rfid_responsavel"),
+            )
+            retirante = buscar_usuario_por_rfid(
+                cursor,
+                dados.get("rfid_retirante"),
+            )
+
+            if responsavel["id"] != session.get("usuario_id"):
+                raise ValueError(
+                    "O crachá do responsável deve pertencer ao usuário logado."
+                )
+
+            cursor.execute("""
+                SELECT id
+                FROM detectores_gas_movimentacoes
+                WHERE detector_id = %s
+                  AND devolvido_em IS NULL
+                FOR UPDATE
+            """, (detector_id,))
+            if cursor.fetchone():
+                raise ValueError(
+                    "Já existe uma movimentação aberta para este detector."
+                )
+
+            cursor.execute("""
+                INSERT INTO detectores_gas_movimentacoes (
+                    detector_id,
+                    entregue_por_id,
+                    retirado_por_id,
+                    rfid_entrega_responsavel,
+                    rfid_retirante
+                )
+                VALUES (%s, %s, %s, %s, %s)
+            """, (
+                detector_id,
+                responsavel["id"],
+                retirante["id"],
+                normalizar_rfid(dados.get("rfid_responsavel")),
+                normalizar_rfid(dados.get("rfid_retirante")),
+            ))
+
+            cursor.execute("""
+                UPDATE detectores_gas
+                SET status_operacional = 'em_uso',
+                    atualizado_por = %s
+                WHERE id = %s
+            """, (session.get("usuario_id"), detector_id))
+
+            conn.commit()
+            return jsonify({
+                "sucesso": True,
+                "mensagem": (
+                    f"{detector['patrimonio']} entregue para "
+                    f"{retirante['nome']}."
+                ),
+            })
+        except ValueError as exc:
+            conn.rollback()
+            return jsonify({
+                "sucesso": False,
+                "mensagem": str(exc),
+            }), 400
+        except Exception:
+            conn.rollback()
+            current_app.logger.exception(
+                "Erro ao entregar detector de gás %s",
+                detector_id,
+            )
+            return jsonify({
+                "sucesso": False,
+                "mensagem": "Não foi possível registrar a entrega.",
+            }), 500
+        finally:
+            cursor.close()
+            conn.close()
+
+    @blueprint.route(
+        "/api/detectores_gas/<int:detector_id>/devolver",
+        methods=["POST"],
+    )
+    @login_required
+    @admin_required
+    def devolver_detector_gas(detector_id):
+        dados = request.get_json(silent=True) or {}
+        condicao = (dados.get("condicao_devolucao") or "").strip()
+        origem_defeito = (dados.get("origem_defeito") or "").strip()
+        observacao = (dados.get("observacao") or "").strip()
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        try:
+            if condicao not in CONDICOES_DEVOLUCAO:
+                raise ValueError("Informe a condição de devolução.")
+
+            if condicao == "com_defeito":
+                if origem_defeito not in ORIGENS_DEFEITO:
+                    raise ValueError("Informe a origem provável do defeito.")
+                if not observacao:
+                    raise ValueError(
+                        "Descreva o defeito apresentado pelo aparelho."
+                    )
+            else:
+                origem_defeito = None
+                observacao = observacao or None
+
+            cursor.execute("""
+                SELECT id, patrimonio, ativo, status_operacional
+                FROM detectores_gas
+                WHERE id = %s
+                FOR UPDATE
+            """, (detector_id,))
+            detector = cursor.fetchone()
+
+            if (
+                not detector
+                or not detector["ativo"]
+                or detector["status_operacional"] != "em_uso"
+            ):
+                raise ValueError(
+                    "Este detector não possui uma entrega ativa."
+                )
+
+            cursor.execute("""
+                SELECT id, retirado_por_id
+                FROM detectores_gas_movimentacoes
+                WHERE detector_id = %s
+                  AND devolvido_em IS NULL
+                ORDER BY id DESC
+                LIMIT 1
+                FOR UPDATE
+            """, (detector_id,))
+            movimentacao = cursor.fetchone()
+
+            if not movimentacao:
+                raise ValueError(
+                    "Movimentação de entrega não encontrada."
+                )
+
+            responsavel = buscar_usuario_por_rfid(
+                cursor,
+                dados.get("rfid_responsavel"),
+            )
+            devolvente = buscar_usuario_por_rfid(
+                cursor,
+                dados.get("rfid_devolvente"),
+            )
+
+            if responsavel["id"] != session.get("usuario_id"):
+                raise ValueError(
+                    "O crachá do responsável deve pertencer ao usuário logado."
+                )
+
+            if devolvente["id"] != movimentacao["retirado_por_id"]:
+                raise ValueError(
+                    "A devolução deve ser realizada pela mesma pessoa "
+                    "que retirou o aparelho."
+                )
+
+            cursor.execute("""
+                UPDATE detectores_gas_movimentacoes
+                SET recebido_por_id = %s,
+                    devolvido_por_id = %s,
+                    rfid_recebimento_responsavel = %s,
+                    rfid_devolvente = %s,
+                    condicao_devolucao = %s,
+                    origem_defeito = %s,
+                    observacao_devolucao = %s,
+                    devolvido_em = CURRENT_TIMESTAMP
+                WHERE id = %s
+                  AND devolvido_em IS NULL
+            """, (
+                responsavel["id"],
+                devolvente["id"],
+                normalizar_rfid(dados.get("rfid_responsavel")),
+                normalizar_rfid(dados.get("rfid_devolvente")),
+                condicao,
+                origem_defeito,
+                observacao,
+                movimentacao["id"],
+            ))
+
+            novo_status = (
+                "com_defeito"
+                if condicao == "com_defeito"
+                else "disponivel"
+            )
+            cursor.execute("""
+                UPDATE detectores_gas
+                SET status_operacional = %s,
+                    atualizado_por = %s
+                WHERE id = %s
+            """, (
+                novo_status,
+                session.get("usuario_id"),
+                detector_id,
+            ))
+
+            conn.commit()
+            return jsonify({
+                "sucesso": True,
+                "mensagem": (
+                    f"Devolução de {detector['patrimonio']} registrada."
+                ),
+            })
+        except ValueError as exc:
+            conn.rollback()
+            return jsonify({
+                "sucesso": False,
+                "mensagem": str(exc),
+            }), 400
+        except Exception:
+            conn.rollback()
+            current_app.logger.exception(
+                "Erro ao devolver detector de gás %s",
+                detector_id,
+            )
+            return jsonify({
+                "sucesso": False,
+                "mensagem": "Não foi possível registrar a devolução.",
+            }), 500
+        finally:
+            cursor.close()
+            conn.close()
 
     @blueprint.route("/detectores_gas", methods=["GET"])
     @login_required

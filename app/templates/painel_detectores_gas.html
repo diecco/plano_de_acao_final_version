@@ -106,6 +106,7 @@
                     data-centro-custos="{{ detector.centro_custos_codigo }} — {{ detector.centro_custos_descricao }}"
                     data-status="{{ detector.status_operacional }}"
                     data-status-rotulo="{{ config.rotulo }}"
+                    data-usuario-posse="{{ detector.usuario_posse_nome or '' }}"
                     data-acao="{{ config.acao }}">
                 <span class="detector-card-topo">
                     <span class="detector-status-ponto"></span>
@@ -132,7 +133,10 @@
      id="modalOperacaoDetector"
      tabindex="-1"
      aria-labelledby="tituloOperacaoDetector"
-     aria-hidden="true">
+     aria-hidden="true"
+     data-entrega-template="{{ url_for('main.entregar_detector_gas', detector_id=0) }}"
+     data-devolucao-template="{{ url_for('main.devolver_detector_gas', detector_id=0) }}"
+     data-rfid-url="{{ url_for('main.api_detector_usuario_rfid') }}">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content detector-modal">
             <div class="modal-header">
@@ -162,7 +166,79 @@
                         <dd id="modalCentroDetector"></dd>
                     </div>
                 </dl>
-                <div id="modalMensagemOperacao" class="alert mb-0"></div>
+                <div id="modalMensagemOperacao" class="alert d-none"></div>
+
+                <div id="camposOperacaoDetector">
+                    <div class="rfid-etapa mb-3">
+                        <label for="rfidResponsavel" class="form-label fw-semibold">
+                            1. Crachá do responsável pela operação
+                        </label>
+                        <input type="text"
+                               class="form-control rfid-input"
+                               id="rfidResponsavel"
+                               autocomplete="off"
+                               placeholder="Clique aqui e aproxime o crachá">
+                        <div class="form-text rfid-retorno" id="retornoRfidResponsavel">
+                            Aguardando leitura RFID.
+                        </div>
+                    </div>
+
+                    <div class="rfid-etapa mb-3">
+                        <label for="rfidFuncionario"
+                               class="form-label fw-semibold"
+                               id="labelRfidFuncionario">
+                            2. Crachá do funcionário que receberá o aparelho
+                        </label>
+                        <input type="text"
+                               class="form-control rfid-input"
+                               id="rfidFuncionario"
+                               autocomplete="off"
+                               placeholder="Clique aqui e aproxime o crachá">
+                        <div class="form-text rfid-retorno" id="retornoRfidFuncionario">
+                            Aguardando leitura RFID.
+                        </div>
+                    </div>
+
+                    <div id="camposDevolucao" class="d-none">
+                        <div class="mb-3">
+                            <label for="condicaoDevolucao" class="form-label fw-semibold">
+                                Condição do aparelho na devolução
+                            </label>
+                            <select class="form-select" id="condicaoDevolucao">
+                                <option value="">Selecione</option>
+                                <option value="perfeitas_condicoes">
+                                    Perfeitas condições
+                                </option>
+                                <option value="com_defeito">Com defeito</option>
+                            </select>
+                        </div>
+
+                        <div id="camposDefeito" class="d-none">
+                            <div class="mb-3">
+                                <label for="origemDefeito" class="form-label fw-semibold">
+                                    Origem provável do defeito
+                                </label>
+                                <select class="form-select" id="origemDefeito">
+                                    <option value="">Selecione</option>
+                                    <option value="mau_uso">Mau uso</option>
+                                    <option value="desgaste_normal">
+                                        Condição normal / desgaste
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="observacaoDevolucao"
+                                       class="form-label fw-semibold">
+                                    Descrição do defeito
+                                </label>
+                                <textarea class="form-control"
+                                          id="observacaoDevolucao"
+                                          rows="3"
+                                          maxlength="1000"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button"
@@ -172,8 +248,7 @@
                 </button>
                 <button type="button"
                         class="btn btn-laranja"
-                        id="botaoOperacaoDetector"
-                        disabled>
+                        id="botaoOperacaoDetector">
                     <i class="bi me-1"></i>
                     <span></span>
                 </button>
@@ -187,11 +262,108 @@ document.addEventListener('DOMContentLoaded', function () {
     const modal = document.getElementById('modalOperacaoDetector');
     const botaoOperacao = document.getElementById('botaoOperacaoDetector');
     const mensagem = document.getElementById('modalMensagemOperacao');
+    const camposOperacao = document.getElementById('camposOperacaoDetector');
+    const camposDevolucao = document.getElementById('camposDevolucao');
+    const camposDefeito = document.getElementById('camposDefeito');
+    const rfidResponsavel = document.getElementById('rfidResponsavel');
+    const rfidFuncionario = document.getElementById('rfidFuncionario');
+    const condicaoDevolucao = document.getElementById('condicaoDevolucao');
+    let detectorAtual = null;
+
+    function exibirMensagem(texto, tipo) {
+        mensagem.className = 'alert alert-' + tipo;
+        mensagem.textContent = texto;
+    }
+
+    function limparMensagem() {
+        mensagem.className = 'alert d-none';
+        mensagem.textContent = '';
+    }
+
+    async function identificarRfid(campo, retorno) {
+        const uidRfid = campo.value.trim();
+        if (!uidRfid) return false;
+
+        retorno.className = 'form-text text-muted';
+        retorno.textContent = 'Validando crachá...';
+
+        try {
+            const resposta = await fetch(modal.dataset.rfidUrl, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({uid_rfid: uidRfid})
+            });
+            const dados = await resposta.json();
+
+            if (!resposta.ok || !dados.sucesso) {
+                throw new Error(dados.mensagem || 'RFID não reconhecido.');
+            }
+
+            retorno.className = 'form-text text-success fw-semibold';
+            retorno.textContent =
+                (dados.usuario.matricula ? dados.usuario.matricula + ' — ' : '') +
+                dados.usuario.nome;
+            return true;
+        } catch (erro) {
+            retorno.className = 'form-text text-danger fw-semibold';
+            retorno.textContent = erro.message;
+            campo.select();
+            return false;
+        }
+    }
+
+    function prepararCampoRfid(campo, retorno, proximoCampo) {
+        campo.addEventListener('keydown', async function (evento) {
+            if (evento.key !== 'Enter') return;
+            evento.preventDefault();
+
+            if (await identificarRfid(campo, retorno) && proximoCampo) {
+                proximoCampo.focus();
+            }
+        });
+    }
+
+    prepararCampoRfid(
+        rfidResponsavel,
+        document.getElementById('retornoRfidResponsavel'),
+        rfidFuncionario
+    );
+    prepararCampoRfid(
+        rfidFuncionario,
+        document.getElementById('retornoRfidFuncionario'),
+        null
+    );
+
+    condicaoDevolucao.addEventListener('change', function () {
+        camposDefeito.classList.toggle(
+            'd-none',
+            condicaoDevolucao.value !== 'com_defeito'
+        );
+    });
 
     modal.addEventListener('show.bs.modal', function (evento) {
         const card = evento.relatedTarget;
         const status = card.dataset.status;
         const disponivelParaOperacao = status === 'disponivel' || status === 'em_uso';
+        detectorAtual = {
+            id: card.dataset.id,
+            status: status
+        };
+
+        limparMensagem();
+        rfidResponsavel.value = '';
+        rfidFuncionario.value = '';
+        condicaoDevolucao.value = '';
+        document.getElementById('origemDefeito').value = '';
+        document.getElementById('observacaoDevolucao').value = '';
+        document.getElementById('retornoRfidResponsavel').className =
+            'form-text text-muted';
+        document.getElementById('retornoRfidResponsavel').textContent =
+            'Aguardando leitura RFID.';
+        document.getElementById('retornoRfidFuncionario').className =
+            'form-text text-muted';
+        document.getElementById('retornoRfidFuncionario').textContent =
+            'Aguardando leitura RFID.';
 
         document.getElementById('modalPatrimonioDetector').textContent =
             card.dataset.patrimonio;
@@ -209,18 +381,85 @@ document.addEventListener('DOMContentLoaded', function () {
             'bi me-1 ' + (status === 'em_uso'
                 ? 'bi-box-arrow-in-down-left'
                 : 'bi-box-arrow-up-right');
-        botaoOperacao.disabled = true;
+        botaoOperacao.disabled = false;
+        botaoOperacao.classList.toggle('d-none', !disponivelParaOperacao);
+        camposOperacao.classList.toggle('d-none', !disponivelParaOperacao);
+        camposDevolucao.classList.toggle('d-none', status !== 'em_uso');
+        camposDefeito.classList.add('d-none');
+        document.getElementById('labelRfidFuncionario').textContent =
+            status === 'em_uso'
+                ? '2. Crachá do funcionário que está devolvendo'
+                : '2. Crachá do funcionário que receberá o aparelho';
 
-        if (disponivelParaOperacao) {
-            mensagem.className = 'alert alert-info mb-0';
-            mensagem.textContent =
-                'O fluxo de ' +
-                (status === 'em_uso' ? 'devolução' : 'entrega') +
-                ' com validação RFID será habilitado na próxima etapa.';
+        if (!disponivelParaOperacao) {
+            exibirMensagem(
+                'Este aparelho está indisponível para movimentação no momento.',
+                'warning'
+            );
+        } else if (status === 'em_uso' && card.dataset.usuarioPosse) {
+            exibirMensagem(
+                'Aparelho em posse de ' + card.dataset.usuarioPosse + '.',
+                'info'
+            );
+        }
+    });
+
+    modal.addEventListener('shown.bs.modal', function () {
+        if (!camposOperacao.classList.contains('d-none')) {
+            rfidResponsavel.focus();
+        }
+    });
+
+    botaoOperacao.addEventListener('click', async function () {
+        if (!detectorAtual) return;
+
+        const devolucao = detectorAtual.status === 'em_uso';
+        const payload = {
+            rfid_responsavel: rfidResponsavel.value.trim()
+        };
+
+        if (devolucao) {
+            payload.rfid_devolvente = rfidFuncionario.value.trim();
+            payload.condicao_devolucao = condicaoDevolucao.value;
+            payload.origem_defeito =
+                document.getElementById('origemDefeito').value;
+            payload.observacao =
+                document.getElementById('observacaoDevolucao').value.trim();
         } else {
-            mensagem.className = 'alert alert-warning mb-0';
-            mensagem.textContent =
-                'Este aparelho está indisponível para movimentação no momento.';
+            payload.rfid_retirante = rfidFuncionario.value.trim();
+        }
+
+        const template = devolucao
+            ? modal.dataset.devolucaoTemplate
+            : modal.dataset.entregaTemplate;
+        const url = template.replace('/0/', '/' + detectorAtual.id + '/');
+
+        botaoOperacao.disabled = true;
+        limparMensagem();
+
+        try {
+            const resposta = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const dados = await resposta.json();
+
+            if (!resposta.ok || !dados.sucesso) {
+                throw new Error(
+                    dados.mensagem || 'Não foi possível concluir a operação.'
+                );
+            }
+
+            exibirMensagem(dados.mensagem, 'success');
+            camposOperacao.classList.add('d-none');
+            botaoOperacao.classList.add('d-none');
+            window.setTimeout(function () {
+                window.location.reload();
+            }, 900);
+        } catch (erro) {
+            exibirMensagem(erro.message, 'danger');
+            botaoOperacao.disabled = false;
         }
     });
 });
