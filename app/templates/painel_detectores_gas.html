@@ -1,0 +1,549 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Painel de Detectores de Gás{% endblock %}
+
+{% block conteudo %}
+<div class="detectores-dashboard">
+    <div class="page-header dashboard-header">
+        <div>
+            <h2 class="page-title mb-1">
+                <i class="bi bi-grid-3x3-gap me-2"></i>
+                Controle de Detectores de Gás
+            </h2>
+            <p class="text-muted mb-0">
+                Selecione um aparelho para iniciar uma entrega ou registrar uma devolução.
+            </p>
+        </div>
+        <a href="{{ url_for('main.detectores_gas') }}"
+           class="btn btn-outline-secondary">
+            <i class="bi bi-gear me-1"></i>
+            Gerenciar aparelhos
+        </a>
+    </div>
+
+    <div class="dashboard-resumo" aria-label="Resumo dos detectores">
+        <div class="resumo-item resumo-total">
+            <span class="resumo-numero">{{ totais.total }}</span>
+            <span class="resumo-label">Ativos</span>
+        </div>
+        <div class="resumo-item resumo-disponivel">
+            <span class="resumo-numero">{{ totais.disponivel }}</span>
+            <span class="resumo-label">Disponíveis</span>
+        </div>
+        <div class="resumo-item resumo-em-uso">
+            <span class="resumo-numero">{{ totais.em_uso }}</span>
+            <span class="resumo-label">Em uso</span>
+        </div>
+        <div class="resumo-item resumo-indisponivel">
+            <span class="resumo-numero">
+                {{ totais.em_calibracao + totais.com_defeito }}
+            </span>
+            <span class="resumo-label">Indisponíveis</span>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 dashboard-filtros">
+        <div class="card-body">
+            <form method="GET"
+                  action="{{ url_for('main.painel_detectores_gas') }}">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-lg-4">
+                        <label for="busca" class="form-label">Localizar aparelho</label>
+                        <input type="search"
+                               class="form-control"
+                               id="busca"
+                               name="busca"
+                               value="{{ filtros.busca or '' }}"
+                               placeholder="Patrimônio, fabricante, marca ou modelo">
+                    </div>
+                    <div class="col-12 col-md-5 col-lg-3">
+                        <label for="centro_custos_id" class="form-label">
+                            Centro de custos
+                        </label>
+                        <select class="form-select"
+                                id="centro_custos_id"
+                                name="centro_custos_id">
+                            <option value="">Todos</option>
+                            {% for cc in centros_custos %}
+                                <option value="{{ cc.id }}"
+                                        {% if filtros.centro_custos_id == cc.id %}selected{% endif %}>
+                                    {{ cc.codigo }} — {{ cc.descricao }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4 col-lg-3">
+                        <label for="status" class="form-label">Condição</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="">Todas</option>
+                            {% for chave, config in status_dashboard.items() %}
+                                <option value="{{ chave }}"
+                                        {% if filtros.status == chave %}selected{% endif %}>
+                                    {{ config.rotulo }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3 col-lg-2">
+                        <div class="d-flex gap-2">
+                            <button type="submit"
+                                    class="btn btn-laranja flex-grow-1">
+                                <i class="bi bi-funnel me-1"></i>
+                                Filtrar
+                            </button>
+                            <a href="{{ url_for('main.painel_detectores_gas') }}"
+                               class="btn btn-cinza"
+                               title="Limpar filtros"
+                               aria-label="Limpar filtros">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="status-legenda" aria-label="Legenda de condições">
+        <span><i class="legenda-cor disponivel"></i>Disponível</span>
+        <span><i class="legenda-cor em-uso"></i>Em uso</span>
+        <span><i class="legenda-cor em-calibracao"></i>Em calibração</span>
+        <span><i class="legenda-cor com-defeito"></i>Com defeito</span>
+    </div>
+
+    <div class="detectores-grid">
+        {% for detector in detectores %}
+            {% set config = status_dashboard[detector.status_operacional] %}
+            <button type="button"
+                    class="detector-card status-{{ detector.status_operacional|replace('_', '-') }}"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalOperacaoDetector"
+                    data-id="{{ detector.id }}"
+                    data-patrimonio="{{ detector.patrimonio }}"
+                    data-fabricante="{{ detector.fabricante }}"
+                    data-marca="{{ detector.marca }}"
+                    data-modelo="{{ detector.modelo }}"
+                    data-centro-custos="{{ detector.centro_custos_codigo }} — {{ detector.centro_custos_descricao }}"
+                    data-status="{{ detector.status_operacional }}"
+                    data-status-rotulo="{{ config.rotulo }}"
+                    data-acao="{{ config.acao }}">
+                <span class="detector-card-topo">
+                    <span class="detector-status-ponto"></span>
+                    <span class="detector-status-texto">{{ config.rotulo }}</span>
+                    <i class="bi {{ config.icone }}"></i>
+                </span>
+                <span class="detector-patrimonio">{{ detector.patrimonio }}</span>
+                <span class="detector-modelo">
+                    {{ detector.marca }} {{ detector.modelo }}
+                </span>
+                <span class="detector-centro">
+                    <i class="bi bi-building me-1"></i>
+                    {{ detector.centro_custos_codigo }}
+                </span>
+                <span class="detector-acao">{{ config.acao }}</span>
+            </button>
+        {% else %}
+            <div class="dashboard-vazio">
+                <i class="bi bi-search"></i>
+                <h3>Nenhum detector encontrado</h3>
+                <p>Revise os filtros ou cadastre um novo aparelho.</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="modal fade"
+     id="modalOperacaoDetector"
+     tabindex="-1"
+     aria-labelledby="tituloOperacaoDetector"
+     aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content detector-modal">
+            <div class="modal-header">
+                <div>
+                    <small id="modalStatusDetector" class="modal-status"></small>
+                    <h5 class="modal-title" id="tituloOperacaoDetector">
+                        Detector <span id="modalPatrimonioDetector"></span>
+                    </h5>
+                </div>
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <dl class="detector-detalhes">
+                    <div>
+                        <dt>Fabricante</dt>
+                        <dd id="modalFabricanteDetector"></dd>
+                    </div>
+                    <div>
+                        <dt>Marca / modelo</dt>
+                        <dd id="modalModeloDetector"></dd>
+                    </div>
+                    <div>
+                        <dt>Centro de custos</dt>
+                        <dd id="modalCentroDetector"></dd>
+                    </div>
+                </dl>
+                <div id="modalMensagemOperacao" class="alert mb-0"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button"
+                        class="btn btn-cinza"
+                        data-bs-dismiss="modal">
+                    Fechar
+                </button>
+                <button type="button"
+                        class="btn btn-laranja"
+                        id="botaoOperacaoDetector"
+                        disabled>
+                    <i class="bi me-1"></i>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('modalOperacaoDetector');
+    const botaoOperacao = document.getElementById('botaoOperacaoDetector');
+    const mensagem = document.getElementById('modalMensagemOperacao');
+
+    modal.addEventListener('show.bs.modal', function (evento) {
+        const card = evento.relatedTarget;
+        const status = card.dataset.status;
+        const disponivelParaOperacao = status === 'disponivel' || status === 'em_uso';
+
+        document.getElementById('modalPatrimonioDetector').textContent =
+            card.dataset.patrimonio;
+        document.getElementById('modalStatusDetector').textContent =
+            card.dataset.statusRotulo;
+        document.getElementById('modalFabricanteDetector').textContent =
+            card.dataset.fabricante;
+        document.getElementById('modalModeloDetector').textContent =
+            card.dataset.marca + ' ' + card.dataset.modelo;
+        document.getElementById('modalCentroDetector').textContent =
+            card.dataset.centroCustos;
+
+        botaoOperacao.querySelector('span').textContent = card.dataset.acao;
+        botaoOperacao.querySelector('i').className =
+            'bi me-1 ' + (status === 'em_uso'
+                ? 'bi-box-arrow-in-down-left'
+                : 'bi-box-arrow-up-right');
+        botaoOperacao.disabled = true;
+
+        if (disponivelParaOperacao) {
+            mensagem.className = 'alert alert-info mb-0';
+            mensagem.textContent =
+                'O fluxo de ' +
+                (status === 'em_uso' ? 'devolução' : 'entrega') +
+                ' com validação RFID será habilitado na próxima etapa.';
+        } else {
+            mensagem.className = 'alert alert-warning mb-0';
+            mensagem.textContent =
+                'Este aparelho está indisponível para movimentação no momento.';
+        }
+    });
+});
+</script>
+
+<style>
+.detectores-dashboard {
+    --detector-verde: #198754;
+    --detector-vermelho: #dc3545;
+    --detector-cinza: #6c757d;
+    --detector-amarelo: #c98900;
+}
+
+.dashboard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.dashboard-resumo {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .85rem;
+    margin-bottom: 1rem;
+}
+
+.resumo-item {
+    display: flex;
+    align-items: baseline;
+    gap: .65rem;
+    padding: .8rem 1rem;
+    border: 1px solid #e6e8eb;
+    border-left: 5px solid #343a40;
+    border-radius: .7rem;
+    background: #fff;
+    box-shadow: 0 .2rem .7rem rgba(31, 45, 61, .07);
+}
+
+.resumo-numero {
+    font-size: 1.65rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.resumo-label {
+    color: #6c757d;
+    font-weight: 600;
+}
+
+.resumo-disponivel { border-left-color: var(--detector-verde); }
+.resumo-em-uso { border-left-color: var(--detector-vermelho); }
+.resumo-indisponivel { border-left-color: var(--detector-cinza); }
+.dashboard-filtros { margin-bottom: .85rem; }
+
+.status-legenda {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin: .75rem 0 1rem;
+    color: #5f6872;
+    font-size: .87rem;
+}
+
+.status-legenda span {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+}
+
+.legenda-cor {
+    width: .7rem;
+    height: .7rem;
+    border-radius: 50%;
+}
+
+.legenda-cor.disponivel { background: var(--detector-verde); }
+.legenda-cor.em-uso { background: var(--detector-vermelho); }
+.legenda-cor.em-calibracao { background: var(--detector-cinza); }
+.legenda-cor.com-defeito { background: var(--detector-amarelo); }
+
+.detectores-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.detector-card {
+    display: flex;
+    min-height: 205px;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 1rem;
+    background: #fff;
+    color: #25313c;
+    text-align: left;
+    box-shadow: 0 .35rem 1rem rgba(31, 45, 61, .13);
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.detector-card:hover,
+.detector-card:focus-visible {
+    transform: translateY(-4px);
+    box-shadow: 0 .65rem 1.4rem rgba(31, 45, 61, .19);
+}
+
+.detector-card:focus-visible {
+    outline: 3px solid rgba(241, 98, 28, .32);
+    outline-offset: 2px;
+}
+
+.detector-card-topo {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .7rem .85rem;
+    color: #fff;
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .025em;
+    text-transform: uppercase;
+}
+
+.detector-card-topo .bi {
+    margin-left: auto;
+    font-size: 1rem;
+}
+
+.detector-status-ponto {
+    width: .58rem;
+    height: .58rem;
+    border: 2px solid rgba(255, 255, 255, .65);
+    border-radius: 50%;
+    background: #fff;
+}
+
+.status-disponivel .detector-card-topo,
+.status-disponivel .detector-acao {
+    background: var(--detector-verde);
+}
+
+.status-em-uso .detector-card-topo,
+.status-em-uso .detector-acao {
+    background: var(--detector-vermelho);
+}
+
+.status-em-calibracao .detector-card-topo,
+.status-em-calibracao .detector-acao {
+    background: var(--detector-cinza);
+}
+
+.status-com-defeito .detector-card-topo,
+.status-com-defeito .detector-acao {
+    background: var(--detector-amarelo);
+}
+
+.detector-patrimonio {
+    display: block;
+    padding: 1rem .9rem .15rem;
+    font-size: 1.55rem;
+    font-weight: 850;
+    letter-spacing: .06em;
+}
+
+.detector-modelo,
+.detector-centro {
+    display: block;
+    padding: 0 .9rem;
+}
+
+.detector-modelo {
+    min-height: 2.8rem;
+    color: #4d5965;
+    font-weight: 600;
+}
+
+.detector-centro {
+    margin-top: auto;
+    padding-bottom: .7rem;
+    color: #737d87;
+    font-size: .85rem;
+}
+
+.detector-acao {
+    display: block;
+    padding: .65rem .9rem;
+    color: #fff;
+    font-size: .86rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.dashboard-vazio {
+    grid-column: 1 / -1;
+    padding: 4rem 1rem;
+    border: 2px dashed #d9dde1;
+    border-radius: 1rem;
+    color: #6c757d;
+    text-align: center;
+}
+
+.dashboard-vazio .bi {
+    display: block;
+    margin-bottom: .7rem;
+    font-size: 2.4rem;
+}
+
+.dashboard-vazio h3 {
+    color: #3f4a54;
+    font-size: 1.15rem;
+}
+
+.detector-modal .modal-header {
+    border-bottom: 0;
+    background: #f4f6f8;
+}
+
+.modal-status {
+    color: #ef641c;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.detector-detalhes {
+    display: grid;
+    gap: .7rem;
+    margin-bottom: 1rem;
+}
+
+.detector-detalhes div {
+    display: grid;
+    grid-template-columns: 125px 1fr;
+    gap: .7rem;
+}
+
+.detector-detalhes dt {
+    color: #6c757d;
+    font-weight: 600;
+}
+
+.detector-detalhes dd {
+    margin: 0;
+    font-weight: 650;
+}
+
+@media (max-width: 767.98px) {
+    .dashboard-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .dashboard-resumo {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .status-legenda {
+        justify-content: flex-start;
+    }
+
+    .detectores-grid {
+        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    }
+
+    .detector-card {
+        min-height: 190px;
+    }
+}
+
+@media (max-width: 430px) {
+    .dashboard-resumo {
+        grid-template-columns: 1fr;
+    }
+
+    .detectores-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: .7rem;
+    }
+
+    .detector-card {
+        min-height: 180px;
+    }
+
+    .detector-patrimonio {
+        font-size: 1.12rem;
+    }
+
+    .detector-modelo {
+        font-size: .83rem;
+    }
+
+    .detector-detalhes div {
+        grid-template-columns: 1fr;
+        gap: .1rem;
+    }
+}
+</style>
+{% endblock %}

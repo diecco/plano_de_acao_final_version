@@ -1,11 +1,21 @@
 import unittest
 from datetime import date
+from pathlib import Path
 
 from app.views.detectores_gas import (
+    STATUS_DASHBOARD,
     converter_data_opcional,
     normalizar_patrimonio,
     patrimonio_valido,
 )
+
+ROOT = Path(__file__).resolve().parents[1]
+VIEW_SOURCE = (
+    ROOT / "app" / "views" / "detectores_gas.py"
+).read_text(encoding="utf-8")
+DASHBOARD_TEMPLATE = (
+    ROOT / "app" / "templates" / "painel_detectores_gas.html"
+).read_text(encoding="utf-8")
 
 
 class DetectoresGasTests(unittest.TestCase):
@@ -39,6 +49,26 @@ class DetectoresGasTests(unittest.TestCase):
     def test_rejeita_data_invalida(self):
         with self.assertRaises(ValueError):
             converter_data_opcional("23/07/2026")
+
+    def test_dashboard_contem_todos_os_status_operacionais(self):
+        self.assertEqual(
+            set(STATUS_DASHBOARD),
+            {"disponivel", "em_uso", "em_calibracao", "com_defeito"},
+        )
+
+    def test_dashboard_exibe_somente_detectores_ativos(self):
+        self.assertIn('condicoes = ["d.ativo = 1"]', VIEW_SOURCE)
+
+    def test_dashboard_ordena_pelo_numero_do_patrimonio(self):
+        self.assertIn(
+            "CAST(RIGHT(d.patrimonio, 4) AS UNSIGNED)",
+            VIEW_SOURCE,
+        )
+
+    def test_dashboard_prepara_fluxos_de_entrega_e_devolucao(self):
+        self.assertIn("Iniciar entrega", DASHBOARD_TEMPLATE)
+        self.assertIn("Registrar devolução", DASHBOARD_TEMPLATE)
+        self.assertIn("validação RFID", DASHBOARD_TEMPLATE)
 
 
 if __name__ == "__main__":

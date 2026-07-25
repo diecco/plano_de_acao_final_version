@@ -13,6 +13,28 @@ STATUS_OPERACIONAIS = {
     "em_calibracao",
     "com_defeito",
 }
+STATUS_DASHBOARD = {
+    "disponivel": {
+        "rotulo": "Disponível",
+        "acao": "Iniciar entrega",
+        "icone": "bi-box-arrow-up-right",
+    },
+    "em_uso": {
+        "rotulo": "Em uso",
+        "acao": "Registrar devolução",
+        "icone": "bi-box-arrow-in-down-left",
+    },
+    "em_calibracao": {
+        "rotulo": "Em calibração",
+        "acao": "Indisponível",
+        "icone": "bi-tools",
+    },
+    "com_defeito": {
+        "rotulo": "Com defeito",
+        "acao": "Indisponível",
+        "icone": "bi-exclamation-triangle",
+    },
+}
 
 
 def normalizar_patrimonio(valor):
@@ -107,6 +129,110 @@ def register_detectores_gas_routes(blueprint):
               AND ativo = 1
         """, (centro_custos_id,))
         return cursor.fetchone() is not None
+
+    @blueprint.route("/detectores_gas/painel", methods=["GET"])
+    @login_required
+    @admin_required
+    def painel_detectores_gas():
+        busca = (request.args.get("busca") or "").strip()
+        status = (request.args.get("status") or "").strip()
+        centro_custos_id = request.args.get(
+            "centro_custos_id",
+            type=int,
+        )
+
+        condicoes = ["d.ativo = 1"]
+        parametros = []
+
+        if status in STATUS_DASHBOARD:
+            condicoes.append("d.status_operacional = %s")
+            parametros.append(status)
+        else:
+            status = ""
+
+        if busca:
+            condicoes.append("""
+                (
+                    d.patrimonio LIKE %s
+                    OR d.fabricante LIKE %s
+                    OR d.marca LIKE %s
+                    OR d.modelo LIKE %s
+                )
+            """)
+            termo = f"%{busca}%"
+            parametros.extend([termo, termo, termo, termo])
+
+        if centro_custos_id:
+            condicoes.append("d.centro_custos_id = %s")
+            parametros.append(centro_custos_id)
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        try:
+            cursor.execute(f"""
+                SELECT
+                    d.id,
+                    d.patrimonio,
+                    d.fabricante,
+                    d.marca,
+                    d.modelo,
+                    d.status_operacional,
+                    d.centro_custos_id,
+                    cc.codigo AS centro_custos_codigo,
+                    cc.descricao AS centro_custos_descricao
+                FROM detectores_gas d
+                JOIN centros_custos cc
+                    ON cc.id = d.centro_custos_id
+                WHERE {" AND ".join(condicoes)}
+                ORDER BY
+                    CAST(RIGHT(d.patrimonio, 4) AS UNSIGNED),
+                    d.patrimonio
+            """, tuple(parametros))
+            detectores = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT id, codigo, descricao
+                FROM centros_custos
+                WHERE ativo = 1
+                ORDER BY codigo, descricao
+            """)
+            centros_custos = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT
+                    status_operacional,
+                    COUNT(*) AS quantidade
+                FROM detectores_gas
+                WHERE ativo = 1
+                GROUP BY status_operacional
+            """)
+            totais_status = {
+                item["status_operacional"]: item["quantidade"]
+                for item in cursor.fetchall()
+            }
+        finally:
+            cursor.close()
+            conn.close()
+
+        totais = {
+            chave: totais_status.get(chave, 0)
+            for chave in STATUS_DASHBOARD
+        }
+        totais["total"] = sum(totais.values())
+
+        return render_template(
+            "painel_detectores_gas.html",
+            detectores=detectores,
+            centros_custos=centros_custos,
+            filtros={
+                "busca": busca,
+                "status": status,
+                "centro_custos_id": centro_custos_id,
+            },
+            status_dashboard=STATUS_DASHBOARD,
+            totais=totais,
+        )
 
     @blueprint.route("/detectores_gas", methods=["GET"])
     @login_required
