@@ -927,6 +927,7 @@ def register_plano_acao_routes(blueprint):
             return redirect(url_for('main.minhas_acoes'))
 
         filtros_padrao = {
+            'responsavel_id': '',
             'origem_id': '',
             'status': '',
             'data_inicio': '',
@@ -947,6 +948,7 @@ def register_plano_acao_routes(blueprint):
 
             session['minhas_acoes_filtros'] = filtros_sessao
 
+        responsavel_id = filtros_sessao.get('responsavel_id', '')
         origem_id = filtros_sessao.get('origem_id', '')
         status = filtros_sessao.get('status', '')
         data_inicio = filtros_sessao.get('data_inicio', '')
@@ -975,8 +977,23 @@ def register_plano_acao_routes(blueprint):
             if ignorar is None:
                 ignorar = []
 
-            filtros = ["a.ativo = 1", "a.responsavel_id = %s"]
-            valores = [usuario_id]
+            filtros = ["a.ativo = 1"]
+            valores = []
+
+            if perfil == 'basico':
+                filtros.append("a.responsavel_id = %s")
+                valores.append(usuario_id)
+            elif perfil == 'intermediario':
+                filtros.append("ur.centro_custos_id = %s")
+                valores.append(centro_custos_id)
+
+            if (
+                'responsavel_id' not in ignorar
+                and responsavel_id
+                and perfil != 'basico'
+            ):
+                filtros.append("a.responsavel_id = %s")
+                valores.append(responsavel_id)
 
             if 'origem_id' not in ignorar and origem_id:
                 filtros.append("a.origem_id = %s")
@@ -1002,6 +1019,7 @@ def register_plano_acao_routes(blueprint):
         campos_ordenacao = {
             'id': 'a.id',
             'descricao': 'a.descricao',
+            'nome_responsavel': 'ur.nome',
             'nome_criador': 'uc.nome',
             'descricao_origem': 'o.descricao',
             'prazo': 'a.prazo',
@@ -1015,6 +1033,7 @@ def register_plano_acao_routes(blueprint):
             SELECT COUNT(*) AS total
             FROM acoes a
             JOIN origens o ON a.origem_id = o.id
+            JOIN usuarios ur ON a.responsavel_id = ur.id
             LEFT JOIN usuarios uc ON a.criado_por = uc.id
             {where_clause}
         """, valores)
@@ -1030,9 +1049,11 @@ def register_plano_acao_routes(blueprint):
             SELECT
                 a.*,
                 o.descricao AS descricao_origem,
+                ur.nome AS nome_responsavel,
                 uc.nome AS nome_criador
             FROM acoes a
             JOIN origens o ON a.origem_id = o.id
+            JOIN usuarios ur ON a.responsavel_id = ur.id
             LEFT JOIN usuarios uc ON a.criado_por = uc.id
             {where_clause}
             ORDER BY {campo_sort} {direcao}, a.id DESC
@@ -1049,6 +1070,7 @@ def register_plano_acao_routes(blueprint):
             SELECT DISTINCT o.id, o.descricao
             FROM acoes a
             JOIN origens o ON a.origem_id = o.id
+            JOIN usuarios ur ON a.responsavel_id = ur.id
             {where_origem}
             ORDER BY o.descricao
         """, valores_origem)
@@ -1060,6 +1082,7 @@ def register_plano_acao_routes(blueprint):
         cursor.execute(f"""
             SELECT DISTINCT a.status
             FROM acoes a
+            JOIN usuarios ur ON a.responsavel_id = ur.id
             {where_status}
             ORDER BY FIELD(a.status,
                 'Não iniciada',
@@ -1347,7 +1370,10 @@ def register_plano_acao_routes(blueprint):
         cursor = conn.cursor(dictionary=True)
 
         usuario_id = session.get('usuario_id')
+        perfil = session.get('perfil')
+        centro_custos_id = session.get('centro_custos_id')
 
+        responsavel_id = request.args.get('responsavel_id')
         origem_id = request.args.get('origem_id')
         status = request.args.get('status')
         data_inicio = request.args.get('data_inicio')
@@ -1357,18 +1383,30 @@ def register_plano_acao_routes(blueprint):
             SELECT 
                 a.id,
                 a.descricao,
-                u.nome AS criado_por,
+                ur.nome AS responsavel,
+                uc.nome AS criado_por,
                 o.descricao AS origem,
                 a.prazo,
                 a.status
             FROM acoes a
-            LEFT JOIN usuarios u ON a.criado_por = u.id
+            JOIN usuarios ur ON a.responsavel_id = ur.id
+            LEFT JOIN usuarios uc ON a.criado_por = uc.id
             LEFT JOIN origens o ON a.origem_id = o.id
-            WHERE a.responsavel_id = %s
-              AND a.ativo = 1
+            WHERE a.ativo = 1
         """
 
-        params = [usuario_id]
+        params = []
+
+        if perfil == 'basico':
+            query += " AND a.responsavel_id = %s"
+            params.append(usuario_id)
+        elif perfil == 'intermediario':
+            query += " AND ur.centro_custos_id = %s"
+            params.append(centro_custos_id)
+
+        if responsavel_id and perfil != 'basico':
+            query += " AND a.responsavel_id = %s"
+            params.append(responsavel_id)
 
         if origem_id:
             query += " AND a.origem_id = %s"
@@ -1398,7 +1436,15 @@ def register_plano_acao_routes(blueprint):
         ws = wb.active
         ws.title = "Minhas Ações"
 
-        cabecalhos = ["ID", "Descrição", "Criado por", "Origem", "Prazo", "Status"]
+        cabecalhos = [
+            "ID",
+            "Descrição",
+            "Responsável",
+            "Criado por",
+            "Origem",
+            "Prazo",
+            "Status",
+        ]
         ws.append(cabecalhos)
 
         cor_cabecalho = PatternFill(fill_type="solid", fgColor="F26719")
@@ -1431,6 +1477,7 @@ def register_plano_acao_routes(blueprint):
             ws.append([
                 item.get("id", ""),
                 item.get("descricao", "") or "",
+                item.get("responsavel", "") or "",
                 item.get("criado_por", "") or "",
                 item.get("origem", "") or "",
                 prazo_formatado,
@@ -1447,8 +1494,9 @@ def register_plano_acao_routes(blueprint):
             "B": 50,
             "C": 25,
             "D": 25,
-            "E": 15,
-            "F": 18
+            "E": 25,
+            "F": 15,
+            "G": 18
         }
 
         for coluna, largura in larguras.items():
@@ -1606,4 +1654,3 @@ def register_plano_acao_routes(blueprint):
             as_attachment=True,
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-

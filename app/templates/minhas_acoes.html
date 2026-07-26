@@ -20,10 +20,24 @@
                 <div class="row g-3 mb-2">
 
                     <div class="col-md-3">
-                        <label class="form-label">Responsável</label>
-                        <select class="form-select" disabled>
-                            <option>{{ session.get('nome', 'Usuário logado') }}</option>
-                        </select>
+                        <label for="responsavel_id" class="form-label">Responsável</label>
+                        {% if session.get('perfil') == 'basico' %}
+                            <select class="form-select" disabled>
+                                <option>{{ session.get('nome', 'Usuário logado') }}</option>
+                            </select>
+                        {% else %}
+                            <select class="form-select"
+                                    id="responsavel_id"
+                                    name="responsavel_id">
+                                <option value="">Todos</option>
+                                {% for usuario in usuarios %}
+                                    <option value="{{ usuario.id }}"
+                                            {% if filtros.get('responsavel_id') == usuario.id|string %}selected{% endif %}>
+                                        {{ usuario.nome }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        {% endif %}
                     </div>
 
                     <div class="col-md-3">
@@ -91,6 +105,7 @@
                             </a>
 
                             <a href="{{ url_for('main.exportar_minhas_acoes',
+                                responsavel_id=filtros.get('responsavel_id',''),
                                 origem_id=filtros.get('origem_id',''),
                                 status=filtros.get('status',''),
                                 data_inicio=filtros.get('data_inicio',''),
@@ -168,6 +183,36 @@
                                            data_inicio=filtros.get('data_inicio',''),
                                            data_fim=filtros.get('data_fim',''),
                                            sort='descricao', order='desc') }}">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </th>
+
+                        <th style="width: 180px;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="th-label">Responsável</span>
+                                <span class="btn-group btn-group-sm">
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar crescente"
+                                       href="{{ url_for('main.minhas_acoes',
+                                           responsavel_id=filtros.get('responsavel_id',''),
+                                           origem_id=filtros.get('origem_id',''),
+                                           status=filtros.get('status',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='nome_responsavel', order='asc') }}">
+                                        <i class="bi bi-caret-up-fill"></i>
+                                    </a>
+                                    <a class="btn btn-link p-0 px-1 text-muted"
+                                       title="Ordenar decrescente"
+                                       href="{{ url_for('main.minhas_acoes',
+                                           responsavel_id=filtros.get('responsavel_id',''),
+                                           origem_id=filtros.get('origem_id',''),
+                                           status=filtros.get('status',''),
+                                           data_inicio=filtros.get('data_inicio',''),
+                                           data_fim=filtros.get('data_fim',''),
+                                           sort='nome_responsavel', order='desc') }}">
                                         <i class="bi bi-caret-down-fill"></i>
                                     </a>
                                 </span>
@@ -327,6 +372,10 @@
                             {{ acao.descricao }}
                         </td>
 
+                        <td class="td-truncate" title="{{ acao.nome_responsavel }}">
+                            {{ acao.nome_responsavel or '-' }}
+                        </td>
+
                         <td class="td-truncate" title="{{ acao.nome_criador }}">
                             {{ acao.nome_criador or '-' }}
                         </td>
@@ -378,7 +427,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" class="text-center">Nenhuma ação encontrada.</td>
+                        <td colspan="8" class="text-center">Nenhuma ação encontrada.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
