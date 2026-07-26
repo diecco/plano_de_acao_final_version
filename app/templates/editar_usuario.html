@@ -2,40 +2,37 @@
 
 {% block titulo %}Editar Funcionário{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/usuarios-form.css') }}">
+{% endblock %}
+
 {% block conteudo %}
 
-<div class="d-flex align-items-center justify-content-between mb-4">
-
-    <div style="width: 40px;"></div>
-
-    <div class="text-center flex-grow-1">
+<div class="usuario-form-header">
+    <div>
         <h2 class="page-title">
             <i class="bi bi-pencil-square me-2"></i>
             Editar Funcionário
         </h2>
+        <p class="text-muted mb-0">
+            Revise os dados, habilitações e acessos de {{ usuario.nome }}.
+        </p>
     </div>
-
-    <div style="width: 40px;"></div>
-
 </div>
 
-<div class="page-header-line"></div>
-<hr>
+<nav class="usuario-form-nav" aria-label="Seções da edição">
+    <a href="#dados-basicos"><i class="bi bi-person-vcard"></i>Dados</a>
+    <a href="#habilitacoes"><i class="bi bi-diagram-3"></i>Habilitações</a>
+    <a href="#acesso-papeis"><i class="bi bi-person-lock"></i>Acesso</a>
+    <a href="#permissoes"><i class="bi bi-grid"></i>Permissões</a>
+</nav>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        {% for category, message in messages %}
-            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
-            </div>
-        {% endfor %}
-    {% endif %}
-{% endwith %}
+<form method="POST"
+      action="{{ url_for('main.editar_usuario', id=usuario.id) }}"
+      class="usuario-form"
+      autocomplete="off">
 
-<form method="POST" action="{{ url_for('main.editar_usuario', id=usuario.id) }}">
-
-    <div class="card shadow-sm border-0 mb-4">
+    <div class="card shadow-sm border-0 mb-4 usuario-section" id="dados-basicos">
         <div class="card-body">
             <h5 class="text-laranja mb-3">Dados Básicos</h5>
 
@@ -72,7 +69,16 @@
                         id="uid_rfid"
                         name="uid_rfid"
                         value="{{ usuario.uid_rfid or '' }}"
+                        autocomplete="off"
+                        autocapitalize="off"
+                        autocorrect="off"
+                        spellcheck="false"
+                        data-lpignore="true"
+                        data-1p-ignore
                         placeholder="Aproxime o crachá">
+                    <div class="form-text">
+                        Só altere este campo ao cadastrar um novo crachá.
+                    </div>
                 </div>
 
                 <div class="col-md-4">
@@ -139,7 +145,7 @@
         </div>
     </div>
 
-    <div class="card shadow-sm border-0 mb-4">
+    <div class="card shadow-sm border-0 mb-4 usuario-section" id="habilitacoes">
         <div class="card-body">
             <h5 class="text-laranja mb-3">Habilitações Operacionais</h5>
 
@@ -217,7 +223,7 @@
         </div>
     </div>
 
-    <div class="card shadow-sm border-0 mb-4">
+    <div class="card shadow-sm border-0 mb-4 usuario-section" id="acesso-papeis">
         <div class="card-body">
             <h5 class="text-laranja mb-3">Acesso e Papéis Especiais</h5>
 
@@ -298,7 +304,10 @@
                     <input type="password"
                         class="form-control"
                         id="nova_senha"
-                        name="nova_senha">
+                        name="nova_senha"
+                        autocomplete="new-password"
+                        data-lpignore="true"
+                        data-1p-ignore>
                     <small class="text-muted">Preencha apenas se desejar redefinir a senha.</small>
                 </div>
 
@@ -326,11 +335,12 @@
         </div>
     </div>
 
-    <div class="card shadow-sm border-0 mb-4 campo-acesso-sistema">
+    <div class="card shadow-sm border-0 mb-4 campo-acesso-sistema usuario-section"
+         id="permissoes">
         <div class="card-body">
             <h5 class="text-laranja mb-3">Permissões de Acesso</h5>
 
-            <div class="row g-3">
+            <div class="row g-3 permission-grid">
                 <div class="col-md-3">
                     <div class="form-check">
                         <input class="form-check-input"
@@ -425,6 +435,20 @@
                             {% if usuario.acesso_pcpm %}checked{% endif %}>
                         <label class="form-check-label" for="acesso_pcpm">
                             PCP-M
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="acesso_detectores_gas"
+                               name="acesso_detectores_gas"
+                               value="1"
+                               {% if usuario.acesso_detectores_gas %}checked{% endif %}>
+                        <label class="form-check-label" for="acesso_detectores_gas">
+                            Detectores de Gás
                         </label>
                     </div>
                 </div>

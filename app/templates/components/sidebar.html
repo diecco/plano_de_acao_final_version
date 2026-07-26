@@ -315,7 +315,7 @@
             </section>
         {% endif %}
 
-        {% if is_admin %}
+        {% if session.get('acesso_detectores_gas') or is_admin %}
             {% set endpoints_detectores = [
                 'main.painel_detectores_gas',
                 'main.detectores_gas',

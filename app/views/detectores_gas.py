@@ -12,7 +12,7 @@ from flask import (
     url_for,
 )
 
-from app.decorators import admin_required, login_required
+from app.decorators import api_module_required, login_required, module_required
 from app.utils.db import get_db_connection
 
 
@@ -167,7 +167,7 @@ def register_detectores_gas_routes(blueprint):
 
     @blueprint.route("/detectores_gas/painel", methods=["GET"])
     @login_required
-    @admin_required
+    @module_required("acesso_detectores_gas")
     def painel_detectores_gas():
         busca = (request.args.get("busca") or "").strip()
         status = (request.args.get("status") or "").strip()
@@ -264,7 +264,7 @@ def register_detectores_gas_routes(blueprint):
         methods=["GET"],
     )
     @login_required
-    @admin_required
+    @module_required("acesso_detectores_gas")
     def relatorio_movimentacoes_detectores_gas():
         data_inicio_texto = (request.args.get("data_inicio") or "").strip()
         data_fim_texto = (request.args.get("data_fim") or "").strip()
@@ -427,7 +427,7 @@ def register_detectores_gas_routes(blueprint):
         methods=["POST"],
     )
     @login_required
-    @admin_required
+    @api_module_required("acesso_detectores_gas")
     def api_detector_usuario_rfid():
         dados = request.get_json(silent=True) or {}
         conn = get_db_connection()
@@ -460,7 +460,7 @@ def register_detectores_gas_routes(blueprint):
         methods=["POST"],
     )
     @login_required
-    @admin_required
+    @api_module_required("acesso_detectores_gas")
     def entregar_detector_gas(detector_id):
         dados = request.get_json(silent=True) or {}
         conn = get_db_connection()
@@ -566,7 +566,7 @@ def register_detectores_gas_routes(blueprint):
         methods=["POST"],
     )
     @login_required
-    @admin_required
+    @api_module_required("acesso_detectores_gas")
     def devolver_detector_gas(detector_id):
         dados = request.get_json(silent=True) or {}
         condicao = (dados.get("condicao_devolucao") or "").strip()
@@ -712,7 +712,7 @@ def register_detectores_gas_routes(blueprint):
 
     @blueprint.route("/detectores_gas", methods=["GET"])
     @login_required
-    @admin_required
+    @module_required("acesso_detectores_gas")
     def detectores_gas():
         status = (request.args.get("status") or "").strip()
         busca = (request.args.get("busca") or "").strip()
@@ -804,7 +804,7 @@ def register_detectores_gas_routes(blueprint):
 
     @blueprint.route("/detectores_gas/cadastrar", methods=["POST"])
     @login_required
-    @admin_required
+    @module_required("acesso_detectores_gas")
     def cadastrar_detector_gas():
         conn = None
         cursor = None
@@ -880,7 +880,7 @@ def register_detectores_gas_routes(blueprint):
         methods=["POST"]
     )
     @login_required
-    @admin_required
+    @module_required("acesso_detectores_gas")
     def editar_detector_gas(detector_id):
         conn = None
         cursor = None
@@ -971,7 +971,7 @@ def register_detectores_gas_routes(blueprint):
         methods=["POST"]
     )
     @login_required
-    @admin_required
+    @module_required("acesso_detectores_gas")
     def inativar_detector_gas(detector_id):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
@@ -1018,7 +1018,7 @@ def register_detectores_gas_routes(blueprint):
         methods=["POST"]
     )
     @login_required
-    @admin_required
+    @module_required("acesso_detectores_gas")
     def reativar_detector_gas(detector_id):
         status_operacional = (
             request.form.get("status_operacional")

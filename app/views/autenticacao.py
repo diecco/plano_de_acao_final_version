@@ -69,6 +69,9 @@ def register_autenticacao_routes(blueprint):
                 session['acesso_treinamentos'] = permissao(usuario.get('acesso_treinamentos'))
                 session['acesso_procedimentos'] = permissao(usuario.get('acesso_procedimentos'))
                 session['acesso_pcpm'] = permissao(usuario.get('acesso_pcpm'))
+                session['acesso_detectores_gas'] = permissao(
+                    usuario.get('acesso_detectores_gas')
+                )
 
                 # Flags adicionais
                 session['pode_ser_instrutor'] = permissao(usuario.get('pode_ser_instrutor'))
