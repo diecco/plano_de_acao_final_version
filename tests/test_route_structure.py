@@ -13,11 +13,16 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 180)
+        self.assertEqual(len(self.routes), 185)
 
     def test_detector_gas_routes_are_registered(self):
         expected = {
             ("/detectores_gas", ("GET",)): "main.detectores_gas",
+            ("/detectores_gas/painel", ("GET",)): "main.painel_detectores_gas",
+            ("/detectores_gas/movimentacoes", ("GET",)): "main.relatorio_movimentacoes_detectores_gas",
+            ("/api/detectores_gas/usuario_rfid", ("POST",)): "main.api_detector_usuario_rfid",
+            ("/api/detectores_gas/<int:detector_id>/entregar", ("POST",)): "main.entregar_detector_gas",
+            ("/api/detectores_gas/<int:detector_id>/devolver", ("POST",)): "main.devolver_detector_gas",
             ("/detectores_gas/cadastrar", ("POST",)): "main.cadastrar_detector_gas",
             ("/detectores_gas/<int:detector_id>/editar", ("POST",)): "main.editar_detector_gas",
             ("/detectores_gas/<int:detector_id>/inativar", ("POST",)): "main.inativar_detector_gas",

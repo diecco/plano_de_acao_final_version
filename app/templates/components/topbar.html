@@ -1,0 +1,56 @@
+<header class="app-topbar">
+    <div class="topbar-left">
+        <button id="toggleSidebar"
+                class="topbar-icon-button"
+                type="button"
+                aria-label="Abrir ou recolher menu"
+                title="Abrir ou recolher menu">
+            <i class="bi bi-list"></i>
+        </button>
+        <div class="topbar-title">
+            <span class="topbar-product">TrackPlan</span>
+            <span class="topbar-page-title">Gestão integrada</span>
+        </div>
+    </div>
+
+    <div class="topbar-actions">
+        <button type="button"
+                class="topbar-icon-button topbar-search-button"
+                id="focusSidebarSearch"
+                title="Buscar funcionalidade"
+                aria-label="Buscar funcionalidade">
+            <i class="bi bi-search"></i>
+        </button>
+
+        <div class="dropdown">
+            <button class="topbar-user-button dropdown-toggle"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false">
+                <span class="topbar-avatar">
+                    <i class="bi bi-person-fill"></i>
+                </span>
+                <span class="topbar-user-name">{{ session.get('nome') or 'Usuário' }}</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                <li class="dropdown-header">
+                    <strong>{{ session.get('nome') or 'Usuário' }}</strong>
+                    <small class="d-block text-muted text-capitalize">
+                        {{ session.get('perfil') or '' }}
+                    </small>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item" href="{{ url_for('main.alterar_senha') }}">
+                        <i class="bi bi-key me-2"></i>Alterar senha
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item text-danger" href="{{ url_for('main.logout') }}">
+                        <i class="bi bi-box-arrow-right me-2"></i>Sair
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</header>

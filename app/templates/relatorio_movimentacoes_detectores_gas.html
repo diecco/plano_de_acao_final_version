@@ -1,0 +1,287 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Movimentações de Detectores de Gás{% endblock %}
+
+{% block conteudo %}
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-clock-history me-2"></i>
+        Relatório de Movimentações de Detectores de Gás
+    </h2>
+</div>
+
+<hr>
+
+<div class="movimentacoes-resumo mb-4">
+    <div class="resumo-movimento">
+        <span class="resumo-valor">{{ totais.total }}</span>
+        <span class="resumo-texto">Movimentações</span>
+    </div>
+    <div class="resumo-movimento resumo-aberta">
+        <span class="resumo-valor">{{ totais.abertas }}</span>
+        <span class="resumo-texto">Em aberto</span>
+    </div>
+    <div class="resumo-movimento resumo-finalizada">
+        <span class="resumo-valor">{{ totais.finalizadas }}</span>
+        <span class="resumo-texto">Finalizadas</span>
+    </div>
+    <div class="resumo-movimento resumo-defeito">
+        <span class="resumo-valor">{{ totais.com_defeito }}</span>
+        <span class="resumo-texto">Com defeito</span>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET"
+              action="{{ url_for('main.relatorio_movimentacoes_detectores_gas') }}">
+            <div class="row g-3 align-items-end">
+                <div class="col-12 col-md-2">
+                    <label for="data_inicio" class="form-label">Data inicial</label>
+                    <input type="date"
+                           class="form-control"
+                           id="data_inicio"
+                           name="data_inicio"
+                           value="{{ filtros.data_inicio }}">
+                </div>
+
+                <div class="col-12 col-md-2">
+                    <label for="data_fim" class="form-label">Data final</label>
+                    <input type="date"
+                           class="form-control"
+                           id="data_fim"
+                           name="data_fim"
+                           value="{{ filtros.data_fim }}">
+                </div>
+
+                <div class="col-12 col-md-2">
+                    <label for="detector_id" class="form-label">Detector</label>
+                    <select class="form-select" id="detector_id" name="detector_id">
+                        <option value="">Todos</option>
+                        {% for detector in detectores %}
+                            <option value="{{ detector.id }}"
+                                    {% if filtros.detector_id == detector.id %}selected{% endif %}>
+                                {{ detector.patrimonio }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-3">
+                    <label for="usuario_id" class="form-label">Funcionário</label>
+                    <select class="form-select" id="usuario_id" name="usuario_id">
+                        <option value="">Todos</option>
+                        {% for usuario in usuarios %}
+                            <option value="{{ usuario.id }}"
+                                    {% if filtros.usuario_id == usuario.id %}selected{% endif %}>
+                                {{ usuario.matricula or 'Sem matrícula' }} — {{ usuario.nome }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-2">
+                    <label for="situacao" class="form-label">Situação</label>
+                    <select class="form-select" id="situacao" name="situacao">
+                        <option value="">Todas</option>
+                        <option value="aberta" {% if filtros.situacao == 'aberta' %}selected{% endif %}>
+                            Em aberto
+                        </option>
+                        <option value="finalizada" {% if filtros.situacao == 'finalizada' %}selected{% endif %}>
+                            Finalizada
+                        </option>
+                        <option value="perfeitas_condicoes" {% if filtros.situacao == 'perfeitas_condicoes' %}selected{% endif %}>
+                            Perfeitas condições
+                        </option>
+                        <option value="com_defeito" {% if filtros.situacao == 'com_defeito' %}selected{% endif %}>
+                            Com defeito
+                        </option>
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-1">
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="submit"
+                                class="btn btn-laranja"
+                                title="Filtrar"
+                                aria-label="Filtrar">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+                        <a href="{{ url_for('main.relatorio_movimentacoes_detectores_gas') }}"
+                           class="btn btn-cinza"
+                           title="Limpar filtros"
+                           aria-label="Limpar filtros">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle movimentacoes-tabela">
+                <thead>
+                    <tr>
+                        <th>Detector</th>
+                        <th>Retirada</th>
+                        <th>Retirado por</th>
+                        <th>Entregue por</th>
+                        <th>Devolução</th>
+                        <th>Recebido por</th>
+                        <th class="text-center">Condição</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for movimento in movimentacoes %}
+                        <tr>
+                            <td>
+                                <span class="badge text-bg-dark">
+                                    {{ movimento.patrimonio }}
+                                </span>
+                                <small class="d-block text-muted mt-1">
+                                    {{ movimento.marca }} {{ movimento.modelo }}
+                                </small>
+                            </td>
+                            <td class="text-nowrap">
+                                {{ movimento.retirado_em.strftime('%d/%m/%Y %H:%M') }}
+                            </td>
+                            <td>
+                                <span class="fw-semibold">{{ movimento.retirado_por_nome }}</span>
+                                <small class="d-block text-muted">
+                                    {{ movimento.retirado_por_matricula or 'Sem matrícula' }}
+                                </small>
+                            </td>
+                            <td>
+                                {{ movimento.entregue_por_nome }}
+                                <small class="d-block text-muted">
+                                    {{ movimento.entregue_por_matricula or 'Sem matrícula' }}
+                                </small>
+                            </td>
+                            <td class="text-nowrap">
+                                {% if movimento.devolvido_em %}
+                                    {{ movimento.devolvido_em.strftime('%d/%m/%Y %H:%M') }}
+                                {% else %}
+                                    <span class="badge bg-danger-subtle text-danger-emphasis">
+                                        Em aberto
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if movimento.recebido_por_nome %}
+                                    {{ movimento.recebido_por_nome }}
+                                    <small class="d-block text-muted">
+                                        {{ movimento.recebido_por_matricula or 'Sem matrícula' }}
+                                    </small>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if movimento.condicao_devolucao == 'perfeitas_condicoes' %}
+                                    <span class="badge bg-success-subtle text-success-emphasis">
+                                        Perfeitas condições
+                                    </span>
+                                {% elif movimento.condicao_devolucao == 'com_defeito' %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis">
+                                        Com defeito
+                                    </span>
+                                    {% if movimento.origem_defeito %}
+                                        <small class="d-block text-muted mt-1">
+                                            {{ 'Mau uso' if movimento.origem_defeito == 'mau_uso' else 'Desgaste normal' }}
+                                        </small>
+                                    {% endif %}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-5">
+                                <i class="bi bi-inbox d-block fs-2 mb-2"></i>
+                                Nenhuma movimentação encontrada.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+.movimentacoes-resumo {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(150px, 1fr));
+    gap: .75rem;
+}
+
+.resumo-movimento {
+    display: flex;
+    align-items: baseline;
+    gap: .65rem;
+    padding: .75rem 1rem;
+    border: 1px solid #e6e8eb;
+    border-left: 5px solid #343a40;
+    border-radius: .7rem;
+    background: #fff;
+    box-shadow: 0 .2rem .7rem rgba(31, 45, 61, .07);
+}
+
+.resumo-aberta { border-left-color: #dc3545; }
+.resumo-finalizada { border-left-color: #198754; }
+.resumo-defeito { border-left-color: #ffc107; }
+
+.resumo-valor {
+    color: #343a40;
+    font-size: 1.5rem;
+    font-weight: 800;
+}
+
+.resumo-texto {
+    color: #6c757d;
+    font-size: .8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.movimentacoes-tabela {
+    width: 100%;
+    table-layout: fixed;
+    font-size: .82rem;
+}
+
+.movimentacoes-tabela th,
+.movimentacoes-tabela td {
+    overflow-wrap: anywhere;
+    white-space: normal;
+    vertical-align: middle;
+}
+
+.movimentacoes-tabela th:nth-child(1) { width: 13%; }
+.movimentacoes-tabela th:nth-child(2) { width: 13%; }
+.movimentacoes-tabela th:nth-child(3) { width: 17%; }
+.movimentacoes-tabela th:nth-child(4) { width: 17%; }
+.movimentacoes-tabela th:nth-child(5) { width: 13%; }
+.movimentacoes-tabela th:nth-child(6) { width: 17%; }
+.movimentacoes-tabela th:nth-child(7) { width: 10%; }
+
+.movimentacoes-tabela .text-nowrap {
+    white-space: normal !important;
+}
+
+.movimentacoes-tabela .badge {
+    white-space: normal;
+}
+
+@media (max-width: 767.98px) {
+    .movimentacoes-resumo {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+</style>
+{% endblock %}

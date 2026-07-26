@@ -88,6 +88,10 @@ def register_usuarios_routes(blueprint):
                 1 if request.form.get('acesso_pcpm') else 0
             )
 
+            acesso_detectores_gas = (
+                1 if request.form.get('acesso_detectores_gas') else 0
+            )
+
             if not nome:
                 flash('Informe o nome do funcionário.', 'danger')
                 conn.close()
@@ -193,6 +197,7 @@ def register_usuarios_routes(blueprint):
                 acesso_treinamentos = 0
                 acesso_procedimentos = 0
                 acesso_pcpm = 0
+                acesso_detectores_gas = 0
 
                 responsavel_revisao_padrao = 0
                 pode_criar_agendamento_ssma = 0
@@ -306,7 +311,8 @@ def register_usuarios_routes(blueprint):
                         acesso_gestao_pessoas,
                         acesso_treinamentos,
                         acesso_procedimentos,
-                        acesso_pcpm
+                        acesso_pcpm,
+                        acesso_detectores_gas
                     )
                     VALUES (
                         %s,
@@ -319,6 +325,7 @@ def register_usuarios_routes(blueprint):
                         %s,
                         %s,
                         1,
+                        %s,
                         %s,
                         %s,
                         %s,
@@ -355,7 +362,8 @@ def register_usuarios_routes(blueprint):
                     acesso_gestao_pessoas,
                     acesso_treinamentos,
                     acesso_procedimentos,
-                    acesso_pcpm
+                    acesso_pcpm,
+                    acesso_detectores_gas
                 ))
 
                 usuario_id = cursor.lastrowid
@@ -734,6 +742,10 @@ def register_usuarios_routes(blueprint):
                 1 if request.form.get('acesso_pcpm') else 0
             )
 
+            acesso_detectores_gas = (
+                1 if request.form.get('acesso_detectores_gas') else 0
+            )
+
             if not nome:
                 flash(
                     'Informe o nome do funcionário.',
@@ -899,6 +911,7 @@ def register_usuarios_routes(blueprint):
                 acesso_treinamentos = 0
                 acesso_procedimentos = 0
                 acesso_pcpm = 0
+                acesso_detectores_gas = 0
 
                 responsavel_revisao_padrao = 0
                 pode_criar_agendamento_ssma = 0
@@ -1010,6 +1023,7 @@ def register_usuarios_routes(blueprint):
                             acesso_treinamentos = %s,
                             acesso_procedimentos = %s,
                             acesso_pcpm = %s,
+                            acesso_detectores_gas = %s,
                             senha_hash = %s
                         WHERE id = %s
                     """, (
@@ -1035,6 +1049,7 @@ def register_usuarios_routes(blueprint):
                         acesso_treinamentos,
                         acesso_procedimentos,
                         acesso_pcpm,
+                        acesso_detectores_gas,
                         hash_senha,
                         id
                     ))
@@ -1063,7 +1078,8 @@ def register_usuarios_routes(blueprint):
                             acesso_gestao_pessoas = %s,
                             acesso_treinamentos = %s,
                             acesso_procedimentos = %s,
-                            acesso_pcpm = %s
+                            acesso_pcpm = %s,
+                            acesso_detectores_gas = %s
                         WHERE id = %s
                     """, (
                         nome,
@@ -1088,6 +1104,7 @@ def register_usuarios_routes(blueprint):
                         acesso_treinamentos,
                         acesso_procedimentos,
                         acesso_pcpm,
+                        acesso_detectores_gas,
                         id
                     ))
 
@@ -1264,6 +1281,7 @@ def register_usuarios_routes(blueprint):
                 u.acesso_gestao_pessoas,
                 u.acesso_treinamentos,
                 u.acesso_procedimentos,
+                u.acesso_detectores_gas,
 
                 c.nome AS nome_cargo,
 
@@ -1338,6 +1356,7 @@ def register_usuarios_routes(blueprint):
                 u.acesso_gestao_pessoas,
                 u.acesso_treinamentos,
                 u.acesso_procedimentos,
+                u.acesso_detectores_gas,
                 c.nome,
                 cc.codigo,
                 cc.descricao,
@@ -1394,6 +1413,9 @@ def register_usuarios_routes(blueprint):
             acesso_treinamentos = 1 if request.form.get('acesso_treinamentos') else 0
             acesso_procedimentos = 1 if request.form.get('acesso_procedimentos') else 0
             acesso_pcpm = 1 if request.form.get('acesso_pcpm') else 0
+            acesso_detectores_gas = (
+                1 if request.form.get('acesso_detectores_gas') else 0
+            )
 
             cursor.execute("""
                 UPDATE usuarios
@@ -1404,7 +1426,8 @@ def register_usuarios_routes(blueprint):
                     acesso_gestao_pessoas = %s,
                     acesso_treinamentos = %s,
                     acesso_procedimentos = %s,
-                    acesso_pcpm = %s
+                    acesso_pcpm = %s,
+                    acesso_detectores_gas = %s
                 WHERE id = %s
             """, (
                 perfil,
@@ -1415,6 +1438,7 @@ def register_usuarios_routes(blueprint):
                 acesso_treinamentos,
                 acesso_procedimentos,
                 acesso_pcpm,
+                acesso_detectores_gas,
                 id
             ))
 
@@ -1438,4 +1462,3 @@ def register_usuarios_routes(blueprint):
             return redirect('/usuarios')
 
         return render_template('permissoes_usuario.html', usuario=usuario)
-

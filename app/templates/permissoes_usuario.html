@@ -104,6 +104,17 @@
                             <label class="form-check-label" for="acesso_treinamentos">Gestão de Treinamentos</label>
                         </div>
 
+                        <div class="form-check mt-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   name="acesso_detectores_gas"
+                                   id="acesso_detectores_gas"
+                                   {% if usuario.acesso_detectores_gas %}checked{% endif %}>
+                            <label class="form-check-label" for="acesso_detectores_gas">
+                                Detectores de Gás
+                            </label>
+                        </div>
+
                     </div>
                 </div>
 

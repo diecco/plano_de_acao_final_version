@@ -1,0 +1,477 @@
+{% set is_admin = session.get('perfil') == 'administrador' %}
+
+<aside class="app-sidebar" id="appSidebar" aria-label="Navegação principal">
+    <div class="sidebar-brand">
+        <a href="{{ url_for('main.dashboard') }}" class="sidebar-brand-link">
+            <img class="sidebar-logo-full"
+                 src="{{ url_for('static', filename='imagens/logo_trackplan.png') }}"
+                 alt="TrackPlan">
+            <img class="sidebar-logo-icon"
+                 src="{{ url_for('static', filename='imagens/logo_trackplan_icone.png') }}"
+                 alt=""
+                 aria-hidden="true">
+        </a>
+        <button type="button"
+                class="sidebar-collapse-button"
+                id="collapseSidebar"
+                title="Recolher menu"
+                aria-label="Recolher menu">
+            <i class="bi bi-chevron-left"></i>
+        </button>
+    </div>
+
+    <div class="sidebar-search">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search"
+               id="sidebarSearch"
+               placeholder="Buscar funcionalidade..."
+               aria-label="Buscar funcionalidade"
+               autocomplete="off">
+    </div>
+
+    <nav class="sidebar-navigation" id="sidebarMenuAccordion">
+        {% if session.get('acesso_plano_acao') or is_admin %}
+            {% set endpoints_planos = [
+                'main.dashboard',
+                'main.cadastrar_acao',
+                'main.minhas_acoes',
+                'main.acoes_criadas'
+            ] %}
+            <section class="sidebar-module"
+                     data-search-label="planos de ação dashboard nova ação minhas ações ações criadas">
+                <button class="sidebar-module-toggle {% if request.endpoint in endpoints_planos %}active{% endif %}"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#menuPlanos"
+                        aria-expanded="{{ 'true' if request.endpoint in endpoints_planos else 'false' }}"
+                        aria-controls="menuPlanos"
+                        title="Planos de Ação">
+                    <i class="bi bi-list-task"></i>
+                    <span class="sidebar-label">Planos de Ação</span>
+                    <i class="bi bi-chevron-down sidebar-chevron"></i>
+                </button>
+                <div class="collapse sidebar-submenu {% if request.endpoint in endpoints_planos %}show{% endif %}"
+                     id="menuPlanos"
+                     data-bs-parent="#sidebarMenuAccordion">
+                    <a href="{{ url_for('main.dashboard') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+                        <i class="bi bi-speedometer2"></i><span>Dashboard</span>
+                    </a>
+                    <a href="{{ url_for('main.cadastrar_acao') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.cadastrar_acao' %}active{% endif %}">
+                        <i class="bi bi-plus-circle"></i><span>Nova ação</span>
+                    </a>
+                    <a href="{{ url_for('main.minhas_acoes') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.minhas_acoes' %}active{% endif %}">
+                        <i class="bi bi-person-check"></i><span>Minhas ações</span>
+                    </a>
+                    <a href="{{ url_for('main.acoes_criadas') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.acoes_criadas' %}active{% endif %}">
+                        <i class="bi bi-folder2-open"></i><span>Ações que criei</span>
+                    </a>
+                </div>
+            </section>
+        {% endif %}
+
+        {% if session.get('acesso_ssma') or session.get('pode_ser_lider_ssma') or is_admin %}
+            {% set endpoints_ssma = [
+                'main.listar_hs',
+                'main.editar_hs',
+                'main.listar_recusa',
+                'main.editar_recusa',
+                'main.listar_apr',
+                'main.listar_ap',
+                'main.listar_ifs',
+                'main.meu_calendario_ssma',
+                'main.executar_agendamento_ssma'
+            ] %}
+            <section class="sidebar-module"
+                     data-search-label="ssma meu calendário horas segurança recusa tarefa apr auditoria padrão ifs">
+                <button class="sidebar-module-toggle {% if request.endpoint in endpoints_ssma %}active{% endif %}"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#menuSsma"
+                        aria-expanded="{{ 'true' if request.endpoint in endpoints_ssma else 'false' }}"
+                        aria-controls="menuSsma"
+                        title="SSMA">
+                    <i class="bi bi-shield-check"></i>
+                    <span class="sidebar-label">SSMA</span>
+                    <i class="bi bi-chevron-down sidebar-chevron"></i>
+                </button>
+                <div class="collapse sidebar-submenu {% if request.endpoint in endpoints_ssma %}show{% endif %}"
+                     id="menuSsma"
+                     data-bs-parent="#sidebarMenuAccordion">
+                    {% if session.get('pode_ser_lider_ssma') or is_admin %}
+                        <a href="{{ url_for('main.meu_calendario_ssma') }}"
+                           class="sidebar-link {% if request.endpoint in ['main.meu_calendario_ssma', 'main.executar_agendamento_ssma'] %}active{% endif %}">
+                            <i class="bi bi-calendar-check"></i><span>Meu calendário</span>
+                        </a>
+                    {% endif %}
+                    {% if session.get('acesso_ssma') or is_admin %}
+                        <a href="{{ url_for('main.listar_hs') }}"
+                           class="sidebar-link {% if request.endpoint in ['main.listar_hs', 'main.editar_hs'] %}active{% endif %}">
+                            <i class="bi bi-clock-history"></i><span>Horas de segurança</span>
+                        </a>
+                        <a href="{{ url_for('main.listar_recusa') }}"
+                           class="sidebar-link {% if request.endpoint in ['main.listar_recusa', 'main.editar_recusa'] %}active{% endif %}">
+                            <i class="bi bi-exclamation-triangle"></i><span>Recusa à tarefa</span>
+                        </a>
+                        <a href="{{ url_for('main.listar_apr') }}"
+                           class="sidebar-link {% if request.endpoint == 'main.listar_apr' %}active{% endif %}">
+                            <i class="bi bi-file-earmark-text"></i><span>APR</span>
+                        </a>
+                        <a href="{{ url_for('main.listar_ap') }}"
+                           class="sidebar-link {% if request.endpoint == 'main.listar_ap' %}active{% endif %}">
+                            <i class="bi bi-clipboard-check"></i><span>Auditoria de padrão</span>
+                        </a>
+                        <a href="{{ url_for('main.listar_ifs') }}"
+                           class="sidebar-link {% if request.endpoint == 'main.listar_ifs' %}active{% endif %}">
+                            <i class="bi bi-shield-exclamation"></i><span>IFS</span>
+                        </a>
+                    {% endif %}
+                </div>
+            </section>
+        {% endif %}
+
+        {% if is_admin or session.get('pode_criar_agendamento_ssma') %}
+            {% set endpoints_agenda = [
+                'main.listar_agendamentos_ssma',
+                'main.novo_agendamento_ssma',
+                'main.relatorio_aderencia_ssma'
+            ] %}
+            <section class="sidebar-module"
+                     data-search-label="agenda ssma criar agendamentos relatório aderência">
+                <button class="sidebar-module-toggle {% if request.endpoint in endpoints_agenda %}active{% endif %}"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#menuAgendaSsma"
+                        aria-expanded="{{ 'true' if request.endpoint in endpoints_agenda else 'false' }}"
+                        aria-controls="menuAgendaSsma"
+                        title="Agenda SSMA">
+                    <i class="bi bi-calendar2-week"></i>
+                    <span class="sidebar-label">Agenda SSMA</span>
+                    <i class="bi bi-chevron-down sidebar-chevron"></i>
+                </button>
+                <div class="collapse sidebar-submenu {% if request.endpoint in endpoints_agenda %}show{% endif %}"
+                     id="menuAgendaSsma"
+                     data-bs-parent="#sidebarMenuAccordion">
+                    <a href="{{ url_for('main.novo_agendamento_ssma') }}"
+                       class="sidebar-link {% if request.endpoint in ['main.listar_agendamentos_ssma', 'main.novo_agendamento_ssma'] %}active{% endif %}">
+                        <i class="bi bi-calendar-plus"></i><span>Criar agendamentos</span>
+                    </a>
+                    <a href="{{ url_for('main.relatorio_aderencia_ssma') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.relatorio_aderencia_ssma' %}active{% endif %}">
+                        <i class="bi bi-clipboard-data"></i><span>Relatório de aderência</span>
+                    </a>
+                </div>
+            </section>
+        {% endif %}
+
+        {% if session.get('acesso_melhoria') or is_admin %}
+            {% set endpoints_melhorias = [
+                'main.listar_melhorias',
+                'main.listar_melhoria',
+                'main.editar_melhoria'
+            ] %}
+            <section class="sidebar-module" data-search-label="melhorias">
+                <a href="{{ url_for('main.listar_melhorias') }}"
+                   class="sidebar-module-toggle sidebar-direct-link {% if request.endpoint in endpoints_melhorias %}active{% endif %}"
+                   title="Melhorias">
+                    <i class="bi bi-lightbulb"></i>
+                    <span class="sidebar-label">Melhorias</span>
+                </a>
+            </section>
+        {% endif %}
+
+        {% if session.get('acesso_gestao_pessoas') or is_admin %}
+            {% set endpoints_pessoas = [
+                'main.listar_reconhecimento',
+                'main.editar_reconhecimento'
+            ] %}
+            <section class="sidebar-module" data-search-label="gestão pessoas reconhecimentos">
+                <a href="{{ url_for('main.listar_reconhecimento') }}"
+                   class="sidebar-module-toggle sidebar-direct-link {% if request.endpoint in endpoints_pessoas %}active{% endif %}"
+                   title="Gestão de Pessoas">
+                    <i class="bi bi-people"></i>
+                    <span class="sidebar-label">Gestão de Pessoas</span>
+                </a>
+            </section>
+        {% endif %}
+
+        {% if session.get('acesso_procedimentos') or is_admin %}
+            {% set endpoints_procedimentos = [
+                'main.listar_procedimentos',
+                'main.listar_matrizes_capacitacao'
+            ] %}
+            <section class="sidebar-module"
+                     data-search-label="procedimentos matriz capacitação">
+                <button class="sidebar-module-toggle {% if request.endpoint in endpoints_procedimentos %}active{% endif %}"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#menuProcedimentos"
+                        aria-expanded="{{ 'true' if request.endpoint in endpoints_procedimentos else 'false' }}"
+                        aria-controls="menuProcedimentos"
+                        title="Procedimentos">
+                    <i class="bi bi-journal-text"></i>
+                    <span class="sidebar-label">Procedimentos</span>
+                    <i class="bi bi-chevron-down sidebar-chevron"></i>
+                </button>
+                <div class="collapse sidebar-submenu {% if request.endpoint in endpoints_procedimentos %}show{% endif %}"
+                     id="menuProcedimentos"
+                     data-bs-parent="#sidebarMenuAccordion">
+                    <a href="{{ url_for('main.listar_procedimentos') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.listar_procedimentos' %}active{% endif %}">
+                        <i class="bi bi-file-earmark-text"></i><span>Procedimentos</span>
+                    </a>
+                    <a href="{{ url_for('main.listar_matrizes_capacitacao') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.listar_matrizes_capacitacao' %}active{% endif %}">
+                        <i class="bi bi-diagram-3"></i><span>Matriz de capacitação</span>
+                    </a>
+                </div>
+            </section>
+        {% endif %}
+
+        {% if session.get('acesso_treinamentos') or is_admin %}
+            {% set endpoints_treinamentos = [
+                'main.listar_treinamentos',
+                'main.relatorio_treinamentos_a_vencer',
+                'main.relatorio_treinamentos_pendentes',
+                'main.relatorio_treinamentos_realizados',
+                'main.relatorio_treinamentos_vencidos'
+            ] %}
+            <section class="sidebar-module"
+                     data-search-label="gestão treinamentos vencer pendentes realizados vencidos">
+                <button class="sidebar-module-toggle {% if request.endpoint in endpoints_treinamentos %}active{% endif %}"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#menuTreinamentos"
+                        aria-expanded="{{ 'true' if request.endpoint in endpoints_treinamentos else 'false' }}"
+                        aria-controls="menuTreinamentos"
+                        title="Gestão de Treinamentos">
+                    <i class="bi bi-mortarboard"></i>
+                    <span class="sidebar-label">Gestão de Treinamentos</span>
+                    <i class="bi bi-chevron-down sidebar-chevron"></i>
+                </button>
+                <div class="collapse sidebar-submenu {% if request.endpoint in endpoints_treinamentos %}show{% endif %}"
+                     id="menuTreinamentos"
+                     data-bs-parent="#sidebarMenuAccordion">
+                    <a href="{{ url_for('main.listar_treinamentos') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.listar_treinamentos' %}active{% endif %}">
+                        <i class="bi bi-list-ul"></i><span>Treinamentos</span>
+                    </a>
+                    <a href="{{ url_for('main.relatorio_treinamentos_a_vencer') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.relatorio_treinamentos_a_vencer' %}active{% endif %}">
+                        <i class="bi bi-clock-history"></i><span>A vencer</span>
+                    </a>
+                    <a href="{{ url_for('main.relatorio_treinamentos_pendentes') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.relatorio_treinamentos_pendentes' %}active{% endif %}">
+                        <i class="bi bi-exclamation-circle"></i><span>Pendentes</span>
+                    </a>
+                    <a href="{{ url_for('main.relatorio_treinamentos_realizados') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.relatorio_treinamentos_realizados' %}active{% endif %}">
+                        <i class="bi bi-check-circle"></i><span>Realizados</span>
+                    </a>
+                    <a href="{{ url_for('main.relatorio_treinamentos_vencidos') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.relatorio_treinamentos_vencidos' %}active{% endif %}">
+                        <i class="bi bi-x-circle"></i><span>Vencidos</span>
+                    </a>
+                </div>
+            </section>
+        {% endif %}
+
+        {% if session.get('acesso_pcpm') or is_admin %}
+            {% set endpoints_pcpm = [
+                'main.pcpm_painel_movimentacoes',
+                'main.listar_pcpm_movimentacoes',
+                'main.pcpm_movimentacao',
+                'main.visualizar_pcpm_movimentacao',
+                'main.editar_pcpm_movimentacao'
+            ] %}
+            <section class="sidebar-module"
+                     data-search-label="pcp-m painel histórico movimentações">
+                <button class="sidebar-module-toggle {% if request.endpoint in endpoints_pcpm %}active{% endif %}"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#menuPcpm"
+                        aria-expanded="{{ 'true' if request.endpoint in endpoints_pcpm else 'false' }}"
+                        aria-controls="menuPcpm"
+                        title="PCP-M">
+                    <i class="bi bi-truck"></i>
+                    <span class="sidebar-label">PCP-M</span>
+                    <i class="bi bi-chevron-down sidebar-chevron"></i>
+                </button>
+                <div class="collapse sidebar-submenu {% if request.endpoint in endpoints_pcpm %}show{% endif %}"
+                     id="menuPcpm"
+                     data-bs-parent="#sidebarMenuAccordion">
+                    <a href="{{ url_for('main.pcpm_painel_movimentacoes') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.pcpm_painel_movimentacoes' %}active{% endif %}">
+                        <i class="bi bi-speedometer2"></i><span>Painel de movimentações</span>
+                    </a>
+                    <a href="{{ url_for('main.listar_pcpm_movimentacoes') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.listar_pcpm_movimentacoes' %}active{% endif %}">
+                        <i class="bi bi-clock-history"></i><span>Histórico de movimentações</span>
+                    </a>
+                </div>
+            </section>
+        {% endif %}
+
+        {% if session.get('acesso_detectores_gas') or is_admin %}
+            {% set endpoints_detectores = [
+                'main.painel_detectores_gas',
+                'main.detectores_gas',
+                'main.relatorio_movimentacoes_detectores_gas'
+            ] %}
+            <section class="sidebar-module"
+                     data-search-label="detectores gás painel cadastro movimentações">
+                <button class="sidebar-module-toggle {% if request.endpoint in endpoints_detectores %}active{% endif %}"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#menuDetectores"
+                        aria-expanded="{{ 'true' if request.endpoint in endpoints_detectores else 'false' }}"
+                        aria-controls="menuDetectores"
+                        title="Detectores de Gás">
+                    <i class="bi bi-broadcast-pin"></i>
+                    <span class="sidebar-label">Detectores de Gás</span>
+                    <i class="bi bi-chevron-down sidebar-chevron"></i>
+                </button>
+                <div class="collapse sidebar-submenu {% if request.endpoint in endpoints_detectores %}show{% endif %}"
+                     id="menuDetectores"
+                     data-bs-parent="#sidebarMenuAccordion">
+                    <a href="{{ url_for('main.painel_detectores_gas') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.painel_detectores_gas' %}active{% endif %}">
+                        <i class="bi bi-grid-3x3-gap"></i><span>Painel de detectores</span>
+                    </a>
+                    <a href="{{ url_for('main.detectores_gas') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.detectores_gas' %}active{% endif %}">
+                        <i class="bi bi-clipboard-data"></i><span>Cadastro de detectores</span>
+                    </a>
+                    <a href="{{ url_for('main.relatorio_movimentacoes_detectores_gas') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.relatorio_movimentacoes_detectores_gas' %}active{% endif %}">
+                        <i class="bi bi-clock-history"></i><span>Movimentações</span>
+                    </a>
+                </div>
+            </section>
+        {% endif %}
+
+        {% if is_admin %}
+            {% set endpoints_admin = [
+                'main.superintendencias',
+                'main.centros_custos',
+                'main.origens',
+                'main.listar_usuarios',
+                'main.causas_recusa',
+                'main.cadastrar_hs',
+                'main.cargos',
+                'main.funcoes',
+                'main.setores',
+                'main.instrutores',
+                'main.matriz_capacitacao',
+                'main.pcpm_empresas',
+                'main.equipamentos',
+                'main.tipos_equipamento',
+                'main.tipos_documento',
+                'main.pcpm_checklist_modelos'
+            ] %}
+            <section class="sidebar-module"
+                     data-search-label="administração estrutura superintendências centros custos usuários origens causas recusa temas hs tipos documentos cargos funções setores instrutores matriz empresas equipamentos checklist">
+                <button class="sidebar-module-toggle {% if request.endpoint in endpoints_admin %}active{% endif %}"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#menuAdministracao"
+                        aria-expanded="{{ 'true' if request.endpoint in endpoints_admin else 'false' }}"
+                        aria-controls="menuAdministracao"
+                        title="Administração">
+                    <i class="bi bi-gear"></i>
+                    <span class="sidebar-label">Administração</span>
+                    <i class="bi bi-chevron-down sidebar-chevron"></i>
+                </button>
+                <div class="collapse sidebar-submenu sidebar-admin-submenu {% if request.endpoint in endpoints_admin %}show{% endif %}"
+                     id="menuAdministracao"
+                     data-bs-parent="#sidebarMenuAccordion">
+                    <span class="sidebar-section-label">Estrutura</span>
+                    <a href="{{ url_for('main.superintendencias') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.superintendencias' %}active{% endif %}">
+                        <i class="bi bi-diagram-3"></i><span>Superintendências</span>
+                    </a>
+                    <a href="{{ url_for('main.centros_custos') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.centros_custos' %}active{% endif %}">
+                        <i class="bi bi-building"></i><span>Centros de custos</span>
+                    </a>
+                    <a href="{{ url_for('main.listar_usuarios') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.listar_usuarios' %}active{% endif %}">
+                        <i class="bi bi-people"></i><span>Usuários / Funcionários</span>
+                    </a>
+                    <a href="{{ url_for('main.origens') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.origens' %}active{% endif %}">
+                        <i class="bi bi-tags"></i><span>Origens de ações</span>
+                    </a>
+
+                    <span class="sidebar-section-label">SSMA</span>
+                    <a href="{{ url_for('main.causas_recusa') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.causas_recusa' %}active{% endif %}">
+                        <i class="bi bi-exclamation-diamond"></i><span>Causas de recusa</span>
+                    </a>
+                    <a href="{{ url_for('main.cadastrar_hs') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.cadastrar_hs' %}active{% endif %}">
+                        <i class="bi bi-shield-plus"></i><span>Temas HS</span>
+                    </a>
+
+                    <span class="sidebar-section-label">Procedimentos</span>
+                    <a href="{{ url_for('main.tipos_documento') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.tipos_documento' %}active{% endif %}">
+                        <i class="bi bi-file-earmark-text"></i><span>Tipos de documentos</span>
+                    </a>
+
+                    <span class="sidebar-section-label">Treinamentos</span>
+                    <a href="{{ url_for('main.cargos') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.cargos' %}active{% endif %}">
+                        <i class="bi bi-person-badge"></i><span>Cargos</span>
+                    </a>
+                    <a href="{{ url_for('main.funcoes') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.funcoes' %}active{% endif %}">
+                        <i class="bi bi-diagram-2"></i><span>Funções</span>
+                    </a>
+                    <a href="{{ url_for('main.setores') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.setores' %}active{% endif %}">
+                        <i class="bi bi-building-fill"></i><span>Setores</span>
+                    </a>
+                    <a href="{{ url_for('main.instrutores') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.instrutores' %}active{% endif %}">
+                        <i class="bi bi-person-video3"></i><span>Instrutores</span>
+                    </a>
+                    <a href="{{ url_for('main.matriz_capacitacao') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.matriz_capacitacao' %}active{% endif %}">
+                        <i class="bi bi-table"></i><span>Matriz</span>
+                    </a>
+
+                    <span class="sidebar-section-label">PCP-M</span>
+                    <a href="{{ url_for('main.pcpm_empresas') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.pcpm_empresas' %}active{% endif %}">
+                        <i class="bi bi-buildings"></i><span>Empresas</span>
+                    </a>
+                    <a href="{{ url_for('main.tipos_equipamento') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.tipos_equipamento' %}active{% endif %}">
+                        <i class="bi bi-truck"></i><span>Tipos de equipamento</span>
+                    </a>
+                    <a href="{{ url_for('main.equipamentos') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.equipamentos' %}active{% endif %}">
+                        <i class="bi bi-truck-flatbed"></i><span>Equipamentos</span>
+                    </a>
+                    <a href="{{ url_for('main.pcpm_checklist_modelos') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.pcpm_checklist_modelos' %}active{% endif %}">
+                        <i class="bi bi-card-checklist"></i><span>Modelos de checklist</span>
+                    </a>
+                </div>
+            </section>
+        {% endif %}
+
+        <p class="sidebar-no-results d-none" id="sidebarNoResults">
+            Nenhuma funcionalidade encontrada.
+        </p>
+    </nav>
+</aside>
+
+<button type="button"
+        class="sidebar-overlay"
+        id="sidebarOverlay"
+        aria-label="Fechar menu"></button>

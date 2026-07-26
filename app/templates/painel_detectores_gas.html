@@ -1,0 +1,765 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Painel de Detectores de Gás{% endblock %}
+
+{% block conteudo %}
+<div class="detectores-dashboard">
+    <div class="page-header dashboard-header">
+        <div>
+            <h2 class="page-title mb-1">
+                <i class="bi bi-grid-3x3-gap me-2"></i>
+                Controle de Detectores de Gás
+            </h2>
+            <p class="text-muted mb-0">
+                Selecione um aparelho para iniciar uma entrega ou registrar uma devolução.
+            </p>
+        </div>
+    </div>
+
+    <div class="dashboard-resumo" aria-label="Resumo dos detectores">
+        <div class="resumo-item resumo-total">
+            <span class="resumo-numero">{{ totais.total }}</span>
+            <span class="resumo-label">Ativos</span>
+        </div>
+        <div class="resumo-item resumo-disponivel">
+            <span class="resumo-numero">{{ totais.disponivel }}</span>
+            <span class="resumo-label">Disponíveis</span>
+        </div>
+        <div class="resumo-item resumo-em-uso">
+            <span class="resumo-numero">{{ totais.em_uso }}</span>
+            <span class="resumo-label">Em uso</span>
+        </div>
+        <div class="resumo-item resumo-indisponivel">
+            <span class="resumo-numero">
+                {{ totais.em_calibracao + totais.com_defeito }}
+            </span>
+            <span class="resumo-label">Indisponíveis</span>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 dashboard-filtros">
+        <div class="card-body">
+            <form method="GET"
+                  action="{{ url_for('main.painel_detectores_gas') }}">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-6">
+                        <label for="busca" class="form-label">Localizar aparelho</label>
+                        <input type="search"
+                               class="form-control"
+                               id="busca"
+                               name="busca"
+                               value="{{ filtros.busca or '' }}"
+                               placeholder="Patrimônio, fabricante, marca ou modelo">
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label for="status" class="form-label">Condição</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="">Todas</option>
+                            {% for chave, config in status_dashboard.items() %}
+                                <option value="{{ chave }}"
+                                        {% if filtros.status == chave %}selected{% endif %}>
+                                    {{ config.rotulo }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="submit"
+                                    class="btn btn-laranja"
+                                    title="Filtrar"
+                                    aria-label="Filtrar">
+                                <i class="bi bi-funnel"></i>
+                            </button>
+                            <a href="{{ url_for('main.painel_detectores_gas') }}"
+                               class="btn btn-cinza"
+                               title="Limpar filtros"
+                               aria-label="Limpar filtros">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="status-legenda" aria-label="Legenda de condições">
+        <span><i class="legenda-cor disponivel"></i>Disponível</span>
+        <span><i class="legenda-cor em-uso"></i>Em uso</span>
+        <span><i class="legenda-cor em-calibracao"></i>Em calibração</span>
+        <span><i class="legenda-cor com-defeito"></i>Com defeito</span>
+    </div>
+
+    <div class="detectores-grid">
+        {% for detector in detectores %}
+            {% set config = status_dashboard[detector.status_operacional] %}
+            <button type="button"
+                    class="detector-card status-{{ detector.status_operacional|replace('_', '-') }}"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalOperacaoDetector"
+                    data-id="{{ detector.id }}"
+                    data-patrimonio="{{ detector.patrimonio }}"
+                    data-fabricante="{{ detector.fabricante }}"
+                    data-marca="{{ detector.marca }}"
+                    data-modelo="{{ detector.modelo }}"
+                    data-status="{{ detector.status_operacional }}"
+                    data-status-rotulo="{{ config.rotulo }}"
+                    data-usuario-posse="{{ detector.usuario_posse_nome or '' }}"
+                    data-acao="{{ config.acao }}">
+                <span class="detector-card-topo">
+                    <span class="detector-status-ponto"></span>
+                    <span class="detector-status-texto">{{ config.rotulo }}</span>
+                    <i class="bi {{ config.icone }}"></i>
+                </span>
+                <span class="detector-patrimonio">{{ detector.patrimonio }}</span>
+                <span class="detector-modelo">
+                    {{ detector.marca }} {{ detector.modelo }}
+                </span>
+                <span class="detector-acao">{{ config.acao }}</span>
+            </button>
+        {% else %}
+            <div class="dashboard-vazio">
+                <i class="bi bi-search"></i>
+                <h3>Nenhum detector encontrado</h3>
+                <p>Revise os filtros ou cadastre um novo aparelho.</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="modal fade"
+     id="modalOperacaoDetector"
+     tabindex="-1"
+     aria-labelledby="tituloOperacaoDetector"
+     aria-hidden="true"
+     data-entrega-template="{{ url_for('main.entregar_detector_gas', detector_id=0) }}"
+     data-devolucao-template="{{ url_for('main.devolver_detector_gas', detector_id=0) }}"
+     data-rfid-url="{{ url_for('main.api_detector_usuario_rfid') }}">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content detector-modal">
+            <div class="modal-header">
+                <div>
+                    <small id="modalStatusDetector" class="modal-status"></small>
+                    <h5 class="modal-title" id="tituloOperacaoDetector">
+                        Detector <span id="modalPatrimonioDetector"></span>
+                    </h5>
+                </div>
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <dl class="detector-detalhes">
+                    <div>
+                        <dt>Fabricante</dt>
+                        <dd id="modalFabricanteDetector"></dd>
+                    </div>
+                    <div>
+                        <dt>Marca / modelo</dt>
+                        <dd id="modalModeloDetector"></dd>
+                    </div>
+                    <div id="modalPosseDetectorContainer" class="d-none">
+                        <dt>Em posse de</dt>
+                        <dd id="modalPosseDetector" class="fw-semibold"></dd>
+                    </div>
+                </dl>
+                <div id="modalMensagemOperacao" class="alert d-none"></div>
+
+                <div id="camposOperacaoDetector">
+                    <p class="small text-muted mb-3">
+                        Processo protegido por validação RFID dos envolvidos.
+                    </p>
+                    <div class="rfid-etapa mb-3">
+                        <label for="rfidResponsavel" class="form-label fw-semibold">
+                            1. Crachá do responsável pela operação
+                        </label>
+                        <input type="text"
+                               class="form-control rfid-input"
+                               id="rfidResponsavel"
+                               autocomplete="off"
+                               placeholder="Clique aqui e aproxime o crachá">
+                        <div class="form-text rfid-retorno" id="retornoRfidResponsavel">
+                            Aguardando leitura RFID.
+                        </div>
+                    </div>
+
+                    <div class="rfid-etapa mb-3">
+                        <label for="rfidFuncionario"
+                               class="form-label fw-semibold"
+                               id="labelRfidFuncionario">
+                            2. Crachá do funcionário que receberá o aparelho
+                        </label>
+                        <input type="text"
+                               class="form-control rfid-input"
+                               id="rfidFuncionario"
+                               autocomplete="off"
+                               placeholder="Clique aqui e aproxime o crachá">
+                        <div class="form-text rfid-retorno" id="retornoRfidFuncionario">
+                            Aguardando leitura RFID.
+                        </div>
+                    </div>
+
+                    <div id="camposDevolucao" class="d-none">
+                        <div class="mb-3">
+                            <label for="condicaoDevolucao" class="form-label fw-semibold">
+                                Condição do aparelho na devolução
+                            </label>
+                            <select class="form-select" id="condicaoDevolucao">
+                                <option value="">Selecione</option>
+                                <option value="perfeitas_condicoes">
+                                    Perfeitas condições
+                                </option>
+                                <option value="com_defeito">Com defeito</option>
+                            </select>
+                        </div>
+
+                        <div id="camposDefeito" class="d-none">
+                            <div class="mb-3">
+                                <label for="origemDefeito" class="form-label fw-semibold">
+                                    Origem provável do defeito
+                                </label>
+                                <select class="form-select" id="origemDefeito">
+                                    <option value="">Selecione</option>
+                                    <option value="mau_uso">Mau uso</option>
+                                    <option value="desgaste_normal">
+                                        Condição normal / desgaste
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="observacaoDevolucao"
+                                       class="form-label fw-semibold">
+                                    Descrição do defeito
+                                </label>
+                                <textarea class="form-control"
+                                          id="observacaoDevolucao"
+                                          rows="3"
+                                          maxlength="1000"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button"
+                        class="btn btn-cinza"
+                        data-bs-dismiss="modal">
+                    Fechar
+                </button>
+                <button type="button"
+                        class="btn btn-laranja"
+                        id="botaoOperacaoDetector">
+                    <i class="bi me-1"></i>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('modalOperacaoDetector');
+    const botaoOperacao = document.getElementById('botaoOperacaoDetector');
+    const mensagem = document.getElementById('modalMensagemOperacao');
+    const camposOperacao = document.getElementById('camposOperacaoDetector');
+    const camposDevolucao = document.getElementById('camposDevolucao');
+    const camposDefeito = document.getElementById('camposDefeito');
+    const rfidResponsavel = document.getElementById('rfidResponsavel');
+    const rfidFuncionario = document.getElementById('rfidFuncionario');
+    const condicaoDevolucao = document.getElementById('condicaoDevolucao');
+    let detectorAtual = null;
+
+    function exibirMensagem(texto, tipo) {
+        mensagem.className = 'alert alert-' + tipo;
+        mensagem.textContent = texto;
+    }
+
+    function limparMensagem() {
+        mensagem.className = 'alert d-none';
+        mensagem.textContent = '';
+    }
+
+    async function identificarRfid(campo, retorno) {
+        const uidRfid = campo.value.trim();
+        if (!uidRfid) return false;
+
+        retorno.className = 'form-text text-muted';
+        retorno.textContent = 'Validando crachá...';
+
+        try {
+            const resposta = await fetch(modal.dataset.rfidUrl, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({uid_rfid: uidRfid})
+            });
+            const dados = await resposta.json();
+
+            if (!resposta.ok || !dados.sucesso) {
+                throw new Error(dados.mensagem || 'RFID não reconhecido.');
+            }
+
+            retorno.className = 'form-text rfid-identificado fw-semibold';
+            retorno.textContent =
+                (dados.usuario.matricula ? dados.usuario.matricula + ' — ' : '') +
+                dados.usuario.nome;
+            return true;
+        } catch (erro) {
+            retorno.className = 'form-text text-danger fw-semibold';
+            retorno.textContent = erro.message;
+            campo.select();
+            return false;
+        }
+    }
+
+    function prepararCampoRfid(campo, retorno, proximoCampo) {
+        campo.addEventListener('keydown', async function (evento) {
+            if (evento.key !== 'Enter') return;
+            evento.preventDefault();
+
+            if (await identificarRfid(campo, retorno) && proximoCampo) {
+                proximoCampo.focus();
+            }
+        });
+    }
+
+    prepararCampoRfid(
+        rfidResponsavel,
+        document.getElementById('retornoRfidResponsavel'),
+        rfidFuncionario
+    );
+    prepararCampoRfid(
+        rfidFuncionario,
+        document.getElementById('retornoRfidFuncionario'),
+        null
+    );
+
+    condicaoDevolucao.addEventListener('change', function () {
+        camposDefeito.classList.toggle(
+            'd-none',
+            condicaoDevolucao.value !== 'com_defeito'
+        );
+    });
+
+    modal.addEventListener('show.bs.modal', function (evento) {
+        const card = evento.relatedTarget;
+        const status = card.dataset.status;
+        const disponivelParaOperacao = status === 'disponivel' || status === 'em_uso';
+        detectorAtual = {
+            id: card.dataset.id,
+            status: status
+        };
+
+        limparMensagem();
+        rfidResponsavel.value = '';
+        rfidFuncionario.value = '';
+        condicaoDevolucao.value = '';
+        document.getElementById('origemDefeito').value = '';
+        document.getElementById('observacaoDevolucao').value = '';
+        document.getElementById('retornoRfidResponsavel').className =
+            'form-text text-muted';
+        document.getElementById('retornoRfidResponsavel').textContent =
+            'Aguardando leitura RFID.';
+        document.getElementById('retornoRfidFuncionario').className =
+            'form-text text-muted';
+        document.getElementById('retornoRfidFuncionario').textContent =
+            'Aguardando leitura RFID.';
+
+        document.getElementById('modalPatrimonioDetector').textContent =
+            card.dataset.patrimonio;
+        document.getElementById('modalStatusDetector').textContent =
+            card.dataset.statusRotulo;
+        document.getElementById('modalFabricanteDetector').textContent =
+            card.dataset.fabricante;
+        document.getElementById('modalModeloDetector').textContent =
+            card.dataset.marca + ' ' + card.dataset.modelo;
+        const posseContainer = document.getElementById(
+            'modalPosseDetectorContainer'
+        );
+        const posseDetector = document.getElementById('modalPosseDetector');
+        posseDetector.textContent = card.dataset.usuarioPosse || '';
+        posseContainer.classList.toggle(
+            'd-none',
+            status !== 'em_uso' || !card.dataset.usuarioPosse
+        );
+
+        botaoOperacao.querySelector('span').textContent = card.dataset.acao;
+        botaoOperacao.querySelector('i').className =
+            'bi me-1 ' + (status === 'em_uso'
+                ? 'bi-box-arrow-in-down-left'
+                : 'bi-box-arrow-up-right');
+        botaoOperacao.disabled = false;
+        botaoOperacao.classList.toggle('d-none', !disponivelParaOperacao);
+        camposOperacao.classList.toggle('d-none', !disponivelParaOperacao);
+        camposDevolucao.classList.toggle('d-none', status !== 'em_uso');
+        camposDefeito.classList.add('d-none');
+        document.getElementById('labelRfidFuncionario').textContent =
+            status === 'em_uso'
+                ? '2. Crachá do funcionário que está devolvendo'
+                : '2. Crachá do funcionário que receberá o aparelho';
+
+        if (!disponivelParaOperacao) {
+            exibirMensagem(
+                'Este aparelho está indisponível para movimentação no momento.',
+                'warning'
+            );
+        } else if (status === 'em_uso' && card.dataset.usuarioPosse) {
+            exibirMensagem(
+                'Aparelho em posse de ' + card.dataset.usuarioPosse + '.',
+                'info'
+            );
+        }
+    });
+
+    modal.addEventListener('shown.bs.modal', function () {
+        if (!camposOperacao.classList.contains('d-none')) {
+            rfidResponsavel.focus();
+        }
+    });
+
+    botaoOperacao.addEventListener('click', async function () {
+        if (!detectorAtual) return;
+
+        const devolucao = detectorAtual.status === 'em_uso';
+        const payload = {
+            rfid_responsavel: rfidResponsavel.value.trim()
+        };
+
+        if (devolucao) {
+            payload.rfid_devolvente = rfidFuncionario.value.trim();
+            payload.condicao_devolucao = condicaoDevolucao.value;
+            payload.origem_defeito =
+                document.getElementById('origemDefeito').value;
+            payload.observacao =
+                document.getElementById('observacaoDevolucao').value.trim();
+        } else {
+            payload.rfid_retirante = rfidFuncionario.value.trim();
+        }
+
+        const template = devolucao
+            ? modal.dataset.devolucaoTemplate
+            : modal.dataset.entregaTemplate;
+        const url = template.replace('/0/', '/' + detectorAtual.id + '/');
+
+        botaoOperacao.disabled = true;
+        limparMensagem();
+
+        try {
+            const resposta = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const dados = await resposta.json();
+
+            if (!resposta.ok || !dados.sucesso) {
+                throw new Error(
+                    dados.mensagem || 'Não foi possível concluir a operação.'
+                );
+            }
+
+            exibirMensagem(dados.mensagem, 'success');
+            camposOperacao.classList.add('d-none');
+            botaoOperacao.classList.add('d-none');
+            window.setTimeout(function () {
+                window.location.reload();
+            }, 900);
+        } catch (erro) {
+            exibirMensagem(erro.message, 'danger');
+            botaoOperacao.disabled = false;
+        }
+    });
+});
+</script>
+
+<style>
+.detectores-dashboard {
+    --detector-verde: #198754;
+    --detector-vermelho: #dc3545;
+    --detector-cinza: #6c757d;
+    --detector-amarelo: #c98900;
+}
+
+.dashboard-header {
+    display: block;
+    margin-bottom: 1.25rem;
+    text-align: center;
+}
+
+.dashboard-header .page-title {
+    justify-content: center;
+}
+
+.dashboard-resumo {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .85rem;
+    margin-bottom: 1rem;
+}
+
+.resumo-item {
+    display: flex;
+    align-items: baseline;
+    gap: .65rem;
+    padding: .8rem 1rem;
+    border: 1px solid #e6e8eb;
+    border-left: 5px solid #343a40;
+    border-radius: .7rem;
+    background: #fff;
+    box-shadow: 0 .2rem .7rem rgba(31, 45, 61, .07);
+}
+
+.resumo-numero {
+    font-size: 1.65rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.resumo-label {
+    color: #6c757d;
+    font-weight: 600;
+}
+
+.resumo-disponivel { border-left-color: var(--detector-verde); }
+.resumo-em-uso { border-left-color: var(--detector-vermelho); }
+.resumo-indisponivel { border-left-color: var(--detector-cinza); }
+.dashboard-filtros { margin-bottom: .85rem; }
+
+.status-legenda {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin: .75rem 0 1rem;
+    color: #5f6872;
+    font-size: .87rem;
+}
+
+.status-legenda span {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+}
+
+.legenda-cor {
+    width: .7rem;
+    height: .7rem;
+    border-radius: 50%;
+}
+
+.legenda-cor.disponivel { background: var(--detector-verde); }
+.legenda-cor.em-uso { background: var(--detector-vermelho); }
+.legenda-cor.em-calibracao { background: var(--detector-cinza); }
+.legenda-cor.com-defeito { background: var(--detector-amarelo); }
+
+.detectores-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: .6rem;
+}
+
+.detector-card {
+    display: flex;
+    min-height: 125px;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: .75rem;
+    background: #fff;
+    color: #25313c;
+    text-align: left;
+    box-shadow: 0 .35rem 1rem rgba(31, 45, 61, .13);
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.detector-card:hover,
+.detector-card:focus-visible {
+    transform: translateY(-4px);
+    box-shadow: 0 .65rem 1.4rem rgba(31, 45, 61, .19);
+}
+
+.detector-card:focus-visible {
+    outline: 3px solid rgba(241, 98, 28, .32);
+    outline-offset: 2px;
+}
+
+.detector-card-topo {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .48rem .65rem;
+    color: #fff;
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .025em;
+    text-transform: uppercase;
+}
+
+.detector-card-topo .bi {
+    margin-left: auto;
+    font-size: 1rem;
+}
+
+.detector-status-ponto {
+    width: .58rem;
+    height: .58rem;
+    border: 2px solid rgba(255, 255, 255, .65);
+    border-radius: 50%;
+    background: #fff;
+}
+
+.status-disponivel .detector-card-topo,
+.status-disponivel .detector-acao {
+    background: var(--detector-verde);
+}
+
+.status-em-uso .detector-card-topo,
+.status-em-uso .detector-acao {
+    background: var(--detector-vermelho);
+}
+
+.status-em-calibracao .detector-card-topo,
+.status-em-calibracao .detector-acao {
+    background: var(--detector-cinza);
+}
+
+.status-com-defeito .detector-card-topo,
+.status-com-defeito .detector-acao {
+    background: var(--detector-amarelo);
+}
+
+.detector-patrimonio {
+    display: block;
+    padding: .65rem .65rem .1rem;
+    font-size: 1.12rem;
+    font-weight: 850;
+    letter-spacing: .06em;
+}
+
+.detector-modelo {
+    display: block;
+    padding: 0 .65rem;
+}
+
+.detector-modelo {
+    min-height: 2rem;
+    margin-bottom: auto;
+    color: #4d5965;
+    font-size: .74rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.detector-acao {
+    display: block;
+    padding: .42rem .65rem;
+    color: #fff;
+    font-size: .72rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.dashboard-vazio {
+    grid-column: 1 / -1;
+    padding: 4rem 1rem;
+    border: 2px dashed #d9dde1;
+    border-radius: 1rem;
+    color: #6c757d;
+    text-align: center;
+}
+
+.dashboard-vazio .bi {
+    display: block;
+    margin-bottom: .7rem;
+    font-size: 2.4rem;
+}
+
+.dashboard-vazio h3 {
+    color: #3f4a54;
+    font-size: 1.15rem;
+}
+
+.detector-modal .modal-header {
+    border-bottom: 0;
+    background: #f4f6f8;
+}
+
+.modal-status {
+    color: #ef641c;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.rfid-identificado {
+    color: #ea6a23;
+}
+
+.detector-detalhes {
+    display: grid;
+    gap: .7rem;
+    margin-bottom: 1rem;
+}
+
+.detector-detalhes div {
+    display: grid;
+    grid-template-columns: 125px 1fr;
+    gap: .7rem;
+}
+
+.detector-detalhes dt {
+    color: #6c757d;
+    font-weight: 600;
+}
+
+.detector-detalhes dd {
+    margin: 0;
+    font-weight: 650;
+}
+
+@media (max-width: 767.98px) {
+    .dashboard-resumo {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .status-legenda {
+        justify-content: flex-start;
+    }
+
+    .detectores-grid {
+        grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));
+    }
+
+    .detector-card { min-height: 125px; }
+}
+
+@media (max-width: 430px) {
+    .dashboard-resumo {
+        grid-template-columns: 1fr;
+    }
+
+    .detectores-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: .7rem;
+    }
+
+    .detector-card { min-height: 120px; }
+
+    .detector-patrimonio {
+        font-size: 1.12rem;
+    }
+
+    .detector-modelo {
+        font-size: .83rem;
+    }
+
+    .detector-detalhes div {
+        grid-template-columns: 1fr;
+        gap: .1rem;
+    }
+}
+</style>
+{% endblock %}

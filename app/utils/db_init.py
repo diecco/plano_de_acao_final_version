@@ -129,6 +129,20 @@ def init_db():
                 ON UPDATE CASCADE ON DELETE SET NULL
             """)
 
+    # 3) permissão do módulo de detectores de gás
+    cur.execute("""
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'usuarios'
+           AND COLUMN_NAME = 'acesso_detectores_gas'
+        LIMIT 1
+    """)
+    if cur.fetchone() is None:
+        cur.execute("""
+            ALTER TABLE usuarios
+            ADD COLUMN acesso_detectores_gas TINYINT(1) NOT NULL DEFAULT 0
+        """)
+
     # --- Detectores de gás ---
     cur.execute("""
     CREATE TABLE IF NOT EXISTS detectores_gas (
