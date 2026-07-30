@@ -1,0 +1,123 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Análise de Causa Raiz{% endblock %}
+
+{% block extra_css %}
+<style>
+    .acr-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+    .acr-metric { border:1px solid #e5e7eb; border-left:4px solid #f36b21; border-radius:10px; padding:14px 16px; background:#fff; }
+    .acr-metric strong { display:block; color:#374151; font-size:1.5rem; line-height:1; }
+    .acr-metric span { color:#6b7280; font-size:.82rem; }
+    .acr-number { font-weight:700; color:#f36b21; white-space:nowrap; }
+    .acr-description { max-width:360px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    @media (max-width: 900px) { .acr-summary { grid-template-columns:repeat(2,1fr); } }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+<div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <h2 class="page-title flex-grow-1 text-center mb-0">
+        <i class="bi bi-diagram-3 me-2"></i>Análise de Causa Raiz
+    </h2>
+    <a class="btn btn-primary" href="{{ url_for('main.nova_investigacao_acr') }}">
+        <i class="bi bi-plus-circle me-1"></i> Nova investigação
+    </a>
+</div>
+
+<hr>
+
+<div class="acr-summary mb-4">
+    <div class="acr-metric"><strong>{{ indicadores.total }}</strong><span>Investigações no resultado</span></div>
+    <div class="acr-metric"><strong>{{ indicadores.em_andamento }}</strong><span>Em andamento</span></div>
+    <div class="acr-metric"><strong>{{ indicadores.rascunhos }}</strong><span>Rascunhos</span></div>
+    <div class="acr-metric"><strong>{{ indicadores.concluidas }}</strong><span>Concluídas</span></div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-12 col-lg-4">
+                <label class="form-label" for="busca">Busca</label>
+                <input class="form-control" id="busca" name="busca"
+                       value="{{ request.args.get('busca', '') }}"
+                       placeholder="Número, ocorrência, equipamento ou responsável">
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="form-label" for="status">Status</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">Todos</option>
+                    {% for item in status_acr %}
+                        <option value="{{ item }}" {% if request.args.get('status') == item %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="form-label" for="origem_id">Origem</label>
+                <select class="form-select" id="origem_id" name="origem_id">
+                    <option value="">Todas</option>
+                    {% for item in dominios.origens %}
+                        <option value="{{ item.id }}" {% if request.args.get('origem_id')|int == item.id %}selected{% endif %}>{{ item.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="form-label" for="classificacao_id">Classificação</label>
+                <select class="form-select" id="classificacao_id" name="classificacao_id">
+                    <option value="">Todas</option>
+                    {% for item in dominios.classificacoes %}
+                        <option value="{{ item.id }}" {% if request.args.get('classificacao_id')|int == item.id %}selected{% endif %}>{{ item.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-lg-2 d-flex justify-content-end gap-2">
+                <a class="btn btn-secondary" href="{{ url_for('main.investigacoes_acr') }}" title="Limpar filtros">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </a>
+                <button class="btn btn-primary" type="submit" title="Filtrar">
+                    <i class="bi bi-funnel"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Número</th>
+                <th>Ocorrência</th>
+                <th>Classificação</th>
+                <th>Gravidade</th>
+                <th>Responsável</th>
+                <th>Status</th>
+                <th>Data</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in investigacoes %}
+                <tr>
+                    <td class="acr-number">{{ item.numero }}</td>
+                    <td>
+                        <div class="acr-description" title="{{ item.descricao_ocorrencia }}">
+                            {{ item.equipamento_processo or item.descricao_ocorrencia }}
+                        </div>
+                        <small class="text-muted">{{ item.origem or 'Origem não informada' }}</small>
+                    </td>
+                    <td>{{ item.classificacao or '—' }}</td>
+                    <td>{{ item.gravidade or '—' }}</td>
+                    <td>{{ item.responsavel or '—' }}</td>
+                    <td><span class="badge text-bg-secondary">{{ item.status }}</span></td>
+                    <td>{{ item.data_ocorrencia.strftime('%d/%m/%Y') if item.data_ocorrencia else '—' }}</td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-5">
+                        Nenhuma investigação encontrada para os filtros e o seu escopo.
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

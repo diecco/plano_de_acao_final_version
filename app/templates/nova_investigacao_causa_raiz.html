@@ -1,0 +1,141 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Nova Análise de Causa Raiz{% endblock %}
+
+{% block extra_css %}
+<style>
+    .acr-step { border-top:3px solid #d1d5db; padding-top:8px; color:#6b7280; font-size:.82rem; }
+    .acr-step.active { border-color:#f36b21; color:#f36b21; font-weight:700; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+<div class="page-header">
+    <h2 class="page-title text-center">
+        <i class="bi bi-diagram-3 me-2"></i>Nova Análise de Causa Raiz
+    </h2>
+</div>
+<hr>
+
+<div class="row g-2 mb-4">
+    <div class="col acr-step active">1. Identificação</div>
+    <div class="col acr-step">2. Investigação</div>
+    <div class="col acr-step">3. Causas</div>
+    <div class="col acr-step">4. Ações</div>
+    <div class="col acr-step">5. Eficácia</div>
+</div>
+
+<form method="post" class="card border-0 shadow-sm">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="origem_id">Origem *</label>
+                <select class="form-select" id="origem_id" name="origem_id" required>
+                    <option value="">Selecione</option>
+                    {% for item in dominios.origens %}
+                        <option value="{{ item.id }}" {% if request.form.get('origem_id')|int == item.id %}selected{% endif %}>{{ item.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="classificacao_id">Classificação *</label>
+                <select class="form-select" id="classificacao_id" name="classificacao_id" required>
+                    <option value="">Selecione</option>
+                    {% for item in dominios.classificacoes %}
+                        <option value="{{ item.id }}" {% if request.form.get('classificacao_id')|int == item.id %}selected{% endif %}>{{ item.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="gravidade_id">Gravidade *</label>
+                <select class="form-select" id="gravidade_id" name="gravidade_id" required>
+                    <option value="">Selecione</option>
+                    {% for item in dominios.gravidades %}
+                        <option value="{{ item.id }}" {% if request.form.get('gravidade_id')|int == item.id %}selected{% endif %}>{{ item.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="metodologia_id">Metodologia *</label>
+                <select class="form-select" id="metodologia_id" name="metodologia_id" required>
+                    <option value="">Selecione</option>
+                    {% for item in dominios.metodologias %}
+                        <option value="{{ item.id }}" {% if request.form.get('metodologia_id')|int == item.id %}selected{% endif %}>{{ item.nome }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Após o início, a metodologia não poderá ser alterada.</div>
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="data_ocorrencia">Data da ocorrência *</label>
+                <input class="form-control" type="date" id="data_ocorrencia"
+                       name="data_ocorrencia" max="{{ hoje }}"
+                       value="{{ request.form.get('data_ocorrencia', hoje) }}" required>
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="equipamento_processo">Equipamento / processo</label>
+                <input class="form-control" id="equipamento_processo"
+                       name="equipamento_processo" maxlength="255"
+                       value="{{ request.form.get('equipamento_processo', '') }}">
+            </div>
+            <div class="col-12 col-md-6">
+                <label class="form-label" for="centro_custos_id">Centro de custos *</label>
+                <select class="form-select" id="centro_custos_id" name="centro_custos_id" required>
+                    <option value="">Selecione</option>
+                    {% for item in centros %}
+                        <option value="{{ item.id }}" {% if request.form.get('centro_custos_id')|int == item.id or (centros|length == 1 and not request.form) %}selected{% endif %}>
+                            {{ item.codigo }} — {{ item.descricao }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-6">
+                <label class="form-label" for="responsavel_id">Responsável pela investigação *</label>
+                <select class="form-select" id="responsavel_id" name="responsavel_id" required>
+                    <option value="">Selecione</option>
+                    {% for item in responsaveis %}
+                        <option value="{{ item.id }}" data-centro="{{ item.centro_custos_id }}"
+                                {% if request.form.get('responsavel_id')|int == item.id %}selected{% endif %}>
+                            {{ item.nome }}{% if item.matricula %} — {{ item.matricula }}{% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12" id="origemOutrosWrapper" hidden>
+                <label class="form-label" for="origem_outros">Detalhe da origem *</label>
+                <input class="form-control" id="origem_outros" name="origem_outros"
+                       maxlength="255" value="{{ request.form.get('origem_outros', '') }}">
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="descricao_ocorrencia">Descrição da ocorrência *</label>
+                <textarea class="form-control" id="descricao_ocorrencia"
+                          name="descricao_ocorrencia" rows="5"
+                          required>{{ request.form.get('descricao_ocorrencia', '') }}</textarea>
+            </div>
+        </div>
+    </div>
+    <div class="card-footer bg-white d-flex justify-content-end gap-2">
+        <a class="btn btn-secondary" href="{{ url_for('main.investigacoes_acr') }}">Cancelar</a>
+        <button class="btn btn-primary" type="submit">
+            <i class="bi bi-check-circle me-1"></i>Criar investigação
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const origem = document.getElementById("origem_id");
+    const outros = document.getElementById("origemOutrosWrapper");
+    const detalhe = document.getElementById("origem_outros");
+    const atualizarOrigem = () => {
+        const texto = origem.options[origem.selectedIndex]?.text.trim().toLowerCase();
+        const exibir = texto === "outros";
+        outros.hidden = !exibir;
+        detalhe.required = exibir;
+    };
+    origem.addEventListener("change", atualizarOrigem);
+    atualizarOrigem();
+});
+</script>
+{% endblock %}

@@ -315,6 +315,39 @@
             </section>
         {% endif %}
 
+        {% if session.get('acesso_acr') or is_admin %}
+            {% set endpoints_acr = [
+                'main.investigacoes_acr',
+                'main.nova_investigacao_acr'
+            ] %}
+            <section class="sidebar-module"
+                     data-search-label="acr análise causa raiz investigações">
+                <button class="sidebar-module-toggle {% if request.endpoint in endpoints_acr %}active{% endif %}"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#menuAcr"
+                        aria-expanded="{{ 'true' if request.endpoint in endpoints_acr else 'false' }}"
+                        aria-controls="menuAcr"
+                        title="Análise de Causa Raiz">
+                    <i class="bi bi-diagram-3"></i>
+                    <span class="sidebar-label">Análise de Causa Raiz</span>
+                    <i class="bi bi-chevron-down sidebar-chevron"></i>
+                </button>
+                <div class="collapse sidebar-submenu {% if request.endpoint in endpoints_acr %}show{% endif %}"
+                     id="menuAcr"
+                     data-bs-parent="#sidebarMenuAccordion">
+                    <a href="{{ url_for('main.investigacoes_acr') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.investigacoes_acr' %}active{% endif %}">
+                        <i class="bi bi-search"></i><span>Investigações</span>
+                    </a>
+                    <a href="{{ url_for('main.nova_investigacao_acr') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.nova_investigacao_acr' %}active{% endif %}">
+                        <i class="bi bi-plus-circle"></i><span>Nova investigação</span>
+                    </a>
+                </div>
+            </section>
+        {% endif %}
+
         {% if session.get('acesso_detectores_gas') or is_admin %}
             {% set endpoints_detectores = [
                 'main.painel_detectores_gas',
