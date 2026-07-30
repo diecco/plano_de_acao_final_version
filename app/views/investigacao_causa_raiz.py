@@ -14,6 +14,16 @@ STATUS_ACR = {
     "Cancelada",
 }
 
+ORDENACOES_ACR = {
+    "numero": "i.ano",
+    "ocorrencia": "COALESCE(i.equipamento_processo, i.descricao_ocorrencia)",
+    "classificacao": "c.nome",
+    "gravidade": "g.ordem",
+    "responsavel": "u.nome",
+    "status": "i.status",
+    "data": "i.data_ocorrencia",
+}
+
 
 def _aplicar_escopo(query, params, alias="i"):
     perfil = session.get("perfil")
@@ -68,35 +78,31 @@ def _buscar_dominios(cursor):
 
 
 def _buscar_centros_e_responsaveis(cursor):
-    perfil = session.get("perfil")
     centro_sessao = session.get("centro_custos_id")
 
-    query_centros = """
+    cursor.execute(
+        """
         SELECT id, codigo, descricao, superintendencia_id
         FROM centros_custos
         WHERE ativo = 1
-    """
-    params_centros = []
-    if perfil in ("basico", "intermediario"):
-        query_centros += " AND id = %s"
-        params_centros.append(centro_sessao)
-    query_centros += " ORDER BY codigo"
-    cursor.execute(query_centros, params_centros)
+          AND id = %s
+        """,
+        (centro_sessao,),
+    )
     centros = cursor.fetchall()
 
-    query_usuarios = """
+    cursor.execute(
+        """
         SELECT id, nome, matricula, centro_custos_id
         FROM usuarios
         WHERE ativo = 1
           AND tem_acesso_sistema = 1
           AND (acesso_acr = 1 OR perfil = 'administrador')
-    """
-    params_usuarios = []
-    if perfil in ("basico", "intermediario"):
-        query_usuarios += " AND centro_custos_id = %s"
-        params_usuarios.append(centro_sessao)
-    query_usuarios += " ORDER BY nome"
-    cursor.execute(query_usuarios, params_usuarios)
+          AND centro_custos_id = %s
+        ORDER BY nome
+        """,
+        (centro_sessao,),
+    )
 
     return centros, cursor.fetchall()
 
@@ -119,6 +125,36 @@ def register_investigacao_causa_raiz_routes(blueprint):
         origem_id = request.args.get("origem_id", type=int)
         classificacao_id = request.args.get("classificacao_id", type=int)
         gravidade_id = request.args.get("gravidade_id", type=int)
+        data_inicio = (request.args.get("data_inicio") or "").strip()
+        data_fim = (request.args.get("data_fim") or "").strip()
+        ordenacao = (request.args.get("ordenacao") or "numero").strip()
+        direcao = (request.args.get("direcao") or "desc").strip().lower()
+
+        if ordenacao not in ORDENACOES_ACR:
+            ordenacao = "numero"
+        if direcao not in ("asc", "desc"):
+            direcao = "desc"
+
+        for valor, rotulo in (
+            (data_inicio, "inicial"),
+            (data_fim, "final"),
+        ):
+            if valor:
+                try:
+                    date.fromisoformat(valor)
+                except ValueError:
+                    flash(f"Informe uma data {rotulo} válida.", "warning")
+                    if rotulo == "inicial":
+                        data_inicio = ""
+                    else:
+                        data_fim = ""
+        if data_inicio and data_fim and data_inicio > data_fim:
+            flash(
+                "A data inicial não pode ser posterior à data final.",
+                "warning",
+            )
+            data_inicio = ""
+            data_fim = ""
 
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
@@ -175,8 +211,25 @@ def register_investigacao_causa_raiz_routes(blueprint):
             if gravidade_id:
                 query += " AND i.gravidade_id = %s"
                 params.append(gravidade_id)
+            if data_inicio:
+                query += " AND i.data_ocorrencia >= %s"
+                params.append(data_inicio)
+            if data_fim:
+                query += " AND i.data_ocorrencia <= %s"
+                params.append(data_fim)
 
-            query += " ORDER BY i.ano DESC, i.sequencial DESC"
+            coluna_ordenacao = ORDENACOES_ACR[ordenacao]
+            direcao_sql = direcao.upper()
+            if ordenacao == "numero":
+                query += (
+                    f" ORDER BY {coluna_ordenacao} {direcao_sql}, "
+                    f"i.sequencial {direcao_sql}"
+                )
+            else:
+                query += (
+                    f" ORDER BY {coluna_ordenacao} {direcao_sql}, "
+                    "i.ano DESC, i.sequencial DESC"
+                )
             cursor.execute(query, params)
             investigacoes = cursor.fetchall()
 
@@ -202,6 +255,17 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 indicadores=indicadores,
                 dominios=dominios,
                 status_acr=sorted(STATUS_ACR),
+                filtros={
+                    "busca": busca,
+                    "status": status,
+                    "origem_id": origem_id,
+                    "classificacao_id": classificacao_id,
+                    "gravidade_id": gravidade_id,
+                    "data_inicio": data_inicio,
+                    "data_fim": data_fim,
+                },
+                ordenacao=ordenacao,
+                direcao=direcao,
             )
         finally:
             cursor.close()
@@ -216,6 +280,13 @@ def register_investigacao_causa_raiz_routes(blueprint):
         try:
             dominios = _buscar_dominios(cursor)
             centros, responsaveis = _buscar_centros_e_responsaveis(cursor)
+            if not centros:
+                flash(
+                    "Seu usuário precisa estar vinculado a um centro de custos "
+                    "ativo para criar uma ACR.",
+                    "danger",
+                )
+                return redirect(url_for("main.investigacoes_acr"))
 
             if request.method == "GET":
                 return render_template(
@@ -230,7 +301,7 @@ def register_investigacao_causa_raiz_routes(blueprint):
             classificacao_id = request.form.get("classificacao_id", type=int)
             gravidade_id = request.form.get("gravidade_id", type=int)
             metodologia_id = request.form.get("metodologia_id", type=int)
-            centro_custos_id = request.form.get("centro_custos_id", type=int)
+            centro_custos_id = session.get("centro_custos_id")
             responsavel_id = request.form.get("responsavel_id", type=int)
             data_ocorrencia = (request.form.get("data_ocorrencia") or "").strip()
             equipamento = (

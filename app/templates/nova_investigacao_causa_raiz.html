@@ -27,6 +27,14 @@
 
 <form method="post" class="card border-0 shadow-sm">
     <div class="card-body">
+        <div class="alert alert-light border d-flex align-items-center gap-2 mb-4">
+            <i class="bi bi-building text-warning"></i>
+            <div>
+                <small class="text-muted d-block">Centro de custos da investigação</small>
+                <strong>{{ centros[0].codigo }} — {{ centros[0].descricao }}</strong>
+            </div>
+        </div>
+
         <div class="row g-3">
             <div class="col-12 col-md-4">
                 <label class="form-label" for="origem_id">Origem *</label>
@@ -77,18 +85,7 @@
                        name="equipamento_processo" maxlength="255"
                        value="{{ request.form.get('equipamento_processo', '') }}">
             </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label" for="centro_custos_id">Centro de custos *</label>
-                <select class="form-select" id="centro_custos_id" name="centro_custos_id" required>
-                    <option value="">Selecione</option>
-                    {% for item in centros %}
-                        <option value="{{ item.id }}" {% if request.form.get('centro_custos_id')|int == item.id or (centros|length == 1 and not request.form) %}selected{% endif %}>
-                            {{ item.codigo }} — {{ item.descricao }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-12 col-md-6">
+            <div class="col-12">
                 <label class="form-label" for="responsavel_id">Responsável pela investigação *</label>
                 <select class="form-select" id="responsavel_id" name="responsavel_id" required>
                     <option value="">Selecione</option>
@@ -113,9 +110,9 @@
             </div>
         </div>
     </div>
-    <div class="card-footer bg-white d-flex justify-content-end gap-2">
-        <a class="btn btn-secondary" href="{{ url_for('main.investigacoes_acr') }}">Cancelar</a>
-        <button class="btn btn-primary" type="submit">
+    <div class="card-footer bg-white d-flex justify-content-end gap-2 py-3">
+        <a class="btn btn-cinza" href="{{ url_for('main.investigacoes_acr') }}">Cancelar</a>
+        <button class="btn btn-laranja" type="submit">
             <i class="bi bi-check-circle me-1"></i>Criar investigação
         </button>
     </div>

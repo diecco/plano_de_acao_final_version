@@ -31,6 +31,38 @@ class AcrModuleStructureTests(unittest.TestCase):
         self.assertIn("acr_participantes", view)
         self.assertIn("centro_custos_id", view)
 
+    def test_new_acr_inherits_logged_user_cost_center(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "nova_investigacao_causa_raiz.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            'centro_custos_id = session.get("centro_custos_id")',
+            view,
+        )
+        self.assertNotIn('name="centro_custos_id"', template)
+        self.assertIn("btn btn-cinza", template)
+        self.assertIn("btn btn-laranja", template)
+
+    def test_acr_listing_has_safe_sorting_and_date_filters(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "investigacoes_causa_raiz.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("ORDENACOES_ACR", view)
+        self.assertIn("if ordenacao not in ORDENACOES_ACR", view)
+        self.assertIn("i.data_ocorrencia >= %s", view)
+        self.assertIn("i.data_ocorrencia <= %s", view)
+        self.assertIn('name="data_inicio"', template)
+        self.assertIn('name="data_fim"', template)
+        self.assertIn("cabecalho_ordenavel", template)
+        self.assertIn("btn btn-laranja", template)
+        self.assertIn("btn btn-cinza", template)
+
     def test_permission_is_available_in_user_flows(self):
         view = (ROOT / "app" / "views" / "usuarios.py").read_text(
             encoding="utf-8"
