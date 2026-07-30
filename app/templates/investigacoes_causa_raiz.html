@@ -141,6 +141,7 @@
                 <th>{{ cabecalho_ordenavel('Responsável', 'responsavel') }}</th>
                 <th>{{ cabecalho_ordenavel('Status', 'status') }}</th>
                 <th>{{ cabecalho_ordenavel('Data', 'data') }}</th>
+                <th class="text-center">Ações</th>
             </tr>
         </thead>
         <tbody>
@@ -158,10 +159,17 @@
                     <td>{{ item.responsavel or '—' }}</td>
                     <td><span class="badge text-bg-secondary">{{ item.status }}</span></td>
                     <td>{{ item.data_ocorrencia.strftime('%d/%m/%Y') if item.data_ocorrencia else '—' }}</td>
+                    <td class="text-center">
+                        <a class="btn btn-laranja btn-sm"
+                           href="{{ url_for('main.detalhar_investigacao_acr', investigacao_id=item.id) }}"
+                           title="Abrir investigação">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                        </a>
+                    </td>
                 </tr>
             {% else %}
                 <tr>
-                    <td colspan="7" class="text-center text-muted py-5">
+                    <td colspan="8" class="text-center text-muted py-5">
                         Nenhuma investigação encontrada para os filtros e o seu escopo.
                     </td>
                 </tr>

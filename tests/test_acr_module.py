@@ -13,6 +13,7 @@ class AcrModuleStructureTests(unittest.TestCase):
         for template in (
             "investigacoes_causa_raiz.html",
             "nova_investigacao_causa_raiz.html",
+            "investigacao_causa_raiz_detalhe.html",
         ):
             app.jinja_env.get_template(template)
 
@@ -26,7 +27,7 @@ class AcrModuleStructureTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertGreaterEqual(
             view.count('@module_required("acesso_acr")'),
-            2,
+            4,
         )
         self.assertIn("acr_participantes", view)
         self.assertIn("centro_custos_id", view)
@@ -62,6 +63,20 @@ class AcrModuleStructureTests(unittest.TestCase):
         self.assertIn("cabecalho_ordenavel", template)
         self.assertIn("btn btn-laranja", template)
         self.assertIn("btn btn-cinza", template)
+
+    def test_five_whys_workflow_has_server_side_rules(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("salvar_5_porques_acr", view)
+        self.assertIn("Preencha os Porquês em sequência", view)
+        self.assertIn("causa_raiz_ordem", view)
+        self.assertIn("acr_causas", view)
+        self.assertIn('name="causa_raiz_ordem"', template)
+        self.assertEqual(template.count('name="porque_{{ item.ordem }}"'), 1)
 
     def test_permission_is_available_in_user_flows(self):
         view = (ROOT / "app" / "views" / "usuarios.py").read_text(

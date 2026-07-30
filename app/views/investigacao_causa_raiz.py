@@ -115,6 +115,36 @@ def _validar_id_no_dominio(cursor, tabela, registro_id):
     return cursor.fetchone() is not None
 
 
+def _buscar_investigacao_acessivel(cursor, investigacao_id):
+    query = """
+        SELECT
+            i.*,
+            o.nome AS origem,
+            c.nome AS classificacao,
+            g.nome AS gravidade,
+            m.nome AS metodologia,
+            m.codigo AS metodologia_codigo,
+            u.nome AS responsavel,
+            uc.nome AS criador,
+            cc.codigo AS centro_codigo,
+            cc.descricao AS centro_descricao
+        FROM acr_investigacoes i
+        LEFT JOIN acr_origens o ON o.id = i.origem_id
+        LEFT JOIN acr_classificacoes c ON c.id = i.classificacao_id
+        LEFT JOIN acr_gravidades g ON g.id = i.gravidade_id
+        LEFT JOIN acr_metodologias m ON m.id = i.metodologia_id
+        LEFT JOIN usuarios u ON u.id = i.responsavel_id
+        LEFT JOIN usuarios uc ON uc.id = i.criador_id
+        LEFT JOIN centros_custos cc ON cc.id = i.centro_custos_id
+        WHERE i.id = %s
+          AND i.ativo = 1
+    """
+    params = [investigacao_id]
+    query, params = _aplicar_escopo(query, params)
+    cursor.execute(query, params)
+    return cursor.fetchone()
+
+
 def register_investigacao_causa_raiz_routes(blueprint):
     @blueprint.route("/acr")
     @login_required
@@ -270,6 +300,323 @@ def register_investigacao_causa_raiz_routes(blueprint):
         finally:
             cursor.close()
             conn.close()
+
+    @blueprint.route("/acr/<int:investigacao_id>")
+    @login_required
+    @module_required("acesso_acr")
+    def detalhar_investigacao_acr(investigacao_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            investigacao = _buscar_investigacao_acessivel(
+                cursor,
+                investigacao_id,
+            )
+            if not investigacao:
+                flash("Investigação não encontrada ou fora do seu escopo.", "danger")
+                return redirect(url_for("main.investigacoes_acr"))
+
+            cursor.execute(
+                """
+                SELECT ordem, pergunta, resposta, causa_raiz, atualizado_em
+                FROM acr_5_porques
+                WHERE investigacao_id = %s
+                ORDER BY ordem
+                """,
+                (investigacao_id,),
+            )
+            respostas_banco = {
+                item["ordem"]: item for item in cursor.fetchall()
+            }
+            porques = [
+                {
+                    "ordem": ordem,
+                    "pergunta": f"{ordem}º Por quê?",
+                    "resposta": (
+                        respostas_banco.get(ordem, {}).get("resposta") or ""
+                    ),
+                    "causa_raiz": bool(
+                        respostas_banco.get(ordem, {}).get("causa_raiz")
+                    ),
+                }
+                for ordem in range(1, 6)
+            ]
+            cursor.execute(
+                """
+                SELECT status, atualizado_em
+                FROM acr_etapas
+                WHERE investigacao_id = %s
+                  AND codigo = '5_porques'
+                """,
+                (investigacao_id,),
+            )
+            etapa = cursor.fetchone() or {
+                "status": "Não iniciada",
+                "atualizado_em": None,
+            }
+            return render_template(
+                "investigacao_causa_raiz_detalhe.html",
+                investigacao=investigacao,
+                porques=porques,
+                etapa=etapa,
+                somente_leitura=investigacao["status"] in (
+                    "Concluída",
+                    "Cancelada",
+                ),
+            )
+        finally:
+            cursor.close()
+            conn.close()
+
+    @blueprint.route(
+        "/acr/<int:investigacao_id>/5-porques",
+        methods=["POST"],
+    )
+    @login_required
+    @module_required("acesso_acr")
+    def salvar_5_porques_acr(investigacao_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            investigacao = _buscar_investigacao_acessivel(
+                cursor,
+                investigacao_id,
+            )
+            if not investigacao:
+                flash("Investigação não encontrada ou fora do seu escopo.", "danger")
+                return redirect(url_for("main.investigacoes_acr"))
+            if investigacao["status"] in ("Concluída", "Cancelada"):
+                flash(
+                    "Esta investigação não permite alterações no estado atual.",
+                    "warning",
+                )
+                return redirect(
+                    url_for(
+                        "main.detalhar_investigacao_acr",
+                        investigacao_id=investigacao_id,
+                    )
+                )
+            if investigacao["metodologia_codigo"] != "5_porques":
+                flash("A metodologia desta investigação não é 5 Porquês.", "danger")
+                return redirect(
+                    url_for(
+                        "main.detalhar_investigacao_acr",
+                        investigacao_id=investigacao_id,
+                    )
+                )
+
+            respostas = [
+                (request.form.get(f"porque_{ordem}") or "").strip()
+                for ordem in range(1, 6)
+            ]
+            acao_formulario = (request.form.get("acao") or "salvar").strip()
+            causa_raiz_ordem = request.form.get("causa_raiz_ordem", type=int)
+
+            if acao_formulario not in ("salvar", "concluir"):
+                raise ValueError("Ação inválida para a etapa dos 5 Porquês.")
+            if not any(respostas):
+                raise ValueError("Registre ao menos o primeiro Por quê.")
+            if any(len(resposta) > 4000 for resposta in respostas):
+                raise ValueError(
+                    "Cada resposta deve possuir no máximo 4.000 caracteres."
+                )
+            encontrou_vazio = False
+            for resposta in respostas:
+                if not resposta:
+                    encontrou_vazio = True
+                elif encontrou_vazio:
+                    raise ValueError(
+                        "Preencha os Porquês em sequência, sem deixar lacunas."
+                    )
+
+            ultima_resposta = max(
+                indice
+                for indice, resposta in enumerate(respostas, start=1)
+                if resposta
+            )
+            concluir_etapa = acao_formulario == "concluir"
+            if concluir_etapa:
+                if causa_raiz_ordem not in range(1, ultima_resposta + 1):
+                    raise ValueError(
+                        "Selecione qual resposta representa a causa raiz."
+                    )
+
+            for ordem, resposta in enumerate(respostas, start=1):
+                if not resposta:
+                    cursor.execute(
+                        """
+                        DELETE FROM acr_5_porques
+                        WHERE investigacao_id = %s AND ordem = %s
+                        """,
+                        (investigacao_id, ordem),
+                    )
+                    continue
+                cursor.execute(
+                    """
+                    INSERT INTO acr_5_porques (
+                        investigacao_id, ordem, pergunta, resposta,
+                        causa_raiz, respondido_por
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        pergunta = VALUES(pergunta),
+                        resposta = VALUES(resposta),
+                        causa_raiz = VALUES(causa_raiz),
+                        respondido_por = VALUES(respondido_por)
+                    """,
+                    (
+                        investigacao_id,
+                        ordem,
+                        f"{ordem}º Por quê?",
+                        resposta,
+                        int(concluir_etapa and ordem == causa_raiz_ordem),
+                        session.get("usuario_id"),
+                    ),
+                )
+
+            status_etapa = "Concluída" if concluir_etapa else "Em andamento"
+            cursor.execute(
+                """
+                INSERT INTO acr_etapas (
+                    investigacao_id, codigo, status, iniciado_em,
+                    concluido_em, atualizado_por
+                )
+                VALUES (
+                    %s, '5_porques', %s, NOW(),
+                    CASE WHEN %s = 'Concluída' THEN NOW() ELSE NULL END,
+                    %s
+                )
+                ON DUPLICATE KEY UPDATE
+                    status = VALUES(status),
+                    iniciado_em = COALESCE(iniciado_em, NOW()),
+                    concluido_em = CASE
+                        WHEN VALUES(status) = 'Concluída' THEN NOW()
+                        ELSE NULL
+                    END,
+                    atualizado_por = VALUES(atualizado_por)
+                """,
+                (
+                    investigacao_id,
+                    status_etapa,
+                    status_etapa,
+                    session.get("usuario_id"),
+                ),
+            )
+            if investigacao["status"] == "Rascunho":
+                cursor.execute(
+                    """
+                    UPDATE acr_investigacoes
+                    SET status = 'Em Investigação'
+                    WHERE id = %s
+                    """,
+                    (investigacao_id,),
+                )
+
+            if concluir_etapa:
+                descricao_causa = respostas[causa_raiz_ordem - 1]
+                cursor.execute(
+                    """
+                    SELECT id
+                    FROM acr_causas
+                    WHERE investigacao_id = %s
+                      AND confirmada = 1
+                    ORDER BY id
+                    LIMIT 1
+                    """,
+                    (investigacao_id,),
+                )
+                causa_existente = cursor.fetchone()
+                if causa_existente:
+                    cursor.execute(
+                        """
+                        UPDATE acr_causas
+                        SET descricao = %s,
+                            metodologia_id = %s,
+                            identificada_por = %s,
+                            identificada_em = NOW()
+                        WHERE id = %s
+                        """,
+                        (
+                            descricao_causa,
+                            investigacao["metodologia_id"],
+                            session.get("usuario_id"),
+                            causa_existente["id"],
+                        ),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        INSERT INTO acr_causas (
+                            investigacao_id, metodologia_id, descricao,
+                            confirmada, identificada_por
+                        )
+                        VALUES (%s, %s, %s, 1, %s)
+                        """,
+                        (
+                            investigacao_id,
+                            investigacao["metodologia_id"],
+                            descricao_causa,
+                            session.get("usuario_id"),
+                        ),
+                    )
+            else:
+                cursor.execute(
+                    """
+                    UPDATE acr_causas
+                    SET confirmada = 0,
+                        invalidada_em = NOW(),
+                        motivo_invalidacao = %s
+                    WHERE investigacao_id = %s
+                      AND confirmada = 1
+                    """,
+                    (
+                        "Etapa dos 5 Porquês reaberta para revisão.",
+                        investigacao_id,
+                    ),
+                )
+
+            cursor.execute(
+                """
+                INSERT INTO acr_historico (
+                    investigacao_id, usuario_id, evento, etapa
+                )
+                VALUES (%s, %s, %s, '5_porques')
+                """,
+                (
+                    investigacao_id,
+                    session.get("usuario_id"),
+                    (
+                        "Etapa 5 Porquês concluída"
+                        if concluir_etapa
+                        else "Rascunho dos 5 Porquês salvo"
+                    ),
+                ),
+            )
+            conn.commit()
+            flash(
+                (
+                    "Causa raiz confirmada com sucesso."
+                    if concluir_etapa
+                    else "Investigação salva como rascunho."
+                ),
+                "success",
+            )
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "danger")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+
+        return redirect(
+            url_for(
+                "main.detalhar_investigacao_acr",
+                investigacao_id=investigacao_id,
+            )
+        )
 
     @blueprint.route("/acr/nova", methods=["GET", "POST"])
     @login_required

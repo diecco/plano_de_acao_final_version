@@ -1,0 +1,122 @@
+{% extends "layout.html" %}
+
+{% block titulo %}{{ investigacao.numero }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .acr-workflow { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; }
+    .acr-workflow-step { border-top:3px solid #d1d5db; padding:8px 4px 0; color:#6b7280; font-size:.8rem; text-align:center; }
+    .acr-workflow-step.active { border-color:#f36b21; color:#f36b21; font-weight:700; }
+    .acr-workflow-step.done { border-color:#198754; color:#198754; }
+    .acr-context { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+    .acr-context-item { background:#f8f9fa; border-radius:8px; padding:10px 12px; }
+    .acr-context-item small { color:#6c757d; display:block; }
+    .porque-card { border:1px solid #e5e7eb; border-left:4px solid #f36b21; border-radius:10px; padding:14px; }
+    .porque-number { align-items:center; background:#f36b21; border-radius:50%; color:#fff; display:inline-flex; font-weight:700; height:30px; justify-content:center; width:30px; }
+    @media (max-width: 900px) {
+        .acr-context { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        .acr-workflow { overflow-x:auto; grid-template-columns:repeat(5,130px); }
+    }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+<div class="page-header">
+    <h2 class="page-title text-center mb-1">
+        <i class="bi bi-diagram-3 me-2"></i>{{ investigacao.numero }}
+    </h2>
+    <p class="text-center text-muted mb-0">Investigação pela metodologia {{ investigacao.metodologia }}</p>
+</div>
+<hr>
+
+<div class="acr-workflow mb-4">
+    <div class="acr-workflow-step done">1. Identificação</div>
+    <div class="acr-workflow-step active">2. Investigação</div>
+    <div class="acr-workflow-step">3. Causas</div>
+    <div class="acr-workflow-step">4. Ações</div>
+    <div class="acr-workflow-step">5. Eficácia</div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h5 class="mb-0">Contexto da ocorrência</h5>
+            <span class="badge text-bg-secondary">{{ investigacao.status }}</span>
+        </div>
+        <div class="acr-context">
+            <div class="acr-context-item"><small>Origem</small><strong>{{ investigacao.origem }}</strong></div>
+            <div class="acr-context-item"><small>Classificação</small><strong>{{ investigacao.classificacao }}</strong></div>
+            <div class="acr-context-item"><small>Gravidade</small><strong>{{ investigacao.gravidade }}</strong></div>
+            <div class="acr-context-item"><small>Responsável</small><strong>{{ investigacao.responsavel }}</strong></div>
+        </div>
+        <div class="mt-3">
+            <small class="text-muted d-block">Descrição da ocorrência</small>
+            <p class="mb-0">{{ investigacao.descricao_ocorrencia }}</p>
+        </div>
+    </div>
+</div>
+
+<form method="post"
+      action="{{ url_for('main.salvar_5_porques_acr', investigacao_id=investigacao.id) }}">
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                    <h5 class="mb-1">Sequência dos 5 Porquês</h5>
+                    <small class="text-muted">
+                        Responda em sequência. A causa raiz pode ser confirmada antes do quinto nível.
+                    </small>
+                </div>
+                <span class="badge {{ 'text-bg-success' if etapa.status == 'Concluída' else 'text-bg-warning' }}">
+                    {{ etapa.status }}
+                </span>
+            </div>
+
+            <div class="d-grid gap-3">
+                {% for item in porques %}
+                    <div class="porque-card">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="porque-number">{{ item.ordem }}</span>
+                            <label class="form-label fw-semibold mb-0" for="porque_{{ item.ordem }}">
+                                {{ item.pergunta }}
+                            </label>
+                        </div>
+                        <textarea class="form-control"
+                                  id="porque_{{ item.ordem }}"
+                                  name="porque_{{ item.ordem }}"
+                                  rows="2"
+                                  maxlength="4000"
+                                  {% if somente_leitura %}readonly{% endif %}>{{ item.resposta }}</textarea>
+                        {% if not somente_leitura %}
+                            <div class="form-check mt-2">
+                                <input class="form-check-input"
+                                       type="radio"
+                                       name="causa_raiz_ordem"
+                                       id="causa_raiz_{{ item.ordem }}"
+                                       value="{{ item.ordem }}"
+                                       {% if item.causa_raiz %}checked{% endif %}>
+                                <label class="form-check-label" for="causa_raiz_{{ item.ordem }}">
+                                    Esta resposta representa a causa raiz
+                                </label>
+                            </div>
+                        {% elif item.causa_raiz %}
+                            <span class="badge text-bg-success mt-2">Causa raiz confirmada</span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="card-footer bg-white d-flex justify-content-end gap-2 py-3">
+            <a class="btn btn-cinza" href="{{ url_for('main.investigacoes_acr') }}">Voltar</a>
+            {% if not somente_leitura %}
+                <button class="btn btn-cinza" type="submit" name="acao" value="salvar">
+                    Salvar rascunho
+                </button>
+                <button class="btn btn-laranja" type="submit" name="acao" value="concluir">
+                    Confirmar causa raiz
+                </button>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}

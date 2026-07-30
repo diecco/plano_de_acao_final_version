@@ -318,7 +318,9 @@
         {% if session.get('acesso_acr') or is_admin %}
             {% set endpoints_acr = [
                 'main.investigacoes_acr',
-                'main.nova_investigacao_acr'
+                'main.nova_investigacao_acr',
+                'main.detalhar_investigacao_acr',
+                'main.salvar_5_porques_acr'
             ] %}
             <section class="sidebar-module"
                      data-search-label="acr análise causa raiz investigações">
