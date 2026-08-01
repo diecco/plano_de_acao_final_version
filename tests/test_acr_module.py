@@ -157,6 +157,9 @@ class AcrModuleStructureTests(unittest.TestCase):
         self.assertIn("js-adc-adicionar", template)
         self.assertIn("Evento indesejado", template)
         self.assertIn("adc-filhos", template)
+        self.assertIn(".adc-no {", template)
+        self.assertIn("max-width:440px", template)
+        self.assertNotIn(".adc-subarvore { flex:1 1 270px; list-style:none; max-width", template)
         self.assertIn("CREATE TABLE IF NOT EXISTS acr_arvore_causas_itens", migration)
         self.assertIn("'arvore_causas', 'Árvore de Causas', 1", migration)
 
