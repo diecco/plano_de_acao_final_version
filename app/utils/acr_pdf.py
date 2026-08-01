@@ -276,18 +276,43 @@ def gerar_pdf_acr(dados, logo_path=None):
     elementos.append(_paragrafo("Descrição da ocorrência", estilos["rotulo"] ))
     elementos.append(_paragrafo(investigacao.get("descricao_ocorrencia"), estilos["normal"]))
 
-    elementos.append(titulo_secao(2, "Investigação - 5 Porquês"))
-    porques = dados.get("porques", [])
+    metodologia_6m = investigacao.get("metodologia_codigo") == "ishikawa"
+    elementos.append(
+        titulo_secao(
+            2,
+            "Investigação - 6M (Ishikawa)"
+            if metodologia_6m
+            else "Investigação - 5 Porquês",
+        )
+    )
+    if metodologia_6m:
+        categorias = dados.get("categorias_6m", {})
+        porques = [
+            {
+                "ordem": categorias.get(item.get("categoria"), "6M"),
+                "pergunta": (
+                    "Causa raiz" if item.get("causa_raiz") else "Hipótese"
+                ),
+                "resposta": item.get("descricao"),
+            }
+            for item in dados.get("itens_6m", [])
+        ]
+    else:
+        porques = dados.get("porques", [])
     if porques:
         linhas = [[
-            Paragraph("Nivel", estilos["cabecalho"]),
-            Paragraph("Pergunta", estilos["cabecalho"]),
-            Paragraph("Resposta", estilos["cabecalho"]),
+            Paragraph("Categoria" if metodologia_6m else "Nivel", estilos["cabecalho"]),
+            Paragraph("Classificação" if metodologia_6m else "Pergunta", estilos["cabecalho"]),
+            Paragraph("Hipótese" if metodologia_6m else "Resposta", estilos["cabecalho"]),
         ]]
         for item in porques:
             linhas.append(
                 [
-                    _paragrafo(f"{item.get('ordem')}o", estilos["pequeno"]),
+                    _paragrafo(
+                        item.get("ordem") if metodologia_6m
+                        else f"{item.get('ordem')}o",
+                        estilos["pequeno"],
+                    ),
                     _paragrafo(item.get("pergunta"), estilos["pequeno"]),
                     _paragrafo(item.get("resposta"), estilos["pequeno"]),
                 ]
@@ -297,10 +322,15 @@ def gerar_pdf_acr(dados, logo_path=None):
         elementos.append(_paragrafo("Etapa ainda não preenchida.", estilos["normal"]))
 
     elementos.append(titulo_secao(3, "Causa raiz"))
-    causa = dados.get("causa_raiz")
-    if causa:
+    causas = dados.get("causas_raiz") or (
+        [dados.get("causa_raiz")] if dados.get("causa_raiz") else []
+    )
+    if causas:
         bloco_causa = Table(
-            [[_paragrafo(causa.get("descricao"), estilos["normal"]) ]],
+            [
+                [_paragrafo(causa.get("descricao"), estilos["normal"])]
+                for causa in causas
+            ],
             colWidths=[17 * cm],
         )
         bloco_causa.setStyle(

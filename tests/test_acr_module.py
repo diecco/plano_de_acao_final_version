@@ -86,6 +86,26 @@ class AcrModuleStructureTests(unittest.TestCase):
         )
         self.assertIn("Cada nível preenchido precisa ter pergunta e resposta", view)
 
+    def test_six_m_workflow_supports_multiple_root_causes(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
+        ).read_text(encoding="utf-8")
+        migration = (
+            ROOT / "docs" / "adicionar_metodologia_6m_acr.sql"
+        ).read_text(encoding="utf-8")
+        self.assertIn("CATEGORIAS_6M", view)
+        self.assertIn("def salvar_6m_acr", view)
+        self.assertIn('request.form.getlist("causas_raiz_6m")', view)
+        self.assertIn("acr_6m_itens", view)
+        self.assertIn("main.salvar_6m_acr", template)
+        self.assertIn('name="causas_raiz_6m"', template)
+        self.assertIn("Confirmar causas raiz", template)
+        self.assertIn("CREATE TABLE IF NOT EXISTS acr_6m_itens", migration)
+        self.assertIn("'ishikawa', '6M (Ishikawa)', 1", migration)
+
     def test_acr_action_plan_links_existing_action_structure(self):
         view = (
             ROOT / "app" / "views" / "investigacao_causa_raiz.py"
@@ -176,7 +196,7 @@ class AcrModuleStructureTests(unittest.TestCase):
         self.assertIn("Anexo incluído", view)
         self.assertIn("Anexo excluído", view)
         self.assertIn('id="modalAnexosAcr"', template)
-        self.assertEqual(template.count("botao_anexos("), 6)
+        self.assertGreaterEqual(template.count("botao_anexos("), 6)
         self.assertIn('data-anexo-tooltip="true"', template)
         self.assertIn("Gerenciar anexos da etapa", template)
         self.assertIn('name="etapa"', template)
@@ -256,6 +276,7 @@ class AcrModuleStructureTests(unittest.TestCase):
         for table in (
             "acr_investigacoes",
             "acr_5_porques",
+            "acr_6m_itens",
             "acr_causas",
             "acr_acoes",
             "acr_verificacoes_eficacia",

@@ -79,6 +79,15 @@ RESULTADOS_EFICACIA_ACR = {
     "Ineficaz",
 }
 
+CATEGORIAS_6M = {
+    "metodo": "Método",
+    "maquina": "Máquina",
+    "mao_obra": "Mão de obra",
+    "material": "Material",
+    "medicao": "Medição",
+    "meio_ambiente": "Meio ambiente",
+}
+
 
 def _aplicar_escopo(query, params, alias="i"):
     perfil = session.get("perfil")
@@ -476,14 +485,39 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 }
                 for ordem in range(1, 6)
             ]
+            itens_6m = []
+            if investigacao["metodologia_codigo"] == "ishikawa":
+                cursor.execute(
+                    """
+                    SELECT id, categoria, descricao, causa_raiz, ordem
+                    FROM acr_6m_itens
+                    WHERE investigacao_id = %s
+                    ORDER BY categoria, ordem, id
+                    """,
+                    (investigacao_id,),
+                )
+                itens_6m = cursor.fetchall()
+            itens_6m_por_categoria = {
+                codigo: [] for codigo in CATEGORIAS_6M
+            }
+            for item in itens_6m:
+                if item["categoria"] in itens_6m_por_categoria:
+                    itens_6m_por_categoria[item["categoria"]].append(item)
             cursor.execute(
                 """
                 SELECT status, atualizado_em
                 FROM acr_etapas
                 WHERE investigacao_id = %s
-                  AND codigo = '5_porques'
+                  AND codigo = %s
                 """,
-                (investigacao_id,),
+                (
+                    investigacao_id,
+                    (
+                        "6m"
+                        if investigacao["metodologia_codigo"] == "ishikawa"
+                        else "5_porques"
+                    ),
+                ),
             )
             etapa = cursor.fetchone() or {
                 "status": "Não iniciada",
@@ -495,11 +529,11 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 FROM acr_causas
                 WHERE investigacao_id = %s AND confirmada = 1
                 ORDER BY id
-                LIMIT 1
                 """,
                 (investigacao_id,),
             )
-            causa_raiz = cursor.fetchone()
+            causas_raiz = cursor.fetchall()
+            causa_raiz = causas_raiz[0] if causas_raiz else None
             acao_sort = request.args.get("acao_sort", "prazo")
             if acao_sort not in ORDENACOES_ACOES_ACR:
                 acao_sort = "prazo"
@@ -649,8 +683,11 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 "investigacao_causa_raiz_detalhe.html",
                 investigacao=investigacao,
                 porques=porques,
+                categorias_6m=CATEGORIAS_6M,
+                itens_6m_por_categoria=itens_6m_por_categoria,
                 etapa=etapa,
                 causa_raiz=causa_raiz,
+                causas_raiz=causas_raiz,
                 acoes_vinculadas=acoes_vinculadas,
                 acoes_concluidas=acoes_concluidas,
                 verificacoes_eficacia=verificacoes_eficacia,
@@ -728,17 +765,30 @@ def register_investigacao_causa_raiz_routes(blueprint):
             )
             porques = cursor.fetchall()
 
+            itens_6m = []
+            if investigacao["metodologia_codigo"] == "ishikawa":
+                cursor.execute(
+                    """
+                    SELECT categoria, descricao, causa_raiz, ordem
+                    FROM acr_6m_itens
+                    WHERE investigacao_id = %s
+                    ORDER BY categoria, ordem, id
+                    """,
+                    (investigacao_id,),
+                )
+                itens_6m = cursor.fetchall()
+
             cursor.execute(
                 """
                 SELECT descricao, identificada_em
                 FROM acr_causas
                 WHERE investigacao_id = %s AND confirmada = 1
                 ORDER BY id
-                LIMIT 1
                 """,
                 (investigacao_id,),
             )
-            causa_raiz = cursor.fetchone()
+            causas_raiz = cursor.fetchall()
+            causa_raiz = causas_raiz[0] if causas_raiz else None
 
             cursor.execute(
                 """
@@ -817,7 +867,10 @@ def register_investigacao_causa_raiz_routes(blueprint):
                     "investigacao": investigacao,
                     "participantes": participantes,
                     "porques": porques,
+                    "itens_6m": itens_6m,
+                    "categorias_6m": CATEGORIAS_6M,
                     "causa_raiz": causa_raiz,
+                    "causas_raiz": causas_raiz,
                     "acoes": acoes,
                     "verificacoes": verificacoes,
                     "evidencias": evidencias,
@@ -1393,6 +1446,219 @@ def register_investigacao_causa_raiz_routes(blueprint):
         )
 
     @blueprint.route(
+        "/acr/<int:investigacao_id>/6m",
+        methods=["POST"],
+    )
+    @login_required
+    @module_required("acesso_acr")
+    def salvar_6m_acr(investigacao_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            investigacao = _buscar_investigacao_acessivel(
+                cursor,
+                investigacao_id,
+            )
+            if not investigacao:
+                flash("Investigação não encontrada ou fora do seu escopo.", "danger")
+                return redirect(url_for("main.investigacoes_acr"))
+            if investigacao["status"] in ("Concluída", "Cancelada"):
+                raise ValueError(
+                    "Esta investigação não permite alterações no estado atual."
+                )
+            if investigacao["metodologia_codigo"] != "ishikawa":
+                raise ValueError("A metodologia desta investigação não é 6M.")
+            cursor.execute(
+                """
+                SELECT COUNT(*) AS total
+                FROM acr_acoes
+                WHERE investigacao_id = %s
+                """,
+                (investigacao_id,),
+            )
+            if cursor.fetchone()["total"]:
+                raise ValueError(
+                    "O diagrama 6M não pode ser alterado após a criação do plano de ação."
+                )
+
+            acao_formulario = (request.form.get("acao") or "salvar").strip()
+            if acao_formulario not in ("salvar", "concluir"):
+                raise ValueError("Ação inválida para a etapa 6M.")
+            concluir_etapa = acao_formulario == "concluir"
+
+            itens_formulario = []
+            for categoria in CATEGORIAS_6M:
+                texto = request.form.get(f"itens_{categoria}") or ""
+                linhas = [linha.strip() for linha in texto.splitlines() if linha.strip()]
+                if len(linhas) > 20:
+                    raise ValueError(
+                        "Cada categoria do 6M aceita no máximo 20 hipóteses."
+                    )
+                if any(len(linha) > 1000 for linha in linhas):
+                    raise ValueError(
+                        "Cada hipótese do 6M deve possuir no máximo 1.000 caracteres."
+                    )
+                itens_formulario.extend(
+                    (categoria, ordem, descricao)
+                    for ordem, descricao in enumerate(linhas, start=1)
+                )
+            if not itens_formulario:
+                raise ValueError("Registre ao menos uma hipótese no diagrama 6M.")
+
+            ids_causa = set(request.form.getlist("causas_raiz_6m"))
+            chaves_causa = set()
+            if ids_causa:
+                marcadores = ", ".join(["%s"] * len(ids_causa))
+                cursor.execute(
+                    f"""
+                    SELECT categoria, descricao
+                    FROM acr_6m_itens
+                    WHERE investigacao_id = %s
+                      AND id IN ({marcadores})
+                    """,
+                    (investigacao_id, *ids_causa),
+                )
+                chaves_causa = {
+                    (item["categoria"], item["descricao"])
+                    for item in cursor.fetchall()
+                }
+            if concluir_etapa and not chaves_causa:
+                raise ValueError(
+                    "Salve as hipóteses e selecione ao menos uma causa raiz."
+                )
+            chaves_atuais = {
+                (categoria, descricao)
+                for categoria, _, descricao in itens_formulario
+            }
+            if concluir_etapa and not chaves_causa.issubset(chaves_atuais):
+                raise ValueError(
+                    "Uma causa selecionada foi alterada. Salve o diagrama antes de concluir."
+                )
+
+            cursor.execute(
+                "DELETE FROM acr_6m_itens WHERE investigacao_id = %s",
+                (investigacao_id,),
+            )
+            for categoria, ordem, descricao in itens_formulario:
+                cursor.execute(
+                    """
+                    INSERT INTO acr_6m_itens (
+                        investigacao_id, categoria, descricao,
+                        causa_raiz, ordem, registrado_por
+                    ) VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        investigacao_id,
+                        categoria,
+                        descricao,
+                        int(concluir_etapa and (categoria, descricao) in chaves_causa),
+                        ordem,
+                        session.get("usuario_id"),
+                    ),
+                )
+
+            cursor.execute(
+                """
+                UPDATE acr_causas
+                SET confirmada = 0, invalidada_em = NOW(),
+                    motivo_invalidacao = %s
+                WHERE investigacao_id = %s AND confirmada = 1
+                """,
+                ("Diagrama 6M revisado.", investigacao_id),
+            )
+            if concluir_etapa:
+                for categoria, descricao in sorted(chaves_causa):
+                    cursor.execute(
+                        """
+                        INSERT INTO acr_causas (
+                            investigacao_id, metodologia_id, descricao,
+                            confirmada, identificada_por
+                        ) VALUES (%s, %s, %s, 1, %s)
+                        """,
+                        (
+                            investigacao_id,
+                            investigacao["metodologia_id"],
+                            f"{CATEGORIAS_6M[categoria]}: {descricao}",
+                            session.get("usuario_id"),
+                        ),
+                    )
+
+            status_etapa = "Concluída" if concluir_etapa else "Em andamento"
+            cursor.execute(
+                """
+                INSERT INTO acr_etapas (
+                    investigacao_id, codigo, status, iniciado_em,
+                    concluido_em, atualizado_por
+                ) VALUES (
+                    %s, '6m', %s, NOW(),
+                    CASE WHEN %s = 'Concluída' THEN NOW() ELSE NULL END,
+                    %s
+                )
+                ON DUPLICATE KEY UPDATE
+                    status = VALUES(status),
+                    iniciado_em = COALESCE(iniciado_em, NOW()),
+                    concluido_em = CASE
+                        WHEN VALUES(status) = 'Concluída' THEN NOW()
+                        ELSE NULL
+                    END,
+                    atualizado_por = VALUES(atualizado_por)
+                """,
+                (
+                    investigacao_id,
+                    status_etapa,
+                    status_etapa,
+                    session.get("usuario_id"),
+                ),
+            )
+            if investigacao["status"] == "Rascunho":
+                cursor.execute(
+                    """
+                    UPDATE acr_investigacoes
+                    SET status = 'Em Investigação'
+                    WHERE id = %s
+                    """,
+                    (investigacao_id,),
+                )
+            cursor.execute(
+                """
+                INSERT INTO acr_historico (
+                    investigacao_id, usuario_id, evento, etapa
+                ) VALUES (%s, %s, %s, '6m')
+                """,
+                (
+                    investigacao_id,
+                    session.get("usuario_id"),
+                    (
+                        "Diagrama 6M concluído"
+                        if concluir_etapa
+                        else "Rascunho do diagrama 6M salvo"
+                    ),
+                ),
+            )
+            conn.commit()
+            flash(
+                "Causas raiz confirmadas com sucesso."
+                if concluir_etapa
+                else "Diagrama 6M salvo como rascunho.",
+                "success",
+            )
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "danger")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+        return redirect(
+            url_for(
+                "main.detalhar_investigacao_acr",
+                investigacao_id=investigacao_id,
+            )
+        )
+
+    @blueprint.route(
         "/acr/<int:investigacao_id>/acoes",
         methods=["POST"],
     )
@@ -1416,18 +1682,26 @@ def register_investigacao_causa_raiz_routes(blueprint):
 
             cursor.execute(
                 """
-                SELECT id
+                SELECT id, descricao
                 FROM acr_causas
                 WHERE investigacao_id = %s AND confirmada = 1
                 ORDER BY id
-                LIMIT 1
                 """,
                 (investigacao_id,),
             )
-            causa_raiz = cursor.fetchone()
-            if not causa_raiz:
+            causas_raiz = cursor.fetchall()
+            if not causas_raiz:
                 raise ValueError(
                     "Confirme a causa raiz antes de cadastrar o plano de ação."
+                )
+            causa_raiz_id = request.form.get("causa_raiz_id", type=int)
+            if len(causas_raiz) == 1:
+                causa_raiz_id = causas_raiz[0]["id"]
+            elif causa_raiz_id not in {
+                causa["id"] for causa in causas_raiz
+            }:
+                raise ValueError(
+                    "Selecione a causa raiz que será tratada pela ação."
                 )
 
             responsavel_id = request.form.get("responsavel_id", type=int)
@@ -1487,7 +1761,7 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 """,
                 (
                     investigacao_id,
-                    causa_raiz["id"],
+                    causa_raiz_id,
                     acao_id,
                     session.get("usuario_id"),
                 ),
