@@ -6,6 +6,12 @@
 <style>
     .acr-step { border-top:3px solid #d1d5db; padding-top:8px; color:#6b7280; font-size:.82rem; }
     .acr-step.active { border-color:#f36b21; color:#f36b21; font-weight:700; }
+    .participantes-seletor { position:relative; }
+    .participantes-sugestoes { background:#fff; border:1px solid #ced4da; border-radius:.375rem; box-shadow:0 .5rem 1rem rgba(0,0,0,.12); display:none; left:0; max-height:220px; overflow-y:auto; position:absolute; right:0; top:100%; z-index:1080; }
+    .participante-sugestao { cursor:pointer; padding:.6rem .75rem; }
+    .participante-sugestao:hover { background:#fff1e8; color:#c94e0c; }
+    .participante-chip { align-items:center; background:#f3f4f5; border:1px solid #d6d8da; border-radius:999px; display:inline-flex; gap:.4rem; padding:.3rem .65rem; }
+    .participante-chip button { background:none; border:0; color:#6c757d; line-height:1; padding:0; }
 </style>
 {% endblock %}
 
@@ -97,6 +103,17 @@
                     {% endfor %}
                 </select>
             </div>
+            <div class="col-12 participantes-seletor">
+                <label class="form-label" for="busca_participante_acr">Participantes</label>
+                <input class="form-control"
+                       id="busca_participante_acr"
+                       type="text"
+                       autocomplete="off"
+                       placeholder="Digite o nome ou a matrícula para adicionar">
+                <div class="participantes-sugestoes" id="sugestoes_participantes_acr"></div>
+                <div class="d-flex flex-wrap gap-2 mt-2" id="participantes_selecionados_acr"></div>
+                <div class="form-text">O criador e o responsável já aparecem separadamente na ACR.</div>
+            </div>
             <div class="col-12" id="origemOutrosWrapper" hidden>
                 <label class="form-label" for="origem_outros">Detalhe da origem *</label>
                 <input class="form-control" id="origem_outros" name="origem_outros"
@@ -120,6 +137,8 @@
 {% endblock %}
 
 {% block extra_js %}
+<script id="participantes-acr-data" type="application/json">{{ participantes|tojson }}</script>
+<script id="participantes-acr-selecionados" type="application/json">{{ participantes_selecionados|tojson }}</script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const origem = document.getElementById("origem_id");
@@ -133,6 +152,83 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     origem.addEventListener("change", atualizarOrigem);
     atualizarOrigem();
+
+    const todosParticipantes = JSON.parse(document.getElementById("participantes-acr-data").textContent || "[]");
+    const iniciais = JSON.parse(document.getElementById("participantes-acr-selecionados").textContent || "[]");
+    const buscaParticipante = document.getElementById("busca_participante_acr");
+    const sugestoes = document.getElementById("sugestoes_participantes_acr");
+    const selecionadosContainer = document.getElementById("participantes_selecionados_acr");
+    const responsavel = document.getElementById("responsavel_id");
+    const criadorId = Number("{{ session.get('usuario_id') or 0 }}");
+    const selecionados = new Map();
+    const normalizar = texto => (texto || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const rotulo = usuario => `${usuario.nome}${usuario.matricula ? " - " + usuario.matricula : ""}`;
+
+    const renderizarSelecionados = () => {
+        selecionadosContainer.innerHTML = "";
+        selecionados.forEach(usuario => {
+            const chip = document.createElement("span");
+            chip.className = "participante-chip";
+            const texto = document.createElement("span");
+            texto.textContent = rotulo(usuario);
+            const oculto = document.createElement("input");
+            oculto.type = "hidden";
+            oculto.name = "participante_ids";
+            oculto.value = usuario.id;
+            const remover = document.createElement("button");
+            remover.type = "button";
+            remover.title = `Remover ${usuario.nome}`;
+            remover.setAttribute("aria-label", `Remover ${usuario.nome}`);
+            remover.innerHTML = '<i class="bi bi-x"></i>';
+            remover.addEventListener("click", () => {
+                selecionados.delete(Number(usuario.id));
+                renderizarSelecionados();
+            });
+            chip.append(texto, oculto, remover);
+            selecionadosContainer.appendChild(chip);
+        });
+    };
+    const adicionarParticipante = usuario => {
+        const id = Number(usuario.id);
+        if (id === criadorId || id === Number(responsavel.value)) return;
+        selecionados.set(id, usuario);
+        renderizarSelecionados();
+        buscaParticipante.value = "";
+        sugestoes.style.display = "none";
+    };
+    iniciais.forEach(id => {
+        const usuario = todosParticipantes.find(item => Number(item.id) === Number(id));
+        if (usuario) selecionados.set(Number(usuario.id), usuario);
+    });
+    renderizarSelecionados();
+
+    buscaParticipante.addEventListener("input", () => {
+        sugestoes.innerHTML = "";
+        const termo = normalizar(buscaParticipante.value.trim());
+        if (termo.length < 2) { sugestoes.style.display = "none"; return; }
+        const encontrados = todosParticipantes.filter(usuario => {
+            const id = Number(usuario.id);
+            return id !== criadorId
+                && id !== Number(responsavel.value)
+                && !selecionados.has(id)
+                && normalizar(`${usuario.nome} ${usuario.matricula || ""}`).includes(termo);
+        }).slice(0, 12);
+        encontrados.forEach(usuario => {
+            const item = document.createElement("div");
+            item.className = "participante-sugestao";
+            item.textContent = rotulo(usuario);
+            item.addEventListener("click", () => adicionarParticipante(usuario));
+            sugestoes.appendChild(item);
+        });
+        sugestoes.style.display = encontrados.length ? "block" : "none";
+    });
+    responsavel.addEventListener("change", () => {
+        selecionados.delete(Number(responsavel.value));
+        renderizarSelecionados();
+    });
+    document.addEventListener("click", evento => {
+        if (!evento.target.closest(".participantes-seletor")) sugestoes.style.display = "none";
+    });
 });
 </script>
 {% endblock %}

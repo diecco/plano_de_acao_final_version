@@ -159,7 +159,20 @@ def _buscar_centros_e_responsaveis(cursor):
         (centro_sessao,),
     )
 
-    return centros, cursor.fetchall()
+    responsaveis = cursor.fetchall()
+    cursor.execute(
+        """
+        SELECT id, nome, matricula, centro_custos_id
+        FROM usuarios
+        WHERE ativo = 1
+          AND tem_acesso_sistema = 1
+          AND (acesso_acr = 1 OR perfil = 'administrador')
+          AND centro_custos_id = %s
+        ORDER BY nome
+        """,
+        (centro_sessao,),
+    )
+    return centros, responsaveis, cursor.fetchall()
 
 
 def _validar_id_no_dominio(cursor, tabela, registro_id):
@@ -606,6 +619,36 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 (investigacao["centro_custos_id"],),
             )
             responsaveis_acao = cursor.fetchall()
+            cursor.execute(
+                """
+                SELECT u.id, u.nome, u.matricula
+                FROM acr_participantes ap
+                JOIN usuarios u ON u.id = ap.usuario_id
+                WHERE ap.investigacao_id = %s
+                  AND ap.ativo = 1
+                  AND ap.usuario_id NOT IN (%s, %s)
+                ORDER BY u.nome
+                """,
+                (
+                    investigacao_id,
+                    investigacao["criador_id"],
+                    investigacao["responsavel_id"],
+                ),
+            )
+            participantes_acr = cursor.fetchall()
+            cursor.execute(
+                """
+                SELECT id, nome, matricula
+                FROM usuarios
+                WHERE ativo = 1
+                  AND tem_acesso_sistema = 1
+                  AND (acesso_acr = 1 OR perfil = 'administrador')
+                  AND centro_custos_id = %s
+                ORDER BY nome
+                """,
+                (investigacao["centro_custos_id"],),
+            )
+            participantes_disponiveis = cursor.fetchall()
             return render_template(
                 "investigacao_causa_raiz_detalhe.html",
                 investigacao=investigacao,
@@ -628,6 +671,8 @@ def register_investigacao_causa_raiz_routes(blueprint):
                     session.get("usuario_id") == investigacao["criador_id"]
                 ),
                 responsaveis_acao=responsaveis_acao,
+                participantes_acr=participantes_acr,
+                participantes_disponiveis=participantes_disponiveis,
                 acao_sort=acao_sort,
                 acao_order=acao_order,
                 origem_acao_descricao=(
@@ -665,9 +710,14 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 FROM acr_participantes ap
                 JOIN usuarios u ON u.id = ap.usuario_id
                 WHERE ap.investigacao_id = %s AND ap.ativo = 1
+                  AND ap.usuario_id NOT IN (%s, %s)
                 ORDER BY u.nome
                 """,
-                (investigacao_id,),
+                (
+                    investigacao_id,
+                    investigacao["criador_id"],
+                    investigacao["responsavel_id"],
+                ),
             )
             participantes = [item["nome"] for item in cursor.fetchall()]
 
@@ -2069,6 +2119,161 @@ def register_investigacao_causa_raiz_routes(blueprint):
         )
 
     @blueprint.route(
+        "/acr/<int:investigacao_id>/participantes",
+        methods=["POST"],
+    )
+    @login_required
+    @module_required("acesso_acr")
+    def atualizar_participantes_acr(investigacao_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            investigacao = _buscar_investigacao_acessivel(
+                cursor,
+                investigacao_id,
+            )
+            if not investigacao:
+                raise ValueError(
+                    "Investigação não encontrada ou fora do seu escopo."
+                )
+            if investigacao["status"] in ("Concluída", "Cancelada"):
+                raise ValueError(
+                    "Reabra a ACR antes de alterar seus participantes."
+                )
+
+            selecionados = []
+            for valor in request.form.getlist("participante_ids"):
+                try:
+                    selecionados.append(int(valor))
+                except (TypeError, ValueError) as exc:
+                    raise ValueError("A lista de participantes é inválida.") from exc
+            selecionados = set(selecionados)
+            selecionados.discard(investigacao["criador_id"])
+            selecionados.discard(investigacao["responsavel_id"])
+
+            cursor.execute(
+                """
+                SELECT id, nome
+                FROM usuarios
+                WHERE ativo = 1
+                  AND tem_acesso_sistema = 1
+                  AND (acesso_acr = 1 OR perfil = 'administrador')
+                  AND centro_custos_id = %s
+                """,
+                (investigacao["centro_custos_id"],),
+            )
+            usuarios_validos = {
+                item["id"]: item["nome"] for item in cursor.fetchall()
+            }
+            if any(item not in usuarios_validos for item in selecionados):
+                raise ValueError(
+                    "Um ou mais participantes estão fora do centro de custos da ACR."
+                )
+
+            cursor.execute(
+                """
+                SELECT ap.usuario_id, u.nome
+                FROM acr_participantes ap
+                JOIN usuarios u ON u.id = ap.usuario_id
+                WHERE ap.investigacao_id = %s AND ap.ativo = 1
+                FOR UPDATE
+                """,
+                (investigacao_id,),
+            )
+            atuais_registros = cursor.fetchall()
+            atuais = {item["usuario_id"] for item in atuais_registros}
+            nomes_atuais = {
+                item["usuario_id"]: item["nome"] for item in atuais_registros
+            }
+            adicionados = selecionados - atuais
+            removidos = atuais - selecionados
+
+            cursor.execute(
+                """
+                UPDATE acr_participantes
+                SET ativo = 0
+                WHERE investigacao_id = %s AND ativo = 1
+                """,
+                (investigacao_id,),
+            )
+            for participante_id in selecionados:
+                cursor.execute(
+                    """
+                    INSERT INTO acr_participantes (
+                        investigacao_id, usuario_id, adicionado_por, ativo
+                    ) VALUES (%s, %s, %s, 1)
+                    ON DUPLICATE KEY UPDATE
+                        ativo = 1,
+                        adicionado_por = VALUES(adicionado_por)
+                    """,
+                    (
+                        investigacao_id,
+                        participante_id,
+                        session.get("usuario_id"),
+                    ),
+                )
+
+            if adicionados or removidos:
+                detalhes = []
+                if adicionados:
+                    detalhes.append(
+                        "Incluídos: "
+                        + ", ".join(
+                            usuarios_validos[item]
+                            for item in sorted(
+                                adicionados,
+                                key=lambda chave: usuarios_validos[chave],
+                            )
+                        )
+                    )
+                if removidos:
+                    detalhes.append(
+                        "Removidos: "
+                        + ", ".join(
+                            nomes_atuais[item]
+                            for item in sorted(
+                                removidos,
+                                key=lambda chave: nomes_atuais[chave],
+                            )
+                        )
+                    )
+                cursor.execute(
+                    """
+                    INSERT INTO acr_historico (
+                        investigacao_id, usuario_id, evento, etapa,
+                        entidade_tipo, entidade_id, valor_novo_json
+                    ) VALUES (
+                        %s, %s, 'Participantes atualizados', 'identificacao',
+                        'investigacao', %s,
+                        JSON_OBJECT('justificativa', %s)
+                    )
+                    """,
+                    (
+                        investigacao_id,
+                        session.get("usuario_id"),
+                        investigacao_id,
+                        "; ".join(detalhes),
+                    ),
+                )
+            conn.commit()
+            flash("Participantes atualizados com sucesso.", "success")
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "danger")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+        return redirect(
+            url_for(
+                "main.detalhar_investigacao_acr",
+                investigacao_id=investigacao_id,
+            )
+        )
+
+    @blueprint.route(
         "/acr/<int:investigacao_id>/reabrir",
         methods=["POST"],
     )
@@ -2172,7 +2377,10 @@ def register_investigacao_causa_raiz_routes(blueprint):
         cursor = conn.cursor(dictionary=True)
         try:
             dominios = _buscar_dominios(cursor)
-            centros, responsaveis = _buscar_centros_e_responsaveis(cursor)
+            centros, responsaveis, participantes = (
+                _buscar_centros_e_responsaveis(cursor)
+            )
+            participantes_selecionados = []
             if not centros:
                 flash(
                     "Seu usuário precisa estar vinculado a um centro de custos "
@@ -2187,6 +2395,8 @@ def register_investigacao_causa_raiz_routes(blueprint):
                     dominios=dominios,
                     centros=centros,
                     responsaveis=responsaveis,
+                    participantes=participantes,
+                    participantes_selecionados=participantes_selecionados,
                     hoje=date.today().isoformat(),
                 )
 
@@ -2206,6 +2416,14 @@ def register_investigacao_causa_raiz_routes(blueprint):
             origem_outros = (
                 request.form.get("origem_outros") or ""
             ).strip() or None
+            for valor in request.form.getlist("participante_ids"):
+                try:
+                    participantes_selecionados.append(int(valor))
+                except (TypeError, ValueError) as exc:
+                    raise ValueError("A lista de participantes é inválida.") from exc
+            participantes_selecionados = list(
+                dict.fromkeys(participantes_selecionados)
+            )
 
             obrigatorios = (
                 origem_id,
@@ -2250,6 +2468,9 @@ def register_investigacao_causa_raiz_routes(blueprint):
 
             centros_validos = {item["id"]: item for item in centros}
             responsaveis_validos = {item["id"]: item for item in responsaveis}
+            participantes_validos = {
+                item["id"]: item for item in participantes
+            }
             if centro_custos_id not in centros_validos:
                 raise ValueError("Centro de custos fora do seu escopo.")
             if responsavel_id not in responsaveis_validos:
@@ -2261,6 +2482,19 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 raise ValueError(
                     "O responsável deve pertencer ao centro de custos da ACR."
                 )
+            if any(
+                participante_id not in participantes_validos
+                for participante_id in participantes_selecionados
+            ):
+                raise ValueError(
+                    "Um ou mais participantes estão fora do centro de custos da ACR."
+                )
+            participantes_selecionados = [
+                participante_id
+                for participante_id in participantes_selecionados
+                if participante_id
+                not in {responsavel_id, session.get("usuario_id")}
+            ]
             origem_outros_registro = next(
                 (
                     item
@@ -2342,20 +2576,23 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 ),
             )
             investigacao_id = cursor.lastrowid
-            cursor.execute(
-                """
-                INSERT INTO acr_participantes (
-                    investigacao_id, usuario_id, adicionado_por
+            for participante_id in participantes_selecionados:
+                cursor.execute(
+                    """
+                    INSERT INTO acr_participantes (
+                        investigacao_id, usuario_id, adicionado_por
+                    )
+                    VALUES (%s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        ativo = 1,
+                        adicionado_por = VALUES(adicionado_por)
+                    """,
+                    (
+                        investigacao_id,
+                        participante_id,
+                        session.get("usuario_id"),
+                    ),
                 )
-                VALUES (%s, %s, %s)
-                ON DUPLICATE KEY UPDATE ativo = 1
-                """,
-                (
-                    investigacao_id,
-                    responsavel_id,
-                    session.get("usuario_id"),
-                ),
-            )
             cursor.execute(
                 """
                 INSERT INTO acr_historico (
@@ -2376,6 +2613,8 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 dominios=dominios,
                 centros=centros,
                 responsaveis=responsaveis,
+                participantes=participantes,
+                participantes_selecionados=participantes_selecionados,
                 hoje=date.today().isoformat(),
             )
         except Exception:

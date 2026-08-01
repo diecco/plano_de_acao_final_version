@@ -27,7 +27,7 @@ class AcrModuleStructureTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertGreaterEqual(
             view.count('@module_required("acesso_acr")'),
-            14,
+            15,
         )
         self.assertIn("acr_participantes", view)
         self.assertIn("centro_custos_id", view)
@@ -212,6 +212,26 @@ class AcrModuleStructureTests(unittest.TestCase):
         ):
             self.assertIn(section, generator)
         self.assertIn("reportlab==", requirements)
+
+    def test_acr_participants_can_be_selected_and_managed(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        new_template = (
+            ROOT / "app" / "templates" / "nova_investigacao_causa_raiz.html"
+        ).read_text(encoding="utf-8")
+        detail_template = (
+            ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn('request.form.getlist("participante_ids")', view)
+        self.assertIn("def atualizar_participantes_acr", view)
+        self.assertIn("Participantes atualizados", view)
+        self.assertIn("Reabra a ACR antes de alterar seus participantes", view)
+        self.assertGreaterEqual(view.count("AND (acesso_acr = 1 OR perfil = 'administrador')"), 3)
+        self.assertIn('name = "participante_ids"', new_template)
+        self.assertIn('id="modalParticipantesAcr"', detail_template)
+        self.assertIn('name="participante_ids"', detail_template)
+        self.assertIn("main.atualizar_participantes_acr", detail_template)
 
     def test_permission_is_available_in_user_flows(self):
         view = (ROOT / "app" / "views" / "usuarios.py").read_text(

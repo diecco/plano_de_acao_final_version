@@ -82,6 +82,14 @@
             </div>
             <div class="d-flex align-items-center gap-2">
                 <span class="badge text-bg-secondary">{{ investigacao.status }}</span>
+                <button class="btn btn-cinza btn-sm"
+                        type="button"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalParticipantesAcr"
+                        title="Consultar e gerenciar participantes da ACR">
+                    <i class="bi bi-people me-1"></i>Participantes
+                    {% if participantes_acr %}<span class="badge bg-light text-dark ms-1">{{ participantes_acr|length }}</span>{% endif %}
+                </button>
                 <a class="btn btn-laranja btn-sm"
                    href="{{ url_for('main.relatorio_pdf_acr', investigacao_id=investigacao.id) }}"
                    title="Gerar relatório consolidado da ACR em PDF">
@@ -464,6 +472,53 @@
 {% endif %}
 {% endif %}
 
+{% set participantes_ids_atuais = participantes_acr|map(attribute='id')|list %}
+<div class="modal fade" id="modalParticipantesAcr" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <form class="modal-content"
+              method="post"
+              action="{{ url_for('main.atualizar_participantes_acr', investigacao_id=investigacao.id) }}">
+            <div class="modal-header modal-header-trackplan">
+                <h5 class="modal-title"><i class="bi bi-people me-2"></i>Participantes da ACR</h5>
+                <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-track-gray py-2">
+                    O criador e o responsável pela investigação já aparecem separadamente e não precisam ser selecionados.
+                </div>
+                <label class="form-label" for="filtro_participantes_acr">Localizar participante</label>
+                <input class="form-control mb-3"
+                       id="filtro_participantes_acr"
+                       type="search"
+                       autocomplete="off"
+                       placeholder="Digite nome ou matrícula">
+                <div class="border rounded" style="max-height:360px;overflow-y:auto">
+                    {% for usuario in participantes_disponiveis %}
+                        {% if usuario.id not in [investigacao.criador_id, investigacao.responsavel_id] %}
+                            <label class="participante-opcao d-flex align-items-center gap-2 px-3 py-2 border-bottom"
+                                   data-busca="{{ (usuario.nome ~ ' ' ~ (usuario.matricula or ''))|lower }}">
+                                <input class="form-check-input mt-0"
+                                       type="checkbox"
+                                       name="participante_ids"
+                                       value="{{ usuario.id }}"
+                                       {% if usuario.id in participantes_ids_atuais %}checked{% endif %}
+                                       {% if somente_leitura %}disabled{% endif %}>
+                                <span>{{ usuario.nome }}{% if usuario.matricula %} <small class="text-muted">- {{ usuario.matricula }}</small>{% endif %}</span>
+                            </label>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center text-muted py-4">Nenhum usuário disponível.</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-cinza" type="button" data-bs-dismiss="modal">Fechar</button>
+                {% if not somente_leitura %}<button class="btn btn-laranja" type="submit">Salvar</button>{% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="modal fade" id="modalAnexosAcr" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
@@ -605,6 +660,16 @@
 <script id="responsaveis-acao-acr-data" type="application/json">{{ responsaveis_acao|tojson }}</script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    const filtroParticipantes = document.getElementById('filtro_participantes_acr');
+    if (filtroParticipantes) {
+        const normalizarParticipante = texto => (texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        filtroParticipantes.addEventListener('input', () => {
+            const termo = normalizarParticipante(filtroParticipantes.value.trim());
+            document.querySelectorAll('.participante-opcao').forEach(opcao => {
+                opcao.classList.toggle('d-none', !normalizarParticipante(opcao.dataset.busca).includes(termo));
+            });
+        });
+    }
     const modalAnexos = document.getElementById('modalAnexosAcr');
     const etapaAnexo = document.getElementById('etapa_anexo_acr');
     const rotuloEtapaAnexo = document.getElementById('rotuloEtapaAnexoAcr');
