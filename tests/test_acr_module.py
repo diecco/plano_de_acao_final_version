@@ -27,7 +27,7 @@ class AcrModuleStructureTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertGreaterEqual(
             view.count('@module_required("acesso_acr")'),
-            6,
+            8,
         )
         self.assertIn("acr_participantes", view)
         self.assertIn("centro_custos_id", view)
@@ -113,6 +113,26 @@ class AcrModuleStructureTests(unittest.TestCase):
         self.assertIn("#plano-acao", template)
         self.assertIn("def editar_acao_acr", view)
         self.assertIn("main.editar_acao_acr", template)
+
+    def test_acr_effectiveness_flow_enforces_business_rules(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("def agendar_eficacia_acr", view)
+        self.assertIn("def avaliar_eficacia_acr", view)
+        self.assertIn(
+            'session.get("usuario_id") != investigacao["criador_id"]',
+            view,
+        )
+        self.assertIn("Todas as ações precisam estar concluídas", view)
+        self.assertIn('resultado == "Eficaz"', view)
+        self.assertIn("acr_verificacoes_eficacia", view)
+        self.assertIn("main.agendar_eficacia_acr", template)
+        self.assertIn("main.avaliar_eficacia_acr", template)
+        self.assertIn('id="eficacia"', template)
 
     def test_permission_is_available_in_user_flows(self):
         view = (ROOT / "app" / "views" / "usuarios.py").read_text(

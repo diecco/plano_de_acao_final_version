@@ -38,6 +38,12 @@ STATUS_ACAO_ACR = {
     "Cancelada",
 }
 
+RESULTADOS_EFICACIA_ACR = {
+    "Eficaz",
+    "Parcialmente eficaz",
+    "Ineficaz",
+}
+
 
 def _aplicar_escopo(query, params, alias="i"):
     perfil = session.get("perfil")
@@ -446,6 +452,45 @@ def register_investigacao_causa_raiz_routes(blueprint):
             )
             cursor.execute(query_acoes, tuple(params_acoes))
             acoes_vinculadas = cursor.fetchall()
+            total_acoes = len(acoes_vinculadas)
+            acoes_concluidas = bool(total_acoes) and all(
+                acao["status"] == "Concluída"
+                for acao in acoes_vinculadas
+            )
+            cursor.execute(
+                """
+                SELECT
+                    ve.id, ve.ciclo, ve.data_prevista,
+                    ve.data_realizada, ve.criterio, ve.resultado,
+                    ve.justificativa, ve.responsavel_id,
+                    u.nome AS responsavel
+                FROM acr_verificacoes_eficacia ve
+                LEFT JOIN usuarios u ON u.id = ve.responsavel_id
+                WHERE ve.investigacao_id = %s
+                ORDER BY ve.ciclo DESC
+                """,
+                (investigacao_id,),
+            )
+            verificacoes_eficacia = cursor.fetchall()
+            verificacao_atual = (
+                verificacoes_eficacia[0]
+                if verificacoes_eficacia
+                and verificacoes_eficacia[0]["resultado"] is None
+                else None
+            )
+            cursor.execute(
+                """
+                SELECT status, atualizado_em, concluido_em
+                FROM acr_etapas
+                WHERE investigacao_id = %s AND codigo = 'eficacia'
+                """,
+                (investigacao_id,),
+            )
+            etapa_eficacia = cursor.fetchone() or {
+                "status": "Não iniciada",
+                "atualizado_em": None,
+                "concluido_em": None,
+            }
             cursor.execute(
                 """
                 SELECT id, nome, matricula
@@ -463,6 +508,17 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 etapa=etapa,
                 causa_raiz=causa_raiz,
                 acoes_vinculadas=acoes_vinculadas,
+                acoes_concluidas=acoes_concluidas,
+                verificacoes_eficacia=verificacoes_eficacia,
+                verificacao_atual=verificacao_atual,
+                verificacao_atual_pode_avaliar=(
+                    bool(verificacao_atual)
+                    and verificacao_atual["data_prevista"] <= date.today()
+                ),
+                etapa_eficacia=etapa_eficacia,
+                pode_gerenciar_eficacia=(
+                    session.get("usuario_id") == investigacao["criador_id"]
+                ),
                 responsaveis_acao=responsaveis_acao,
                 acao_sort=acao_sort,
                 acao_order=acao_order,
@@ -993,6 +1049,323 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 "main.detalhar_investigacao_acr",
                 investigacao_id=investigacao_id,
             )
+        )
+
+    @blueprint.route(
+        "/acr/<int:investigacao_id>/eficacia/agendar",
+        methods=["POST"],
+    )
+    @login_required
+    @module_required("acesso_acr")
+    def agendar_eficacia_acr(investigacao_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            investigacao = _buscar_investigacao_acessivel(
+                cursor,
+                investigacao_id,
+            )
+            if not investigacao:
+                raise ValueError(
+                    "Investigação não encontrada ou fora do seu escopo."
+                )
+            if session.get("usuario_id") != investigacao["criador_id"]:
+                raise ValueError(
+                    "Somente o criador da ACR pode programar sua eficácia."
+                )
+            if investigacao["status"] in ("Concluída", "Cancelada"):
+                raise ValueError(
+                    "Esta investigação não permite uma nova verificação."
+                )
+
+            cursor.execute(
+                """
+                SELECT
+                    COUNT(*) AS total,
+                    SUM(a.status <> 'Concluída') AS pendentes
+                FROM acr_acoes aa
+                JOIN acoes a ON a.id = aa.acao_id
+                WHERE aa.investigacao_id = %s AND a.ativo = 1
+                """,
+                (investigacao_id,),
+            )
+            resumo = cursor.fetchone()
+            if not resumo["total"]:
+                raise ValueError(
+                    "Cadastre e conclua pelo menos uma ação antes da eficácia."
+                )
+            if resumo["pendentes"]:
+                raise ValueError(
+                    "Todas as ações precisam estar concluídas antes da eficácia."
+                )
+
+            cursor.execute(
+                """
+                SELECT id
+                FROM acr_verificacoes_eficacia
+                WHERE investigacao_id = %s AND resultado IS NULL
+                LIMIT 1
+                """,
+                (investigacao_id,),
+            )
+            if cursor.fetchone():
+                raise ValueError("Já existe uma verificação de eficácia pendente.")
+
+            data_texto = (request.form.get("data_prevista") or "").strip()
+            criterio = (request.form.get("criterio") or "").strip()
+            if not data_texto or not criterio:
+                raise ValueError(
+                    "Informe a data prevista e o critério de eficácia."
+                )
+            if len(criterio) > 4000:
+                raise ValueError(
+                    "O critério de eficácia deve ter no máximo 4.000 caracteres."
+                )
+            try:
+                data_prevista = date.fromisoformat(data_texto)
+            except ValueError as exc:
+                raise ValueError(
+                    "Informe uma data válida para a eficácia."
+                ) from exc
+            if data_prevista < date.today():
+                raise ValueError(
+                    "A verificação não pode ser programada para uma data passada."
+                )
+
+            cursor.execute(
+                """
+                SELECT COALESCE(MAX(ciclo), 0) + 1 AS proximo_ciclo
+                FROM acr_verificacoes_eficacia
+                WHERE investigacao_id = %s
+                """,
+                (investigacao_id,),
+            )
+            ciclo = cursor.fetchone()["proximo_ciclo"]
+            cursor.execute(
+                """
+                INSERT INTO acr_verificacoes_eficacia (
+                    investigacao_id, ciclo, data_prevista,
+                    criterio, responsavel_id
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    investigacao_id,
+                    ciclo,
+                    data_prevista,
+                    criterio,
+                    session.get("usuario_id"),
+                ),
+            )
+            verificacao_id = cursor.lastrowid
+            cursor.execute(
+                """
+                UPDATE acr_investigacoes
+                SET data_prevista_eficacia = %s,
+                    criterio_eficacia = %s
+                WHERE id = %s
+                """,
+                (data_prevista, criterio, investigacao_id),
+            )
+            cursor.execute(
+                """
+                INSERT INTO acr_etapas (
+                    investigacao_id, codigo, status,
+                    iniciado_em, atualizado_por
+                )
+                VALUES (%s, 'acoes', 'Concluída', NOW(), %s)
+                ON DUPLICATE KEY UPDATE
+                    status = 'Concluída',
+                    concluido_em = NOW(),
+                    atualizado_por = VALUES(atualizado_por)
+                """,
+                (investigacao_id, session.get("usuario_id")),
+            )
+            cursor.execute(
+                """
+                INSERT INTO acr_etapas (
+                    investigacao_id, codigo, status,
+                    iniciado_em, atualizado_por
+                )
+                VALUES (%s, 'eficacia', 'Em andamento', NOW(), %s)
+                ON DUPLICATE KEY UPDATE
+                    status = 'Em andamento',
+                    iniciado_em = COALESCE(iniciado_em, NOW()),
+                    concluido_em = NULL,
+                    atualizado_por = VALUES(atualizado_por)
+                """,
+                (investigacao_id, session.get("usuario_id")),
+            )
+            cursor.execute(
+                """
+                INSERT INTO acr_historico (
+                    investigacao_id, usuario_id, evento,
+                    etapa, entidade_tipo, entidade_id
+                )
+                VALUES (%s, %s, 'Verificação de eficácia programada',
+                        'eficacia', 'verificacao_eficacia', %s)
+                """,
+                (
+                    investigacao_id,
+                    session.get("usuario_id"),
+                    verificacao_id,
+                ),
+            )
+            conn.commit()
+            flash("Verificação de eficácia programada com sucesso.", "success")
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "danger")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+
+        return redirect(
+            url_for(
+                "main.detalhar_investigacao_acr",
+                investigacao_id=investigacao_id,
+            )
+            + "#eficacia"
+        )
+
+    @blueprint.route(
+        "/acr/<int:investigacao_id>/eficacia/<int:verificacao_id>/avaliar",
+        methods=["POST"],
+    )
+    @login_required
+    @module_required("acesso_acr")
+    def avaliar_eficacia_acr(investigacao_id, verificacao_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            investigacao = _buscar_investigacao_acessivel(
+                cursor,
+                investigacao_id,
+            )
+            if not investigacao:
+                raise ValueError(
+                    "Investigação não encontrada ou fora do seu escopo."
+                )
+            if session.get("usuario_id") != investigacao["criador_id"]:
+                raise ValueError(
+                    "Somente o criador da ACR pode verificar sua eficácia."
+                )
+            cursor.execute(
+                """
+                SELECT id, data_prevista, resultado
+                FROM acr_verificacoes_eficacia
+                WHERE id = %s AND investigacao_id = %s
+                """,
+                (verificacao_id, investigacao_id),
+            )
+            verificacao = cursor.fetchone()
+            if not verificacao or verificacao["resultado"] is not None:
+                raise ValueError("Verificação de eficácia inválida ou já avaliada.")
+            if date.today() < verificacao["data_prevista"]:
+                raise ValueError(
+                    "A eficácia somente pode ser avaliada na data prevista ou depois."
+                )
+
+            resultado = (request.form.get("resultado") or "").strip()
+            justificativa = (request.form.get("justificativa") or "").strip()
+            if resultado not in RESULTADOS_EFICACIA_ACR:
+                raise ValueError("Selecione um resultado válido para a eficácia.")
+            if not justificativa:
+                raise ValueError(
+                    "Registre a justificativa e as evidências observadas."
+                )
+            if len(justificativa) > 4000:
+                raise ValueError(
+                    "A justificativa deve ter no máximo 4.000 caracteres."
+                )
+
+            cursor.execute(
+                """
+                UPDATE acr_verificacoes_eficacia
+                SET data_realizada = CURDATE(),
+                    resultado = %s,
+                    justificativa = %s
+                WHERE id = %s
+                """,
+                (resultado, justificativa, verificacao_id),
+            )
+            eficaz = resultado == "Eficaz"
+            cursor.execute(
+                """
+                INSERT INTO acr_etapas (
+                    investigacao_id, codigo, status,
+                    iniciado_em, concluido_em, atualizado_por
+                )
+                VALUES (%s, 'eficacia', %s, NOW(), %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    status = VALUES(status),
+                    concluido_em = VALUES(concluido_em),
+                    atualizado_por = VALUES(atualizado_por)
+                """,
+                (
+                    investigacao_id,
+                    "Concluída" if eficaz else "Com pendências",
+                    date.today() if eficaz else None,
+                    session.get("usuario_id"),
+                ),
+            )
+            cursor.execute(
+                """
+                UPDATE acr_investigacoes
+                SET status = %s,
+                    concluido_em = %s
+                WHERE id = %s
+                """,
+                (
+                    "Concluída" if eficaz else "Em Investigação",
+                    date.today() if eficaz else None,
+                    investigacao_id,
+                ),
+            )
+            cursor.execute(
+                """
+                INSERT INTO acr_historico (
+                    investigacao_id, usuario_id, evento,
+                    etapa, entidade_tipo, entidade_id
+                )
+                VALUES (%s, %s, %s, 'eficacia',
+                        'verificacao_eficacia', %s)
+                """,
+                (
+                    investigacao_id,
+                    session.get("usuario_id"),
+                    f"Eficácia avaliada: {resultado}",
+                    verificacao_id,
+                ),
+            )
+            conn.commit()
+            if eficaz:
+                flash("ACR concluída após verificação eficaz.", "success")
+            else:
+                flash(
+                    "A ACR permanece aberta. Revise o plano de ação e "
+                    "programe um novo ciclo de eficácia.",
+                    "warning",
+                )
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "danger")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+
+        return redirect(
+            url_for(
+                "main.detalhar_investigacao_acr",
+                investigacao_id=investigacao_id,
+            )
+            + "#eficacia"
         )
 
     @blueprint.route("/acr/nova", methods=["GET", "POST"])
