@@ -202,7 +202,7 @@
                         {{ botao_anexos('investigacao', 'Investigação') }}
                     </div>
                     <small class="text-muted">
-                        Registre uma hipótese por linha em cada categoria. Salve o diagrama antes de selecionar as causas raiz.
+                        Registre uma hipótese por linha. Depois de salvar, classifique e valide cada causa identificada.
                     </small>
                 </div>
                 <span class="badge {{ 'badge-track-orange' if etapa.status == 'Concluída' else 'badge-track-gray' }}">
@@ -225,19 +225,36 @@
                                       placeholder="Digite uma hipótese por linha"
                                       {% if somente_leitura or acoes_vinculadas %}readonly{% endif %}>{% for item in itens_categoria %}{{ item.descricao }}{% if not loop.last %}&#10;{% endif %}{% endfor %}</textarea>
                             {% if itens_categoria %}
-                                <div class="mt-3 d-grid gap-2">
+                                <div class="mt-3 d-grid gap-3">
                                     {% for item in itens_categoria %}
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox"
-                                                   name="causas_raiz_6m"
-                                                   id="causa_6m_{{ item.id }}"
-                                                   value="{{ item.id }}"
-                                                   {% if item.causa_raiz %}checked{% endif %}
-                                                   {% if somente_leitura or acoes_vinculadas %}disabled{% endif %}>
-                                            <label class="form-check-label" for="causa_6m_{{ item.id }}">
-                                                {{ item.descricao }}
-                                                {% if item.causa_raiz %}<span class="badge badge-track-orange ms-1">Causa raiz</span>{% endif %}
-                                            </label>
+                                        <div class="border rounded p-3 bg-white">
+                                            <div class="fw-semibold mb-2">{{ item.descricao }}</div>
+                                            <div class="row g-2">
+                                                <div class="col-12 col-md-4">
+                                                    <label class="form-label" for="classificacao_6m_{{ item.id }}">Classificação *</label>
+                                                    <select class="form-select" id="classificacao_6m_{{ item.id }}"
+                                                            name="classificacao_6m_{{ item.id }}"
+                                                            {% if somente_leitura or acoes_vinculadas %}disabled{% endif %}>
+                                                        {% for valor, descricao in classificacoes_6m.items() %}
+                                                            <option value="{{ valor }}" {% if item.classificacao == valor %}selected{% endif %}>{{ descricao }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-12 col-md-8">
+                                                    <label class="form-label" for="justificativa_6m_{{ item.id }}">Justificativa *</label>
+                                                    <textarea class="form-control" id="justificativa_6m_{{ item.id }}"
+                                                              name="justificativa_6m_{{ item.id }}" rows="2" maxlength="4000"
+                                                              placeholder="Explique por que esta classificação foi atribuída"
+                                                              {% if somente_leitura or acoes_vinculadas %}readonly{% endif %}>{{ item.justificativa or '' }}</textarea>
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label" for="validacao_6m_{{ item.id }}">Validação / evidência observada *</label>
+                                                    <textarea class="form-control" id="validacao_6m_{{ item.id }}"
+                                                              name="validacao_6m_{{ item.id }}" rows="2" maxlength="4000"
+                                                              placeholder="Informe como a hipótese foi confirmada ou descartada"
+                                                              {% if somente_leitura or acoes_vinculadas %}readonly{% endif %}>{{ item.validacao or '' }}</textarea>
+                                                </div>
+                                            </div>
                                         </div>
                                     {% endfor %}
                                 </div>
@@ -254,7 +271,7 @@
                     Salvar rascunho
                 </button>
                 <button class="btn btn-laranja" type="submit" name="acao" value="concluir">
-                    Confirmar causas raiz
+                    Concluir análise
                 </button>
             {% endif %}
         </div>
@@ -266,7 +283,7 @@
 <div class="card border-0 shadow-sm mt-4" id="plano-acao">
     <div class="card-body">
         <div class="d-flex align-items-center gap-2 mb-3">
-            <h5 class="mb-0"><i class="bi bi-bullseye me-2"></i>Causa raiz confirmada</h5>
+            <h5 class="mb-0"><i class="bi bi-bullseye me-2"></i>Causas confirmadas</h5>
             {{ botao_anexos('causas', 'Causas') }}
         </div>
         {% for causa in causas_raiz %}

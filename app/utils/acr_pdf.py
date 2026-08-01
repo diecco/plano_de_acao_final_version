@@ -287,13 +287,19 @@ def gerar_pdf_acr(dados, logo_path=None):
     )
     if metodologia_6m:
         categorias = dados.get("categorias_6m", {})
+        classificacoes = dados.get("classificacoes_6m", {})
         porques = [
             {
                 "ordem": categorias.get(item.get("categoria"), "6M"),
-                "pergunta": (
-                    "Causa raiz" if item.get("causa_raiz") else "Hipótese"
+                "pergunta": classificacoes.get(
+                    item.get("classificacao"),
+                    item.get("classificacao") or "Potencial",
                 ),
-                "resposta": item.get("descricao"),
+                "resposta": (
+                    f"{_texto(item.get('descricao'))}\n"
+                    f"Justificativa: {_texto(item.get('justificativa'))}\n"
+                    f"Validação: {_texto(item.get('validacao'))}"
+                ),
             }
             for item in dados.get("itens_6m", [])
         ]

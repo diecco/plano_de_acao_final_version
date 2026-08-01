@@ -207,6 +207,9 @@ CREATE TABLE IF NOT EXISTS acr_6m_itens (
     categoria VARCHAR(20) NOT NULL,
     descricao TEXT NOT NULL,
     causa_raiz TINYINT(1) NOT NULL DEFAULT 0,
+    classificacao VARCHAR(20) NOT NULL DEFAULT 'potencial',
+    justificativa TEXT NULL,
+    validacao TEXT NULL,
     ordem SMALLINT UNSIGNED NOT NULL DEFAULT 1,
     registrado_por INT NULL,
     criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -224,6 +227,9 @@ CREATE TABLE IF NOT EXISTS acr_6m_itens (
     CONSTRAINT chk_acr_6m_categoria CHECK (categoria IN (
         'metodo', 'maquina', 'mao_obra',
         'material', 'medicao', 'meio_ambiente'
+    )),
+    CONSTRAINT chk_acr_6m_classificacao CHECK (classificacao IN (
+        'potencial', 'descartada', 'contribuinte', 'basica', 'fundamental'
     ))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

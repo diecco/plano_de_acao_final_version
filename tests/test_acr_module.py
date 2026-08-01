@@ -94,17 +94,21 @@ class AcrModuleStructureTests(unittest.TestCase):
             ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
         ).read_text(encoding="utf-8")
         migration = (
-            ROOT / "docs" / "adicionar_metodologia_6m_acr.sql"
+            ROOT / "docs" / "classificar_causas_6m_acr.sql"
         ).read_text(encoding="utf-8")
         self.assertIn("CATEGORIAS_6M", view)
+        self.assertIn("CLASSIFICACOES_6M", view)
         self.assertIn("def salvar_6m_acr", view)
-        self.assertIn('request.form.getlist("causas_raiz_6m")', view)
+        self.assertIn("Classifique todas as hipóteses", view)
+        self.assertIn("ao menos uma causa básica ou fundamental", view)
         self.assertIn("acr_6m_itens", view)
         self.assertIn("main.salvar_6m_acr", template)
-        self.assertIn('name="causas_raiz_6m"', template)
-        self.assertIn("Confirmar causas raiz", template)
-        self.assertIn("CREATE TABLE IF NOT EXISTS acr_6m_itens", migration)
-        self.assertIn("'ishikawa', '6M (Ishikawa)', 1", migration)
+        self.assertIn('name="classificacao_6m_{{ item.id }}"', template)
+        self.assertIn('name="justificativa_6m_{{ item.id }}"', template)
+        self.assertIn('name="validacao_6m_{{ item.id }}"', template)
+        self.assertIn("Concluir análise", template)
+        self.assertIn("ADD COLUMN classificacao", migration)
+        self.assertIn("'potencial', 'descartada', 'contribuinte'", migration)
 
     def test_acr_action_plan_links_existing_action_structure(self):
         view = (

@@ -88,6 +88,14 @@ CATEGORIAS_6M = {
     "meio_ambiente": "Meio ambiente",
 }
 
+CLASSIFICACOES_6M = {
+    "potencial": "Potencial",
+    "descartada": "Descartada",
+    "contribuinte": "Contribuinte",
+    "basica": "Básica",
+    "fundamental": "Fundamental",
+}
+
 
 def _aplicar_escopo(query, params, alias="i"):
     perfil = session.get("perfil")
@@ -489,7 +497,8 @@ def register_investigacao_causa_raiz_routes(blueprint):
             if investigacao["metodologia_codigo"] == "ishikawa":
                 cursor.execute(
                     """
-                    SELECT id, categoria, descricao, causa_raiz, ordem
+                    SELECT id, categoria, descricao, causa_raiz, ordem,
+                           classificacao, justificativa, validacao
                     FROM acr_6m_itens
                     WHERE investigacao_id = %s
                     ORDER BY categoria, ordem, id
@@ -684,6 +693,7 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 investigacao=investigacao,
                 porques=porques,
                 categorias_6m=CATEGORIAS_6M,
+                classificacoes_6m=CLASSIFICACOES_6M,
                 itens_6m_por_categoria=itens_6m_por_categoria,
                 etapa=etapa,
                 causa_raiz=causa_raiz,
@@ -769,7 +779,8 @@ def register_investigacao_causa_raiz_routes(blueprint):
             if investigacao["metodologia_codigo"] == "ishikawa":
                 cursor.execute(
                     """
-                    SELECT categoria, descricao, causa_raiz, ordem
+                    SELECT categoria, descricao, causa_raiz, ordem,
+                           classificacao, justificativa, validacao
                     FROM acr_6m_itens
                     WHERE investigacao_id = %s
                     ORDER BY categoria, ordem, id
@@ -869,6 +880,7 @@ def register_investigacao_causa_raiz_routes(blueprint):
                     "porques": porques,
                     "itens_6m": itens_6m,
                     "categorias_6m": CATEGORIAS_6M,
+                    "classificacoes_6m": CLASSIFICACOES_6M,
                     "causa_raiz": causa_raiz,
                     "causas_raiz": causas_raiz,
                     "acoes": acoes,
@@ -1505,53 +1517,105 @@ def register_investigacao_causa_raiz_routes(blueprint):
             if not itens_formulario:
                 raise ValueError("Registre ao menos uma hipótese no diagrama 6M.")
 
-            ids_causa = set(request.form.getlist("causas_raiz_6m"))
-            chaves_causa = set()
-            if ids_causa:
-                marcadores = ", ".join(["%s"] * len(ids_causa))
-                cursor.execute(
-                    f"""
-                    SELECT categoria, descricao
-                    FROM acr_6m_itens
-                    WHERE investigacao_id = %s
-                      AND id IN ({marcadores})
-                    """,
-                    (investigacao_id, *ids_causa),
-                )
-                chaves_causa = {
-                    (item["categoria"], item["descricao"])
-                    for item in cursor.fetchall()
+            cursor.execute(
+                """
+                SELECT id, categoria, descricao, classificacao,
+                       justificativa, validacao
+                FROM acr_6m_itens
+                WHERE investigacao_id = %s
+                """,
+                (investigacao_id,),
+            )
+            analises_por_chave = {}
+            for item in cursor.fetchall():
+                classificacao = (
+                    request.form.get(f"classificacao_6m_{item['id']}")
+                    or item["classificacao"]
+                    or "potencial"
+                ).strip()
+                justificativa = (
+                    request.form.get(f"justificativa_6m_{item['id']}")
+                    if f"justificativa_6m_{item['id']}" in request.form
+                    else item["justificativa"]
+                ) or ""
+                validacao = (
+                    request.form.get(f"validacao_6m_{item['id']}")
+                    if f"validacao_6m_{item['id']}" in request.form
+                    else item["validacao"]
+                ) or ""
+                justificativa = justificativa.strip()
+                validacao = validacao.strip()
+                if classificacao not in CLASSIFICACOES_6M:
+                    raise ValueError("Classificação inválida em uma hipótese do 6M.")
+                if len(justificativa) > 4000 or len(validacao) > 4000:
+                    raise ValueError(
+                        "Justificativa e validação aceitam até 4.000 caracteres."
+                    )
+                analises_por_chave[(item["categoria"], item["descricao"])] = {
+                    "classificacao": classificacao,
+                    "justificativa": justificativa,
+                    "validacao": validacao,
                 }
-            if concluir_etapa and not chaves_causa:
-                raise ValueError(
-                    "Salve as hipóteses e selecione ao menos uma causa raiz."
+
+            analises_finais = []
+            for categoria, ordem, descricao in itens_formulario:
+                analise = analises_por_chave.get(
+                    (categoria, descricao),
+                    {
+                        "classificacao": "potencial",
+                        "justificativa": "",
+                        "validacao": "",
+                    },
                 )
-            chaves_atuais = {
-                (categoria, descricao)
-                for categoria, _, descricao in itens_formulario
-            }
-            if concluir_etapa and not chaves_causa.issubset(chaves_atuais):
-                raise ValueError(
-                    "Uma causa selecionada foi alterada. Salve o diagrama antes de concluir."
-                )
+                analises_finais.append((categoria, ordem, descricao, analise))
+
+            if concluir_etapa:
+                if any(
+                    analise["classificacao"] == "potencial"
+                    for _, _, _, analise in analises_finais
+                ):
+                    raise ValueError(
+                        "Classifique todas as hipóteses antes de concluir a análise."
+                    )
+                if any(
+                    not analise["justificativa"] or not analise["validacao"]
+                    for _, _, _, analise in analises_finais
+                ):
+                    raise ValueError(
+                        "Informe a justificativa e a validação de todas as hipóteses."
+                    )
+                if not any(
+                    analise["classificacao"] in ("basica", "fundamental")
+                    for _, _, _, analise in analises_finais
+                ):
+                    raise ValueError(
+                        "A análise deve possuir ao menos uma causa básica ou fundamental."
+                    )
 
             cursor.execute(
                 "DELETE FROM acr_6m_itens WHERE investigacao_id = %s",
                 (investigacao_id,),
             )
-            for categoria, ordem, descricao in itens_formulario:
+            for categoria, ordem, descricao, analise in analises_finais:
                 cursor.execute(
                     """
                     INSERT INTO acr_6m_itens (
                         investigacao_id, categoria, descricao,
-                        causa_raiz, ordem, registrado_por
-                    ) VALUES (%s, %s, %s, %s, %s, %s)
+                        causa_raiz, classificacao, justificativa,
+                        validacao, ordem, registrado_por
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
                         investigacao_id,
                         categoria,
                         descricao,
-                        int(concluir_etapa and (categoria, descricao) in chaves_causa),
+                        int(
+                            concluir_etapa
+                            and analise["classificacao"] in ("basica", "fundamental")
+                        ),
+                        analise["classificacao"],
+                        analise["justificativa"] or None,
+                        analise["validacao"] or None,
                         ordem,
                         session.get("usuario_id"),
                     ),
@@ -1567,7 +1631,13 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 ("Diagrama 6M revisado.", investigacao_id),
             )
             if concluir_etapa:
-                for categoria, descricao in sorted(chaves_causa):
+                for categoria, _, descricao, analise in analises_finais:
+                    if analise["classificacao"] not in (
+                        "contribuinte",
+                        "basica",
+                        "fundamental",
+                    ):
+                        continue
                     cursor.execute(
                         """
                         INSERT INTO acr_causas (
@@ -1578,7 +1648,10 @@ def register_investigacao_causa_raiz_routes(blueprint):
                         (
                             investigacao_id,
                             investigacao["metodologia_id"],
-                            f"{CATEGORIAS_6M[categoria]}: {descricao}",
+                            (
+                                f"{CLASSIFICACOES_6M[analise['classificacao']]}"
+                                f" | {CATEGORIAS_6M[categoria]}: {descricao}"
+                            ),
                             session.get("usuario_id"),
                         ),
                     )
@@ -1637,7 +1710,7 @@ def register_investigacao_causa_raiz_routes(blueprint):
             )
             conn.commit()
             flash(
-                "Causas raiz confirmadas com sucesso."
+                "Análise 6M concluída com sucesso."
                 if concluir_etapa
                 else "Diagrama 6M salvo como rascunho.",
                 "success",
