@@ -331,7 +331,9 @@ def register_investigacao_causa_raiz_routes(blueprint):
             porques = [
                 {
                     "ordem": ordem,
-                    "pergunta": f"{ordem}º Por quê?",
+                    "pergunta": (
+                        respostas_banco.get(ordem, {}).get("pergunta") or ""
+                    ),
                     "resposta": (
                         respostas_banco.get(ordem, {}).get("resposta") or ""
                     ),
@@ -405,8 +407,12 @@ def register_investigacao_causa_raiz_routes(blueprint):
                     )
                 )
 
+            perguntas = [
+                (request.form.get(f"pergunta_{ordem}") or "").strip()
+                for ordem in range(1, 6)
+            ]
             respostas = [
-                (request.form.get(f"porque_{ordem}") or "").strip()
+                (request.form.get(f"resposta_{ordem}") or "").strip()
                 for ordem in range(1, 6)
             ]
             acao_formulario = (request.form.get("acao") or "salvar").strip()
@@ -414,15 +420,23 @@ def register_investigacao_causa_raiz_routes(blueprint):
 
             if acao_formulario not in ("salvar", "concluir"):
                 raise ValueError("Ação inválida para a etapa dos 5 Porquês.")
-            if not any(respostas):
-                raise ValueError("Registre ao menos o primeiro Por quê.")
+            if not any(perguntas) and not any(respostas):
+                raise ValueError("Registre ao menos a primeira pergunta e resposta.")
+            if any(len(pergunta) > 500 for pergunta in perguntas):
+                raise ValueError(
+                    "Cada pergunta deve possuir no máximo 500 caracteres."
+                )
             if any(len(resposta) > 4000 for resposta in respostas):
                 raise ValueError(
                     "Cada resposta deve possuir no máximo 4.000 caracteres."
                 )
             encontrou_vazio = False
-            for resposta in respostas:
-                if not resposta:
+            for pergunta, resposta in zip(perguntas, respostas):
+                if bool(pergunta) != bool(resposta):
+                    raise ValueError(
+                        "Cada nível preenchido precisa ter pergunta e resposta."
+                    )
+                if not pergunta:
                     encontrou_vazio = True
                 elif encontrou_vazio:
                     raise ValueError(
@@ -441,8 +455,11 @@ def register_investigacao_causa_raiz_routes(blueprint):
                         "Selecione qual resposta representa a causa raiz."
                     )
 
-            for ordem, resposta in enumerate(respostas, start=1):
-                if not resposta:
+            for ordem, (pergunta, resposta) in enumerate(
+                zip(perguntas, respostas),
+                start=1,
+            ):
+                if not pergunta:
                     cursor.execute(
                         """
                         DELETE FROM acr_5_porques
@@ -467,7 +484,7 @@ def register_investigacao_causa_raiz_routes(blueprint):
                     (
                         investigacao_id,
                         ordem,
-                        f"{ordem}º Por quê?",
+                        pergunta,
                         resposta,
                         int(concluir_etapa and ordem == causa_raiz_ordem),
                         session.get("usuario_id"),

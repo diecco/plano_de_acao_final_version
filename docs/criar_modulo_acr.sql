@@ -184,7 +184,7 @@ CREATE TABLE IF NOT EXISTS acr_5_porques (
     id INT AUTO_INCREMENT PRIMARY KEY,
     investigacao_id INT NOT NULL,
     ordem TINYINT UNSIGNED NOT NULL,
-    pergunta VARCHAR(80) NOT NULL,
+    pergunta VARCHAR(500) NOT NULL,
     resposta TEXT NULL,
     causa_raiz TINYINT(1) NOT NULL DEFAULT 0,
     respondido_por INT NULL,

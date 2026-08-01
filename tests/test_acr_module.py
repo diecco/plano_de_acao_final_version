@@ -76,7 +76,15 @@ class AcrModuleStructureTests(unittest.TestCase):
         self.assertIn("causa_raiz_ordem", view)
         self.assertIn("acr_causas", view)
         self.assertIn('name="causa_raiz_ordem"', template)
-        self.assertEqual(template.count('name="porque_{{ item.ordem }}"'), 1)
+        self.assertEqual(
+            template.count('name="pergunta_{{ item.ordem }}"'),
+            1,
+        )
+        self.assertEqual(
+            template.count('name="resposta_{{ item.ordem }}"'),
+            1,
+        )
+        self.assertIn("Cada nível preenchido precisa ter pergunta e resposta", view)
 
     def test_permission_is_available_in_user_flows(self):
         view = (ROOT / "app" / "views" / "usuarios.py").read_text(

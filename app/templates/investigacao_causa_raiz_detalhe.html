@@ -64,7 +64,7 @@
                 <div>
                     <h5 class="mb-1">Sequência dos 5 Porquês</h5>
                     <small class="text-muted">
-                        Responda em sequência. A causa raiz pode ser confirmada antes do quinto nível.
+                        Registre a pergunta e a respectiva resposta em cada nível, sempre em sequência.
                     </small>
                 </div>
                 <span class="badge {{ 'text-bg-success' if etapa.status == 'Concluída' else 'text-bg-warning' }}">
@@ -77,15 +77,23 @@
                     <div class="porque-card">
                         <div class="d-flex align-items-center gap-2 mb-2">
                             <span class="porque-number">{{ item.ordem }}</span>
-                            <label class="form-label fw-semibold mb-0" for="porque_{{ item.ordem }}">
-                                {{ item.pergunta }}
-                            </label>
+                            <strong>{{ item.ordem }}º Por quê?</strong>
                         </div>
+                        <label class="form-label" for="pergunta_{{ item.ordem }}">Pergunta</label>
+                        <textarea class="form-control mb-3"
+                                  id="pergunta_{{ item.ordem }}"
+                                  name="pergunta_{{ item.ordem }}"
+                                  rows="2"
+                                  maxlength="500"
+                                  placeholder="Digite a pergunta deste nível"
+                                  {% if somente_leitura %}readonly{% endif %}>{{ item.pergunta }}</textarea>
+                        <label class="form-label" for="resposta_{{ item.ordem }}">Resposta</label>
                         <textarea class="form-control"
-                                  id="porque_{{ item.ordem }}"
-                                  name="porque_{{ item.ordem }}"
+                                  id="resposta_{{ item.ordem }}"
+                                  name="resposta_{{ item.ordem }}"
                                   rows="2"
                                   maxlength="4000"
+                                  placeholder="Digite a resposta obtida"
                                   {% if somente_leitura %}readonly{% endif %}>{{ item.resposta }}</textarea>
                         {% if not somente_leitura %}
                             <div class="form-check mt-2">
