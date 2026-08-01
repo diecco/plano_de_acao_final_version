@@ -27,7 +27,7 @@ class AcrModuleStructureTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertGreaterEqual(
             view.count('@module_required("acesso_acr")'),
-            8,
+            10,
         )
         self.assertIn("acr_participantes", view)
         self.assertIn("centro_custos_id", view)
@@ -140,6 +140,23 @@ class AcrModuleStructureTests(unittest.TestCase):
         self.assertIn("main.agendar_eficacia_acr", template)
         self.assertIn("main.avaliar_eficacia_acr", template)
         self.assertIn('id="eficacia"', template)
+
+    def test_acr_governance_has_timeline_cancel_and_reopen(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("historico_acr=historico_acr", view)
+        self.assertIn("def cancelar_investigacao_acr", view)
+        self.assertIn("def reabrir_investigacao_acr", view)
+        self.assertIn("Informe a justificativa do cancelamento", view)
+        self.assertIn("Informe a justificativa da reabertura", view)
+        self.assertIn("JSON_OBJECT('justificativa'", view)
+        self.assertIn('id="historico-acr"', template)
+        self.assertIn("main.cancelar_investigacao_acr", template)
+        self.assertIn("main.reabrir_investigacao_acr", template)
 
     def test_permission_is_available_in_user_flows(self):
         view = (ROOT / "app" / "views" / "usuarios.py").read_text(

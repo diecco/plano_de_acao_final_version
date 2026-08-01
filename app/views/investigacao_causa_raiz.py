@@ -508,6 +508,29 @@ def register_investigacao_causa_raiz_routes(blueprint):
             }
             cursor.execute(
                 """
+                SELECT
+                    h.id, h.evento, h.etapa, h.entidade_tipo,
+                    h.entidade_id, h.criado_em,
+                    u.nome AS usuario,
+                    COALESCE(
+                        JSON_UNQUOTE(
+                            JSON_EXTRACT(
+                                h.valor_novo_json,
+                                '$.justificativa'
+                            )
+                        ),
+                        ''
+                    ) AS justificativa
+                FROM acr_historico h
+                LEFT JOIN usuarios u ON u.id = h.usuario_id
+                WHERE h.investigacao_id = %s
+                ORDER BY h.criado_em DESC, h.id DESC
+                """,
+                (investigacao_id,),
+            )
+            historico_acr = cursor.fetchall()
+            cursor.execute(
+                """
                 SELECT id, nome, matricula
                 FROM usuarios
                 WHERE ativo = 1 AND centro_custos_id = %s
@@ -531,6 +554,7 @@ def register_investigacao_causa_raiz_routes(blueprint):
                     and verificacao_atual["data_prevista"] <= date.today()
                 ),
                 etapa_eficacia=etapa_eficacia,
+                historico_acr=historico_acr,
                 pode_gerenciar_eficacia=(
                     session.get("usuario_id") == investigacao["criador_id"]
                 ),
@@ -1454,6 +1478,184 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 investigacao_id=investigacao_id,
             )
             + "#eficacia"
+        )
+
+    @blueprint.route(
+        "/acr/<int:investigacao_id>/cancelar",
+        methods=["POST"],
+    )
+    @login_required
+    @module_required("acesso_acr")
+    def cancelar_investigacao_acr(investigacao_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            investigacao = _buscar_investigacao_acessivel(
+                cursor,
+                investigacao_id,
+            )
+            if not investigacao:
+                raise ValueError(
+                    "Investigação não encontrada ou fora do seu escopo."
+                )
+            if investigacao["status"] == "Cancelada":
+                raise ValueError("Esta ACR já está cancelada.")
+            if investigacao["status"] == "Concluída":
+                raise ValueError(
+                    "Reabra a ACR concluída antes de solicitar seu cancelamento."
+                )
+            justificativa = (
+                request.form.get("justificativa_cancelamento") or ""
+            ).strip()
+            if not justificativa:
+                raise ValueError("Informe a justificativa do cancelamento.")
+            if len(justificativa) > 4000:
+                raise ValueError(
+                    "A justificativa deve ter no máximo 4.000 caracteres."
+                )
+
+            cursor.execute(
+                """
+                UPDATE acr_investigacoes
+                SET status = 'Cancelada',
+                    justificativa_cancelamento = %s,
+                    cancelado_em = NOW(),
+                    concluido_em = NULL
+                WHERE id = %s
+                """,
+                (justificativa, investigacao_id),
+            )
+            cursor.execute(
+                """
+                INSERT INTO acr_historico (
+                    investigacao_id, usuario_id, evento,
+                    etapa, entidade_tipo, entidade_id,
+                    valor_novo_json
+                )
+                VALUES (%s, %s, 'ACR cancelada', 'governanca',
+                        'investigacao', %s,
+                        JSON_OBJECT('justificativa', %s))
+                """,
+                (
+                    investigacao_id,
+                    session.get("usuario_id"),
+                    investigacao_id,
+                    justificativa,
+                ),
+            )
+            conn.commit()
+            flash("ACR cancelada com sucesso.", "success")
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "danger")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+
+        return redirect(
+            url_for(
+                "main.detalhar_investigacao_acr",
+                investigacao_id=investigacao_id,
+            )
+        )
+
+    @blueprint.route(
+        "/acr/<int:investigacao_id>/reabrir",
+        methods=["POST"],
+    )
+    @login_required
+    @module_required("acesso_acr")
+    def reabrir_investigacao_acr(investigacao_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            investigacao = _buscar_investigacao_acessivel(
+                cursor,
+                investigacao_id,
+            )
+            if not investigacao:
+                raise ValueError(
+                    "Investigação não encontrada ou fora do seu escopo."
+                )
+            if investigacao["status"] not in ("Concluída", "Cancelada"):
+                raise ValueError(
+                    "Somente uma ACR concluída ou cancelada pode ser reaberta."
+                )
+            justificativa = (
+                request.form.get("justificativa_reabertura") or ""
+            ).strip()
+            if not justificativa:
+                raise ValueError("Informe a justificativa da reabertura.")
+            if len(justificativa) > 4000:
+                raise ValueError(
+                    "A justificativa deve ter no máximo 4.000 caracteres."
+                )
+
+            status_anterior = investigacao["status"]
+            cursor.execute(
+                """
+                UPDATE acr_investigacoes
+                SET status = 'Em Investigação',
+                    cancelado_em = NULL,
+                    concluido_em = NULL
+                WHERE id = %s
+                """,
+                (investigacao_id,),
+            )
+            cursor.execute(
+                """
+                UPDATE acr_etapas
+                SET status = 'Com pendências',
+                    concluido_em = NULL,
+                    atualizado_por = %s
+                WHERE investigacao_id = %s
+                  AND codigo = 'eficacia'
+                  AND status = 'Concluída'
+                """,
+                (session.get("usuario_id"), investigacao_id),
+            )
+            cursor.execute(
+                """
+                INSERT INTO acr_historico (
+                    investigacao_id, usuario_id, evento,
+                    etapa, entidade_tipo, entidade_id,
+                    valor_novo_json
+                )
+                VALUES (%s, %s, 'ACR reaberta', 'governanca',
+                        'investigacao', %s,
+                        JSON_OBJECT(
+                            'justificativa', %s,
+                            'status_anterior', %s
+                        ))
+                """,
+                (
+                    investigacao_id,
+                    session.get("usuario_id"),
+                    investigacao_id,
+                    justificativa,
+                    status_anterior,
+                ),
+            )
+            conn.commit()
+            flash("ACR reaberta com sucesso.", "success")
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "danger")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+
+        return redirect(
+            url_for(
+                "main.detalhar_investigacao_acr",
+                investigacao_id=investigacao_id,
+            )
         )
 
     @blueprint.route("/acr/nova", methods=["GET", "POST"])

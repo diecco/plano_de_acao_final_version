@@ -23,6 +23,10 @@
     .badge-track-gray { background:#6c757d; color:#fff; }
     .alert-track-orange { background:#fff3ec; border:1px solid #f36b21; color:#5b6065; }
     .alert-track-gray { background:#f3f4f5; border:1px solid #c7c9cc; color:#5b6065; }
+    .acr-timeline { list-style:none; margin:0; padding:0; }
+    .acr-timeline-item { padding:0 0 1.25rem 2rem; position:relative; }
+    .acr-timeline-item:not(:last-child)::before { background:#d6d8da; content:""; left:.48rem; position:absolute; top:1rem; bottom:-.15rem; width:2px; }
+    .acr-timeline-dot { background:#f36b21; border:3px solid #fff; border-radius:50%; box-shadow:0 0 0 1px #f36b21; height:1rem; left:0; position:absolute; top:.2rem; width:1rem; }
     @media (max-width: 900px) {
         .acr-context { grid-template-columns:repeat(2,minmax(0,1fr)); }
         .acr-workflow { overflow-x:auto; grid-template-columns:repeat(5,130px); }
@@ -51,7 +55,14 @@
     <div class="card-body">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
             <h5 class="mb-0">Contexto da ocorrência</h5>
-            <span class="badge text-bg-secondary">{{ investigacao.status }}</span>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge text-bg-secondary">{{ investigacao.status }}</span>
+                {% if investigacao.status in ['Concluída', 'Cancelada'] %}
+                    <button class="btn btn-laranja btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#modalReabrirAcr"><i class="bi bi-arrow-counterclockwise me-1"></i>Reabrir</button>
+                {% else %}
+                    <button class="btn btn-cinza btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#modalCancelarAcr"><i class="bi bi-x-circle me-1"></i>Cancelar</button>
+                {% endif %}
+            </div>
         </div>
         <div class="acr-context">
             <div class="acr-context-item"><small>Origem</small><strong>{{ investigacao.origem }}</strong></div>
@@ -410,6 +421,50 @@
 </div>
 {% endif %}
 {% endif %}
+
+<div class="card border-0 shadow-sm mt-4" id="historico-acr">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-4">
+            <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Histórico da ACR</h5>
+            <span class="badge badge-track-gray">{{ historico_acr|length }} evento(s)</span>
+        </div>
+        <ol class="acr-timeline">
+            {% for item in historico_acr %}
+                <li class="acr-timeline-item">
+                    <span class="acr-timeline-dot"></span>
+                    <div class="d-flex flex-wrap justify-content-between gap-2">
+                        <strong>{{ item.evento }}</strong>
+                        <small class="text-muted">{{ item.criado_em.strftime('%d/%m/%Y %H:%M') if item.criado_em else '—' }}</small>
+                    </div>
+                    <div class="text-muted small">{{ item.usuario or 'Usuário não identificado' }}{% if item.etapa %} · {{ item.etapa|replace('_', ' ')|title }}{% endif %}</div>
+                    {% if item.justificativa %}<div class="alert alert-track-gray py-2 px-3 mt-2 mb-0">{{ item.justificativa }}</div>{% endif %}
+                </li>
+            {% else %}
+                <li class="text-center text-muted py-3">Nenhum evento registrado.</li>
+            {% endfor %}
+        </ol>
+    </div>
+</div>
+
+<div class="modal fade" id="modalCancelarAcr" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" method="post" action="{{ url_for('main.cancelar_investigacao_acr', investigacao_id=investigacao.id) }}">
+            <div class="modal-header modal-header-trackplan"><h5 class="modal-title"><i class="bi bi-x-circle me-2"></i>Cancelar ACR</h5><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
+            <div class="modal-body"><label class="form-label" for="justificativa_cancelamento">Justificativa *</label><textarea class="form-control" id="justificativa_cancelamento" name="justificativa_cancelamento" rows="4" maxlength="4000" required></textarea><div class="form-text">As ações vinculadas não serão canceladas automaticamente.</div></div>
+            <div class="modal-footer"><button class="btn btn-cinza" type="button" data-bs-dismiss="modal">Fechar</button><button class="btn btn-laranja" type="submit">Confirmar</button></div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="modalReabrirAcr" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" method="post" action="{{ url_for('main.reabrir_investigacao_acr', investigacao_id=investigacao.id) }}">
+            <div class="modal-header modal-header-trackplan"><h5 class="modal-title"><i class="bi bi-arrow-counterclockwise me-2"></i>Reabrir ACR</h5><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
+            <div class="modal-body"><label class="form-label" for="justificativa_reabertura">Justificativa *</label><textarea class="form-control" id="justificativa_reabertura" name="justificativa_reabertura" rows="4" maxlength="4000" required></textarea><div class="form-text">A investigação retornará ao status Em Investigação.</div></div>
+            <div class="modal-footer"><button class="btn btn-cinza" type="button" data-bs-dismiss="modal">Fechar</button><button class="btn btn-laranja" type="submit">Confirmar</button></div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
