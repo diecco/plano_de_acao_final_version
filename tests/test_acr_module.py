@@ -109,6 +109,8 @@ class AcrModuleStructureTests(unittest.TestCase):
         self.assertNotIn('name="validacao_6m_', template)
         self.assertIn("ishikawa-vertical", template)
         self.assertIn("ishikawa-problema", template)
+        self.assertIn("ishikawa-par", template)
+        self.assertIn("categorias_6m.items()|batch(2)", template)
         self.assertIn("js-adicionar-causa-6m", template)
         self.assertIn("Concluir análise", template)
         self.assertIn("ADD COLUMN classificacao", migration)

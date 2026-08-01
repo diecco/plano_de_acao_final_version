@@ -36,16 +36,17 @@
     .ishikawa-problema { background:#f36b21; border-radius:12px; color:#fff; margin:0 auto 18px; max-width:720px; padding:14px 18px; text-align:center; }
     .ishikawa-problema small { display:block; opacity:.9; text-transform:uppercase; }
     .ishikawa-problema strong { display:block; font-size:1rem; margin-top:3px; }
-    .ishikawa-vertical { display:grid; grid-template-columns:1fr 48px 1fr; position:relative; }
+    .ishikawa-vertical { position:relative; }
     .ishikawa-vertical::before { background:#6c757d; bottom:0; content:""; left:50%; position:absolute; top:0; transform:translateX(-50%); width:4px; z-index:0; }
-    .ishikawa-pilar { align-items:center; display:grid; min-width:0; padding:10px 0; position:relative; }
+    .ishikawa-par { align-items:stretch; display:grid; grid-template-columns:1fr 48px 1fr; padding:10px 0; position:relative; }
+    .ishikawa-pilar { align-items:stretch; display:grid; grid-row:1; min-width:0; position:relative; }
     .ishikawa-esquerda { grid-column:1 / 3; grid-template-columns:minmax(0,1fr) 48px; }
     .ishikawa-direita { grid-column:2 / 4; grid-template-columns:48px minmax(0,1fr); }
-    .ishikawa-card { background:#fff; border:1px solid #d7d9dc; border-radius:10px; min-width:0; padding:12px; position:relative; z-index:2; }
+    .ishikawa-card { background:#fff; border:1px solid #d7d9dc; border-radius:10px; height:100%; min-width:0; padding:12px; position:relative; z-index:2; }
     .ishikawa-card h6 { color:#f36b21; font-weight:700; }
     .ishikawa-esquerda .ishikawa-card { grid-column:1; }
     .ishikawa-direita .ishikawa-card { grid-column:2; }
-    .ishikawa-ramo { background:#6c757d; height:3px; position:relative; z-index:1; }
+    .ishikawa-ramo { align-self:center; background:#6c757d; height:3px; position:relative; z-index:1; }
     .ishikawa-esquerda .ishikawa-ramo { grid-column:2; }
     .ishikawa-direita .ishikawa-ramo { grid-column:1; }
     .causa-6m-item { align-items:center; display:grid; gap:8px; grid-template-columns:minmax(0,1fr) 150px 32px; }
@@ -55,6 +56,7 @@
         .acr-workflow { overflow-x:auto; grid-template-columns:repeat(5,130px); }
         .ishikawa-vertical { display:block; padding-left:20px; }
         .ishikawa-vertical::before { bottom:0; display:block; left:5px; top:0; transform:none; width:3px; }
+        .ishikawa-par { display:block; padding:0; }
         .ishikawa-pilar, .ishikawa-esquerda, .ishikawa-direita { display:block; padding:7px 0; }
         .ishikawa-ramo { height:3px; left:-15px; position:absolute; top:50%; width:15px; }
         .causa-6m-item { grid-template-columns:minmax(0,1fr) 130px 32px; }
@@ -240,7 +242,9 @@
                 <strong>{{ investigacao.descricao_ocorrencia }}</strong>
             </div>
             <div class="ishikawa-vertical">
-                {% for codigo, rotulo in categorias_6m.items() %}
+                {% for par in categorias_6m.items()|batch(2) %}
+                <div class="ishikawa-par">
+                {% for codigo, rotulo in par %}
                     {% set itens_categoria = itens_6m_por_categoria[codigo] %}
                     <section class="ishikawa-pilar {{ 'ishikawa-esquerda' if loop.index is odd else 'ishikawa-direita' }}"
                              data-pilar-6m="{{ codigo }}">
@@ -276,6 +280,8 @@
                             </div>
                         </div>
                     </section>
+                {% endfor %}
+                </div>
                 {% endfor %}
             </div>
         </div>
