@@ -1,8 +1,10 @@
+import os
 from datetime import date
 
 from flask import flash, redirect, render_template, request, session, url_for
 
 from app.decorators import login_required, module_required
+from app.upload_security import UploadService, UploadValidationError
 from app.utils.db import get_db_connection
 
 
@@ -36,6 +38,18 @@ STATUS_ACAO_ACR = {
     "Em andamento",
     "Concluída",
     "Cancelada",
+    "Vencida",
+}
+
+EXTENSOES_EVIDENCIA_ACAO = {
+    "pdf",
+    "png",
+    "jpg",
+    "jpeg",
+    "doc",
+    "docx",
+    "xls",
+    "xlsx",
 }
 
 RESULTADOS_EFICACIA_ACR = {
@@ -437,7 +451,8 @@ def register_investigacao_causa_raiz_routes(blueprint):
             query_acoes = """
                 SELECT
                     a.id, a.descricao, a.prazo, a.status,
-                    a.responsavel_id,
+                    a.responsavel_id, a.observacoes,
+                    a.data_conclusao, a.arquivo_evidencia,
                     u.nome AS responsavel,
                     u.matricula AS responsavel_matricula
                 FROM acr_acoes aa
@@ -954,6 +969,8 @@ def register_investigacao_causa_raiz_routes(blueprint):
     def editar_acao_acr(investigacao_id, acao_id):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
+        novo_arquivo = None
+        arquivo_anterior = None
         try:
             investigacao = _buscar_investigacao_acessivel(
                 cursor,
@@ -970,7 +987,7 @@ def register_investigacao_causa_raiz_routes(blueprint):
 
             cursor.execute(
                 """
-                SELECT a.id
+                SELECT a.id, a.arquivo_evidencia
                 FROM acr_acoes aa
                 JOIN acoes a ON a.id = aa.acao_id
                 WHERE aa.investigacao_id = %s
@@ -979,13 +996,19 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 """,
                 (investigacao_id, acao_id),
             )
-            if not cursor.fetchone():
+            acao_atual = cursor.fetchone()
+            if not acao_atual:
                 raise ValueError("Ação não encontrada nesta ACR.")
+            arquivo_anterior = acao_atual.get("arquivo_evidencia")
 
             responsavel_id = request.form.get("responsavel_id", type=int)
             descricao = (request.form.get("descricao") or "").strip()
             prazo_texto = (request.form.get("prazo") or "").strip()
             status = (request.form.get("status") or "").strip()
+            observacoes = (request.form.get("observacoes") or "").strip()
+            data_conclusao_texto = (
+                request.form.get("data_conclusao") or ""
+            ).strip()
             if not all((responsavel_id, descricao, prazo_texto, status)):
                 raise ValueError("Preencha todos os campos da ação.")
             if len(descricao) > 4000:
@@ -999,6 +1022,30 @@ def register_investigacao_causa_raiz_routes(blueprint):
             except ValueError as exc:
                 raise ValueError("Informe um prazo válido para a ação.") from exc
 
+            data_conclusao = None
+            if data_conclusao_texto:
+                try:
+                    data_conclusao = date.fromisoformat(data_conclusao_texto)
+                except ValueError as exc:
+                    raise ValueError("Informe uma data de conclusão válida.") from exc
+                if data_conclusao > date.today():
+                    raise ValueError(
+                        "A data de conclusão não pode ser superior à data de hoje."
+                    )
+                status = "Concluída"
+            elif status == "Concluída":
+                raise ValueError(
+                    "Para concluir a ação, preencha a data de conclusão."
+                )
+            if status == "Cancelada" and not observacoes:
+                raise ValueError(
+                    "Ao cancelar a ação, o campo Observações é obrigatório."
+                )
+            if len(observacoes) > 4000:
+                raise ValueError(
+                    "As observações devem ter no máximo 4.000 caracteres."
+                )
+
             cursor.execute(
                 """
                 SELECT id
@@ -1010,16 +1057,42 @@ def register_investigacao_causa_raiz_routes(blueprint):
             if not cursor.fetchone():
                 raise ValueError("Responsável fora do centro de custos da ACR.")
 
+            arquivo = request.files.get("arquivo_evidencia")
+            arquivo_evidencia = arquivo_anterior
+            if arquivo and arquivo.filename:
+                try:
+                    novo_arquivo = UploadService.salvar(
+                        arquivo,
+                        EXTENSOES_EVIDENCIA_ACAO,
+                        prefixo=f"evidencia_acao_{acao_id}",
+                        diretorio=os.path.join("static", "evidencias"),
+                    )
+                except UploadValidationError as exc:
+                    raise ValueError(str(exc)) from exc
+                arquivo_evidencia = novo_arquivo
+
             cursor.execute(
                 """
                 UPDATE acoes
                 SET responsavel_id = %s,
                     descricao = %s,
                     prazo = %s,
-                    status = %s
+                    status = %s,
+                    observacoes = %s,
+                    data_conclusao = %s,
+                    arquivo_evidencia = %s
                 WHERE id = %s
                 """,
-                (responsavel_id, descricao, prazo, status, acao_id),
+                (
+                    responsavel_id,
+                    descricao,
+                    prazo,
+                    status,
+                    observacoes or None,
+                    data_conclusao,
+                    arquivo_evidencia,
+                    acao_id,
+                ),
             )
             cursor.execute(
                 """
@@ -1033,12 +1106,27 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 (investigacao_id, session.get("usuario_id"), acao_id),
             )
             conn.commit()
+            if novo_arquivo and arquivo_anterior:
+                UploadService.excluir(
+                    arquivo_anterior,
+                    diretorio=os.path.join("static", "evidencias"),
+                )
             flash("Ação atualizada com sucesso.", "success")
         except ValueError as exc:
             conn.rollback()
+            if novo_arquivo:
+                UploadService.excluir(
+                    novo_arquivo,
+                    diretorio=os.path.join("static", "evidencias"),
+                )
             flash(str(exc), "danger")
         except Exception:
             conn.rollback()
+            if novo_arquivo:
+                UploadService.excluir(
+                    novo_arquivo,
+                    diretorio=os.path.join("static", "evidencias"),
+                )
             raise
         finally:
             cursor.close()

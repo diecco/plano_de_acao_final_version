@@ -113,6 +113,13 @@ class AcrModuleStructureTests(unittest.TestCase):
         self.assertIn("#plano-acao", template)
         self.assertIn("def editar_acao_acr", view)
         self.assertIn("main.editar_acao_acr", template)
+        self.assertIn("UploadService.salvar", view)
+        self.assertIn("arquivo_evidencia", view)
+        self.assertIn('enctype="multipart/form-data"', template)
+        self.assertIn('name="data_conclusao"', template)
+        self.assertIn('name="observacoes"', template)
+        self.assertIn('name="arquivo_evidencia"', template)
+        self.assertIn("linkEvidenciaAtualAcaoAcr", template)
 
     def test_acr_effectiveness_flow_enforces_business_rules(self):
         view = (
