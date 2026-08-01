@@ -135,7 +135,7 @@
 </form>
 
 {% if causa_raiz %}
-<div class="card border-0 shadow-sm mt-4">
+<div class="card border-0 shadow-sm mt-4" id="plano-acao">
     <div class="card-body">
         <h5 class="mb-3"><i class="bi bi-bullseye me-2"></i>Causa raiz confirmada</h5>
         <div class="alert alert-success mb-0">{{ causa_raiz.descricao }}</div>
@@ -149,51 +149,33 @@
             <span class="badge text-bg-secondary">{{ acoes_vinculadas|length }} ação(ões)</span>
         </div>
 
-        <form method="get" class="row g-2 justify-content-end align-items-end mb-3">
-            <div class="col-12 col-md-4 col-xl-3">
-                <label class="form-label" for="acao_responsavel_id">Responsável</label>
-                <select class="form-select" id="acao_responsavel_id" name="acao_responsavel_id">
-                    <option value="">Todos</option>
-                    {% for usuario in responsaveis_acao %}
-                        <option value="{{ usuario.id }}" {{ 'selected' if filtros_acoes.responsavel_id == usuario.id else '' }}>{{ usuario.nome }}</option>
-                    {% endfor %}
-                </select>
+        {% macro cabecalho_acao(campo, titulo) %}
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="th-label">{{ titulo }}</span>
+                <span class="btn-group btn-group-sm">
+                    <a class="btn btn-link p-0 px-1 text-white {{ 'opacity-100' if acao_sort == campo and acao_order == 'asc' else 'opacity-75' }}"
+                       title="Ordenar crescente"
+                       href="{{ url_for('main.detalhar_investigacao_acr', investigacao_id=investigacao.id, acao_sort=campo, acao_order='asc') }}#plano-acao">
+                        <i class="bi bi-caret-up-fill"></i>
+                    </a>
+                    <a class="btn btn-link p-0 px-1 text-white {{ 'opacity-100' if acao_sort == campo and acao_order == 'desc' else 'opacity-75' }}"
+                       title="Ordenar decrescente"
+                       href="{{ url_for('main.detalhar_investigacao_acr', investigacao_id=investigacao.id, acao_sort=campo, acao_order='desc') }}#plano-acao">
+                        <i class="bi bi-caret-down-fill"></i>
+                    </a>
+                </span>
             </div>
-            <div class="col-12 col-md-3 col-xl-2">
-                <label class="form-label" for="acao_status">Status</label>
-                <select class="form-select" id="acao_status" name="acao_status">
-                    <option value="">Todos</option>
-                    {% for status in ['Não iniciada', 'Em andamento', 'Concluída', 'Cancelada'] %}
-                        <option value="{{ status }}" {{ 'selected' if filtros_acoes.status == status else '' }}>{{ status }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <input type="hidden" name="acao_sort" value="{{ acao_sort }}">
-            <input type="hidden" name="acao_order" value="{{ acao_order }}">
-            <div class="col-auto d-flex gap-2">
-                <button class="btn btn-laranja" type="submit" title="Filtrar"><i class="bi bi-funnel"></i></button>
-                <a class="btn btn-cinza" href="{{ url_for('main.detalhar_investigacao_acr', investigacao_id=investigacao.id) }}" title="Limpar"><i class="bi bi-arrow-clockwise"></i></a>
-            </div>
-        </form>
-
-        {% macro ordenar_acao(campo, titulo) %}
-            {% set proxima_ordem = 'desc' if acao_sort == campo and acao_order == 'asc' else 'asc' %}
-            <a class="text-decoration-none text-dark d-flex align-items-center gap-1"
-               href="{{ url_for('main.detalhar_investigacao_acr', investigacao_id=investigacao.id, acao_sort=campo, acao_order=proxima_ordem, acao_status=filtros_acoes.status, acao_responsavel_id=filtros_acoes.responsavel_id or '') }}">
-                {{ titulo }}
-                <i class="bi {{ 'bi-sort-down' if acao_sort == campo and acao_order == 'desc' else ('bi-sort-up' if acao_sort == campo else 'bi-arrow-down-up') }} small"></i>
-            </a>
         {% endmacro %}
 
         <div class="table-responsive mb-4">
             <table class="table table-bordered align-middle table-fixed">
                 <thead class="table-light">
                     <tr>
-                        <th>{{ ordenar_acao('descricao', 'Ação') }}</th>
-                        <th style="width:220px">{{ ordenar_acao('responsavel', 'Responsável') }}</th>
-                        <th style="width:120px">{{ ordenar_acao('prazo', 'Prazo') }}</th>
-                        <th style="width:140px">{{ ordenar_acao('status', 'Status') }}</th>
-                        <th class="text-center" style="width:80px">Ações</th>
+                        <th>{{ cabecalho_acao('descricao', 'Ação') }}</th>
+                        <th style="width:220px">{{ cabecalho_acao('responsavel', 'Responsável') }}</th>
+                        <th style="width:120px">{{ cabecalho_acao('prazo', 'Prazo') }}</th>
+                        <th style="width:140px">{{ cabecalho_acao('status', 'Status') }}</th>
+                        <th style="width:80px"><span class="th-label">Ações</span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -234,6 +216,11 @@
                         <input class="form-control" id="responsavel_busca_acr" type="text"
                                placeholder="Digite nome ou matrícula" autocomplete="off" required>
                         <div class="autocomplete-list" id="listaResponsaveisAcaoAcr"></div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="origem_acao_visualizacao">Origem</label>
+                        <input class="form-control campo-readonly" id="origem_acao_visualizacao"
+                               type="text" value="{{ origem_acao_descricao }}" disabled>
                     </div>
                     <div class="col-12">
                         <label class="form-label" for="descricao">Descrição da ação *</label>

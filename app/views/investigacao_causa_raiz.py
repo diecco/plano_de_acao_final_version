@@ -428,11 +428,6 @@ def register_investigacao_causa_raiz_routes(blueprint):
             acao_order = request.args.get("acao_order", "asc").lower()
             if acao_order not in ("asc", "desc"):
                 acao_order = "asc"
-            acao_status = (request.args.get("acao_status") or "").strip()
-            acao_responsavel_id = request.args.get(
-                "acao_responsavel_id",
-                type=int,
-            )
             query_acoes = """
                 SELECT
                     a.id, a.descricao, a.prazo, a.status,
@@ -445,12 +440,6 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 WHERE aa.investigacao_id = %s AND a.ativo = 1
             """
             params_acoes = [investigacao_id]
-            if acao_status:
-                query_acoes += " AND a.status = %s"
-                params_acoes.append(acao_status)
-            if acao_responsavel_id:
-                query_acoes += " AND a.responsavel_id = %s"
-                params_acoes.append(acao_responsavel_id)
             query_acoes += (
                 f" ORDER BY {ORDENACOES_ACOES_ACR[acao_sort]} "
                 f"{acao_order.upper()}, a.id"
@@ -475,12 +464,12 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 causa_raiz=causa_raiz,
                 acoes_vinculadas=acoes_vinculadas,
                 responsaveis_acao=responsaveis_acao,
-                filtros_acoes={
-                    "status": acao_status,
-                    "responsavel_id": acao_responsavel_id,
-                },
                 acao_sort=acao_sort,
                 acao_order=acao_order,
+                origem_acao_descricao=(
+                    "Análise de Causa Raiz - "
+                    f"{investigacao['centro_codigo']}"
+                ),
                 hoje=date.today().isoformat(),
                 somente_leitura=investigacao["status"] in (
                     "Concluída",

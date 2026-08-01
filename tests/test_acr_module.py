@@ -104,6 +104,13 @@ class AcrModuleStructureTests(unittest.TestCase):
         self.assertIn("responsavel_busca_acr", template)
         self.assertIn("btn-acao-icon", template)
         self.assertIn("table table-bordered align-middle table-fixed", template)
+        self.assertNotIn('name="acao_status"', template)
+        self.assertNotIn('name="acao_responsavel_id"', template)
+        self.assertIn('id="origem_acao_visualizacao"', template)
+        self.assertIn('value="{{ origem_acao_descricao }}" disabled', template)
+        self.assertIn("bi-caret-up-fill", template)
+        self.assertIn("bi-caret-down-fill", template)
+        self.assertIn("#plano-acao", template)
         self.assertIn("def editar_acao_acr", view)
         self.assertIn("main.editar_acao_acr", template)
 
