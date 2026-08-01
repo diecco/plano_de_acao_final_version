@@ -64,6 +64,7 @@
     .adc-no-cabecalho { align-items:center; display:flex; justify-content:space-between; margin-bottom:8px; }
     .adc-no-cabecalho strong { color:#f36b21; font-size:.85rem; text-transform:uppercase; }
     .adc-no-acoes { display:flex; gap:4px; }
+    .adc-direcao { font-size:.7rem; font-weight:700; line-height:1; margin-left:-2px; }
     .adc-no textarea { min-height:68px; resize:vertical; }
     .adc-vazio { border:1px dashed #c7c9cc; border-radius:10px; color:#6c757d; margin:30px auto 0; max-width:520px; padding:18px; text-align:center; }
     @media (max-width: 900px) {
@@ -936,7 +937,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="adc-no-cabecalho">
                         <strong>Fato antecedente</strong>
                         ${editavelAdc ? `<div class="adc-no-acoes">
-                            <button class="btn-acao-icon js-adc-adicionar" type="button" data-pai="${escaparAdc(item.chave)}" title="Adicionar ramificação"><i class="bi bi-plus-lg"></i></button>
+                            <button class="btn-acao-icon js-adc-adicionar" type="button" data-pai="${escaparAdc(item.chave)}" title="Adicionar fato filho abaixo" aria-label="Adicionar fato filho abaixo"><i class="bi bi-plus-lg"></i><span class="adc-direcao">↓</span></button>
+                            <button class="btn-acao-icon js-adc-adicionar-irmao" type="button" data-pai="${escaparAdc(item.pai || '')}" title="Adicionar fato irmão ao lado" aria-label="Adicionar fato irmão ao lado"><i class="bi bi-plus-lg"></i><span class="adc-direcao">↔</span></button>
                             <button class="btn-acao-icon js-adc-remover" type="button" data-chave="${escaparAdc(item.chave)}" title="Remover fato e suas ramificações"><i class="bi bi-trash"></i></button>
                         </div>` : ''}
                     </div>
@@ -976,7 +978,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         };
         document.addEventListener('click', evento => {
-            const adicionar = evento.target.closest('.js-adc-adicionar');
+            const adicionar = evento.target.closest('.js-adc-adicionar, .js-adc-adicionar-irmao');
             if (adicionar && formArvore.contains(adicionar)) {
                 sincronizarAdc();
                 if (itensAdc.length >= 100) return;
