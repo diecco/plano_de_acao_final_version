@@ -8,6 +8,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     send_from_directory,
     session,
     url_for,
@@ -638,6 +639,182 @@ def register_investigacao_causa_raiz_routes(blueprint):
                     "Concluída",
                     "Cancelada",
                 ),
+            )
+        finally:
+            cursor.close()
+            conn.close()
+
+    @blueprint.route("/acr/<int:investigacao_id>/relatorio.pdf")
+    @login_required
+    @module_required("acesso_acr")
+    def relatorio_pdf_acr(investigacao_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            investigacao = _buscar_investigacao_acessivel(
+                cursor,
+                investigacao_id,
+            )
+            if not investigacao:
+                flash("Investigação não encontrada ou fora do seu escopo.", "danger")
+                return redirect(url_for("main.investigacoes_acr"))
+
+            cursor.execute(
+                """
+                SELECT u.nome
+                FROM acr_participantes ap
+                JOIN usuarios u ON u.id = ap.usuario_id
+                WHERE ap.investigacao_id = %s AND ap.ativo = 1
+                ORDER BY u.nome
+                """,
+                (investigacao_id,),
+            )
+            participantes = [item["nome"] for item in cursor.fetchall()]
+
+            cursor.execute(
+                """
+                SELECT ordem, pergunta, resposta, causa_raiz
+                FROM acr_5_porques
+                WHERE investigacao_id = %s
+                ORDER BY ordem
+                """,
+                (investigacao_id,),
+            )
+            porques = cursor.fetchall()
+
+            cursor.execute(
+                """
+                SELECT descricao, identificada_em
+                FROM acr_causas
+                WHERE investigacao_id = %s AND confirmada = 1
+                ORDER BY id
+                LIMIT 1
+                """,
+                (investigacao_id,),
+            )
+            causa_raiz = cursor.fetchone()
+
+            cursor.execute(
+                """
+                SELECT
+                    a.descricao, a.prazo, a.status,
+                    a.data_conclusao, a.observacoes,
+                    u.nome AS responsavel
+                FROM acr_acoes aa
+                JOIN acoes a ON a.id = aa.acao_id
+                LEFT JOIN usuarios u ON u.id = a.responsavel_id
+                WHERE aa.investigacao_id = %s AND a.ativo = 1
+                ORDER BY a.prazo, a.id
+                """,
+                (investigacao_id,),
+            )
+            acoes = cursor.fetchall()
+
+            cursor.execute(
+                """
+                SELECT
+                    ve.ciclo, ve.data_prevista, ve.data_realizada,
+                    ve.criterio, ve.resultado, ve.justificativa,
+                    u.nome AS responsavel
+                FROM acr_verificacoes_eficacia ve
+                LEFT JOIN usuarios u ON u.id = ve.responsavel_id
+                WHERE ve.investigacao_id = %s
+                ORDER BY ve.ciclo
+                """,
+                (investigacao_id,),
+            )
+            verificacoes = cursor.fetchall()
+
+            cursor.execute(
+                """
+                SELECT
+                    e.etapa, e.nome_original, e.descricao,
+                    e.tamanho_bytes, e.criado_em,
+                    u.nome AS enviado_por_nome
+                FROM acr_evidencias e
+                LEFT JOIN usuarios u ON u.id = e.enviado_por
+                WHERE e.investigacao_id = %s
+                  AND e.excluido_em IS NULL
+                ORDER BY e.etapa, e.criado_em, e.id
+                """,
+                (investigacao_id,),
+            )
+            evidencias = cursor.fetchall()
+
+            cursor.execute(
+                """
+                SELECT
+                    h.evento, h.etapa, h.criado_em,
+                    u.nome AS usuario,
+                    COALESCE(
+                        JSON_UNQUOTE(
+                            JSON_EXTRACT(
+                                h.valor_novo_json,
+                                '$.justificativa'
+                            )
+                        ),
+                        ''
+                    ) AS justificativa
+                FROM acr_historico h
+                LEFT JOIN usuarios u ON u.id = h.usuario_id
+                WHERE h.investigacao_id = %s
+                ORDER BY h.criado_em, h.id
+                """,
+                (investigacao_id,),
+            )
+            historico = cursor.fetchall()
+
+            from app.utils.acr_pdf import gerar_pdf_acr
+
+            pdf = gerar_pdf_acr(
+                {
+                    "investigacao": investigacao,
+                    "participantes": participantes,
+                    "porques": porques,
+                    "causa_raiz": causa_raiz,
+                    "acoes": acoes,
+                    "verificacoes": verificacoes,
+                    "evidencias": evidencias,
+                    "historico": historico,
+                },
+                logo_path=os.path.join(
+                    current_app.static_folder,
+                    "imagens",
+                    "logo_trackplan.png",
+                ),
+            )
+            nome_arquivo = (
+                f"{investigacao['numero'].replace('/', '-')}.pdf"
+            )
+            return send_file(
+                pdf,
+                mimetype="application/pdf",
+                as_attachment=True,
+                download_name=nome_arquivo,
+            )
+        except ImportError:
+            current_app.logger.exception(
+                "Dependência de PDF indisponível ao gerar ACR %s",
+                investigacao_id,
+            )
+            flash("O gerador de PDF não está disponível no servidor.", "danger")
+            return redirect(
+                url_for(
+                    "main.detalhar_investigacao_acr",
+                    investigacao_id=investigacao_id,
+                )
+            )
+        except Exception:
+            current_app.logger.exception(
+                "Erro ao gerar relatório PDF da ACR %s",
+                investigacao_id,
+            )
+            flash("Não foi possível gerar o relatório PDF.", "danger")
+            return redirect(
+                url_for(
+                    "main.detalhar_investigacao_acr",
+                    investigacao_id=investigacao_id,
+                )
             )
         finally:
             cursor.close()

@@ -27,7 +27,7 @@ class AcrModuleStructureTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertGreaterEqual(
             view.count('@module_required("acesso_acr")'),
-            13,
+            14,
         )
         self.assertIn("acr_participantes", view)
         self.assertIn("centro_custos_id", view)
@@ -183,6 +183,35 @@ class AcrModuleStructureTests(unittest.TestCase):
         self.assertIn('name="arquivo"', template)
         self.assertIn("main.baixar_anexo_acr", template)
         self.assertIn("main.excluir_anexo_acr", template)
+
+    def test_acr_pdf_report_has_complete_protected_flow(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
+        ).read_text(encoding="utf-8")
+        generator = (ROOT / "app" / "utils" / "acr_pdf.py").read_text(
+            encoding="utf-8"
+        )
+        requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+        self.assertIn("def relatorio_pdf_acr", view)
+        self.assertIn("_buscar_investigacao_acessivel", view)
+        self.assertIn("gerar_pdf_acr", view)
+        self.assertIn('mimetype="application/pdf"', view)
+        self.assertIn("main.relatorio_pdf_acr", template)
+        self.assertIn("def gerar_pdf_acr", generator)
+        for section in (
+            "Identificação e contexto",
+            "Investigação - 5 Porquês",
+            "Causa raiz",
+            "Plano de ação",
+            "Verificação de eficácia",
+            "Anexos",
+            "Histórico da ACR",
+        ):
+            self.assertIn(section, generator)
+        self.assertIn("reportlab==", requirements)
 
     def test_permission_is_available_in_user_flows(self):
         view = (ROOT / "app" / "views" / "usuarios.py").read_text(

@@ -13,7 +13,7 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 198)
+        self.assertEqual(len(self.routes), 199)
 
     def test_acr_routes_are_registered(self):
         expected = {
@@ -52,6 +52,10 @@ class RouteStructureTests(unittest.TestCase):
                 "/acr/<int:investigacao_id>/anexos",
                 ("POST",),
             ): "main.enviar_anexo_acr",
+            (
+                "/acr/<int:investigacao_id>/relatorio.pdf",
+                ("GET",),
+            ): "main.relatorio_pdf_acr",
             (
                 "/acr/<int:investigacao_id>/anexos/<int:evidencia_id>/download",
                 ("GET",),
