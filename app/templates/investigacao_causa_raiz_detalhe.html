@@ -7,7 +7,7 @@
     .acr-workflow { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; }
     .acr-workflow-step { border-top:3px solid #d1d5db; padding:8px 4px 0; color:#6b7280; font-size:.8rem; text-align:center; }
     .acr-workflow-step.active { border-color:#f36b21; color:#f36b21; font-weight:700; }
-    .acr-workflow-step.done { border-color:#198754; color:#198754; }
+    .acr-workflow-step.done { border-color:#6c757d; color:#6c757d; }
     .acr-context { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
     .acr-context-item { background:#f8f9fa; border-radius:8px; padding:10px 12px; }
     .acr-context-item small { color:#6c757d; display:block; }
@@ -19,6 +19,10 @@
     .autocomplete-list { background:#fff; border:1px solid #ced4da; border-radius:0 0 .375rem .375rem; box-shadow:0 .5rem 1rem rgba(0,0,0,.12); display:none; left:0; max-height:240px; overflow-y:auto; position:absolute; right:0; top:100%; z-index:1080; }
     .autocomplete-item { cursor:pointer; padding:.65rem .75rem; }
     .autocomplete-item:hover, .autocomplete-item.active { background:#fff1e8; color:#c94e0c; }
+    .badge-track-orange { background:#f36b21; color:#fff; }
+    .badge-track-gray { background:#6c757d; color:#fff; }
+    .alert-track-orange { background:#fff3ec; border:1px solid #f36b21; color:#5b6065; }
+    .alert-track-gray { background:#f3f4f5; border:1px solid #c7c9cc; color:#5b6065; }
     @media (max-width: 900px) {
         .acr-context { grid-template-columns:repeat(2,minmax(0,1fr)); }
         .acr-workflow { overflow-x:auto; grid-template-columns:repeat(5,130px); }
@@ -73,7 +77,7 @@
                         Registre a pergunta e a respectiva resposta em cada nível, sempre em sequência.
                     </small>
                 </div>
-                <span class="badge {{ 'text-bg-success' if etapa.status == 'Concluída' else 'text-bg-warning' }}">
+                <span class="badge {{ 'badge-track-orange' if etapa.status == 'Concluída' else 'badge-track-gray' }}">
                     {{ etapa.status }}
                 </span>
             </div>
@@ -114,7 +118,7 @@
                                 </label>
                             </div>
                         {% elif item.causa_raiz %}
-                            <span class="badge text-bg-success mt-2">Causa raiz confirmada</span>
+                            <span class="badge badge-track-orange mt-2">Causa raiz confirmada</span>
                         {% endif %}
                     </div>
                 {% endfor %}
@@ -138,7 +142,7 @@
 <div class="card border-0 shadow-sm mt-4" id="plano-acao">
     <div class="card-body">
         <h5 class="mb-3"><i class="bi bi-bullseye me-2"></i>Causa raiz confirmada</h5>
-        <div class="alert alert-success mb-0">{{ causa_raiz.descricao }}</div>
+        <div class="alert alert-track-orange mb-0">{{ causa_raiz.descricao }}</div>
     </div>
 </div>
 
@@ -180,7 +184,7 @@
                 </thead>
                 <tbody>
                     {% for acao in acoes_vinculadas %}
-                        {% set badge_status = {'Não iniciada':'text-bg-secondary', 'Em andamento':'text-bg-primary', 'Concluída':'text-bg-success', 'Vencida':'text-bg-danger', 'Cancelada':'text-bg-dark'}.get(acao.status, 'text-bg-secondary') %}
+                        {% set badge_status = {'Em andamento':'badge-track-orange', 'Concluída':'badge-track-orange'}.get(acao.status, 'badge-track-gray') %}
                         <tr>
                             <td class="td-truncate" title="{{ acao.descricao }}">{{ acao.descricao }}</td>
                             <td class="td-truncate" title="{{ acao.responsavel or '' }}">{{ acao.responsavel or '—' }}</td>
@@ -248,13 +252,13 @@
                 <h5 class="mb-1"><i class="bi bi-check2-circle me-2"></i>Verificação de eficácia</h5>
                 <small class="text-muted">Confirme se as ações eliminaram ou controlaram a causa raiz identificada.</small>
             </div>
-            <span class="badge {{ 'text-bg-success' if etapa_eficacia.status == 'Concluída' else ('text-bg-warning' if etapa_eficacia.status in ['Em andamento', 'Com pendências'] else 'text-bg-secondary') }}">{{ etapa_eficacia.status }}</span>
+            <span class="badge {{ 'badge-track-orange' if etapa_eficacia.status in ['Concluída', 'Em andamento'] else 'badge-track-gray' }}">{{ etapa_eficacia.status }}</span>
         </div>
 
         {% if not acoes_vinculadas %}
-            <div class="alert alert-secondary mb-0">Cadastre pelo menos uma ação para avançar à eficácia.</div>
+            <div class="alert alert-track-gray mb-0">Cadastre pelo menos uma ação para avançar à eficácia.</div>
         {% elif not acoes_concluidas %}
-            <div class="alert alert-warning mb-0">Todas as ações precisam estar concluídas antes de programar a verificação de eficácia.</div>
+            <div class="alert alert-track-orange mb-0">Todas as ações precisam estar concluídas antes de programar a verificação de eficácia.</div>
         {% elif verificacao_atual %}
             <div class="row g-3 mb-3">
                 <div class="col-12 col-md-3"><div class="acr-context-item"><small>Ciclo</small><strong>{{ verificacao_atual.ciclo }}</strong></div></div>
@@ -278,16 +282,16 @@
                             <label class="form-label" for="justificativa_eficacia">Justificativa e evidências observadas *</label>
                             <textarea class="form-control" id="justificativa_eficacia" name="justificativa" rows="3" maxlength="4000" required></textarea>
                         </div>
-                        <div class="col-12 d-flex justify-content-end"><button class="btn btn-laranja" type="submit"><i class="bi bi-check-circle me-1"></i>Registrar resultado</button></div>
+                        <div class="col-12 d-flex justify-content-end"><button class="btn btn-laranja" type="submit"><i class="bi bi-check-circle me-1"></i>Registrar</button></div>
                     </div>
                 </form>
             {% elif pode_gerenciar_eficacia %}
-                <div class="alert alert-info mb-0">A avaliação será liberada na data prevista.</div>
+                <div class="alert alert-track-gray mb-0">A avaliação será liberada na data prevista.</div>
             {% endif %}
         {% elif pode_gerenciar_eficacia and not somente_leitura %}
-            {% if etapa_eficacia.status == 'Com pendências' %}<div class="alert alert-warning">Revise o plano de ação antes de programar um novo ciclo.</div>{% endif %}
+            {% if etapa_eficacia.status == 'Com pendências' %}<div class="alert alert-track-orange">Revise o plano de ação antes de programar um novo ciclo.</div>{% endif %}
             <form method="post" action="{{ url_for('main.agendar_eficacia_acr', investigacao_id=investigacao.id) }}">
-                <div class="row g-3 align-items-end">
+                <div class="row g-3">
                     <div class="col-12 col-md-3">
                         <label class="form-label" for="data_prevista_eficacia">Data prevista *</label>
                         <input class="form-control" id="data_prevista_eficacia" name="data_prevista" type="date" min="{{ hoje }}" required>
@@ -296,18 +300,18 @@
                         <label class="form-label" for="criterio_eficacia">Critério de eficácia *</label>
                         <textarea class="form-control" id="criterio_eficacia" name="criterio" rows="2" maxlength="4000" placeholder="Informe o que deverá ser observado para considerar as ações eficazes." required></textarea>
                     </div>
-                    <div class="col-12 d-flex justify-content-end"><button class="btn btn-laranja" type="submit"><i class="bi bi-calendar-check me-1"></i>Programar verificação</button></div>
+                    <div class="col-12 d-flex justify-content-end"><button class="btn btn-laranja" type="submit"><i class="bi bi-calendar-check me-1"></i>Programar</button></div>
                 </div>
             </form>
         {% elif not verificacoes_eficacia %}
-            <div class="alert alert-info mb-0">A programação da eficácia será realizada pelo criador da ACR: {{ investigacao.criador }}.</div>
+            <div class="alert alert-track-gray mb-0">A programação da eficácia será realizada pelo criador da ACR: {{ investigacao.criador }}.</div>
         {% endif %}
 
         {% if verificacoes_eficacia %}
             <div class="table-responsive mt-4">
                 <table class="table table-bordered align-middle">
                     <thead><tr><th style="width:80px">Ciclo</th><th style="width:130px">Prevista</th><th style="width:130px">Realizada</th><th>Critério</th><th style="width:170px">Resultado</th></tr></thead>
-                    <tbody>{% for verificacao in verificacoes_eficacia %}<tr><td class="text-center">{{ verificacao.ciclo }}</td><td>{{ verificacao.data_prevista.strftime('%d/%m/%Y') }}</td><td>{{ verificacao.data_realizada.strftime('%d/%m/%Y') if verificacao.data_realizada else '—' }}</td><td title="{{ verificacao.criterio }}" class="td-truncate">{{ verificacao.criterio }}</td><td><span class="badge {{ 'text-bg-success' if verificacao.resultado == 'Eficaz' else ('text-bg-warning' if verificacao.resultado == 'Parcialmente eficaz' else ('text-bg-danger' if verificacao.resultado == 'Ineficaz' else 'text-bg-secondary')) }}">{{ verificacao.resultado or 'Pendente' }}</span></td></tr>{% endfor %}</tbody>
+                    <tbody>{% for verificacao in verificacoes_eficacia %}<tr><td class="text-center">{{ verificacao.ciclo }}</td><td>{{ verificacao.data_prevista.strftime('%d/%m/%Y') }}</td><td>{{ verificacao.data_realizada.strftime('%d/%m/%Y') if verificacao.data_realizada else '—' }}</td><td title="{{ verificacao.criterio }}" class="td-truncate">{{ verificacao.criterio }}</td><td><span class="badge {{ 'badge-track-orange' if verificacao.resultado == 'Eficaz' else 'badge-track-gray' }}">{{ verificacao.resultado or 'Pendente' }}</span></td></tr>{% endfor %}</tbody>
                 </table>
             </div>
         {% endif %}
