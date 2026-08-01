@@ -319,7 +319,12 @@ def gerar_pdf_acr(dados, logo_path=None):
                     _paragrafo(item.get("resposta"), estilos["pequeno"]),
                 ]
             )
-        elementos.append(tabela(linhas, [1.2 * cm, 7.9 * cm, 7.9 * cm]))
+        larguras_investigacao = (
+            [3.5 * cm, 3.5 * cm, 10 * cm]
+            if metodologia_6m
+            else [1.2 * cm, 7.9 * cm, 7.9 * cm]
+        )
+        elementos.append(tabela(linhas, larguras_investigacao))
     else:
         elementos.append(_paragrafo("Etapa ainda não preenchida.", estilos["normal"]))
 

@@ -236,6 +236,7 @@ class AcrModuleStructureTests(unittest.TestCase):
         self.assertIn('mimetype="application/pdf"', view)
         self.assertIn("main.relatorio_pdf_acr", template)
         self.assertIn("def gerar_pdf_acr", generator)
+        self.assertIn("[3.5 * cm, 3.5 * cm, 10 * cm]", generator)
         for section in (
             "Identificação e contexto",
             "Investigação - 5 Porquês",
