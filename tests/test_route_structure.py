@@ -13,7 +13,7 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 201)
+        self.assertEqual(len(self.routes), 202)
 
     def test_acr_routes_are_registered(self):
         expected = {

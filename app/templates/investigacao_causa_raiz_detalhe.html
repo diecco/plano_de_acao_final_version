@@ -51,6 +51,21 @@
     .ishikawa-direita .ishikawa-ramo { grid-column:1; }
     .causa-6m-item { align-items:center; display:grid; gap:8px; grid-template-columns:minmax(0,1fr) 150px 32px; }
     .causa-6m-item .btn-acao-icon { justify-self:center; }
+    .adc-arvore { overflow-x:auto; padding:4px 8px 18px; }
+    .adc-raiz { background:#f36b21; border-radius:12px; color:#fff; margin:0 auto; max-width:720px; padding:14px 56px 14px 18px; position:relative; text-align:center; }
+    .adc-raiz small { display:block; opacity:.9; text-transform:uppercase; }
+    .adc-raiz strong { display:block; font-size:1rem; margin-top:3px; }
+    .adc-raiz .adc-adicionar { position:absolute; right:12px; top:50%; transform:translateY(-50%); }
+    .adc-filhos { display:flex; flex-wrap:wrap; gap:18px; justify-content:center; margin:0; padding:38px 0 0; position:relative; }
+    .adc-filhos::before { background:#6c757d; content:""; height:22px; left:50%; position:absolute; top:0; width:2px; }
+    .adc-subarvore { flex:1 1 270px; list-style:none; max-width:440px; min-width:250px; position:relative; }
+    .adc-subarvore::before { background:#6c757d; content:""; height:18px; left:50%; position:absolute; top:-18px; width:2px; }
+    .adc-no { background:#fff; border:1px solid #d7d9dc; border-left:4px solid #f36b21; border-radius:10px; padding:12px; position:relative; }
+    .adc-no-cabecalho { align-items:center; display:flex; justify-content:space-between; margin-bottom:8px; }
+    .adc-no-cabecalho strong { color:#f36b21; font-size:.85rem; text-transform:uppercase; }
+    .adc-no-acoes { display:flex; gap:4px; }
+    .adc-no textarea { min-height:68px; resize:vertical; }
+    .adc-vazio { border:1px dashed #c7c9cc; border-radius:10px; color:#6c757d; margin:30px auto 0; max-width:520px; padding:18px; text-align:center; }
     @media (max-width: 900px) {
         .acr-context { grid-template-columns:repeat(2,minmax(0,1fr)); }
         .acr-workflow { overflow-x:auto; grid-template-columns:repeat(5,130px); }
@@ -299,6 +314,50 @@
         </div>
     </div>
 </form>
+{% elif investigacao.metodologia_codigo == 'arvore_causas' %}
+<form id="formArvoreCausas"
+      method="post"
+      action="{{ url_for('main.salvar_arvore_causas_acr', investigacao_id=investigacao.id) }}">
+    <input id="arvore_causas_json" name="arvore_json" type="hidden">
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                    <div class="d-flex align-items-center gap-2">
+                        <h5 class="mb-1">Árvore de Causas</h5>
+                        {{ botao_anexos('investigacao', 'Investigação') }}
+                        {{ botao_anexos('causas', 'Causas') }}
+                    </div>
+                    <small class="text-muted">Parta do evento indesejado e inclua, abaixo dele, os fatos antecedentes e suas ramificações.</small>
+                </div>
+                <span class="badge {{ 'badge-track-orange' if etapa.status == 'Concluída' else 'badge-track-gray' }}">
+                    {{ etapa.status }}
+                </span>
+            </div>
+
+            <div class="adc-arvore">
+                <div class="adc-raiz">
+                    <small>Evento indesejado</small>
+                    <strong>{{ investigacao.descricao_ocorrencia }}</strong>
+                    {% if not somente_leitura and not acoes_vinculadas %}
+                        <button class="btn btn-light btn-sm adc-adicionar js-adc-adicionar"
+                                type="button" data-pai="" title="Adicionar fato antecedente ao evento">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    {% endif %}
+                </div>
+                <div id="arvoreCausasVisual"></div>
+            </div>
+        </div>
+        <div class="card-footer bg-white d-flex justify-content-end gap-2 py-3">
+            <a class="btn btn-cinza" href="{{ url_for('main.investigacoes_acr') }}">Voltar</a>
+            {% if not somente_leitura and not acoes_vinculadas %}
+                <button class="btn btn-cinza" type="submit" name="acao" value="salvar">Salvar rascunho</button>
+                <button class="btn btn-laranja" type="submit" name="acao" value="concluir">Concluir análise</button>
+            {% endif %}
+        </div>
+    </div>
+</form>
 {% endif %}
 
 {% if causa_raiz %}
@@ -324,7 +383,7 @@
                 {{ botao_anexos('acoes', 'Ações') }}
             </div>
             <div class="d-flex align-items-center gap-2">
-                {% if investigacao.metodologia_codigo == 'ishikawa' %}
+                {% if investigacao.metodologia_codigo in ['ishikawa', 'arvore_causas'] %}
                     <span class="badge badge-track-gray">{{ causas_raiz|length }} causa(s) tratável(is)</span>
                 {% endif %}
                 <span class="badge badge-track-gray">{{ acoes_vinculadas|length }} ação(ões)</span>
@@ -790,6 +849,8 @@
 {{ super() }}
 <script id="responsaveis-acao-acr-data" type="application/json">{{ responsaveis_acao|tojson }}</script>
 <script id="classificacoes-6m-data" type="application/json">{{ classificacoes_6m|default({})|tojson }}</script>
+<script id="classificacoes-adc-data" type="application/json">{{ classificacoes_arvore_causas|default({})|tojson }}</script>
+<script id="itens-adc-data" type="application/json">{{ itens_arvore_causas|default([])|tojson }}</script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const classificacoes6m = JSON.parse(document.getElementById('classificacoes-6m-data').textContent || '{}');
@@ -844,6 +905,102 @@ document.addEventListener('DOMContentLoaded', () => {
             lista.appendChild(vazio);
         }
     });
+    const formArvore = document.getElementById('formArvoreCausas');
+    const arvoreVisual = document.getElementById('arvoreCausasVisual');
+    const arvoreOculta = document.getElementById('arvore_causas_json');
+    if (formArvore && arvoreVisual && arvoreOculta) {
+        const classificacoesAdc = JSON.parse(document.getElementById('classificacoes-adc-data').textContent || '{}');
+        const itensBancoAdc = JSON.parse(document.getElementById('itens-adc-data').textContent || '[]');
+        const editavelAdc = {{ 'false' if somente_leitura or acoes_vinculadas else 'true' }};
+        let contadorAdc = 0;
+        let itensAdc = itensBancoAdc.map(item => ({
+            chave: `n${item.id}`,
+            pai: item.parent_id ? `n${item.parent_id}` : null,
+            descricao: item.descricao || '',
+            classificacao: item.classificacao || 'potencial'
+        }));
+        const novaChaveAdc = () => `novo_${Date.now()}_${++contadorAdc}`;
+        const escaparAdc = valor => String(valor || '').replace(/[&<>"]/g, caractere => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[caractere]));
+        const descendentesAdc = chave => {
+            const filhos = itensAdc.filter(item => item.pai === chave);
+            return filhos.flatMap(item => [item.chave, ...descendentesAdc(item.chave)]);
+        };
+        const criarNoAdc = item => {
+            const li = document.createElement('li');
+            li.className = 'adc-subarvore';
+            const opcoes = Object.entries(classificacoesAdc).map(([valor, rotulo]) =>
+                `<option value="${escaparAdc(valor)}" ${item.classificacao === valor ? 'selected' : ''}>${escaparAdc(rotulo)}</option>`
+            ).join('');
+            li.innerHTML = `
+                <div class="adc-no" data-chave="${escaparAdc(item.chave)}">
+                    <div class="adc-no-cabecalho">
+                        <strong>Fato antecedente</strong>
+                        ${editavelAdc ? `<div class="adc-no-acoes">
+                            <button class="btn-acao-icon js-adc-adicionar" type="button" data-pai="${escaparAdc(item.chave)}" title="Adicionar ramificação"><i class="bi bi-plus-lg"></i></button>
+                            <button class="btn-acao-icon js-adc-remover" type="button" data-chave="${escaparAdc(item.chave)}" title="Remover fato e suas ramificações"><i class="bi bi-trash"></i></button>
+                        </div>` : ''}
+                    </div>
+                    <textarea class="form-control mb-2 js-adc-descricao" maxlength="1000" placeholder="Descreva um fato objetivo" ${editavelAdc ? '' : 'readonly'} required>${escaparAdc(item.descricao)}</textarea>
+                    <select class="form-select js-adc-classificacao" ${editavelAdc ? '' : 'disabled'} required>${opcoes}</select>
+                </div>`;
+            const filhos = itensAdc.filter(filho => filho.pai === item.chave);
+            if (filhos.length) {
+                const ul = document.createElement('ul');
+                ul.className = 'adc-filhos';
+                filhos.forEach(filho => ul.appendChild(criarNoAdc(filho)));
+                li.appendChild(ul);
+            }
+            return li;
+        };
+        const renderizarAdc = () => {
+            arvoreVisual.innerHTML = '';
+            const raizes = itensAdc.filter(item => !item.pai);
+            if (!raizes.length) {
+                const vazio = document.createElement('div');
+                vazio.className = 'adc-vazio';
+                vazio.textContent = 'Nenhum fato antecedente incluído. Use o botão + do evento indesejado para iniciar.';
+                arvoreVisual.appendChild(vazio);
+                return;
+            }
+            const ul = document.createElement('ul');
+            ul.className = 'adc-filhos';
+            raizes.forEach(item => ul.appendChild(criarNoAdc(item)));
+            arvoreVisual.appendChild(ul);
+        };
+        const sincronizarAdc = () => {
+            arvoreVisual.querySelectorAll('.adc-no').forEach(no => {
+                const item = itensAdc.find(registro => registro.chave === no.dataset.chave);
+                if (!item) return;
+                item.descricao = no.querySelector('.js-adc-descricao').value.trim();
+                item.classificacao = no.querySelector('.js-adc-classificacao').value;
+            });
+        };
+        document.addEventListener('click', evento => {
+            const adicionar = evento.target.closest('.js-adc-adicionar');
+            if (adicionar && formArvore.contains(adicionar)) {
+                sincronizarAdc();
+                if (itensAdc.length >= 100) return;
+                const chave = novaChaveAdc();
+                itensAdc.push({chave, pai: adicionar.dataset.pai || null, descricao: '', classificacao: 'potencial'});
+                renderizarAdc();
+                arvoreVisual.querySelector(`[data-chave="${chave}"] textarea`).focus();
+                return;
+            }
+            const remover = evento.target.closest('.js-adc-remover');
+            if (remover && formArvore.contains(remover)) {
+                sincronizarAdc();
+                const chaves = new Set([remover.dataset.chave, ...descendentesAdc(remover.dataset.chave)]);
+                if (chaves.size > 1 && !window.confirm('Remover este fato e todas as suas ramificações?')) return;
+                itensAdc = itensAdc.filter(item => !chaves.has(item.chave));
+                renderizarAdc();
+            }
+        });
+        formArvore.addEventListener('submit', () => {
+            sincronizarAdc();
+            arvoreOculta.value = JSON.stringify(itensAdc);
+        });
+        renderizarAdc();
+    }
     const filtroParticipantes = document.getElementById('filtro_participantes_acr');
     if (filtroParticipantes) {
         const normalizarParticipante = texto => (texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();

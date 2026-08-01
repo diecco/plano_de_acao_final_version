@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 from datetime import date
 
@@ -95,6 +96,58 @@ CLASSIFICACOES_6M = {
     "basica": "Básica",
     "fundamental": "Fundamental",
 }
+
+CLASSIFICACOES_ARVORE_CAUSAS = CLASSIFICACOES_6M
+
+
+def _validar_arvore_causas(payload):
+    if not isinstance(payload, list) or not payload:
+        raise ValueError("Inclua ao menos um fato antecedente na árvore de causas.")
+    if len(payload) > 100:
+        raise ValueError("A árvore de causas aceita no máximo 100 fatos.")
+
+    itens = {}
+    for ordem, item in enumerate(payload, start=1):
+        if not isinstance(item, dict):
+            raise ValueError("Foi encontrado um fato inválido na árvore.")
+        chave = str(item.get("chave") or "").strip()
+        pai = str(item.get("pai") or "").strip() or None
+        descricao = str(item.get("descricao") or "").strip()
+        classificacao = str(item.get("classificacao") or "potencial").strip()
+        if not chave or len(chave) > 64 or chave in itens:
+            raise ValueError("A árvore contém identificadores inválidos ou duplicados.")
+        if not descricao:
+            raise ValueError("Preencha a descrição de todos os fatos da árvore.")
+        if len(descricao) > 1000:
+            raise ValueError("Cada fato deve possuir no máximo 1.000 caracteres.")
+        if classificacao not in CLASSIFICACOES_ARVORE_CAUSAS:
+            raise ValueError("Classificação inválida em um fato da árvore.")
+        itens[chave] = {
+            "chave": chave,
+            "pai": pai,
+            "descricao": descricao,
+            "classificacao": classificacao,
+            "ordem": ordem,
+        }
+
+    for item in itens.values():
+        if item["pai"] and item["pai"] not in itens:
+            raise ValueError("A árvore contém uma ramificação sem fato superior.")
+        if item["pai"] == item["chave"]:
+            raise ValueError("Um fato não pode ser antecedente dele mesmo.")
+
+        visitados = {item["chave"]}
+        atual = item
+        profundidade = 1
+        while atual["pai"]:
+            if atual["pai"] in visitados:
+                raise ValueError("A árvore de causas contém um relacionamento circular.")
+            visitados.add(atual["pai"])
+            atual = itens[atual["pai"]]
+            profundidade += 1
+            if profundidade > 10:
+                raise ValueError("A árvore de causas aceita no máximo 10 níveis.")
+    return list(itens.values())
 
 
 def _aplicar_escopo(query, params, alias="i"):
@@ -506,12 +559,25 @@ def register_investigacao_causa_raiz_routes(blueprint):
                     (investigacao_id,),
                 )
                 itens_6m = cursor.fetchall()
+
             itens_6m_por_categoria = {
                 codigo: [] for codigo in CATEGORIAS_6M
             }
             for item in itens_6m:
                 if item["categoria"] in itens_6m_por_categoria:
                     itens_6m_por_categoria[item["categoria"]].append(item)
+            itens_arvore_causas = []
+            if investigacao["metodologia_codigo"] == "arvore_causas":
+                cursor.execute(
+                    """
+                    SELECT id, parent_id, descricao, classificacao, ordem
+                    FROM acr_arvore_causas_itens
+                    WHERE investigacao_id = %s
+                    ORDER BY ordem, id
+                    """,
+                    (investigacao_id,),
+                )
+                itens_arvore_causas = cursor.fetchall()
             cursor.execute(
                 """
                 SELECT status, atualizado_em
@@ -524,7 +590,11 @@ def register_investigacao_causa_raiz_routes(blueprint):
                     (
                         "6m"
                         if investigacao["metodologia_codigo"] == "ishikawa"
-                        else "5_porques"
+                        else (
+                            "arvore_causas"
+                            if investigacao["metodologia_codigo"] == "arvore_causas"
+                            else "5_porques"
+                        )
                     ),
                 ),
             )
@@ -695,6 +765,8 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 categorias_6m=CATEGORIAS_6M,
                 classificacoes_6m=CLASSIFICACOES_6M,
                 itens_6m_por_categoria=itens_6m_por_categoria,
+                classificacoes_arvore_causas=CLASSIFICACOES_ARVORE_CAUSAS,
+                itens_arvore_causas=itens_arvore_causas,
                 etapa=etapa,
                 causa_raiz=causa_raiz,
                 causas_raiz=causas_raiz,
@@ -789,6 +861,19 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 )
                 itens_6m = cursor.fetchall()
 
+            itens_arvore_causas = []
+            if investigacao["metodologia_codigo"] == "arvore_causas":
+                cursor.execute(
+                    """
+                    SELECT id, parent_id, descricao, classificacao, ordem
+                    FROM acr_arvore_causas_itens
+                    WHERE investigacao_id = %s
+                    ORDER BY ordem, id
+                    """,
+                    (investigacao_id,),
+                )
+                itens_arvore_causas = cursor.fetchall()
+
             cursor.execute(
                 """
                 SELECT descricao, identificada_em
@@ -881,6 +966,8 @@ def register_investigacao_causa_raiz_routes(blueprint):
                     "itens_6m": itens_6m,
                     "categorias_6m": CATEGORIAS_6M,
                     "classificacoes_6m": CLASSIFICACOES_6M,
+                    "itens_arvore_causas": itens_arvore_causas,
+                    "classificacoes_arvore_causas": CLASSIFICACOES_ARVORE_CAUSAS,
                     "causa_raiz": causa_raiz,
                     "causas_raiz": causas_raiz,
                     "acoes": acoes,
@@ -1666,6 +1753,195 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 "Análise 6M concluída com sucesso."
                 if concluir_etapa
                 else "Diagrama 6M salvo como rascunho.",
+                "success",
+            )
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "danger")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+        return redirect(
+            url_for(
+                "main.detalhar_investigacao_acr",
+                investigacao_id=investigacao_id,
+            )
+        )
+
+    @blueprint.route(
+        "/acr/<int:investigacao_id>/arvore-causas",
+        methods=["POST"],
+    )
+    @login_required
+    @module_required("acesso_acr")
+    def salvar_arvore_causas_acr(investigacao_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            investigacao = _buscar_investigacao_acessivel(cursor, investigacao_id)
+            if not investigacao:
+                flash("Investigação não encontrada ou fora do seu escopo.", "danger")
+                return redirect(url_for("main.investigacoes_acr"))
+            if investigacao["status"] in ("Concluída", "Cancelada"):
+                raise ValueError(
+                    "Esta investigação não permite alterações no estado atual."
+                )
+            if investigacao["metodologia_codigo"] != "arvore_causas":
+                raise ValueError(
+                    "A metodologia desta investigação não é Árvore de Causas."
+                )
+            cursor.execute(
+                "SELECT COUNT(*) AS total FROM acr_acoes WHERE investigacao_id = %s",
+                (investigacao_id,),
+            )
+            if cursor.fetchone()["total"]:
+                raise ValueError(
+                    "A árvore não pode ser alterada após a criação do plano de ação."
+                )
+
+            acao_formulario = (request.form.get("acao") or "salvar").strip()
+            if acao_formulario not in ("salvar", "concluir"):
+                raise ValueError("Ação inválida para a etapa Árvore de Causas.")
+            concluir_etapa = acao_formulario == "concluir"
+            try:
+                payload = json.loads(request.form.get("arvore_json") or "[]")
+            except (TypeError, json.JSONDecodeError) as exc:
+                raise ValueError("Não foi possível interpretar a árvore informada.") from exc
+            itens = _validar_arvore_causas(payload)
+
+            if concluir_etapa:
+                if any(item["classificacao"] == "potencial" for item in itens):
+                    raise ValueError(
+                        "Classifique todos os fatos antes de concluir a análise."
+                    )
+                if not any(
+                    item["classificacao"] in ("basica", "fundamental")
+                    for item in itens
+                ):
+                    raise ValueError(
+                        "A análise deve possuir ao menos uma causa básica ou fundamental."
+                    )
+
+            cursor.execute(
+                "DELETE FROM acr_arvore_causas_itens WHERE investigacao_id = %s",
+                (investigacao_id,),
+            )
+            pendentes = {item["chave"]: item for item in itens}
+            ids_inseridos = {}
+            while pendentes:
+                inseridos_na_rodada = 0
+                for chave, item in list(pendentes.items()):
+                    if item["pai"] and item["pai"] not in ids_inseridos:
+                        continue
+                    cursor.execute(
+                        """
+                        INSERT INTO acr_arvore_causas_itens (
+                            investigacao_id, parent_id, descricao,
+                            classificacao, ordem, registrado_por
+                        ) VALUES (%s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            investigacao_id,
+                            ids_inseridos.get(item["pai"]),
+                            item["descricao"],
+                            item["classificacao"],
+                            item["ordem"],
+                            session.get("usuario_id"),
+                        ),
+                    )
+                    ids_inseridos[chave] = cursor.lastrowid
+                    del pendentes[chave]
+                    inseridos_na_rodada += 1
+                if not inseridos_na_rodada:
+                    raise ValueError("Não foi possível ordenar as ramificações da árvore.")
+
+            cursor.execute(
+                """
+                UPDATE acr_causas
+                SET confirmada = 0, invalidada_em = NOW(),
+                    motivo_invalidacao = %s
+                WHERE investigacao_id = %s AND confirmada = 1
+                """,
+                ("Árvore de Causas revisada.", investigacao_id),
+            )
+            if concluir_etapa:
+                for item in itens:
+                    if item["classificacao"] not in (
+                        "contribuinte", "basica", "fundamental"
+                    ):
+                        continue
+                    cursor.execute(
+                        """
+                        INSERT INTO acr_causas (
+                            investigacao_id, metodologia_id, descricao,
+                            confirmada, identificada_por
+                        ) VALUES (%s, %s, %s, 1, %s)
+                        """,
+                        (
+                            investigacao_id,
+                            investigacao["metodologia_id"],
+                            (
+                                f"{CLASSIFICACOES_ARVORE_CAUSAS[item['classificacao']]}"
+                                f": {item['descricao']}"
+                            ),
+                            session.get("usuario_id"),
+                        ),
+                    )
+
+            status_etapa = "Concluída" if concluir_etapa else "Em andamento"
+            cursor.execute(
+                """
+                INSERT INTO acr_etapas (
+                    investigacao_id, codigo, status, iniciado_em,
+                    concluido_em, atualizado_por
+                ) VALUES (
+                    %s, 'arvore_causas', %s, NOW(),
+                    CASE WHEN %s = 'Concluída' THEN NOW() ELSE NULL END, %s
+                )
+                ON DUPLICATE KEY UPDATE
+                    status = VALUES(status),
+                    iniciado_em = COALESCE(iniciado_em, NOW()),
+                    concluido_em = CASE
+                        WHEN VALUES(status) = 'Concluída' THEN NOW() ELSE NULL
+                    END,
+                    atualizado_por = VALUES(atualizado_por)
+                """,
+                (
+                    investigacao_id,
+                    status_etapa,
+                    status_etapa,
+                    session.get("usuario_id"),
+                ),
+            )
+            if investigacao["status"] == "Rascunho":
+                cursor.execute(
+                    "UPDATE acr_investigacoes SET status = 'Em Investigação' WHERE id = %s",
+                    (investigacao_id,),
+                )
+            cursor.execute(
+                """
+                INSERT INTO acr_historico (
+                    investigacao_id, usuario_id, evento, etapa
+                ) VALUES (%s, %s, %s, 'arvore_causas')
+                """,
+                (
+                    investigacao_id,
+                    session.get("usuario_id"),
+                    (
+                        "Árvore de Causas concluída"
+                        if concluir_etapa
+                        else "Rascunho da Árvore de Causas salvo"
+                    ),
+                ),
+            )
+            conn.commit()
+            flash(
+                "Árvore de Causas concluída com sucesso."
+                if concluir_etapa
+                else "Árvore de Causas salva como rascunho.",
                 "success",
             )
         except ValueError as exc:

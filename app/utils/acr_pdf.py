@@ -277,14 +277,15 @@ def gerar_pdf_acr(dados, logo_path=None):
     elementos.append(_paragrafo(investigacao.get("descricao_ocorrencia"), estilos["normal"]))
 
     metodologia_6m = investigacao.get("metodologia_codigo") == "ishikawa"
-    elementos.append(
-        titulo_secao(
-            2,
-            "Investigação - 6M (Ishikawa)"
-            if metodologia_6m
-            else "Investigação - 5 Porquês",
-        )
+    metodologia_arvore = (
+        investigacao.get("metodologia_codigo") == "arvore_causas"
     )
+    titulo_metodologia = "Investigação - 5 Porquês"
+    if metodologia_6m:
+        titulo_metodologia = "Investigação - 6M (Ishikawa)"
+    elif metodologia_arvore:
+        titulo_metodologia = "Investigação - Árvore de Causas"
+    elementos.append(titulo_secao(2, titulo_metodologia))
     if metodologia_6m:
         categorias = dados.get("categorias_6m", {})
         classificacoes = dados.get("classificacoes_6m", {})
@@ -299,19 +300,54 @@ def gerar_pdf_acr(dados, logo_path=None):
             }
             for item in dados.get("itens_6m", [])
         ]
+    elif metodologia_arvore:
+        itens_arvore = dados.get("itens_arvore_causas", [])
+        classificacoes = dados.get("classificacoes_arvore_causas", {})
+        por_id = {item.get("id"): item for item in itens_arvore}
+
+        def nivel_item(item):
+            nivel = 1
+            pai_id = item.get("parent_id")
+            visitados = set()
+            while pai_id and pai_id in por_id and pai_id not in visitados:
+                visitados.add(pai_id)
+                nivel += 1
+                pai_id = por_id[pai_id].get("parent_id")
+            return nivel
+
+        porques = [
+            {
+                "ordem": f"Nível {nivel_item(item)}",
+                "pergunta": classificacoes.get(
+                    item.get("classificacao"), item.get("classificacao")
+                ),
+                "resposta": item.get("descricao"),
+            }
+            for item in itens_arvore
+        ]
     else:
         porques = dados.get("porques", [])
     if porques:
         linhas = [[
-            Paragraph("Categoria" if metodologia_6m else "Nivel", estilos["cabecalho"]),
-            Paragraph("Classificação" if metodologia_6m else "Pergunta", estilos["cabecalho"]),
-            Paragraph("Hipótese" if metodologia_6m else "Resposta", estilos["cabecalho"]),
+            Paragraph("Categoria" if metodologia_6m else "Nível", estilos["cabecalho"]),
+            Paragraph(
+                "Classificação"
+                if metodologia_6m or metodologia_arvore
+                else "Pergunta",
+                estilos["cabecalho"],
+            ),
+            Paragraph(
+                "Fato antecedente"
+                if metodologia_arvore
+                else ("Hipótese" if metodologia_6m else "Resposta"),
+                estilos["cabecalho"],
+            ),
         ]]
         for item in porques:
             linhas.append(
                 [
                     _paragrafo(
-                        item.get("ordem") if metodologia_6m
+                        item.get("ordem") if metodologia_6m or metodologia_arvore
                         else f"{item.get('ordem')}o",
                         estilos["pequeno"],
                     ),
@@ -321,7 +357,7 @@ def gerar_pdf_acr(dados, logo_path=None):
             )
         larguras_investigacao = (
             [3.5 * cm, 3.5 * cm, 10 * cm]
-            if metodologia_6m
+            if metodologia_6m or metodologia_arvore
             else [1.2 * cm, 7.9 * cm, 7.9 * cm]
         )
         elementos.append(tabela(linhas, larguras_investigacao))

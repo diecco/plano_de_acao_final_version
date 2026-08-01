@@ -121,6 +121,51 @@ class AcrModuleStructureTests(unittest.TestCase):
         self.assertIn("ADD COLUMN classificacao", migration)
         self.assertIn("'potencial', 'descartada', 'contribuinte'", migration)
 
+    def test_cause_tree_builds_vertical_validated_branches(self):
+        from app.views.investigacao_causa_raiz import _validar_arvore_causas
+
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
+        ).read_text(encoding="utf-8")
+        migration = (
+            ROOT / "docs" / "adicionar_arvore_causas_acr.sql"
+        ).read_text(encoding="utf-8")
+        itens = _validar_arvore_causas([
+            {
+                "chave": "fato_1",
+                "pai": None,
+                "descricao": "Proteção estava removida",
+                "classificacao": "basica",
+            },
+            {
+                "chave": "fato_2",
+                "pai": "fato_1",
+                "descricao": "Inspeção não identificou a ausência",
+                "classificacao": "fundamental",
+            },
+        ])
+        self.assertEqual(len(itens), 2)
+        self.assertIn("def salvar_arvore_causas_acr", view)
+        self.assertIn("relacionamento circular", view)
+        self.assertIn("no máximo 10 níveis", view)
+        self.assertIn("acr_arvore_causas_itens", view)
+        self.assertIn("main.salvar_arvore_causas_acr", template)
+        self.assertIn('id="arvoreCausasVisual"', template)
+        self.assertIn("js-adc-adicionar", template)
+        self.assertIn("Evento indesejado", template)
+        self.assertIn("adc-filhos", template)
+        self.assertIn("CREATE TABLE IF NOT EXISTS acr_arvore_causas_itens", migration)
+        self.assertIn("'arvore_causas', 'Árvore de Causas', 1", migration)
+
+        with self.assertRaisesRegex(ValueError, "circular"):
+            _validar_arvore_causas([
+                {"chave": "a", "pai": "b", "descricao": "A", "classificacao": "basica"},
+                {"chave": "b", "pai": "a", "descricao": "B", "classificacao": "basica"},
+            ])
+
     def test_acr_action_plan_links_existing_action_structure(self):
         view = (
             ROOT / "app" / "views" / "investigacao_causa_raiz.py"
@@ -293,6 +338,7 @@ class AcrModuleStructureTests(unittest.TestCase):
             "acr_investigacoes",
             "acr_5_porques",
             "acr_6m_itens",
+            "acr_arvore_causas_itens",
             "acr_causas",
             "acr_acoes",
             "acr_verificacoes_eficacia",
