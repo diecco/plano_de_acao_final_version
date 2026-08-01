@@ -295,11 +295,7 @@ def gerar_pdf_acr(dados, logo_path=None):
                     item.get("classificacao"),
                     item.get("classificacao") or "Potencial",
                 ),
-                "resposta": (
-                    f"{_texto(item.get('descricao'))}\n"
-                    f"Justificativa: {_texto(item.get('justificativa'))}\n"
-                    f"Validação: {_texto(item.get('validacao'))}"
-                ),
+                "resposta": item.get("descricao"),
             }
             for item in dados.get("itens_6m", [])
         ]

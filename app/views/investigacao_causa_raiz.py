@@ -1500,93 +1500,46 @@ def register_investigacao_causa_raiz_routes(blueprint):
 
             itens_formulario = []
             for categoria in CATEGORIAS_6M:
-                texto = request.form.get(f"itens_{categoria}") or ""
-                linhas = [linha.strip() for linha in texto.splitlines() if linha.strip()]
-                if len(linhas) > 20:
-                    raise ValueError(
-                        "Cada categoria do 6M aceita no máximo 20 hipóteses."
-                    )
-                if any(len(linha) > 1000 for linha in linhas):
-                    raise ValueError(
-                        "Cada hipótese do 6M deve possuir no máximo 1.000 caracteres."
-                    )
-                itens_formulario.extend(
-                    (categoria, ordem, descricao)
-                    for ordem, descricao in enumerate(linhas, start=1)
+                descricoes = request.form.getlist(f"descricao_6m_{categoria}")
+                classificacoes = request.form.getlist(
+                    f"classificacao_6m_{categoria}"
                 )
+                if len(descricoes) > 20:
+                    raise ValueError(
+                        "Cada pilar do 6M aceita no máximo 20 causas."
+                    )
+                for ordem, descricao_bruta in enumerate(descricoes, start=1):
+                    descricao = descricao_bruta.strip()
+                    classificacao = (
+                        classificacoes[ordem - 1].strip()
+                        if ordem <= len(classificacoes)
+                        else "potencial"
+                    )
+                    if not descricao:
+                        continue
+                    if len(descricao) > 1000:
+                        raise ValueError(
+                            "Cada causa do 6M deve possuir no máximo 1.000 caracteres."
+                        )
+                    if classificacao not in CLASSIFICACOES_6M:
+                        raise ValueError("Classificação inválida em uma causa do 6M.")
+                    itens_formulario.append(
+                        (categoria, ordem, descricao, classificacao)
+                    )
             if not itens_formulario:
-                raise ValueError("Registre ao menos uma hipótese no diagrama 6M.")
-
-            cursor.execute(
-                """
-                SELECT id, categoria, descricao, classificacao,
-                       justificativa, validacao
-                FROM acr_6m_itens
-                WHERE investigacao_id = %s
-                """,
-                (investigacao_id,),
-            )
-            analises_por_chave = {}
-            for item in cursor.fetchall():
-                classificacao = (
-                    request.form.get(f"classificacao_6m_{item['id']}")
-                    or item["classificacao"]
-                    or "potencial"
-                ).strip()
-                justificativa = (
-                    request.form.get(f"justificativa_6m_{item['id']}")
-                    if f"justificativa_6m_{item['id']}" in request.form
-                    else item["justificativa"]
-                ) or ""
-                validacao = (
-                    request.form.get(f"validacao_6m_{item['id']}")
-                    if f"validacao_6m_{item['id']}" in request.form
-                    else item["validacao"]
-                ) or ""
-                justificativa = justificativa.strip()
-                validacao = validacao.strip()
-                if classificacao not in CLASSIFICACOES_6M:
-                    raise ValueError("Classificação inválida em uma hipótese do 6M.")
-                if len(justificativa) > 4000 or len(validacao) > 4000:
-                    raise ValueError(
-                        "Justificativa e validação aceitam até 4.000 caracteres."
-                    )
-                analises_por_chave[(item["categoria"], item["descricao"])] = {
-                    "classificacao": classificacao,
-                    "justificativa": justificativa,
-                    "validacao": validacao,
-                }
-
-            analises_finais = []
-            for categoria, ordem, descricao in itens_formulario:
-                analise = analises_por_chave.get(
-                    (categoria, descricao),
-                    {
-                        "classificacao": "potencial",
-                        "justificativa": "",
-                        "validacao": "",
-                    },
-                )
-                analises_finais.append((categoria, ordem, descricao, analise))
+                raise ValueError("Registre ao menos uma causa no diagrama 6M.")
 
             if concluir_etapa:
                 if any(
-                    analise["classificacao"] == "potencial"
-                    for _, _, _, analise in analises_finais
+                    classificacao == "potencial"
+                    for _, _, _, classificacao in itens_formulario
                 ):
                     raise ValueError(
-                        "Classifique todas as hipóteses antes de concluir a análise."
-                    )
-                if any(
-                    not analise["justificativa"] or not analise["validacao"]
-                    for _, _, _, analise in analises_finais
-                ):
-                    raise ValueError(
-                        "Informe a justificativa e a validação de todas as hipóteses."
+                        "Classifique todas as causas antes de concluir a análise."
                     )
                 if not any(
-                    analise["classificacao"] in ("basica", "fundamental")
-                    for _, _, _, analise in analises_finais
+                    classificacao in ("basica", "fundamental")
+                    for _, _, _, classificacao in itens_formulario
                 ):
                     raise ValueError(
                         "A análise deve possuir ao menos uma causa básica ou fundamental."
@@ -1596,7 +1549,7 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 "DELETE FROM acr_6m_itens WHERE investigacao_id = %s",
                 (investigacao_id,),
             )
-            for categoria, ordem, descricao, analise in analises_finais:
+            for categoria, ordem, descricao, classificacao in itens_formulario:
                 cursor.execute(
                     """
                     INSERT INTO acr_6m_itens (
@@ -1611,11 +1564,11 @@ def register_investigacao_causa_raiz_routes(blueprint):
                         descricao,
                         int(
                             concluir_etapa
-                            and analise["classificacao"] in ("basica", "fundamental")
+                            and classificacao in ("basica", "fundamental")
                         ),
-                        analise["classificacao"],
-                        analise["justificativa"] or None,
-                        analise["validacao"] or None,
+                        classificacao,
+                        None,
+                        None,
                         ordem,
                         session.get("usuario_id"),
                     ),
@@ -1631,8 +1584,8 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 ("Diagrama 6M revisado.", investigacao_id),
             )
             if concluir_etapa:
-                for categoria, _, descricao, analise in analises_finais:
-                    if analise["classificacao"] not in (
+                for categoria, _, descricao, classificacao in itens_formulario:
+                    if classificacao not in (
                         "contribuinte",
                         "basica",
                         "fundamental",
@@ -1649,7 +1602,7 @@ def register_investigacao_causa_raiz_routes(blueprint):
                             investigacao_id,
                             investigacao["metodologia_id"],
                             (
-                                f"{CLASSIFICACOES_6M[analise['classificacao']]}"
+                                f"{CLASSIFICACOES_6M[classificacao]}"
                                 f" | {CATEGORIAS_6M[categoria]}: {descricao}"
                             ),
                             session.get("usuario_id"),
