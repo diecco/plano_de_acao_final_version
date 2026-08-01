@@ -27,7 +27,9 @@
     .acr-timeline-item { padding:0 0 1.25rem 2rem; position:relative; }
     .acr-timeline-item:not(:last-child)::before { background:#d6d8da; content:""; left:.48rem; position:absolute; top:1rem; bottom:-.15rem; width:2px; }
     .acr-timeline-dot { background:#f36b21; border:3px solid #fff; border-radius:50%; box-shadow:0 0 0 1px #f36b21; height:1rem; left:0; position:absolute; top:.2rem; width:1rem; }
-    .acr-anexo-etapa { border:1px solid #e1e3e5; border-radius:10px; height:100%; padding:14px; }
+    .btn-anexos-etapa { position:relative; }
+    .btn-anexos-contagem { align-items:center; background:#6c757d; border:2px solid #fff; border-radius:50%; color:#fff; display:flex; font-size:.6rem; height:1.1rem; justify-content:center; line-height:1; min-width:1.1rem; padding:0 .2rem; position:absolute; right:-.45rem; top:-.45rem; }
+    .acr-anexo-etapa { border:1px solid #e1e3e5; border-radius:10px; padding:14px; }
     .acr-anexo-item { border-top:1px solid #eceeef; padding:.75rem 0; }
     .acr-anexo-item:first-child { border-top:0; padding-top:0; }
     .acr-anexo-nome { min-width:0; overflow-wrap:anywhere; }
@@ -39,6 +41,22 @@
 {% endblock %}
 
 {% block conteudo %}
+{% macro botao_anexos(codigo, rotulo) %}
+    <button class="btn-acao-icon btn-anexos-etapa"
+            type="button"
+            data-bs-toggle="modal"
+            data-bs-target="#modalAnexosAcr"
+            data-etapa="{{ codigo }}"
+            data-etapa-rotulo="{{ rotulo }}"
+            data-anexo-tooltip="true"
+            title="Gerenciar anexos da etapa {{ rotulo }}"
+            aria-label="Gerenciar anexos da etapa {{ rotulo }}">
+        <i class="bi bi-paperclip"></i>
+        {% if evidencias_por_etapa[codigo]|length %}
+            <span class="btn-anexos-contagem">{{ evidencias_por_etapa[codigo]|length }}</span>
+        {% endif %}
+    </button>
+{% endmacro %}
 <div class="page-header">
     <h2 class="page-title text-center mb-1">
         <i class="bi bi-diagram-3 me-2"></i>{{ investigacao.numero }}
@@ -58,7 +76,10 @@
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-            <h5 class="mb-0">Contexto da ocorrência</h5>
+            <div class="d-flex align-items-center gap-2">
+                <h5 class="mb-0">Contexto da ocorrência</h5>
+                {{ botao_anexos('identificacao', 'Identificação') }}
+            </div>
             <div class="d-flex align-items-center gap-2">
                 <span class="badge text-bg-secondary">{{ investigacao.status }}</span>
                 {% if investigacao.status in ['Concluída', 'Cancelada'] %}
@@ -81,117 +102,16 @@
     </div>
 </div>
 
-<div class="card border-0 shadow-sm mb-4" id="anexos-acr">
-    <div class="card-body">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-            <div>
-                <h5 class="mb-1"><i class="bi bi-paperclip me-2"></i>Anexos por etapa</h5>
-                <small class="text-muted">Inclua documentos e evidências na etapa em que foram utilizados.</small>
-            </div>
-            <span class="badge badge-track-gray">
-                {{ total_evidencias }} arquivo(s)
-            </span>
-        </div>
-
-        {% if not somente_leitura %}
-            <form class="border rounded p-3 mb-4"
-                  method="post"
-                  enctype="multipart/form-data"
-                  action="{{ url_for('main.enviar_anexo_acr', investigacao_id=investigacao.id) }}">
-                <div class="row g-3 align-items-end">
-                    <div class="col-12 col-md-3">
-                        <label class="form-label" for="etapa_anexo_acr">Etapa *</label>
-                        <select class="form-select" id="etapa_anexo_acr" name="etapa" required>
-                            <option value="">Selecione</option>
-                            {% for codigo, rotulo in etapas_evidencia.items() %}
-                                <option value="{{ codigo }}">{{ rotulo }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <label class="form-label" for="arquivo_anexo_acr">Arquivo *</label>
-                        <input class="form-control"
-                               id="arquivo_anexo_acr"
-                               name="arquivo"
-                               type="file"
-                               accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx"
-                               required>
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <label class="form-label" for="descricao_anexo_acr">Descrição</label>
-                        <input class="form-control"
-                               id="descricao_anexo_acr"
-                               name="descricao"
-                               type="text"
-                               maxlength="500"
-                               placeholder="Identifique o conteúdo do arquivo">
-                    </div>
-                    <div class="col-12 col-md-1 d-grid">
-                        <button class="btn btn-laranja" type="submit" title="Anexar arquivo" aria-label="Anexar arquivo">
-                            <i class="bi bi-upload"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="form-text mt-2">PDF, imagens, Word ou Excel, com até 10 MB por arquivo.</div>
-            </form>
-        {% endif %}
-
-        <div class="row g-3">
-            {% for codigo, rotulo in etapas_evidencia.items() %}
-                <div class="col-12 col-lg-6">
-                    <section class="acr-anexo-etapa" aria-labelledby="titulo-anexos-{{ codigo }}">
-                        <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
-                            <strong id="titulo-anexos-{{ codigo }}">{{ rotulo }}</strong>
-                            <span class="badge badge-track-gray">{{ evidencias_por_etapa[codigo]|length }}</span>
-                        </div>
-                        {% for evidencia in evidencias_por_etapa[codigo] %}
-                            <div class="acr-anexo-item">
-                                <div class="d-flex justify-content-between align-items-start gap-3">
-                                    <div class="acr-anexo-nome">
-                                        <strong class="d-block">{{ evidencia.nome_original }}</strong>
-                                        {% if evidencia.descricao %}<span class="d-block small">{{ evidencia.descricao }}</span>{% endif %}
-                                        <small class="text-muted">
-                                            {{ (evidencia.tamanho_bytes / 1048576)|round(2) }} MB
-                                            · {{ evidencia.enviado_por_nome or 'Usuário não identificado' }}
-                                            · {{ evidencia.criado_em.strftime('%d/%m/%Y %H:%M') if evidencia.criado_em else '—' }}
-                                        </small>
-                                    </div>
-                                    <div class="d-flex gap-1 flex-shrink-0">
-                                        <a class="btn-acao-icon"
-                                           href="{{ url_for('main.baixar_anexo_acr', investigacao_id=investigacao.id, evidencia_id=evidencia.id) }}"
-                                           title="Baixar anexo"
-                                           aria-label="Baixar {{ evidencia.nome_original }}">
-                                            <i class="bi bi-download"></i>
-                                        </a>
-                                        {% if not somente_leitura %}
-                                            <form method="post"
-                                                  action="{{ url_for('main.excluir_anexo_acr', investigacao_id=investigacao.id, evidencia_id=evidencia.id) }}"
-                                                  onsubmit="return confirm('Excluir este anexo?');">
-                                                <button class="btn-acao-icon" type="submit" title="Excluir anexo" aria-label="Excluir {{ evidencia.nome_original }}">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </form>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        {% else %}
-                            <div class="text-muted small py-2">Nenhum arquivo nesta etapa.</div>
-                        {% endfor %}
-                    </section>
-                </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-
 <form method="post"
       action="{{ url_for('main.salvar_5_porques_acr', investigacao_id=investigacao.id) }}">
     <div class="card border-0 shadow-sm">
         <div class="card-body">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                 <div>
-                    <h5 class="mb-1">Sequência dos 5 Porquês</h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <h5 class="mb-1">Sequência dos 5 Porquês</h5>
+                        {{ botao_anexos('investigacao', 'Investigação') }}
+                    </div>
                     <small class="text-muted">
                         Registre a pergunta e a respectiva resposta em cada nível, sempre em sequência.
                     </small>
@@ -260,7 +180,10 @@
 {% if causa_raiz %}
 <div class="card border-0 shadow-sm mt-4" id="plano-acao">
     <div class="card-body">
-        <h5 class="mb-3"><i class="bi bi-bullseye me-2"></i>Causa raiz confirmada</h5>
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <h5 class="mb-0"><i class="bi bi-bullseye me-2"></i>Causa raiz confirmada</h5>
+            {{ botao_anexos('causas', 'Causas') }}
+        </div>
         <div class="alert alert-track-orange mb-0">{{ causa_raiz.descricao }}</div>
     </div>
 </div>
@@ -268,7 +191,10 @@
 <div class="card border-0 shadow-sm mt-4">
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
-            <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Plano de ação</h5>
+            <div class="d-flex align-items-center gap-2">
+                <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Plano de ação</h5>
+                {{ botao_anexos('acoes', 'Ações') }}
+            </div>
             <span class="badge text-bg-secondary">{{ acoes_vinculadas|length }} ação(ões)</span>
         </div>
 
@@ -372,7 +298,10 @@
     <div class="card-body">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
             <div>
-                <h5 class="mb-1"><i class="bi bi-check2-circle me-2"></i>Verificação de eficácia</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <h5 class="mb-1"><i class="bi bi-check2-circle me-2"></i>Verificação de eficácia</h5>
+                    {{ botao_anexos('eficacia', 'Eficácia') }}
+                </div>
                 <small class="text-muted">Confirme se as ações eliminaram ou controlaram a causa raiz identificada.</small>
             </div>
             <span class="badge {{ 'badge-track-orange' if etapa_eficacia.status in ['Concluída', 'Em andamento'] else 'badge-track-gray' }}">{{ etapa_eficacia.status }}</span>
@@ -530,6 +459,97 @@
 {% endif %}
 {% endif %}
 
+<div class="modal fade" id="modalAnexosAcr" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header modal-header-trackplan">
+                <h5 class="modal-title"><i class="bi bi-paperclip me-2"></i>Anexos — <span id="rotuloEtapaAnexoAcr"></span></h5>
+                <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                {% if not somente_leitura %}
+                    <form class="border rounded p-3 mb-4"
+                          method="post"
+                          enctype="multipart/form-data"
+                          action="{{ url_for('main.enviar_anexo_acr', investigacao_id=investigacao.id) }}">
+                        <input id="etapa_anexo_acr" name="etapa" type="hidden">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="arquivo_anexo_acr">Arquivo *</label>
+                                <input class="form-control"
+                                       id="arquivo_anexo_acr"
+                                       name="arquivo"
+                                       type="file"
+                                       accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx"
+                                       required>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="descricao_anexo_acr">Descrição</label>
+                                <input class="form-control"
+                                       id="descricao_anexo_acr"
+                                       name="descricao"
+                                       type="text"
+                                       maxlength="500"
+                                       placeholder="Identifique o conteúdo do arquivo">
+                            </div>
+                            <div class="col-12 d-flex justify-content-between align-items-center gap-3">
+                                <small class="text-muted">PDF, imagens, Word ou Excel, com até 10 MB.</small>
+                                <button class="btn btn-laranja" type="submit"><i class="bi bi-upload me-1"></i>Anexar</button>
+                            </div>
+                        </div>
+                    </form>
+                {% endif %}
+
+                {% for codigo, rotulo in etapas_evidencia.items() %}
+                    <section class="acr-anexo-etapa d-none" data-anexos-etapa="{{ codigo }}">
+                        <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+                            <strong>Arquivos da etapa</strong>
+                            <span class="badge badge-track-gray">{{ evidencias_por_etapa[codigo]|length }}</span>
+                        </div>
+                        {% for evidencia in evidencias_por_etapa[codigo] %}
+                            <div class="acr-anexo-item">
+                                <div class="d-flex justify-content-between align-items-start gap-3">
+                                    <div class="acr-anexo-nome">
+                                        <strong class="d-block">{{ evidencia.nome_original }}</strong>
+                                        {% if evidencia.descricao %}<span class="d-block small">{{ evidencia.descricao }}</span>{% endif %}
+                                        <small class="text-muted">
+                                            {{ (evidencia.tamanho_bytes / 1048576)|round(2) }} MB
+                                            · {{ evidencia.enviado_por_nome or 'Usuário não identificado' }}
+                                            · {{ evidencia.criado_em.strftime('%d/%m/%Y %H:%M') if evidencia.criado_em else '—' }}
+                                        </small>
+                                    </div>
+                                    <div class="d-flex gap-1 flex-shrink-0">
+                                        <a class="btn-acao-icon"
+                                           href="{{ url_for('main.baixar_anexo_acr', investigacao_id=investigacao.id, evidencia_id=evidencia.id) }}"
+                                           title="Baixar anexo"
+                                           aria-label="Baixar {{ evidencia.nome_original }}">
+                                            <i class="bi bi-download"></i>
+                                        </a>
+                                        {% if not somente_leitura %}
+                                            <form method="post"
+                                                  action="{{ url_for('main.excluir_anexo_acr', investigacao_id=investigacao.id, evidencia_id=evidencia.id) }}"
+                                                  onsubmit="return confirm('Excluir este anexo?');">
+                                                <button class="btn-acao-icon" type="submit" title="Excluir anexo" aria-label="Excluir {{ evidencia.nome_original }}">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="text-center text-muted small py-3">Nenhum arquivo anexado nesta etapa.</div>
+                        {% endfor %}
+                    </section>
+                {% endfor %}
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-cinza" type="button" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card border-0 shadow-sm mt-4" id="historico-acr">
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center gap-2 mb-4">
@@ -580,6 +600,36 @@
 <script id="responsaveis-acao-acr-data" type="application/json">{{ responsaveis_acao|tojson }}</script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    const modalAnexos = document.getElementById('modalAnexosAcr');
+    const etapaAnexo = document.getElementById('etapa_anexo_acr');
+    const rotuloEtapaAnexo = document.getElementById('rotuloEtapaAnexoAcr');
+    document.querySelectorAll('[data-anexo-tooltip="true"]').forEach(elemento => {
+        if (window.bootstrap && bootstrap.Tooltip) new bootstrap.Tooltip(elemento);
+    });
+    if (modalAnexos) {
+        modalAnexos.addEventListener('show.bs.modal', evento => {
+            const botao = evento.relatedTarget;
+            if (!botao) return;
+            const codigo = botao.dataset.etapa;
+            const rotulo = botao.dataset.etapaRotulo;
+            if (etapaAnexo) etapaAnexo.value = codigo;
+            if (rotuloEtapaAnexo) rotuloEtapaAnexo.textContent = rotulo;
+            modalAnexos.querySelectorAll('[data-anexos-etapa]').forEach(secao => {
+                secao.classList.toggle('d-none', secao.dataset.anexosEtapa !== codigo);
+            });
+            const tooltip = window.bootstrap && bootstrap.Tooltip
+                ? bootstrap.Tooltip.getInstance(botao)
+                : null;
+            if (tooltip) tooltip.hide();
+        });
+        const etapaInicial = new URLSearchParams(window.location.search).get('anexos_etapa');
+        const botaoInicial = etapaInicial
+            ? document.querySelector(`.btn-anexos-etapa[data-etapa="${etapaInicial}"]`)
+            : null;
+        if (botaoInicial && window.bootstrap && bootstrap.Modal) {
+            bootstrap.Modal.getOrCreateInstance(modalAnexos).show(botaoInicial);
+        }
+    }
     const usuarios = JSON.parse(document.getElementById('responsaveis-acao-acr-data').textContent || '[]');
     const busca = document.getElementById('responsavel_busca_acr');
     const oculto = document.getElementById('responsavel_id');

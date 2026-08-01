@@ -622,9 +622,6 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 etapa_eficacia=etapa_eficacia,
                 etapas_evidencia=ETAPAS_EVIDENCIA_ACR,
                 evidencias_por_etapa=evidencias_por_etapa,
-                total_evidencias=sum(
-                    len(itens) for itens in evidencias_por_etapa.values()
-                ),
                 historico_acr=historico_acr,
                 pode_gerenciar_eficacia=(
                     session.get("usuario_id") == investigacao["criador_id"]
@@ -769,8 +766,8 @@ def register_investigacao_causa_raiz_routes(blueprint):
             url_for(
                 "main.detalhar_investigacao_acr",
                 investigacao_id=investigacao_id,
+                anexos_etapa=etapa_codigo,
             )
-            + "#anexos-acr"
         )
 
     @blueprint.route(
@@ -806,7 +803,6 @@ def register_investigacao_causa_raiz_routes(blueprint):
                         "main.detalhar_investigacao_acr",
                         investigacao_id=investigacao_id,
                     )
-                    + "#anexos-acr"
                 )
             return send_from_directory(
                 UploadService.resolver_diretorio(_diretorio_evidencias_acr()),
@@ -828,6 +824,7 @@ def register_investigacao_causa_raiz_routes(blueprint):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         nome_armazenado = None
+        etapa_codigo = ""
         try:
             investigacao = _buscar_investigacao_acessivel(
                 cursor,
@@ -852,6 +849,7 @@ def register_investigacao_causa_raiz_routes(blueprint):
             if not evidencia:
                 raise ValueError("Anexo não encontrado.")
             nome_armazenado = evidencia["nome_armazenado"]
+            etapa_codigo = evidencia["etapa"]
             cursor.execute(
                 """
                 UPDATE acr_evidencias
@@ -902,8 +900,8 @@ def register_investigacao_causa_raiz_routes(blueprint):
             url_for(
                 "main.detalhar_investigacao_acr",
                 investigacao_id=investigacao_id,
+                anexos_etapa=etapa_codigo,
             )
-            + "#anexos-acr"
         )
 
     @blueprint.route(
