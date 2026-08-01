@@ -27,7 +27,7 @@ class AcrModuleStructureTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertGreaterEqual(
             view.count('@module_required("acesso_acr")'),
-            4,
+            5,
         )
         self.assertIn("acr_participantes", view)
         self.assertIn("centro_custos_id", view)
@@ -85,6 +85,20 @@ class AcrModuleStructureTests(unittest.TestCase):
             1,
         )
         self.assertIn("Cada nível preenchido precisa ter pergunta e resposta", view)
+
+    def test_acr_action_plan_links_existing_action_structure(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("def criar_acao_acr", view)
+        self.assertIn("INSERT INTO acoes", view)
+        self.assertIn("INSERT INTO acr_acoes", view)
+        self.assertIn("Confirme a causa raiz", view)
+        self.assertIn("main.criar_acao_acr", template)
+        self.assertIn("Plano de ação", template)
 
     def test_permission_is_available_in_user_flows(self):
         view = (ROOT / "app" / "views" / "usuarios.py").read_text(

@@ -356,11 +356,63 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 "status": "Não iniciada",
                 "atualizado_em": None,
             }
+            cursor.execute(
+                """
+                SELECT id, descricao, identificada_em
+                FROM acr_causas
+                WHERE investigacao_id = %s AND confirmada = 1
+                ORDER BY id
+                LIMIT 1
+                """,
+                (investigacao_id,),
+            )
+            causa_raiz = cursor.fetchone()
+            cursor.execute(
+                """
+                SELECT
+                    a.id, a.descricao, a.prazo, a.status,
+                    u.nome AS responsavel,
+                    o.descricao AS origem
+                FROM acr_acoes aa
+                JOIN acoes a ON a.id = aa.acao_id
+                LEFT JOIN usuarios u ON u.id = a.responsavel_id
+                LEFT JOIN origens o ON o.id = a.origem_id
+                WHERE aa.investigacao_id = %s AND a.ativo = 1
+                ORDER BY a.prazo, a.id
+                """,
+                (investigacao_id,),
+            )
+            acoes_vinculadas = cursor.fetchall()
+            cursor.execute(
+                """
+                SELECT id, descricao
+                FROM origens
+                WHERE ativo = 1 AND centro_custos_id = %s
+                ORDER BY descricao
+                """,
+                (investigacao["centro_custos_id"],),
+            )
+            origens_acao = cursor.fetchall()
+            cursor.execute(
+                """
+                SELECT id, nome, matricula
+                FROM usuarios
+                WHERE ativo = 1 AND centro_custos_id = %s
+                ORDER BY nome
+                """,
+                (investigacao["centro_custos_id"],),
+            )
+            responsaveis_acao = cursor.fetchall()
             return render_template(
                 "investigacao_causa_raiz_detalhe.html",
                 investigacao=investigacao,
                 porques=porques,
                 etapa=etapa,
+                causa_raiz=causa_raiz,
+                acoes_vinculadas=acoes_vinculadas,
+                origens_acao=origens_acao,
+                responsaveis_acao=responsaveis_acao,
+                hoje=date.today().isoformat(),
                 somente_leitura=investigacao["status"] in (
                     "Concluída",
                     "Cancelada",
@@ -618,6 +670,160 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 ),
                 "success",
             )
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "danger")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+
+        return redirect(
+            url_for(
+                "main.detalhar_investigacao_acr",
+                investigacao_id=investigacao_id,
+            )
+        )
+
+    @blueprint.route(
+        "/acr/<int:investigacao_id>/acoes",
+        methods=["POST"],
+    )
+    @login_required
+    @module_required("acesso_acr")
+    def criar_acao_acr(investigacao_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            investigacao = _buscar_investigacao_acessivel(
+                cursor,
+                investigacao_id,
+            )
+            if not investigacao:
+                flash("Investigação não encontrada ou fora do seu escopo.", "danger")
+                return redirect(url_for("main.investigacoes_acr"))
+            if investigacao["status"] in ("Concluída", "Cancelada"):
+                raise ValueError(
+                    "Esta investigação não permite novas ações no estado atual."
+                )
+
+            cursor.execute(
+                """
+                SELECT id
+                FROM acr_causas
+                WHERE investigacao_id = %s AND confirmada = 1
+                ORDER BY id
+                LIMIT 1
+                """,
+                (investigacao_id,),
+            )
+            causa_raiz = cursor.fetchone()
+            if not causa_raiz:
+                raise ValueError(
+                    "Confirme a causa raiz antes de cadastrar o plano de ação."
+                )
+
+            origem_id = request.form.get("origem_id", type=int)
+            responsavel_id = request.form.get("responsavel_id", type=int)
+            descricao = (request.form.get("descricao") or "").strip()
+            prazo_texto = (request.form.get("prazo") or "").strip()
+
+            if not all((origem_id, responsavel_id, descricao, prazo_texto)):
+                raise ValueError("Preencha todos os campos da ação.")
+            if len(descricao) > 4000:
+                raise ValueError(
+                    "A descrição da ação deve ter no máximo 4.000 caracteres."
+                )
+            try:
+                prazo = date.fromisoformat(prazo_texto)
+            except ValueError as exc:
+                raise ValueError("Informe um prazo válido para a ação.") from exc
+            if prazo < date.today():
+                raise ValueError("O prazo da ação não pode estar no passado.")
+
+            cursor.execute(
+                """
+                SELECT id
+                FROM origens
+                WHERE id = %s AND ativo = 1 AND centro_custos_id = %s
+                """,
+                (origem_id, investigacao["centro_custos_id"]),
+            )
+            if not cursor.fetchone():
+                raise ValueError("Origem da ação fora do centro de custos da ACR.")
+
+            cursor.execute(
+                """
+                SELECT id
+                FROM usuarios
+                WHERE id = %s AND ativo = 1 AND centro_custos_id = %s
+                """,
+                (responsavel_id, investigacao["centro_custos_id"]),
+            )
+            if not cursor.fetchone():
+                raise ValueError("Responsável fora do centro de custos da ACR.")
+
+            cursor.execute(
+                """
+                INSERT INTO acoes (
+                    origem_id, responsavel_id, centro_custos_id,
+                    descricao, prazo, status, criado_por
+                )
+                VALUES (%s, %s, %s, %s, %s, 'Não iniciada', %s)
+                """,
+                (
+                    origem_id,
+                    responsavel_id,
+                    investigacao["centro_custos_id"],
+                    descricao,
+                    prazo,
+                    session.get("usuario_id"),
+                ),
+            )
+            acao_id = cursor.lastrowid
+            cursor.execute(
+                """
+                INSERT INTO acr_acoes (
+                    investigacao_id, causa_raiz_id, acao_id, criado_por
+                )
+                VALUES (%s, %s, %s, %s)
+                """,
+                (
+                    investigacao_id,
+                    causa_raiz["id"],
+                    acao_id,
+                    session.get("usuario_id"),
+                ),
+            )
+            cursor.execute(
+                """
+                INSERT INTO acr_etapas (
+                    investigacao_id, codigo, status, iniciado_em,
+                    atualizado_por
+                )
+                VALUES (%s, 'acoes', 'Em andamento', NOW(), %s)
+                ON DUPLICATE KEY UPDATE
+                    status = 'Em andamento',
+                    iniciado_em = COALESCE(iniciado_em, NOW()),
+                    atualizado_por = VALUES(atualizado_por)
+                """,
+                (investigacao_id, session.get("usuario_id")),
+            )
+            cursor.execute(
+                """
+                INSERT INTO acr_historico (
+                    investigacao_id, usuario_id, evento,
+                    etapa, entidade_tipo, entidade_id
+                )
+                VALUES (%s, %s, 'Ação criada e vinculada',
+                        'acoes', 'acao', %s)
+                """,
+                (investigacao_id, session.get("usuario_id"), acao_id),
+            )
+            conn.commit()
+            flash("Ação criada e vinculada à ACR com sucesso.", "success")
         except ValueError as exc:
             conn.rollback()
             flash(str(exc), "danger")

@@ -31,9 +31,9 @@
 
 <div class="acr-workflow mb-4">
     <div class="acr-workflow-step done">1. Identificação</div>
-    <div class="acr-workflow-step active">2. Investigação</div>
-    <div class="acr-workflow-step">3. Causas</div>
-    <div class="acr-workflow-step">4. Ações</div>
+    <div class="acr-workflow-step {{ 'done' if etapa.status == 'Concluída' else 'active' }}">2. Investigação</div>
+    <div class="acr-workflow-step {{ 'done' if causa_raiz else '' }}">3. Causas</div>
+    <div class="acr-workflow-step {{ 'active' if causa_raiz else '' }}">4. Ações</div>
     <div class="acr-workflow-step">5. Eficácia</div>
 </div>
 
@@ -127,4 +127,93 @@
         </div>
     </div>
 </form>
+
+{% if causa_raiz %}
+<div class="card border-0 shadow-sm mt-4">
+    <div class="card-body">
+        <h5 class="mb-3"><i class="bi bi-bullseye me-2"></i>Causa raiz confirmada</h5>
+        <div class="alert alert-success mb-0">{{ causa_raiz.descricao }}</div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mt-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+            <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Plano de ação</h5>
+            <span class="badge text-bg-secondary">{{ acoes_vinculadas|length }} ação(ões)</span>
+        </div>
+
+        {% if acoes_vinculadas %}
+            <div class="table-responsive mb-4">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Ação</th>
+                            <th>Responsável</th>
+                            <th>Origem</th>
+                            <th>Prazo</th>
+                            <th>Status</th>
+                            {% if session.get('acesso_plano_acao') or session.get('perfil') == 'administrador' %}<th></th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for acao in acoes_vinculadas %}
+                            <tr>
+                                <td>{{ acao.descricao }}</td>
+                                <td>{{ acao.responsavel or '—' }}</td>
+                                <td>{{ acao.origem or '—' }}</td>
+                                <td>{{ acao.prazo.strftime('%d/%m/%Y') if acao.prazo else '—' }}</td>
+                                <td><span class="badge text-bg-secondary">{{ acao.status }}</span></td>
+                                {% if session.get('acesso_plano_acao') or session.get('perfil') == 'administrador' %}
+                                    <td class="text-end">
+                                        <a class="btn btn-laranja btn-sm"
+                                           href="{{ url_for('main.editar_acao', id=acao.id, next=request.path) }}"
+                                           title="Editar ação"><i class="bi bi-pencil"></i></a>
+                                    </td>
+                                {% endif %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+
+        {% if not somente_leitura %}
+            <form method="post" action="{{ url_for('main.criar_acao_acr', investigacao_id=investigacao.id) }}">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="origem_id">Origem da ação *</label>
+                        <select class="form-select" id="origem_id" name="origem_id" required>
+                            <option value="">Selecione</option>
+                            {% for origem in origens_acao %}<option value="{{ origem.id }}">{{ origem.descricao }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="responsavel_id">Responsável *</label>
+                        <select class="form-select" id="responsavel_id" name="responsavel_id" required>
+                            <option value="">Selecione</option>
+                            {% for usuario in responsaveis_acao %}
+                                <option value="{{ usuario.id }}">{{ usuario.nome }}{% if usuario.matricula %} — {{ usuario.matricula }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="descricao">Descrição da ação *</label>
+                        <textarea class="form-control" id="descricao" name="descricao" rows="3" maxlength="4000" required></textarea>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="prazo">Prazo *</label>
+                        <input class="form-control" type="date" id="prazo" name="prazo" min="{{ hoje }}" required>
+                    </div>
+                    <div class="col-12 col-md-8 d-flex justify-content-end align-items-end">
+                        <button class="btn btn-laranja" type="submit">
+                            <i class="bi bi-plus-circle me-1"></i>Adicionar ação
+                        </button>
+                    </div>
+                </div>
+            </form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 {% endblock %}
