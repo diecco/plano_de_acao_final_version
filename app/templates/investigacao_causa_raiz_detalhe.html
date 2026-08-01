@@ -229,6 +229,7 @@
                     <div class="d-flex align-items-center gap-2">
                         <h5 class="mb-1">Diagrama 6M (Ishikawa)</h5>
                         {{ botao_anexos('investigacao', 'Investigação') }}
+                        {{ botao_anexos('causas', 'Causas') }}
                     </div>
                     <small class="text-muted">Adicione e classifique as causas diretamente em cada pilar.</small>
                 </div>
@@ -301,7 +302,8 @@
 {% endif %}
 
 {% if causa_raiz %}
-<div class="card border-0 shadow-sm mt-4" id="plano-acao">
+{% if investigacao.metodologia_codigo == '5_porques' %}
+<div class="card border-0 shadow-sm mt-4">
     <div class="card-body">
         <div class="d-flex align-items-center gap-2 mb-3">
             <h5 class="mb-0"><i class="bi bi-bullseye me-2"></i>Causas confirmadas</h5>
@@ -312,15 +314,21 @@
         {% endfor %}
     </div>
 </div>
+{% endif %}
 
-<div class="card border-0 shadow-sm mt-4">
+<div class="card border-0 shadow-sm mt-4" id="plano-acao">
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
             <div class="d-flex align-items-center gap-2">
                 <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Plano de ação</h5>
                 {{ botao_anexos('acoes', 'Ações') }}
             </div>
-            <span class="badge text-bg-secondary">{{ acoes_vinculadas|length }} ação(ões)</span>
+            <div class="d-flex align-items-center gap-2">
+                {% if investigacao.metodologia_codigo == 'ishikawa' %}
+                    <span class="badge badge-track-gray">{{ causas_raiz|length }} causa(s) tratável(is)</span>
+                {% endif %}
+                <span class="badge badge-track-gray">{{ acoes_vinculadas|length }} ação(ões)</span>
+            </div>
         </div>
 
         {% macro cabecalho_acao(campo, titulo) %}

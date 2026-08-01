@@ -112,6 +112,11 @@ class AcrModuleStructureTests(unittest.TestCase):
         self.assertIn("ishikawa-par", template)
         self.assertIn("categorias_6m.items()|batch(2)", template)
         self.assertIn("js-adicionar-causa-6m", template)
+        self.assertIn(
+            "investigacao.metodologia_codigo == '5_porques'",
+            template,
+        )
+        self.assertIn("causa(s) tratável(is)", template)
         self.assertIn("Concluir análise", template)
         self.assertIn("ADD COLUMN classificacao", migration)
         self.assertIn("'potencial', 'descartada', 'contribuinte'", migration)
