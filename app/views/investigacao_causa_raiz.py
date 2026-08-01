@@ -165,8 +165,6 @@ def _buscar_centros_e_responsaveis(cursor):
         SELECT id, nome, matricula, centro_custos_id
         FROM usuarios
         WHERE ativo = 1
-          AND tem_acesso_sistema = 1
-          AND (acesso_acr = 1 OR perfil = 'administrador')
           AND centro_custos_id = %s
         ORDER BY nome
         """,
@@ -641,8 +639,6 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 SELECT id, nome, matricula
                 FROM usuarios
                 WHERE ativo = 1
-                  AND tem_acesso_sistema = 1
-                  AND (acesso_acr = 1 OR perfil = 'administrador')
                   AND centro_custos_id = %s
                 ORDER BY nome
                 """,
@@ -2156,8 +2152,6 @@ def register_investigacao_causa_raiz_routes(blueprint):
                 SELECT id, nome
                 FROM usuarios
                 WHERE ativo = 1
-                  AND tem_acesso_sistema = 1
-                  AND (acesso_acr = 1 OR perfil = 'administrador')
                   AND centro_custos_id = %s
                 """,
                 (investigacao["centro_custos_id"],),
