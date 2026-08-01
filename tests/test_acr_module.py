@@ -27,7 +27,7 @@ class AcrModuleStructureTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertGreaterEqual(
             view.count('@module_required("acesso_acr")'),
-            5,
+            6,
         )
         self.assertIn("acr_participantes", view)
         self.assertIn("centro_custos_id", view)
@@ -99,6 +99,13 @@ class AcrModuleStructureTests(unittest.TestCase):
         self.assertIn("Confirme a causa raiz", view)
         self.assertIn("main.criar_acao_acr", template)
         self.assertIn("Plano de ação", template)
+        self.assertIn("_garantir_origem_acao_acr", view)
+        self.assertNotIn('name="origem_id"', template)
+        self.assertIn("responsavel_busca_acr", template)
+        self.assertIn("btn-acao-icon", template)
+        self.assertIn("table table-bordered align-middle table-fixed", template)
+        self.assertIn("def editar_acao_acr", view)
+        self.assertIn("main.editar_acao_acr", template)
 
     def test_permission_is_available_in_user_flows(self):
         view = (ROOT / "app" / "views" / "usuarios.py").read_text(

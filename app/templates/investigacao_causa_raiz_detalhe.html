@@ -13,6 +13,12 @@
     .acr-context-item small { color:#6c757d; display:block; }
     .porque-card { border:1px solid #e5e7eb; border-left:4px solid #f36b21; border-radius:10px; padding:14px; }
     .porque-number { align-items:center; background:#f36b21; border-radius:50%; color:#fff; display:inline-flex; font-weight:700; height:30px; justify-content:center; width:30px; }
+    .table-fixed { table-layout:fixed; min-width:760px; }
+    .td-truncate { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .autocomplete-wrap { position:relative; }
+    .autocomplete-list { background:#fff; border:1px solid #ced4da; border-radius:0 0 .375rem .375rem; box-shadow:0 .5rem 1rem rgba(0,0,0,.12); display:none; left:0; max-height:240px; overflow-y:auto; position:absolute; right:0; top:100%; z-index:1080; }
+    .autocomplete-item { cursor:pointer; padding:.65rem .75rem; }
+    .autocomplete-item:hover, .autocomplete-item.active { background:#fff1e8; color:#c94e0c; }
     @media (max-width: 900px) {
         .acr-context { grid-template-columns:repeat(2,minmax(0,1fr)); }
         .acr-workflow { overflow-x:auto; grid-template-columns:repeat(5,130px); }
@@ -143,59 +149,91 @@
             <span class="badge text-bg-secondary">{{ acoes_vinculadas|length }} ação(ões)</span>
         </div>
 
-        {% if acoes_vinculadas %}
-            <div class="table-responsive mb-4">
-                <table class="table table-hover align-middle">
-                    <thead>
-                        <tr>
-                            <th>Ação</th>
-                            <th>Responsável</th>
-                            <th>Origem</th>
-                            <th>Prazo</th>
-                            <th>Status</th>
-                            {% if session.get('acesso_plano_acao') or session.get('perfil') == 'administrador' %}<th></th>{% endif %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for acao in acoes_vinculadas %}
-                            <tr>
-                                <td>{{ acao.descricao }}</td>
-                                <td>{{ acao.responsavel or '—' }}</td>
-                                <td>{{ acao.origem or '—' }}</td>
-                                <td>{{ acao.prazo.strftime('%d/%m/%Y') if acao.prazo else '—' }}</td>
-                                <td><span class="badge text-bg-secondary">{{ acao.status }}</span></td>
-                                {% if session.get('acesso_plano_acao') or session.get('perfil') == 'administrador' %}
-                                    <td class="text-end">
-                                        <a class="btn btn-laranja btn-sm"
-                                           href="{{ url_for('main.editar_acao', id=acao.id, next=request.path) }}"
-                                           title="Editar ação"><i class="bi bi-pencil"></i></a>
-                                    </td>
-                                {% endif %}
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <form method="get" class="row g-2 justify-content-end align-items-end mb-3">
+            <div class="col-12 col-md-4 col-xl-3">
+                <label class="form-label" for="acao_responsavel_id">Responsável</label>
+                <select class="form-select" id="acao_responsavel_id" name="acao_responsavel_id">
+                    <option value="">Todos</option>
+                    {% for usuario in responsaveis_acao %}
+                        <option value="{{ usuario.id }}" {{ 'selected' if filtros_acoes.responsavel_id == usuario.id else '' }}>{{ usuario.nome }}</option>
+                    {% endfor %}
+                </select>
             </div>
-        {% endif %}
+            <div class="col-12 col-md-3 col-xl-2">
+                <label class="form-label" for="acao_status">Status</label>
+                <select class="form-select" id="acao_status" name="acao_status">
+                    <option value="">Todos</option>
+                    {% for status in ['Não iniciada', 'Em andamento', 'Concluída', 'Cancelada'] %}
+                        <option value="{{ status }}" {{ 'selected' if filtros_acoes.status == status else '' }}>{{ status }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <input type="hidden" name="acao_sort" value="{{ acao_sort }}">
+            <input type="hidden" name="acao_order" value="{{ acao_order }}">
+            <div class="col-auto d-flex gap-2">
+                <button class="btn btn-laranja" type="submit" title="Filtrar"><i class="bi bi-funnel"></i></button>
+                <a class="btn btn-cinza" href="{{ url_for('main.detalhar_investigacao_acr', investigacao_id=investigacao.id) }}" title="Limpar"><i class="bi bi-arrow-clockwise"></i></a>
+            </div>
+        </form>
+
+        {% macro ordenar_acao(campo, titulo) %}
+            {% set proxima_ordem = 'desc' if acao_sort == campo and acao_order == 'asc' else 'asc' %}
+            <a class="text-decoration-none text-dark d-flex align-items-center gap-1"
+               href="{{ url_for('main.detalhar_investigacao_acr', investigacao_id=investigacao.id, acao_sort=campo, acao_order=proxima_ordem, acao_status=filtros_acoes.status, acao_responsavel_id=filtros_acoes.responsavel_id or '') }}">
+                {{ titulo }}
+                <i class="bi {{ 'bi-sort-down' if acao_sort == campo and acao_order == 'desc' else ('bi-sort-up' if acao_sort == campo else 'bi-arrow-down-up') }} small"></i>
+            </a>
+        {% endmacro %}
+
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered align-middle table-fixed">
+                <thead class="table-light">
+                    <tr>
+                        <th>{{ ordenar_acao('descricao', 'Ação') }}</th>
+                        <th style="width:220px">{{ ordenar_acao('responsavel', 'Responsável') }}</th>
+                        <th style="width:120px">{{ ordenar_acao('prazo', 'Prazo') }}</th>
+                        <th style="width:140px">{{ ordenar_acao('status', 'Status') }}</th>
+                        <th class="text-center" style="width:80px">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for acao in acoes_vinculadas %}
+                        {% set badge_status = {'Não iniciada':'text-bg-secondary', 'Em andamento':'text-bg-primary', 'Concluída':'text-bg-success', 'Vencida':'text-bg-danger', 'Cancelada':'text-bg-dark'}.get(acao.status, 'text-bg-secondary') %}
+                        <tr>
+                            <td class="td-truncate" title="{{ acao.descricao }}">{{ acao.descricao }}</td>
+                            <td class="td-truncate" title="{{ acao.responsavel or '' }}">{{ acao.responsavel or '—' }}</td>
+                            <td>{{ acao.prazo.strftime('%d/%m/%Y') if acao.prazo else '—' }}</td>
+                            <td><span class="badge {{ badge_status }}">{{ acao.status }}</span></td>
+                            <td class="text-center">
+                                {% if not somente_leitura %}
+                                    <button class="btn-acao-icon js-editar-acao-acr" type="button"
+                                            data-bs-toggle="modal" data-bs-target="#modalEditarAcaoAcr"
+                                            data-id="{{ acao.id }}"
+                                            data-responsavel-id="{{ acao.responsavel_id }}"
+                                            data-descricao="{{ acao.descricao }}"
+                                            data-prazo="{{ acao.prazo.isoformat() if acao.prazo else '' }}"
+                                            data-status="{{ acao.status }}" title="Editar ação">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                {% else %}—{% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="5" class="text-center text-muted py-4">Nenhuma ação encontrada.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
 
         {% if not somente_leitura %}
             <form method="post" action="{{ url_for('main.criar_acao_acr', investigacao_id=investigacao.id) }}">
                 <div class="row g-3">
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="origem_id">Origem da ação *</label>
-                        <select class="form-select" id="origem_id" name="origem_id" required>
-                            <option value="">Selecione</option>
-                            {% for origem in origens_acao %}<option value="{{ origem.id }}">{{ origem.descricao }}</option>{% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="responsavel_id">Responsável *</label>
-                        <select class="form-select" id="responsavel_id" name="responsavel_id" required>
-                            <option value="">Selecione</option>
-                            {% for usuario in responsaveis_acao %}
-                                <option value="{{ usuario.id }}">{{ usuario.nome }}{% if usuario.matricula %} — {{ usuario.matricula }}{% endif %}</option>
-                            {% endfor %}
-                        </select>
+                    <div class="col-12 col-md-6 autocomplete-wrap">
+                        <label class="form-label" for="responsavel_busca_acr">Responsável *</label>
+                        <input type="hidden" id="responsavel_id" name="responsavel_id" required>
+                        <input class="form-control" id="responsavel_busca_acr" type="text"
+                               placeholder="Digite nome ou matrícula" autocomplete="off" required>
+                        <div class="autocomplete-list" id="listaResponsaveisAcaoAcr"></div>
                     </div>
                     <div class="col-12">
                         <label class="form-label" for="descricao">Descrição da ação *</label>
@@ -215,5 +253,76 @@
         {% endif %}
     </div>
 </div>
+
+{% if not somente_leitura %}
+<div class="modal fade" id="modalEditarAcaoAcr" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <form class="modal-content" id="formEditarAcaoAcr" method="post">
+            <div class="modal-header"><h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Editar ação</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body"><div class="row g-3">
+                <div class="col-12">
+                    <label class="form-label" for="editar_descricao_acao">Descrição *</label>
+                    <textarea class="form-control" id="editar_descricao_acao" name="descricao" rows="3" maxlength="4000" required></textarea>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="editar_responsavel_acao">Responsável *</label>
+                    <select class="form-select" id="editar_responsavel_acao" name="responsavel_id" required>
+                        {% for usuario in responsaveis_acao %}<option value="{{ usuario.id }}">{{ usuario.nome }}{% if usuario.matricula %} — {{ usuario.matricula }}{% endif %}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-3"><label class="form-label" for="editar_prazo_acao">Prazo *</label><input class="form-control" id="editar_prazo_acao" name="prazo" type="date" required></div>
+                <div class="col-12 col-md-3"><label class="form-label" for="editar_status_acao">Status *</label><select class="form-select" id="editar_status_acao" name="status" required>{% for status in ['Não iniciada', 'Em andamento', 'Concluída', 'Cancelada'] %}<option value="{{ status }}">{{ status }}</option>{% endfor %}</select></div>
+            </div></div>
+            <div class="modal-footer"><button class="btn btn-cinza" type="button" data-bs-dismiss="modal">Fechar</button><button class="btn btn-laranja" type="submit">Salvar</button></div>
+        </form>
+    </div>
+</div>
 {% endif %}
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script id="responsaveis-acao-acr-data" type="application/json">{{ responsaveis_acao|tojson }}</script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const usuarios = JSON.parse(document.getElementById('responsaveis-acao-acr-data').textContent || '[]');
+    const busca = document.getElementById('responsavel_busca_acr');
+    const oculto = document.getElementById('responsavel_id');
+    const lista = document.getElementById('listaResponsaveisAcaoAcr');
+    const normalizar = texto => (texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const rotulo = usuario => `${usuario.nome}${usuario.matricula ? ' — ' + usuario.matricula : ''}`;
+    if (busca && oculto && lista) {
+        busca.addEventListener('input', () => {
+            oculto.value = '';
+            lista.innerHTML = '';
+            const termo = normalizar(busca.value.trim());
+            if (termo.length < 2) { lista.style.display = 'none'; return; }
+            const encontrados = usuarios.filter(u => normalizar(`${u.nome} ${u.matricula || ''}`).includes(termo)).slice(0, 12);
+            encontrados.forEach(usuario => {
+                const item = document.createElement('div');
+                item.className = 'autocomplete-item';
+                item.textContent = rotulo(usuario);
+                item.addEventListener('click', () => { busca.value = rotulo(usuario); oculto.value = usuario.id; lista.style.display = 'none'; });
+                lista.appendChild(item);
+            });
+            lista.style.display = encontrados.length ? 'block' : 'none';
+        });
+        busca.closest('form').addEventListener('submit', event => {
+            if (!oculto.value) { event.preventDefault(); busca.setCustomValidity('Selecione um responsável da lista.'); busca.reportValidity(); }
+            else { busca.setCustomValidity(''); }
+        });
+        document.addEventListener('click', event => { if (!event.target.closest('.autocomplete-wrap')) lista.style.display = 'none'; });
+    }
+
+    const formEditar = document.getElementById('formEditarAcaoAcr');
+    document.querySelectorAll('.js-editar-acao-acr').forEach(botao => botao.addEventListener('click', () => {
+        formEditar.action = `{{ url_for('main.editar_acao_acr', investigacao_id=investigacao.id, acao_id=0) }}`.replace('/0/editar', `/${botao.dataset.id}/editar`);
+        document.getElementById('editar_descricao_acao').value = botao.dataset.descricao;
+        document.getElementById('editar_responsavel_acao').value = botao.dataset.responsavelId;
+        document.getElementById('editar_prazo_acao').value = botao.dataset.prazo;
+        document.getElementById('editar_status_acao').value = botao.dataset.status;
+    }));
+});
+</script>
 {% endblock %}
