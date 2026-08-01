@@ -27,7 +27,7 @@ class AcrModuleStructureTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertGreaterEqual(
             view.count('@module_required("acesso_acr")'),
-            10,
+            13,
         )
         self.assertIn("acr_participantes", view)
         self.assertIn("centro_custos_id", view)
@@ -157,6 +157,29 @@ class AcrModuleStructureTests(unittest.TestCase):
         self.assertIn('id="historico-acr"', template)
         self.assertIn("main.cancelar_investigacao_acr", template)
         self.assertIn("main.reabrir_investigacao_acr", template)
+
+    def test_acr_stage_attachments_are_secure_and_auditable(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("ETAPAS_EVIDENCIA_ACR", view)
+        self.assertIn("TAMANHO_MAXIMO_EVIDENCIA_ACR", view)
+        self.assertIn("def enviar_anexo_acr", view)
+        self.assertIn("def baixar_anexo_acr", view)
+        self.assertIn("def excluir_anexo_acr", view)
+        self.assertIn("UploadService.salvar", view)
+        self.assertIn("hash_sha256", view)
+        self.assertIn("acr_evidencias", view)
+        self.assertIn("Anexo incluído", view)
+        self.assertIn("Anexo excluído", view)
+        self.assertIn('id="anexos-acr"', template)
+        self.assertIn('name="etapa"', template)
+        self.assertIn('name="arquivo"', template)
+        self.assertIn("main.baixar_anexo_acr", template)
+        self.assertIn("main.excluir_anexo_acr", template)
 
     def test_permission_is_available_in_user_flows(self):
         view = (ROOT / "app" / "views" / "usuarios.py").read_text(

@@ -1,7 +1,17 @@
+import hashlib
 import os
 from datetime import date
 
-from flask import flash, redirect, render_template, request, session, url_for
+from flask import (
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+    url_for,
+)
 
 from app.decorators import login_required, module_required
 from app.upload_security import UploadService, UploadValidationError
@@ -51,6 +61,16 @@ EXTENSOES_EVIDENCIA_ACAO = {
     "xls",
     "xlsx",
 }
+
+ETAPAS_EVIDENCIA_ACR = {
+    "identificacao": "Identificação",
+    "investigacao": "Investigação",
+    "causas": "Causas",
+    "acoes": "Ações",
+    "eficacia": "Eficácia",
+}
+
+TAMANHO_MAXIMO_EVIDENCIA_ACR = 10 * 1024 * 1024
 
 RESULTADOS_EFICACIA_ACR = {
     "Eficaz",
@@ -218,6 +238,32 @@ def _buscar_investigacao_acessivel(cursor, investigacao_id):
     query, params = _aplicar_escopo(query, params)
     cursor.execute(query, params)
     return cursor.fetchone()
+
+
+def _diretorio_evidencias_acr():
+    return os.path.join(
+        current_app.config.get(
+            "UPLOAD_FOLDER",
+            os.path.join(current_app.root_path, "static", "evidencias"),
+        ),
+        "acr",
+    )
+
+
+def _tamanho_arquivo(arquivo):
+    posicao = arquivo.stream.tell()
+    arquivo.stream.seek(0, os.SEEK_END)
+    tamanho = arquivo.stream.tell()
+    arquivo.stream.seek(posicao)
+    return tamanho
+
+
+def _hash_sha256_arquivo(caminho):
+    resumo = hashlib.sha256()
+    with open(caminho, "rb") as arquivo:
+        for bloco in iter(lambda: arquivo.read(1024 * 1024), b""):
+            resumo.update(bloco)
+    return resumo.hexdigest()
 
 
 def register_investigacao_causa_raiz_routes(blueprint):
@@ -509,6 +555,26 @@ def register_investigacao_causa_raiz_routes(blueprint):
             cursor.execute(
                 """
                 SELECT
+                    e.id, e.etapa, e.nome_original, e.extensao,
+                    e.tamanho_bytes, e.descricao, e.criado_em,
+                    e.enviado_por, u.nome AS enviado_por_nome
+                FROM acr_evidencias e
+                LEFT JOIN usuarios u ON u.id = e.enviado_por
+                WHERE e.investigacao_id = %s
+                  AND e.excluido_em IS NULL
+                ORDER BY e.criado_em DESC, e.id DESC
+                """,
+                (investigacao_id,),
+            )
+            evidencias_por_etapa = {
+                codigo: [] for codigo in ETAPAS_EVIDENCIA_ACR
+            }
+            for evidencia in cursor.fetchall():
+                if evidencia["etapa"] in evidencias_por_etapa:
+                    evidencias_por_etapa[evidencia["etapa"]].append(evidencia)
+            cursor.execute(
+                """
+                SELECT
                     h.id, h.evento, h.etapa, h.entidade_tipo,
                     h.entidade_id, h.criado_em,
                     u.nome AS usuario,
@@ -554,6 +620,11 @@ def register_investigacao_causa_raiz_routes(blueprint):
                     and verificacao_atual["data_prevista"] <= date.today()
                 ),
                 etapa_eficacia=etapa_eficacia,
+                etapas_evidencia=ETAPAS_EVIDENCIA_ACR,
+                evidencias_por_etapa=evidencias_por_etapa,
+                total_evidencias=sum(
+                    len(itens) for itens in evidencias_por_etapa.values()
+                ),
                 historico_acr=historico_acr,
                 pode_gerenciar_eficacia=(
                     session.get("usuario_id") == investigacao["criador_id"]
@@ -574,6 +645,266 @@ def register_investigacao_causa_raiz_routes(blueprint):
         finally:
             cursor.close()
             conn.close()
+
+    @blueprint.route(
+        "/acr/<int:investigacao_id>/anexos",
+        methods=["POST"],
+    )
+    @login_required
+    @module_required("acesso_acr")
+    def enviar_anexo_acr(investigacao_id):
+        etapa_codigo = (request.form.get("etapa") or "").strip()
+        descricao = (request.form.get("descricao") or "").strip()
+        arquivo = request.files.get("arquivo")
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        nome_armazenado = None
+        diretorio = _diretorio_evidencias_acr()
+        try:
+            investigacao = _buscar_investigacao_acessivel(
+                cursor,
+                investigacao_id,
+            )
+            if not investigacao:
+                flash("Investigação não encontrada ou fora do seu escopo.", "danger")
+                return redirect(url_for("main.investigacoes_acr"))
+            if investigacao["status"] in ("Concluída", "Cancelada"):
+                raise ValueError(
+                    "Reabra a ACR antes de incluir novos anexos."
+                )
+            if etapa_codigo not in ETAPAS_EVIDENCIA_ACR:
+                raise ValueError("Selecione uma etapa válida para o anexo.")
+            if len(descricao) > 500:
+                raise ValueError("A descrição do anexo deve ter até 500 caracteres.")
+            if not arquivo or not getattr(arquivo, "filename", ""):
+                raise ValueError("Selecione um arquivo para anexar.")
+
+            tamanho = _tamanho_arquivo(arquivo)
+            if tamanho <= 0:
+                raise ValueError("O arquivo selecionado está vazio.")
+            if tamanho > TAMANHO_MAXIMO_EVIDENCIA_ACR:
+                raise ValueError("O arquivo deve ter no máximo 10 MB.")
+
+            nome_original = os.path.basename(
+                arquivo.filename.replace("\\", "/")
+            )[:255]
+            mime_type = (arquivo.mimetype or "application/octet-stream")[:120]
+            nome_armazenado = UploadService.salvar(
+                arquivo,
+                EXTENSOES_EVIDENCIA_ACAO,
+                prefixo=f"acr_{investigacao_id}_{etapa_codigo}",
+                diretorio=diretorio,
+            )
+            caminho = os.path.join(
+                UploadService.resolver_diretorio(diretorio),
+                nome_armazenado,
+            )
+            extensao = os.path.splitext(nome_armazenado)[1].lstrip(".")
+            hash_sha256 = _hash_sha256_arquivo(caminho)
+
+            cursor.execute(
+                """
+                INSERT INTO acr_evidencias (
+                    investigacao_id, etapa, entidade_tipo,
+                    nome_original, nome_armazenado, extensao,
+                    mime_type, tamanho_bytes, hash_sha256,
+                    descricao, enviado_por
+                ) VALUES (%s, %s, 'etapa', %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    investigacao_id,
+                    etapa_codigo,
+                    nome_original,
+                    nome_armazenado,
+                    extensao,
+                    mime_type,
+                    tamanho,
+                    hash_sha256,
+                    descricao or None,
+                    session.get("usuario_id"),
+                ),
+            )
+            evidencia_id = cursor.lastrowid
+            cursor.execute(
+                """
+                INSERT INTO acr_historico (
+                    investigacao_id, usuario_id, evento, etapa,
+                    entidade_tipo, entidade_id, valor_novo_json
+                ) VALUES (
+                    %s, %s, 'Anexo incluído', %s,
+                    'evidencia', %s,
+                    JSON_OBJECT('nome', %s, 'descricao', %s)
+                )
+                """,
+                (
+                    investigacao_id,
+                    session.get("usuario_id"),
+                    etapa_codigo,
+                    evidencia_id,
+                    nome_original,
+                    descricao,
+                ),
+            )
+            conn.commit()
+            flash("Anexo incluído com sucesso.", "success")
+        except (ValueError, UploadValidationError) as erro:
+            conn.rollback()
+            if nome_armazenado:
+                UploadService.excluir(nome_armazenado, diretorio=diretorio)
+            flash(str(erro), "warning")
+        except Exception:
+            conn.rollback()
+            if nome_armazenado:
+                UploadService.excluir(nome_armazenado, diretorio=diretorio)
+            current_app.logger.exception(
+                "Erro ao incluir anexo na ACR %s",
+                investigacao_id,
+            )
+            flash("Não foi possível incluir o anexo.", "danger")
+        finally:
+            cursor.close()
+            conn.close()
+        return redirect(
+            url_for(
+                "main.detalhar_investigacao_acr",
+                investigacao_id=investigacao_id,
+            )
+            + "#anexos-acr"
+        )
+
+    @blueprint.route(
+        "/acr/<int:investigacao_id>/anexos/<int:evidencia_id>/download"
+    )
+    @login_required
+    @module_required("acesso_acr")
+    def baixar_anexo_acr(investigacao_id, evidencia_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            investigacao = _buscar_investigacao_acessivel(
+                cursor,
+                investigacao_id,
+            )
+            if not investigacao:
+                flash("Investigação não encontrada ou fora do seu escopo.", "danger")
+                return redirect(url_for("main.investigacoes_acr"))
+            cursor.execute(
+                """
+                SELECT nome_original, nome_armazenado
+                FROM acr_evidencias
+                WHERE id = %s AND investigacao_id = %s
+                  AND excluido_em IS NULL
+                """,
+                (evidencia_id, investigacao_id),
+            )
+            evidencia = cursor.fetchone()
+            if not evidencia:
+                flash("Anexo não encontrado.", "warning")
+                return redirect(
+                    url_for(
+                        "main.detalhar_investigacao_acr",
+                        investigacao_id=investigacao_id,
+                    )
+                    + "#anexos-acr"
+                )
+            return send_from_directory(
+                UploadService.resolver_diretorio(_diretorio_evidencias_acr()),
+                evidencia["nome_armazenado"],
+                as_attachment=True,
+                download_name=evidencia["nome_original"],
+            )
+        finally:
+            cursor.close()
+            conn.close()
+
+    @blueprint.route(
+        "/acr/<int:investigacao_id>/anexos/<int:evidencia_id>/excluir",
+        methods=["POST"],
+    )
+    @login_required
+    @module_required("acesso_acr")
+    def excluir_anexo_acr(investigacao_id, evidencia_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        nome_armazenado = None
+        try:
+            investigacao = _buscar_investigacao_acessivel(
+                cursor,
+                investigacao_id,
+            )
+            if not investigacao:
+                flash("Investigação não encontrada ou fora do seu escopo.", "danger")
+                return redirect(url_for("main.investigacoes_acr"))
+            if investigacao["status"] in ("Concluída", "Cancelada"):
+                raise ValueError("Reabra a ACR antes de excluir anexos.")
+            cursor.execute(
+                """
+                SELECT id, etapa, nome_original, nome_armazenado
+                FROM acr_evidencias
+                WHERE id = %s AND investigacao_id = %s
+                  AND excluido_em IS NULL
+                FOR UPDATE
+                """,
+                (evidencia_id, investigacao_id),
+            )
+            evidencia = cursor.fetchone()
+            if not evidencia:
+                raise ValueError("Anexo não encontrado.")
+            nome_armazenado = evidencia["nome_armazenado"]
+            cursor.execute(
+                """
+                UPDATE acr_evidencias
+                SET excluido_em = NOW(), excluido_por = %s
+                WHERE id = %s
+                """,
+                (session.get("usuario_id"), evidencia_id),
+            )
+            cursor.execute(
+                """
+                INSERT INTO acr_historico (
+                    investigacao_id, usuario_id, evento, etapa,
+                    entidade_tipo, entidade_id, valor_novo_json
+                ) VALUES (
+                    %s, %s, 'Anexo excluído', %s,
+                    'evidencia', %s, JSON_OBJECT('nome', %s)
+                )
+                """,
+                (
+                    investigacao_id,
+                    session.get("usuario_id"),
+                    evidencia["etapa"],
+                    evidencia_id,
+                    evidencia["nome_original"],
+                ),
+            )
+            conn.commit()
+            UploadService.excluir(
+                nome_armazenado,
+                diretorio=_diretorio_evidencias_acr(),
+            )
+            flash("Anexo excluído com sucesso.", "success")
+        except ValueError as erro:
+            conn.rollback()
+            flash(str(erro), "warning")
+        except Exception:
+            conn.rollback()
+            current_app.logger.exception(
+                "Erro ao excluir anexo %s da ACR %s",
+                evidencia_id,
+                investigacao_id,
+            )
+            flash("Não foi possível excluir o anexo.", "danger")
+        finally:
+            cursor.close()
+            conn.close()
+        return redirect(
+            url_for(
+                "main.detalhar_investigacao_acr",
+                investigacao_id=investigacao_id,
+            )
+            + "#anexos-acr"
+        )
 
     @blueprint.route(
         "/acr/<int:investigacao_id>/5-porques",
