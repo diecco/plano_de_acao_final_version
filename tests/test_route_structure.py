@@ -395,6 +395,19 @@ class RouteStructureTests(unittest.TestCase):
                     view = view.__wrapped__
                 self.assertEqual(view.__module__, expected_module)
 
+    def test_action_email_dependencies_and_failures_are_logged(self):
+        from pathlib import Path
+
+        plano_acao = (
+            Path(__file__).resolve().parents[1] / "app" / "views" / "plano_acao.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("from flask_mail import Message", plano_acao)
+        self.assertIn("from app import mail", plano_acao)
+        self.assertIn("current_app.logger.exception", plano_acao)
+        self.assertIn("Falha ao enviar notificação da nova ação", plano_acao)
+        self.assertIn("Falha ao enviar notificação da atualização da ação", plano_acao)
+
 
 if __name__ == "__main__":
     unittest.main()

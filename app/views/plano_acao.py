@@ -2,11 +2,13 @@ import os
 from datetime import date, datetime, timedelta
 from io import BytesIO
 
-from flask import flash, redirect, render_template, request, send_file, session, url_for
+from flask import current_app, flash, redirect, render_template, request, send_file, session, url_for
+from flask_mail import Message
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from werkzeug.utils import secure_filename
 
+from app import mail
 from app.decorators import login_required, module_required, pode_acessar_acao
 from app.upload_security import UploadService, UploadValidationError
 from app.utils.db import get_db_connection
@@ -405,6 +407,10 @@ def register_plano_acao_routes(blueprint):
                     mail.send(msg)
 
             except Exception:
+                current_app.logger.exception(
+                    "Falha ao enviar notificação da nova ação %s.",
+                    acao_id,
+                )
                 flash('Ação criada. Falha ao enviar o e-mail de notificação.', 'warning')
 
             conn.close()
@@ -746,6 +752,10 @@ def register_plano_acao_routes(blueprint):
                         mail.send(msg)
 
                 except Exception:
+                    current_app.logger.exception(
+                        "Falha ao enviar notificação da atualização da ação %s.",
+                        id,
+                    )
                     flash('Ação atualizada, mas não foi possível enviar o e-mail de notificação.', 'warning')
 
             conn.close()
