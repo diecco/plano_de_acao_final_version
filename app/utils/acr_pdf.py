@@ -45,15 +45,20 @@ def _paragrafo(valor, estilo, padrao="-"):
 def gerar_pdf_acr(dados, logo_path=None):
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_CENTER, TA_LEFT
-    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import cm
     from reportlab.platypus import (
+        BaseDocTemplate,
+        CondPageBreak,
+        Flowable,
+        Frame,
         HRFlowable,
         Image,
-        CondPageBreak,
+        NextPageTemplate,
+        PageBreak,
+        PageTemplate,
         Paragraph,
-        SimpleDocTemplate,
         Spacer,
         Table,
         TableStyle,
@@ -61,13 +66,17 @@ def gerar_pdf_acr(dados, logo_path=None):
 
     buffer = BytesIO()
     gerado_em = datetime.now().strftime("%d/%m/%Y %H:%M")
-    doc = SimpleDocTemplate(
+    margem_direita = 1.6 * cm
+    margem_esquerda = 1.6 * cm
+    margem_superior = 1.5 * cm
+    margem_inferior = 1.6 * cm
+    doc = BaseDocTemplate(
         buffer,
         pagesize=A4,
-        rightMargin=1.6 * cm,
-        leftMargin=1.6 * cm,
-        topMargin=1.5 * cm,
-        bottomMargin=1.6 * cm,
+        rightMargin=margem_direita,
+        leftMargin=margem_esquerda,
+        topMargin=margem_superior,
+        bottomMargin=margem_inferior,
         title=f"Relatório ACR {dados['investigacao'].get('numero', '')}",
         author="TrackPlan",
         subject="Análise de Causa Raiz",
@@ -178,7 +187,7 @@ def gerar_pdf_acr(dados, logo_path=None):
 
     def decorar_pagina(canvas, documento):
         canvas.saveState()
-        largura, _ = A4
+        largura, _ = canvas._pagesize
         canvas.setStrokeColor(colors.HexColor(LARANJA))
         canvas.setLineWidth(1.2)
         canvas.line(doc.leftMargin, 1.15 * cm, largura - doc.rightMargin, 1.15 * cm)
@@ -195,6 +204,208 @@ def gerar_pdf_acr(dados, logo_path=None):
             f"Página {canvas.getPageNumber()}",
         )
         canvas.restoreState()
+
+    retrato = Frame(
+        margem_esquerda,
+        margem_inferior,
+        A4[0] - margem_esquerda - margem_direita,
+        A4[1] - margem_superior - margem_inferior,
+        id="retrato_frame",
+    )
+    pagina_paisagem = landscape(A4)
+    paisagem = Frame(
+        margem_esquerda,
+        margem_inferior,
+        pagina_paisagem[0] - margem_esquerda - margem_direita,
+        pagina_paisagem[1] - margem_superior - margem_inferior,
+        id="paisagem_frame",
+    )
+    doc.addPageTemplates(
+        [
+            PageTemplate(id="retrato", pagesize=A4, frames=[retrato], onPage=decorar_pagina),
+            PageTemplate(
+                id="paisagem",
+                pagesize=pagina_paisagem,
+                frames=[paisagem],
+                onPage=decorar_pagina,
+            ),
+        ]
+    )
+
+    class ArvoreCausasFlowable(Flowable):
+        """Prancha vetorial da árvore, dimensionada para uma página."""
+
+        def __init__(self, evento, itens, classificacoes, largura, altura):
+            super().__init__()
+            self.evento = _texto(evento, "Evento indesejado")
+            self.itens = itens
+            self.classificacoes = classificacoes
+            self.width = largura
+            self.height = altura
+
+        @staticmethod
+        def _linhas(texto, largura, canvas, fonte, tamanho, limite=3):
+            linhas, atual = [], ""
+            for palavra in _texto(texto).split():
+                candidata = f"{atual} {palavra}".strip()
+                if not atual or canvas.stringWidth(candidata, fonte, tamanho) <= largura:
+                    atual = candidata
+                else:
+                    linhas.append(atual)
+                    atual = palavra
+            if atual:
+                linhas.append(atual)
+            if len(linhas) > limite:
+                linhas = linhas[:limite]
+                ultima = linhas[-1]
+                while ultima and canvas.stringWidth(ultima + "...", fonte, tamanho) > largura:
+                    ultima = ultima[:-1]
+                linhas[-1] = ultima.rstrip() + "..."
+            return linhas
+
+        def draw(self):
+            canvas = self.canv
+            card_w, card_h = 156.0, 56.0
+            gap_x, gap_y, evento_h = 20.0, 62.0, 58.0
+            por_pai, por_id = {}, {}
+            for indice, item in enumerate(self.itens):
+                item_id = item.get("id") or f"item-{indice}"
+                por_id[item_id] = item
+                por_pai.setdefault(item.get("parent_id"), []).append(item_id)
+            for pai_id in por_pai:
+                por_pai[pai_id].sort(
+                    key=lambda item_id: (por_id[item_id].get("ordem") or 0, str(item_id))
+                )
+
+            raizes = por_pai.get(None, [])
+            larguras, visitando = {}, set()
+
+            def largura_subarvore(item_id):
+                if item_id in larguras:
+                    return larguras[item_id]
+                if item_id in visitando:
+                    return card_w
+                visitando.add(item_id)
+                filhos = por_pai.get(item_id, [])
+                largura = card_w
+                if filhos:
+                    largura = max(
+                        card_w,
+                        sum(largura_subarvore(filho) for filho in filhos)
+                        + gap_x * (len(filhos) - 1),
+                    )
+                visitando.discard(item_id)
+                larguras[item_id] = largura
+                return largura
+
+            largura_arvore = (
+                sum(largura_subarvore(item_id) for item_id in raizes)
+                + gap_x * max(0, len(raizes) - 1)
+            ) or card_w
+            posicoes, profundidade_maxima = {}, 0
+
+            def posicionar(item_id, esquerda, nivel):
+                nonlocal profundidade_maxima
+                profundidade_maxima = max(profundidade_maxima, nivel)
+                largura = larguras[item_id]
+                posicoes[item_id] = (esquerda + largura / 2, nivel)
+                cursor = esquerda
+                for filho in por_pai.get(item_id, []):
+                    posicionar(filho, cursor, nivel + 1)
+                    cursor += larguras[filho] + gap_x
+
+            cursor = 0.0
+            for item_id in raizes:
+                posicionar(item_id, cursor, 1)
+                cursor += larguras[item_id] + gap_x
+
+            altura_arvore = evento_h + 42 + profundidade_maxima * (card_h + gap_y)
+            escala = min(
+                1.0,
+                (self.width - 12) / largura_arvore,
+                (self.height - 12) / max(altura_arvore, 1),
+            )
+            offset_x = (self.width - largura_arvore * escala) / 2
+            canvas.saveState()
+            canvas.translate(offset_x, self.height - 6)
+            canvas.scale(escala, escala)
+
+            evento_w = min(max(card_w * 1.8, 300), largura_arvore)
+            evento_x, evento_y = largura_arvore / 2, -evento_h
+            canvas.setFillColor(colors.HexColor(LARANJA))
+            canvas.setStrokeColor(colors.HexColor(LARANJA))
+            canvas.roundRect(
+                evento_x - evento_w / 2, evento_y, evento_w, evento_h, 10, fill=1, stroke=1
+            )
+            canvas.setFillColor(colors.white)
+            canvas.setFont("Helvetica-Bold", 8)
+            canvas.drawCentredString(evento_x, evento_y + evento_h - 15, "EVENTO INDESEJADO")
+            canvas.setFont("Helvetica-Bold", 10)
+            for indice, linha in enumerate(
+                self._linhas(self.evento, evento_w - 24, canvas, "Helvetica-Bold", 10, 2)
+            ):
+                canvas.drawCentredString(evento_x, evento_y + evento_h - 32 - indice * 12, linha)
+
+            def coordenadas(item_id):
+                centro_x, nivel = posicoes[item_id]
+                topo_y = -evento_h - 42 - (nivel - 1) * (card_h + gap_y)
+                return centro_x, topo_y
+
+            canvas.setStrokeColor(colors.HexColor(CINZA))
+            canvas.setLineWidth(1.15)
+            for item_id, item in por_id.items():
+                if item_id not in posicoes:
+                    continue
+                filho_x, filho_topo = coordenadas(item_id)
+                pai_id = item.get("parent_id")
+                if pai_id in posicoes:
+                    pai_x, pai_topo = coordenadas(pai_id)
+                    pai_base = pai_topo - card_h
+                else:
+                    pai_x, pai_base = evento_x, evento_y
+                meio_y = (filho_topo + pai_base) / 2
+                canvas.line(filho_x, filho_topo, filho_x, meio_y)
+                canvas.line(filho_x, meio_y, pai_x, meio_y)
+                canvas.line(pai_x, meio_y, pai_x, pai_base)
+                canvas.setFillColor(colors.HexColor(CINZA))
+                seta = canvas.beginPath()
+                seta.moveTo(pai_x, pai_base)
+                seta.lineTo(pai_x - 3.4, pai_base - 5.5)
+                seta.lineTo(pai_x + 3.4, pai_base - 5.5)
+                seta.close()
+                canvas.drawPath(seta, fill=1, stroke=0)
+
+            for item_id, item in por_id.items():
+                if item_id not in posicoes:
+                    continue
+                centro_x, topo_y = coordenadas(item_id)
+                esquerda, base_y = centro_x - card_w / 2, topo_y - card_h
+                canvas.setFillColor(colors.white)
+                canvas.setStrokeColor(colors.HexColor("#D8DADD"))
+                canvas.roundRect(esquerda, base_y, card_w, card_h, 7, fill=1, stroke=1)
+                canvas.setStrokeColor(colors.HexColor(LARANJA))
+                canvas.setLineWidth(2.2)
+                canvas.line(esquerda, base_y + 7, esquerda, topo_y - 7)
+                classificacao = self.classificacoes.get(
+                    item.get("classificacao"), item.get("classificacao") or "Potencial"
+                )
+                canvas.setFillColor(colors.HexColor(LARANJA))
+                canvas.setFont("Helvetica-Bold", 7.3)
+                canvas.drawString(esquerda + 9, topo_y - 14, _texto(classificacao).upper())
+                canvas.setFillColor(colors.HexColor(CINZA_ESCURO))
+                canvas.setFont("Helvetica", 8.2)
+                for indice, linha in enumerate(
+                    self._linhas(item.get("descricao"), card_w - 18, canvas, "Helvetica", 8.2)
+                ):
+                    canvas.drawString(esquerda + 9, topo_y - 29 - indice * 10, linha)
+
+            if not raizes:
+                canvas.setFillColor(colors.HexColor(CINZA))
+                canvas.setFont("Helvetica", 10)
+                canvas.drawCentredString(
+                    largura_arvore / 2, evento_y - 35, "Nenhum fato antecedente registrado."
+                )
+            canvas.restoreState()
 
     investigacao = dados["investigacao"]
     elementos = []
@@ -285,7 +496,28 @@ def gerar_pdf_acr(dados, logo_path=None):
         titulo_metodologia = "Investigação - 6M (Ishikawa)"
     elif metodologia_arvore:
         titulo_metodologia = "Investigação - Árvore de Causas"
-    elementos.append(titulo_secao(2, titulo_metodologia))
+    if metodologia_arvore:
+        elementos.extend([NextPageTemplate("paisagem"), PageBreak()])
+        elementos.append(titulo_secao(2, titulo_metodologia))
+        elementos.append(
+            _paragrafo(
+                "Os conectores indicam a relação entre os fatos antecedentes e o evento indesejado.",
+                estilos["pequeno"],
+            )
+        )
+        elementos.append(Spacer(1, 0.2 * cm))
+        elementos.append(
+            ArvoreCausasFlowable(
+                investigacao.get("descricao_ocorrencia"),
+                dados.get("itens_arvore_causas", []),
+                dados.get("classificacoes_arvore_causas", {}),
+                pagina_paisagem[0] - margem_esquerda - margem_direita - 12,
+                15.6 * cm,
+            )
+        )
+        elementos.extend([NextPageTemplate("retrato"), PageBreak()])
+    else:
+        elementos.append(titulo_secao(2, titulo_metodologia))
     if metodologia_6m:
         categorias = dados.get("categorias_6m", {})
         classificacoes = dados.get("classificacoes_6m", {})
@@ -301,33 +533,12 @@ def gerar_pdf_acr(dados, logo_path=None):
             for item in dados.get("itens_6m", [])
         ]
     elif metodologia_arvore:
-        itens_arvore = dados.get("itens_arvore_causas", [])
-        classificacoes = dados.get("classificacoes_arvore_causas", {})
-        por_id = {item.get("id"): item for item in itens_arvore}
-
-        def nivel_item(item):
-            nivel = 1
-            pai_id = item.get("parent_id")
-            visitados = set()
-            while pai_id and pai_id in por_id and pai_id not in visitados:
-                visitados.add(pai_id)
-                nivel += 1
-                pai_id = por_id[pai_id].get("parent_id")
-            return nivel
-
-        porques = [
-            {
-                "ordem": f"Nível {nivel_item(item)}",
-                "pergunta": classificacoes.get(
-                    item.get("classificacao"), item.get("classificacao")
-                ),
-                "resposta": item.get("descricao"),
-            }
-            for item in itens_arvore
-        ]
+        porques = []
     else:
         porques = dados.get("porques", [])
-    if porques:
+    if metodologia_arvore:
+        pass
+    elif porques:
         linhas = [[
             Paragraph("Categoria" if metodologia_6m else "Nível", estilos["cabecalho"]),
             Paragraph(
@@ -501,6 +712,6 @@ def gerar_pdf_acr(dados, logo_path=None):
     else:
         elementos.append(_paragrafo("Nenhum evento registrado.", estilos["normal"]))
 
-    doc.build(elementos, onFirstPage=decorar_pagina, onLaterPages=decorar_pagina)
+    doc.build(elementos)
     buffer.seek(0)
     return buffer

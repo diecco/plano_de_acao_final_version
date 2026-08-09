@@ -320,6 +320,19 @@ class AcrModuleStructureTests(unittest.TestCase):
             self.assertIn(section, generator)
         self.assertIn("reportlab==", requirements)
 
+    def test_acr_pdf_uses_landscape_page_for_visual_cause_tree(self):
+        generator = (ROOT / "app" / "utils" / "acr_pdf.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("BaseDocTemplate", generator)
+        self.assertIn('PageTemplate(id="retrato"', generator)
+        self.assertIn('id="paisagem"', generator)
+        self.assertIn('NextPageTemplate("paisagem")', generator)
+        self.assertIn('NextPageTemplate("retrato")', generator)
+        self.assertIn("class ArvoreCausasFlowable", generator)
+        self.assertIn("EVENTO INDESEJADO", generator)
+        self.assertIn("dados.get(\"itens_arvore_causas\", [])", generator)
+
     def test_acr_participants_can_be_selected_and_managed(self):
         view = (
             ROOT / "app" / "views" / "investigacao_causa_raiz.py"
