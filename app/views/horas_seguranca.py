@@ -2,10 +2,77 @@ import json
 import os
 from datetime import date, datetime, timedelta
 
-from flask import flash, redirect, render_template, request, session, url_for
+from flask import flash, redirect, render_template, request, send_file, session, url_for
 
-from app.decorators import admin_required, login_required, module_required
+from app.decorators import (
+    admin_required,
+    login_required,
+    module_required,
+    pode_acessar_ssma,
+)
 from app.utils.db import get_db_connection
+
+
+def _buscar_detalhes_hora_seguranca(cursor, registro_id):
+    acesso = pode_acessar_ssma(cursor, "hs", registro_id)
+    if not acesso:
+        return None, []
+
+    cursor.execute("""
+        SELECT
+            r.*,
+            t.nome AS nome_tema,
+            u.nome AS nome_auditor,
+            u.matricula AS matricula_auditor,
+            cc.codigo AS centro_codigo,
+            cc.descricao AS centro_descricao
+        FROM hs_registros r
+        JOIN hs_temas t ON t.id = r.id_tema
+        JOIN usuarios u ON u.id = r.id_auditor
+        LEFT JOIN centros_custos cc ON cc.id = u.centro_custos_id
+        WHERE r.id = %s
+    """, (registro_id,))
+    registro = cursor.fetchone()
+    if not registro:
+        return None, []
+
+    participante_ids = [
+        int(valor.strip())
+        for valor in (registro.get("participantes") or "").split(",")
+        if valor.strip().isdigit()
+    ]
+    nomes_por_id = {}
+    if participante_ids:
+        placeholders = ", ".join(["%s"] * len(participante_ids))
+        cursor.execute(f"""
+            SELECT id, nome
+            FROM usuarios
+            WHERE id IN ({placeholders})
+        """, participante_ids)
+        nomes_por_id = {item["id"]: item["nome"] for item in cursor.fetchall()}
+    registro["nomes_participantes"] = ", ".join(
+        nomes_por_id.get(item_id, f"ID {item_id}")
+        for item_id in participante_ids
+    )
+
+    cursor.execute("""
+        SELECT
+            i.id AS id_item,
+            i.texto,
+            i.ordem,
+            resp.resultado,
+            resp.descricao_desvio,
+            resp.descricao_acao,
+            resp.id_acao_gerada,
+            a.prazo AS prazo_acao,
+            a.status AS status_acao
+        FROM hs_respostas resp
+        JOIN hs_itens_verificacao i ON i.id = resp.id_item
+        LEFT JOIN acoes a ON a.id = resp.id_acao_gerada
+        WHERE resp.id_registro = %s
+        ORDER BY COALESCE(i.ordem, 999999), i.id
+    """, (registro_id,))
+    return registro, cursor.fetchall()
 
 
 def register_horas_seguranca_routes(blueprint):
@@ -1457,6 +1524,34 @@ def register_horas_seguranca_routes(blueprint):
         return redirect(url_for("main.listar_hs"))
 
 
+    @blueprint.route('/hora_seguranca/<int:id>/pdf', methods=['GET'])
+    @login_required
+    @module_required('acesso_ssma')
+    def relatorio_pdf_hs(id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            registro, itens = _buscar_detalhes_hora_seguranca(cursor, id)
+            if not registro:
+                flash(
+                    "Hora de Segurança não encontrada ou fora do seu acesso.",
+                    "warning",
+                )
+                return redirect(url_for("main.listar_hs"))
+
+            from app.utils.hs_pdf import gerar_pdf_hora_seguranca
+
+            pdf = gerar_pdf_hora_seguranca(registro, itens)
+            return send_file(
+                pdf,
+                mimetype="application/pdf",
+                as_attachment=True,
+                download_name=f"hora_seguranca_{id}.pdf",
+            )
+        finally:
+            cursor.close()
+            conn.close()
+
     @blueprint.route('/listar_hs', methods=['GET'])
     @login_required
     @module_required('acesso_ssma')
@@ -1509,6 +1604,7 @@ def register_horas_seguranca_routes(blueprint):
             FROM hs_registros r
             JOIN hs_temas t ON r.id_tema = t.id
             JOIN usuarios u ON r.id_auditor = u.id
+            LEFT JOIN centros_custos cc ON cc.id = u.centro_custos_id
             LEFT JOIN hs_respostas resp ON resp.id_registro = r.id
             WHERE 1=1
         """
@@ -1561,7 +1657,10 @@ def register_horas_seguranca_routes(blueprint):
                 r.local,
                 r.participantes,
                 t.nome,
-                u.nome
+                u.nome,
+                u.matricula,
+                cc.codigo,
+                cc.descricao
         """
 
         having_clause = ""
@@ -1603,6 +1702,9 @@ def register_horas_seguranca_routes(blueprint):
                 r.participantes,
                 t.nome AS nome_tema,
                 u.nome AS nome_auditor,
+                u.matricula AS matricula_auditor,
+                cc.codigo AS centro_codigo,
+                cc.descricao AS centro_descricao,
                 MAX(CASE WHEN resp.resultado = 'NC' THEN 1 ELSE 0 END) AS possui_nc
             {filtros_where}
             {group_by}
@@ -1669,13 +1771,11 @@ def register_horas_seguranca_routes(blueprint):
                     resp.descricao_acao,
                     resp.id_acao_gerada,
                     a.prazo AS prazo_acao
-                FROM hs_registros r
+                FROM hs_respostas resp
+                JOIN hs_registros r
+                    ON r.id = resp.id_registro
                 JOIN hs_itens_verificacao i
-                    ON i.id_tema = r.id_tema
-                   AND i.status = 1
-                LEFT JOIN hs_respostas resp
-                    ON resp.id_item = i.id
-                   AND resp.id_registro = r.id
+                    ON i.id = resp.id_item
                 LEFT JOIN acoes a
                     ON a.id = resp.id_acao_gerada
                 WHERE r.id IN ({placeholders})
