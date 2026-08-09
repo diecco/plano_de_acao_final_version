@@ -51,15 +51,15 @@
     .ishikawa-direita .ishikawa-ramo { grid-column:1; }
     .causa-6m-item { align-items:center; display:grid; gap:8px; grid-template-columns:minmax(0,1fr) 150px 32px; }
     .causa-6m-item .btn-acao-icon { justify-self:center; }
-    .adc-arvore { overflow-x:auto; padding:4px 8px 18px; }
+    .adc-arvore { overflow-x:auto; padding:4px 8px 18px; position:relative; }
+    .adc-conectores { left:0; overflow:visible; pointer-events:none; position:absolute; top:0; z-index:0; }
+    .adc-raiz, #arvoreCausasVisual { position:relative; z-index:1; }
     .adc-raiz { background:#f36b21; border-radius:12px; color:#fff; margin:0 auto; max-width:720px; padding:14px 56px 14px 18px; position:relative; text-align:center; }
     .adc-raiz small { display:block; opacity:.9; text-transform:uppercase; }
     .adc-raiz strong { display:block; font-size:1rem; margin-top:3px; }
     .adc-raiz .adc-adicionar { position:absolute; right:12px; top:50%; transform:translateY(-50%); }
     .adc-filhos { display:flex; flex-wrap:nowrap; gap:18px; justify-content:center; margin:0 auto; min-width:100%; padding:38px 0 0; position:relative; width:max-content; }
-    .adc-filhos::before { background:#6c757d; content:""; height:22px; left:50%; position:absolute; top:0; width:2px; }
     .adc-subarvore { flex:0 0 auto; list-style:none; min-width:270px; position:relative; }
-    .adc-subarvore::before { background:#6c757d; content:""; height:18px; left:50%; position:absolute; top:-18px; width:2px; }
     .adc-no { background:#fff; border:1px solid #d7d9dc; border-left:4px solid #f36b21; border-radius:10px; box-sizing:border-box; margin:0 auto; max-width:270px; padding:12px; position:relative; width:270px; }
     .adc-no-cabecalho { align-items:center; display:flex; justify-content:space-between; margin-bottom:8px; }
     .adc-no-cabecalho strong { color:#f36b21; font-size:.85rem; text-transform:uppercase; }
@@ -954,6 +954,94 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return li;
         };
+        const desenharConectoresAdc = () => {
+            const painel = arvoreVisual.closest('.adc-arvore');
+            const raiz = painel ? painel.querySelector('.adc-raiz') : null;
+            if (!painel || !raiz) return;
+            painel.querySelector('.adc-conectores')?.remove();
+            if (!itensAdc.length) return;
+
+            const namespaceSvg = 'http://www.w3.org/2000/svg';
+            const largura = Math.max(painel.scrollWidth, painel.clientWidth);
+            const altura = Math.max(painel.scrollHeight, painel.clientHeight);
+            const svg = document.createElementNS(namespaceSvg, 'svg');
+            svg.classList.add('adc-conectores');
+            svg.setAttribute('aria-hidden', 'true');
+            svg.setAttribute('width', largura);
+            svg.setAttribute('height', altura);
+            svg.setAttribute('viewBox', `0 0 ${largura} ${altura}`);
+
+            const definicoes = document.createElementNS(namespaceSvg, 'defs');
+            const marcador = document.createElementNS(namespaceSvg, 'marker');
+            marcador.setAttribute('id', 'adc-seta-causal');
+            marcador.setAttribute('markerWidth', '8');
+            marcador.setAttribute('markerHeight', '8');
+            marcador.setAttribute('refX', '7');
+            marcador.setAttribute('refY', '4');
+            marcador.setAttribute('orient', 'auto');
+            marcador.setAttribute('markerUnits', 'strokeWidth');
+            const ponta = document.createElementNS(namespaceSvg, 'path');
+            ponta.setAttribute('d', 'M0,0 L8,4 L0,8 Z');
+            ponta.setAttribute('fill', '#6c757d');
+            marcador.appendChild(ponta);
+            definicoes.appendChild(marcador);
+            svg.appendChild(definicoes);
+
+            const painelRect = painel.getBoundingClientRect();
+            const centroX = elemento => {
+                const rect = elemento.getBoundingClientRect();
+                return rect.left - painelRect.left + painel.scrollLeft + (rect.width / 2);
+            };
+            const topoY = elemento => {
+                const rect = elemento.getBoundingClientRect();
+                return rect.top - painelRect.top + painel.scrollTop;
+            };
+            const baseY = elemento => {
+                const rect = elemento.getBoundingClientRect();
+                return rect.bottom - painelRect.top + painel.scrollTop;
+            };
+            const adicionarLinha = (x1, y1, x2, y2, comSeta = false) => {
+                const linha = document.createElementNS(namespaceSvg, 'line');
+                linha.setAttribute('x1', x1);
+                linha.setAttribute('y1', y1);
+                linha.setAttribute('x2', x2);
+                linha.setAttribute('y2', y2);
+                linha.setAttribute('stroke', '#6c757d');
+                linha.setAttribute('stroke-width', '2');
+                linha.setAttribute('stroke-linecap', 'round');
+                if (comSeta) linha.setAttribute('marker-end', 'url(#adc-seta-causal)');
+                svg.appendChild(linha);
+            };
+
+            const grupos = [{pai: null, elementoPai: raiz}];
+            itensAdc.forEach(item => {
+                const elementoPai = arvoreVisual.querySelector(`[data-chave="${item.chave}"]`);
+                if (elementoPai) grupos.push({pai: item.chave, elementoPai});
+            });
+            grupos.forEach(grupo => {
+                const filhos = itensAdc
+                    .filter(item => item.pai === grupo.pai)
+                    .map(item => arvoreVisual.querySelector(`[data-chave="${item.chave}"]`))
+                    .filter(Boolean);
+                if (!filhos.length) return;
+                const centrosFilhos = filhos.map(centroX);
+                const topoFilhos = Math.min(...filhos.map(topoY));
+                const basePai = baseY(grupo.elementoPai);
+                const centroPai = centroX(grupo.elementoPai);
+                const linhaHorizontalY = basePai + ((topoFilhos - basePai) / 2);
+                if (centrosFilhos.length > 1) {
+                    adicionarLinha(
+                        Math.min(...centrosFilhos), linhaHorizontalY,
+                        Math.max(...centrosFilhos), linhaHorizontalY
+                    );
+                }
+                centrosFilhos.forEach((centroFilho, indice) => {
+                    adicionarLinha(centroFilho, topoY(filhos[indice]), centroFilho, linhaHorizontalY);
+                });
+                adicionarLinha(centroPai, linhaHorizontalY, centroPai, basePai, true);
+            });
+            painel.prepend(svg);
+        };
         const renderizarAdc = () => {
             arvoreVisual.innerHTML = '';
             const raizes = itensAdc.filter(item => !item.pai);
@@ -962,12 +1050,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 vazio.className = 'adc-vazio';
                 vazio.textContent = 'Nenhum fato antecedente incluído. Use o botão + do evento indesejado para iniciar.';
                 arvoreVisual.appendChild(vazio);
+                window.requestAnimationFrame(desenharConectoresAdc);
                 return;
             }
             const ul = document.createElement('ul');
             ul.className = 'adc-filhos';
             raizes.forEach(item => ul.appendChild(criarNoAdc(item)));
             arvoreVisual.appendChild(ul);
+            window.requestAnimationFrame(desenharConectoresAdc);
         };
         const sincronizarAdc = () => {
             arvoreVisual.querySelectorAll('.adc-no').forEach(no => {
@@ -1013,6 +1103,11 @@ document.addEventListener('DOMContentLoaded', () => {
             sincronizarAdc();
             arvoreOculta.value = JSON.stringify(itensAdc);
         });
+        window.addEventListener('resize', () => window.requestAnimationFrame(desenharConectoresAdc));
+        if ('ResizeObserver' in window) {
+            const observadorAdc = new ResizeObserver(() => window.requestAnimationFrame(desenharConectoresAdc));
+            observadorAdc.observe(arvoreVisual);
+        }
         renderizarAdc();
     }
     const filtroParticipantes = document.getElementById('filtro_participantes_acr');
