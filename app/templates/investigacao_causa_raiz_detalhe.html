@@ -58,7 +58,7 @@
     .adc-raiz small { display:block; opacity:.9; text-transform:uppercase; }
     .adc-raiz strong { display:block; font-size:1rem; margin-top:3px; }
     .adc-raiz .adc-adicionar { position:absolute; right:12px; top:50%; transform:translateY(-50%); }
-    .adc-filhos { display:flex; flex-wrap:nowrap; gap:18px; justify-content:center; margin:0 auto; min-width:100%; padding:38px 0 0; position:relative; width:max-content; }
+    .adc-filhos { display:flex; flex-wrap:nowrap; gap:18px; justify-content:center; margin:0 auto; min-width:100%; padding:58px 0 0; position:relative; width:max-content; }
     .adc-subarvore { flex:0 0 auto; list-style:none; min-width:270px; position:relative; }
     .adc-no { background:#fff; border:1px solid #d7d9dc; border-left:4px solid #f36b21; border-radius:10px; box-sizing:border-box; margin:0 auto; max-width:270px; padding:12px; position:relative; width:270px; }
     .adc-no-cabecalho { align-items:center; display:flex; justify-content:space-between; margin-bottom:8px; }
@@ -974,15 +974,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const definicoes = document.createElementNS(namespaceSvg, 'defs');
             const marcador = document.createElementNS(namespaceSvg, 'marker');
             marcador.setAttribute('id', 'adc-seta-causal');
-            marcador.setAttribute('markerWidth', '8');
-            marcador.setAttribute('markerHeight', '8');
-            marcador.setAttribute('refX', '7');
-            marcador.setAttribute('refY', '4');
+            marcador.setAttribute('markerWidth', '6');
+            marcador.setAttribute('markerHeight', '6');
+            marcador.setAttribute('refX', '5.5');
+            marcador.setAttribute('refY', '3');
             marcador.setAttribute('orient', 'auto');
             marcador.setAttribute('markerUnits', 'strokeWidth');
             const ponta = document.createElementNS(namespaceSvg, 'path');
-            ponta.setAttribute('d', 'M0,0 L8,4 L0,8 Z');
-            ponta.setAttribute('fill', '#6c757d');
+            ponta.setAttribute('d', 'M0,0 L6,3 L0,6 Z');
+            ponta.setAttribute('fill', '#8b8f94');
             marcador.appendChild(ponta);
             definicoes.appendChild(marcador);
             svg.appendChild(definicoes);
@@ -1006,8 +1006,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 linha.setAttribute('y1', y1);
                 linha.setAttribute('x2', x2);
                 linha.setAttribute('y2', y2);
-                linha.setAttribute('stroke', '#6c757d');
-                linha.setAttribute('stroke-width', '2');
+                linha.setAttribute('stroke', '#8b8f94');
+                linha.setAttribute('stroke-width', '1.5');
                 linha.setAttribute('stroke-linecap', 'round');
                 if (comSeta) linha.setAttribute('marker-end', 'url(#adc-seta-causal)');
                 svg.appendChild(linha);
