@@ -977,6 +977,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 item.classificacao = no.querySelector('.js-adc-classificacao').value;
             });
         };
+        const centralizarNoAdc = chave => {
+            const no = arvoreVisual.querySelector(`[data-chave="${chave}"]`);
+            const painel = arvoreVisual.closest('.adc-arvore');
+            if (!no || !painel) return;
+            const campo = no.querySelector('textarea');
+            if (campo) campo.focus({preventScroll: true});
+            const painelRect = painel.getBoundingClientRect();
+            const noRect = no.getBoundingClientRect();
+            const destino = painel.scrollLeft + noRect.left - painelRect.left
+                - ((painel.clientWidth - noRect.width) / 2);
+            painel.scrollTo({left: Math.max(0, destino), behavior: 'smooth'});
+        };
         document.addEventListener('click', evento => {
             const adicionar = evento.target.closest('.js-adc-adicionar, .js-adc-adicionar-irmao');
             if (adicionar && formArvore.contains(adicionar)) {
@@ -985,7 +997,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const chave = novaChaveAdc();
                 itensAdc.push({chave, pai: adicionar.dataset.pai || null, descricao: '', classificacao: 'potencial'});
                 renderizarAdc();
-                arvoreVisual.querySelector(`[data-chave="${chave}"] textarea`).focus();
+                window.requestAnimationFrame(() => centralizarNoAdc(chave));
                 return;
             }
             const remover = evento.target.closest('.js-adc-remover');
