@@ -1,0 +1,392 @@
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class AcrModuleStructureTests(unittest.TestCase):
+    def test_acr_templates_compile(self):
+        from app import create_app
+
+        app = create_app()
+        for template in (
+            "investigacoes_causa_raiz.html",
+            "nova_investigacao_causa_raiz.html",
+            "investigacao_causa_raiz_detalhe.html",
+        ):
+            app.jinja_env.get_template(template)
+
+    def test_routes_are_registered(self):
+        routes = (ROOT / "app" / "routes.py").read_text(encoding="utf-8")
+        self.assertIn("register_investigacao_causa_raiz_routes", routes)
+
+    def test_acr_routes_require_module_permission(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        self.assertGreaterEqual(
+            view.count('@module_required("acesso_acr")'),
+            15,
+        )
+        self.assertIn("acr_participantes", view)
+        self.assertIn("centro_custos_id", view)
+
+    def test_new_acr_inherits_logged_user_cost_center(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "nova_investigacao_causa_raiz.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            'centro_custos_id = session.get("centro_custos_id")',
+            view,
+        )
+        self.assertNotIn('name="centro_custos_id"', template)
+        self.assertIn("btn btn-cinza", template)
+        self.assertIn("btn btn-laranja", template)
+
+    def test_acr_listing_has_safe_sorting_and_date_filters(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "investigacoes_causa_raiz.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("ORDENACOES_ACR", view)
+        self.assertIn("if ordenacao not in ORDENACOES_ACR", view)
+        self.assertIn("i.data_ocorrencia >= %s", view)
+        self.assertIn("i.data_ocorrencia <= %s", view)
+        self.assertIn('name="data_inicio"', template)
+        self.assertIn('name="data_fim"', template)
+        self.assertIn("cabecalho_ordenavel", template)
+        self.assertIn("btn btn-laranja", template)
+        self.assertIn("btn btn-cinza", template)
+
+    def test_five_whys_workflow_has_server_side_rules(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("salvar_5_porques_acr", view)
+        self.assertIn("Preencha os Porquês em sequência", view)
+        self.assertIn("causa_raiz_ordem", view)
+        self.assertIn("acr_causas", view)
+        self.assertIn('name="causa_raiz_ordem"', template)
+        self.assertEqual(
+            template.count('name="pergunta_{{ item.ordem }}"'),
+            1,
+        )
+        self.assertEqual(
+            template.count('name="resposta_{{ item.ordem }}"'),
+            1,
+        )
+        self.assertIn("Cada nível preenchido precisa ter pergunta e resposta", view)
+
+    def test_six_m_workflow_supports_multiple_root_causes(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
+        ).read_text(encoding="utf-8")
+        migration = (
+            ROOT / "docs" / "classificar_causas_6m_acr.sql"
+        ).read_text(encoding="utf-8")
+        self.assertIn("CATEGORIAS_6M", view)
+        self.assertIn("CLASSIFICACOES_6M", view)
+        self.assertIn("def salvar_6m_acr", view)
+        self.assertIn("Classifique todas as causas", view)
+        self.assertIn("ao menos uma causa básica ou fundamental", view)
+        self.assertIn("acr_6m_itens", view)
+        self.assertIn("main.salvar_6m_acr", template)
+        self.assertIn('name="descricao_6m_{{ codigo }}"', template)
+        self.assertIn('name="classificacao_6m_{{ codigo }}"', template)
+        self.assertNotIn('name="justificativa_6m_', template)
+        self.assertNotIn('name="validacao_6m_', template)
+        self.assertIn("ishikawa-vertical", template)
+        self.assertIn("ishikawa-problema", template)
+        self.assertIn("ishikawa-par", template)
+        self.assertIn("categorias_6m.items()|batch(2)", template)
+        self.assertIn("js-adicionar-causa-6m", template)
+        self.assertIn(
+            "investigacao.metodologia_codigo == '5_porques'",
+            template,
+        )
+        self.assertIn("causa(s) tratável(is)", template)
+        self.assertIn("Concluir análise", template)
+        self.assertIn("ADD COLUMN classificacao", migration)
+        self.assertIn("'potencial', 'descartada', 'contribuinte'", migration)
+
+    def test_cause_tree_builds_vertical_validated_branches(self):
+        from app.views.investigacao_causa_raiz import _validar_arvore_causas
+
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
+        ).read_text(encoding="utf-8")
+        migration = (
+            ROOT / "docs" / "adicionar_arvore_causas_acr.sql"
+        ).read_text(encoding="utf-8")
+        itens = _validar_arvore_causas([
+            {
+                "chave": "fato_1",
+                "pai": None,
+                "descricao": "Proteção estava removida",
+                "classificacao": "basica",
+            },
+            {
+                "chave": "fato_2",
+                "pai": "fato_1",
+                "descricao": "Inspeção não identificou a ausência",
+                "classificacao": "fundamental",
+            },
+        ])
+        self.assertEqual(len(itens), 2)
+        self.assertIn("def salvar_arvore_causas_acr", view)
+        self.assertIn("relacionamento circular", view)
+        self.assertIn("no máximo 10 níveis", view)
+        self.assertIn("acr_arvore_causas_itens", view)
+        self.assertIn("main.salvar_arvore_causas_acr", template)
+        self.assertIn('id="arvoreCausasVisual"', template)
+        self.assertIn("js-adc-adicionar", template)
+        self.assertIn("js-adc-adicionar-irmao", template)
+        self.assertIn("Adicionar fato filho abaixo", template)
+        self.assertIn("Adicionar fato irmão ao lado", template)
+        self.assertIn("Evento indesejado", template)
+        self.assertIn("adc-filhos", template)
+        self.assertIn(".adc-no {", template)
+        self.assertIn("flex-wrap:nowrap", template)
+        self.assertIn("padding:58px 0 0", template)
+        self.assertIn("width:max-content", template)
+        self.assertIn(".adc-subarvore { flex:0 0 auto;", template)
+        self.assertIn("min-width:270px", template)
+        self.assertIn("max-width:270px", template)
+        self.assertIn("width:270px", template)
+        self.assertIn("const centralizarNoAdc = chave =>", template)
+        self.assertIn("campo.focus({preventScroll: true})", template)
+        self.assertIn("painel.scrollTo({left: Math.max(0, destino), behavior: 'smooth'})", template)
+        self.assertIn("requestAnimationFrame(() => centralizarNoAdc(chave))", template)
+        self.assertIn("const desenharConectoresAdc = () =>", template)
+        self.assertIn("adc-seta-causal", template)
+        self.assertIn("marker-end", template)
+        self.assertIn("markerWidth', '6", template)
+        self.assertIn("stroke-width', '1.5", template)
+        self.assertIn("#8b8f94", template)
+        self.assertIn("linhaHorizontalY", template)
+        self.assertIn("ResizeObserver", template)
+        self.assertNotIn(".adc-filhos::before", template)
+        self.assertNotIn(".adc-subarvore::before", template)
+        self.assertNotIn(".adc-subarvore { flex:1 1 270px; list-style:none; max-width", template)
+        self.assertIn("CREATE TABLE IF NOT EXISTS acr_arvore_causas_itens", migration)
+        self.assertIn("'arvore_causas', 'Árvore de Causas', 1", migration)
+
+        with self.assertRaisesRegex(ValueError, "circular"):
+            _validar_arvore_causas([
+                {"chave": "a", "pai": "b", "descricao": "A", "classificacao": "basica"},
+                {"chave": "b", "pai": "a", "descricao": "B", "classificacao": "basica"},
+            ])
+
+    def test_acr_action_plan_links_existing_action_structure(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("def criar_acao_acr", view)
+        self.assertIn("INSERT INTO acoes", view)
+        self.assertIn("INSERT INTO acr_acoes", view)
+        self.assertIn("Confirme a causa raiz", view)
+        self.assertIn("main.criar_acao_acr", template)
+        self.assertIn("Plano de ação", template)
+        self.assertIn("_garantir_origem_acao_acr", view)
+        self.assertNotIn('name="origem_id"', template)
+        self.assertIn("responsavel_busca_acr", template)
+        self.assertIn("btn-acao-icon", template)
+        self.assertIn("table table-bordered align-middle table-fixed", template)
+        self.assertNotIn('name="acao_status"', template)
+        self.assertNotIn('name="acao_responsavel_id"', template)
+        self.assertIn('id="origem_acao_visualizacao"', template)
+        self.assertIn('value="{{ origem_acao_descricao }}" disabled', template)
+        self.assertIn("bi-caret-up-fill", template)
+        self.assertIn("bi-caret-down-fill", template)
+        self.assertIn("#plano-acao", template)
+        self.assertIn("def editar_acao_acr", view)
+        self.assertIn("main.editar_acao_acr", template)
+        self.assertIn("UploadService.salvar", view)
+        self.assertIn("arquivo_evidencia", view)
+        self.assertIn('enctype="multipart/form-data"', template)
+        self.assertIn('name="data_conclusao"', template)
+        self.assertIn('name="observacoes"', template)
+        self.assertIn('name="arquivo_evidencia"', template)
+        self.assertIn("linkEvidenciaAtualAcaoAcr", template)
+
+    def test_acr_effectiveness_flow_enforces_business_rules(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("def agendar_eficacia_acr", view)
+        self.assertIn("def avaliar_eficacia_acr", view)
+        self.assertIn(
+            'session.get("usuario_id") != investigacao["criador_id"]',
+            view,
+        )
+        self.assertIn("Todas as ações precisam estar concluídas", view)
+        self.assertIn('resultado == "Eficaz"', view)
+        self.assertIn("acr_verificacoes_eficacia", view)
+        self.assertIn("main.agendar_eficacia_acr", template)
+        self.assertIn("main.avaliar_eficacia_acr", template)
+        self.assertIn('id="eficacia"', template)
+
+    def test_acr_governance_has_timeline_cancel_and_reopen(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("historico_acr=historico_acr", view)
+        self.assertIn("def cancelar_investigacao_acr", view)
+        self.assertIn("def reabrir_investigacao_acr", view)
+        self.assertIn("Informe a justificativa do cancelamento", view)
+        self.assertIn("Informe a justificativa da reabertura", view)
+        self.assertIn("JSON_OBJECT('justificativa'", view)
+        self.assertIn('id="historico-acr"', template)
+        self.assertIn("main.cancelar_investigacao_acr", template)
+        self.assertIn("main.reabrir_investigacao_acr", template)
+
+    def test_acr_stage_attachments_are_secure_and_auditable(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("ETAPAS_EVIDENCIA_ACR", view)
+        self.assertIn("TAMANHO_MAXIMO_EVIDENCIA_ACR", view)
+        self.assertIn("def enviar_anexo_acr", view)
+        self.assertIn("def baixar_anexo_acr", view)
+        self.assertIn("def excluir_anexo_acr", view)
+        self.assertIn("UploadService.salvar", view)
+        self.assertIn("hash_sha256", view)
+        self.assertIn("acr_evidencias", view)
+        self.assertIn("Anexo incluído", view)
+        self.assertIn("Anexo excluído", view)
+        self.assertIn('id="modalAnexosAcr"', template)
+        self.assertGreaterEqual(template.count("botao_anexos("), 6)
+        self.assertIn('data-anexo-tooltip="true"', template)
+        self.assertIn("Gerenciar anexos da etapa", template)
+        self.assertIn('name="etapa"', template)
+        self.assertIn('name="arquivo"', template)
+        self.assertIn("main.baixar_anexo_acr", template)
+        self.assertIn("main.excluir_anexo_acr", template)
+
+    def test_acr_pdf_report_has_complete_protected_flow(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
+        ).read_text(encoding="utf-8")
+        generator = (ROOT / "app" / "utils" / "acr_pdf.py").read_text(
+            encoding="utf-8"
+        )
+        requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+        self.assertIn("def relatorio_pdf_acr", view)
+        self.assertIn("_buscar_investigacao_acessivel", view)
+        self.assertIn("gerar_pdf_acr", view)
+        self.assertIn('mimetype="application/pdf"', view)
+        self.assertIn("main.relatorio_pdf_acr", template)
+        self.assertIn("def gerar_pdf_acr", generator)
+        self.assertIn("[3.5 * cm, 3.5 * cm, 10 * cm]", generator)
+        for section in (
+            "Identificação e contexto",
+            "Investigação - 5 Porquês",
+            "Causa raiz",
+            "Plano de ação",
+            "Verificação de eficácia",
+            "Anexos",
+            "Histórico da ACR",
+        ):
+            self.assertIn(section, generator)
+        self.assertIn("reportlab==", requirements)
+
+    def test_acr_pdf_uses_landscape_page_for_visual_cause_tree(self):
+        generator = (ROOT / "app" / "utils" / "acr_pdf.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("BaseDocTemplate", generator)
+        self.assertIn('PageTemplate(id="retrato"', generator)
+        self.assertIn('id="paisagem"', generator)
+        self.assertIn('NextPageTemplate("paisagem")', generator)
+        self.assertIn('NextPageTemplate("retrato")', generator)
+        self.assertIn("class ArvoreCausasFlowable", generator)
+        self.assertIn("EVENTO INDESEJADO", generator)
+        self.assertIn("dados.get(\"itens_arvore_causas\", [])", generator)
+
+    def test_acr_participants_can_be_selected_and_managed(self):
+        view = (
+            ROOT / "app" / "views" / "investigacao_causa_raiz.py"
+        ).read_text(encoding="utf-8")
+        new_template = (
+            ROOT / "app" / "templates" / "nova_investigacao_causa_raiz.html"
+        ).read_text(encoding="utf-8")
+        detail_template = (
+            ROOT / "app" / "templates" / "investigacao_causa_raiz_detalhe.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn('request.form.getlist("participante_ids")', view)
+        self.assertIn("def atualizar_participantes_acr", view)
+        self.assertIn("Participantes atualizados", view)
+        self.assertIn("Reabra a ACR antes de alterar seus participantes", view)
+        self.assertIn("participantes_disponiveis=participantes_disponiveis", view)
+        self.assertIn("WHERE ativo = 1\n                  AND centro_custos_id = %s", view)
+        self.assertIn('name = "participante_ids"', new_template)
+        self.assertIn('id="modalParticipantesAcr"', detail_template)
+        self.assertIn('name="participante_ids"', detail_template)
+        self.assertIn("main.atualizar_participantes_acr", detail_template)
+
+    def test_permission_is_available_in_user_flows(self):
+        view = (ROOT / "app" / "views" / "usuarios.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("acesso_acr = %s", view)
+        for template in (
+            "usuarios.html",
+            "editar_usuario.html",
+            "permissoes_usuario.html",
+        ):
+            content = (ROOT / "app" / "templates" / template).read_text(
+                encoding="utf-8"
+            )
+            self.assertIn('name="acesso_acr"', content)
+
+    def test_migration_contains_required_foundation(self):
+        migration = (ROOT / "docs" / "criar_modulo_acr.sql").read_text(
+            encoding="utf-8"
+        )
+        for table in (
+            "acr_investigacoes",
+            "acr_5_porques",
+            "acr_6m_itens",
+            "acr_arvore_causas_itens",
+            "acr_causas",
+            "acr_acoes",
+            "acr_verificacoes_eficacia",
+            "acr_evidencias",
+            "acr_historico",
+        ):
+            self.assertIn(f"CREATE TABLE IF NOT EXISTS {table}", migration)
+        self.assertIn("ACR", migration)
+
+
+if __name__ == "__main__":
+    unittest.main()

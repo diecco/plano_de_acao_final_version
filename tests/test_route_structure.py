@@ -13,7 +13,64 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 185)
+        self.assertEqual(len(self.routes), 202)
+
+    def test_acr_routes_are_registered(self):
+        expected = {
+            ("/acr", ("GET",)): "main.investigacoes_acr",
+            ("/acr/nova", ("GET", "POST")): "main.nova_investigacao_acr",
+            ("/acr/<int:investigacao_id>", ("GET",)): "main.detalhar_investigacao_acr",
+            (
+                "/acr/<int:investigacao_id>/5-porques",
+                ("POST",),
+            ): "main.salvar_5_porques_acr",
+            (
+                "/acr/<int:investigacao_id>/acoes",
+                ("POST",),
+            ): "main.criar_acao_acr",
+            (
+                "/acr/<int:investigacao_id>/acoes/<int:acao_id>/editar",
+                ("POST",),
+            ): "main.editar_acao_acr",
+            (
+                "/acr/<int:investigacao_id>/eficacia/agendar",
+                ("POST",),
+            ): "main.agendar_eficacia_acr",
+            (
+                "/acr/<int:investigacao_id>/eficacia/<int:verificacao_id>/avaliar",
+                ("POST",),
+            ): "main.avaliar_eficacia_acr",
+            (
+                "/acr/<int:investigacao_id>/cancelar",
+                ("POST",),
+            ): "main.cancelar_investigacao_acr",
+            (
+                "/acr/<int:investigacao_id>/reabrir",
+                ("POST",),
+            ): "main.reabrir_investigacao_acr",
+            (
+                "/acr/<int:investigacao_id>/participantes",
+                ("POST",),
+            ): "main.atualizar_participantes_acr",
+            (
+                "/acr/<int:investigacao_id>/anexos",
+                ("POST",),
+            ): "main.enviar_anexo_acr",
+            (
+                "/acr/<int:investigacao_id>/relatorio.pdf",
+                ("GET",),
+            ): "main.relatorio_pdf_acr",
+            (
+                "/acr/<int:investigacao_id>/anexos/<int:evidencia_id>/download",
+                ("GET",),
+            ): "main.baixar_anexo_acr",
+            (
+                "/acr/<int:investigacao_id>/anexos/<int:evidencia_id>/excluir",
+                ("POST",),
+            ): "main.excluir_anexo_acr",
+        }
+        for route_contract, endpoint in expected.items():
+            self.assertEqual(self.routes.get(route_contract), endpoint)
 
     def test_detector_gas_routes_are_registered(self):
         expected = {

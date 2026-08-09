@@ -1,0 +1,1247 @@
+{% extends "layout.html" %}
+
+{% block titulo %}{{ investigacao.numero }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .acr-workflow { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; }
+    .acr-workflow-step { border-top:3px solid #d1d5db; padding:8px 4px 0; color:#6b7280; font-size:.8rem; text-align:center; }
+    .acr-workflow-step.active { border-color:#f36b21; color:#f36b21; font-weight:700; }
+    .acr-workflow-step.done { border-color:#6c757d; color:#6c757d; }
+    .acr-context { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+    .acr-context-item { background:#f8f9fa; border-radius:8px; padding:10px 12px; }
+    .acr-context-item small { color:#6c757d; display:block; }
+    .porque-card { border:1px solid #e5e7eb; border-left:4px solid #f36b21; border-radius:10px; padding:14px; }
+    .porque-number { align-items:center; background:#f36b21; border-radius:50%; color:#fff; display:inline-flex; font-weight:700; height:30px; justify-content:center; width:30px; }
+    .table-fixed { table-layout:fixed; min-width:760px; }
+    .td-truncate { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .autocomplete-wrap { position:relative; }
+    .autocomplete-list { background:#fff; border:1px solid #ced4da; border-radius:0 0 .375rem .375rem; box-shadow:0 .5rem 1rem rgba(0,0,0,.12); display:none; left:0; max-height:240px; overflow-y:auto; position:absolute; right:0; top:100%; z-index:1080; }
+    .autocomplete-item { cursor:pointer; padding:.65rem .75rem; }
+    .autocomplete-item:hover, .autocomplete-item.active { background:#fff1e8; color:#c94e0c; }
+    .badge-track-orange { background:#f36b21; color:#fff; }
+    .badge-track-gray { background:#6c757d; color:#fff; }
+    .alert-track-orange { background:#fff3ec; border:1px solid #f36b21; color:#5b6065; }
+    .alert-track-gray { background:#f3f4f5; border:1px solid #c7c9cc; color:#5b6065; }
+    .acr-timeline { list-style:none; margin:0; padding:0; }
+    .acr-timeline-item { padding:0 0 1.25rem 2rem; position:relative; }
+    .acr-timeline-item:not(:last-child)::before { background:#d6d8da; content:""; left:.48rem; position:absolute; top:1rem; bottom:-.15rem; width:2px; }
+    .acr-timeline-dot { background:#f36b21; border:3px solid #fff; border-radius:50%; box-shadow:0 0 0 1px #f36b21; height:1rem; left:0; position:absolute; top:.2rem; width:1rem; }
+    .btn-anexos-etapa { position:relative; }
+    .btn-anexos-contagem { align-items:center; background:#6c757d; border:2px solid #fff; border-radius:50%; color:#fff; display:flex; font-size:.6rem; height:1.1rem; justify-content:center; line-height:1; min-width:1.1rem; padding:0 .2rem; position:absolute; right:-.45rem; top:-.45rem; }
+    .acr-anexo-etapa { border:1px solid #e1e3e5; border-radius:10px; padding:14px; }
+    .acr-anexo-item { border-top:1px solid #eceeef; padding:.75rem 0; }
+    .acr-anexo-item:first-child { border-top:0; padding-top:0; }
+    .acr-anexo-nome { min-width:0; overflow-wrap:anywhere; }
+    .ishikawa-problema { background:#f36b21; border-radius:12px; color:#fff; margin:0 auto 18px; max-width:720px; padding:14px 18px; text-align:center; }
+    .ishikawa-problema small { display:block; opacity:.9; text-transform:uppercase; }
+    .ishikawa-problema strong { display:block; font-size:1rem; margin-top:3px; }
+    .ishikawa-vertical { position:relative; }
+    .ishikawa-vertical::before { background:#6c757d; bottom:0; content:""; left:50%; position:absolute; top:0; transform:translateX(-50%); width:4px; z-index:0; }
+    .ishikawa-par { align-items:stretch; display:grid; grid-template-columns:1fr 48px 1fr; padding:10px 0; position:relative; }
+    .ishikawa-pilar { align-items:stretch; display:grid; grid-row:1; min-width:0; position:relative; }
+    .ishikawa-esquerda { grid-column:1 / 3; grid-template-columns:minmax(0,1fr) 48px; }
+    .ishikawa-direita { grid-column:2 / 4; grid-template-columns:48px minmax(0,1fr); }
+    .ishikawa-card { background:#fff; border:1px solid #d7d9dc; border-radius:10px; height:100%; min-width:0; padding:12px; position:relative; z-index:2; }
+    .ishikawa-card h6 { color:#f36b21; font-weight:700; }
+    .ishikawa-esquerda .ishikawa-card { grid-column:1; }
+    .ishikawa-direita .ishikawa-card { grid-column:2; }
+    .ishikawa-ramo { align-self:center; background:#6c757d; height:3px; position:relative; z-index:1; }
+    .ishikawa-esquerda .ishikawa-ramo { grid-column:2; }
+    .ishikawa-direita .ishikawa-ramo { grid-column:1; }
+    .causa-6m-item { align-items:center; display:grid; gap:8px; grid-template-columns:minmax(0,1fr) 150px 32px; }
+    .causa-6m-item .btn-acao-icon { justify-self:center; }
+    .adc-arvore { overflow-x:auto; padding:4px 8px 18px; position:relative; }
+    .adc-conectores { left:0; overflow:visible; pointer-events:none; position:absolute; top:0; z-index:0; }
+    .adc-raiz, #arvoreCausasVisual { position:relative; z-index:1; }
+    .adc-raiz { background:#f36b21; border-radius:12px; color:#fff; margin:0 auto; max-width:720px; padding:14px 56px 14px 18px; position:relative; text-align:center; }
+    .adc-raiz small { display:block; opacity:.9; text-transform:uppercase; }
+    .adc-raiz strong { display:block; font-size:1rem; margin-top:3px; }
+    .adc-raiz .adc-adicionar { position:absolute; right:12px; top:50%; transform:translateY(-50%); }
+    .adc-filhos { display:flex; flex-wrap:nowrap; gap:18px; justify-content:center; margin:0 auto; min-width:100%; padding:58px 0 0; position:relative; width:max-content; }
+    .adc-subarvore { flex:0 0 auto; list-style:none; min-width:270px; position:relative; }
+    .adc-no { background:#fff; border:1px solid #d7d9dc; border-left:4px solid #f36b21; border-radius:10px; box-sizing:border-box; margin:0 auto; max-width:270px; padding:12px; position:relative; width:270px; }
+    .adc-no-cabecalho { align-items:center; display:flex; justify-content:space-between; margin-bottom:8px; }
+    .adc-no-cabecalho strong { color:#f36b21; font-size:.85rem; text-transform:uppercase; }
+    .adc-no-acoes { display:flex; gap:4px; }
+    .adc-direcao { font-size:.7rem; font-weight:700; line-height:1; margin-left:-2px; }
+    .adc-no textarea { min-height:68px; resize:vertical; }
+    .adc-vazio { border:1px dashed #c7c9cc; border-radius:10px; color:#6c757d; margin:30px auto 0; max-width:520px; padding:18px; text-align:center; }
+    @media (max-width: 900px) {
+        .acr-context { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        .acr-workflow { overflow-x:auto; grid-template-columns:repeat(5,130px); }
+        .ishikawa-vertical { display:block; padding-left:20px; }
+        .ishikawa-vertical::before { bottom:0; display:block; left:5px; top:0; transform:none; width:3px; }
+        .ishikawa-par { display:block; padding:0; }
+        .ishikawa-pilar, .ishikawa-esquerda, .ishikawa-direita { display:block; padding:7px 0; }
+        .ishikawa-ramo { height:3px; left:-15px; position:absolute; top:50%; width:15px; }
+        .causa-6m-item { grid-template-columns:minmax(0,1fr) 130px 32px; }
+    }
+    @media (max-width: 576px) {
+        .causa-6m-item { grid-template-columns:1fr 36px; }
+        .causa-6m-item .form-select { grid-column:1; }
+        .causa-6m-item .btn-acao-icon { grid-column:2; grid-row:1 / span 2; }
+    }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+{% macro botao_anexos(codigo, rotulo) %}
+    <button class="btn-acao-icon btn-anexos-etapa"
+            type="button"
+            data-bs-toggle="modal"
+            data-bs-target="#modalAnexosAcr"
+            data-etapa="{{ codigo }}"
+            data-etapa-rotulo="{{ rotulo }}"
+            data-anexo-tooltip="true"
+            title="Gerenciar anexos da etapa {{ rotulo }}"
+            aria-label="Gerenciar anexos da etapa {{ rotulo }}">
+        <i class="bi bi-paperclip"></i>
+        {% if evidencias_por_etapa[codigo]|length %}
+            <span class="btn-anexos-contagem">{{ evidencias_por_etapa[codigo]|length }}</span>
+        {% endif %}
+    </button>
+{% endmacro %}
+<div class="page-header">
+    <h2 class="page-title text-center mb-1">
+        <i class="bi bi-diagram-3 me-2"></i>{{ investigacao.numero }}
+    </h2>
+    <p class="text-center text-muted mb-0">Investigação pela metodologia {{ investigacao.metodologia }}</p>
+</div>
+<hr>
+
+<div class="acr-workflow mb-4">
+    <div class="acr-workflow-step done">1. Identificação</div>
+    <div class="acr-workflow-step {{ 'done' if etapa.status == 'Concluída' else 'active' }}">2. Investigação</div>
+    <div class="acr-workflow-step {{ 'done' if causa_raiz else '' }}">3. Causas</div>
+    <div class="acr-workflow-step {{ 'done' if acoes_concluidas else ('active' if causa_raiz else '') }}">4. Ações</div>
+    <div class="acr-workflow-step {{ 'done' if etapa_eficacia.status == 'Concluída' else ('active' if verificacao_atual or etapa_eficacia.status == 'Com pendências' else '') }}">5. Eficácia</div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <div class="d-flex align-items-center gap-2">
+                <h5 class="mb-0">Contexto da ocorrência</h5>
+                {{ botao_anexos('identificacao', 'Identificação') }}
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge text-bg-secondary">{{ investigacao.status }}</span>
+                <button class="btn btn-cinza btn-sm"
+                        type="button"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalParticipantesAcr"
+                        title="Consultar e gerenciar participantes da ACR">
+                    <i class="bi bi-people me-1"></i>Participantes
+                    {% if participantes_acr %}<span class="badge bg-light text-dark ms-1">{{ participantes_acr|length }}</span>{% endif %}
+                </button>
+                <a class="btn btn-laranja btn-sm"
+                   href="{{ url_for('main.relatorio_pdf_acr', investigacao_id=investigacao.id) }}"
+                   title="Gerar relatório consolidado da ACR em PDF">
+                    <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+                </a>
+                {% if investigacao.status in ['Concluída', 'Cancelada'] %}
+                    <button class="btn btn-laranja btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#modalReabrirAcr"><i class="bi bi-arrow-counterclockwise me-1"></i>Reabrir</button>
+                {% else %}
+                    <button class="btn btn-cinza btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#modalCancelarAcr"><i class="bi bi-x-circle me-1"></i>Cancelar</button>
+                {% endif %}
+            </div>
+        </div>
+        <div class="acr-context">
+            <div class="acr-context-item"><small>Origem</small><strong>{{ investigacao.origem }}</strong></div>
+            <div class="acr-context-item"><small>Classificação</small><strong>{{ investigacao.classificacao }}</strong></div>
+            <div class="acr-context-item"><small>Gravidade</small><strong>{{ investigacao.gravidade }}</strong></div>
+            <div class="acr-context-item"><small>Responsável</small><strong>{{ investigacao.responsavel }}</strong></div>
+        </div>
+        <div class="mt-3">
+            <small class="text-muted d-block">Descrição da ocorrência</small>
+            <p class="mb-0">{{ investigacao.descricao_ocorrencia }}</p>
+        </div>
+    </div>
+</div>
+
+{% if investigacao.metodologia_codigo == '5_porques' %}
+<form method="post"
+      action="{{ url_for('main.salvar_5_porques_acr', investigacao_id=investigacao.id) }}">
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                    <div class="d-flex align-items-center gap-2">
+                        <h5 class="mb-1">Sequência dos 5 Porquês</h5>
+                        {{ botao_anexos('investigacao', 'Investigação') }}
+                    </div>
+                    <small class="text-muted">
+                        Registre a pergunta e a respectiva resposta em cada nível, sempre em sequência.
+                    </small>
+                </div>
+                <span class="badge {{ 'badge-track-orange' if etapa.status == 'Concluída' else 'badge-track-gray' }}">
+                    {{ etapa.status }}
+                </span>
+            </div>
+
+            <div class="d-grid gap-3">
+                {% for item in porques %}
+                    <div class="porque-card">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="porque-number">{{ item.ordem }}</span>
+                            <strong>{{ item.ordem }}º Por quê?</strong>
+                        </div>
+                        <label class="form-label" for="pergunta_{{ item.ordem }}">Pergunta</label>
+                        <textarea class="form-control mb-3"
+                                  id="pergunta_{{ item.ordem }}"
+                                  name="pergunta_{{ item.ordem }}"
+                                  rows="2"
+                                  maxlength="500"
+                                  placeholder="Digite a pergunta deste nível"
+                                  {% if somente_leitura %}readonly{% endif %}>{{ item.pergunta }}</textarea>
+                        <label class="form-label" for="resposta_{{ item.ordem }}">Resposta</label>
+                        <textarea class="form-control"
+                                  id="resposta_{{ item.ordem }}"
+                                  name="resposta_{{ item.ordem }}"
+                                  rows="2"
+                                  maxlength="4000"
+                                  placeholder="Digite a resposta obtida"
+                                  {% if somente_leitura %}readonly{% endif %}>{{ item.resposta }}</textarea>
+                        {% if not somente_leitura %}
+                            <div class="form-check mt-2">
+                                <input class="form-check-input"
+                                       type="radio"
+                                       name="causa_raiz_ordem"
+                                       id="causa_raiz_{{ item.ordem }}"
+                                       value="{{ item.ordem }}"
+                                       {% if item.causa_raiz %}checked{% endif %}>
+                                <label class="form-check-label" for="causa_raiz_{{ item.ordem }}">
+                                    Esta resposta representa a causa raiz
+                                </label>
+                            </div>
+                        {% elif item.causa_raiz %}
+                            <span class="badge badge-track-orange mt-2">Causa raiz confirmada</span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="card-footer bg-white d-flex justify-content-end gap-2 py-3">
+            <a class="btn btn-cinza" href="{{ url_for('main.investigacoes_acr') }}">Voltar</a>
+            {% if not somente_leitura %}
+                <button class="btn btn-cinza" type="submit" name="acao" value="salvar">
+                    Salvar rascunho
+                </button>
+                <button class="btn btn-laranja" type="submit" name="acao" value="concluir">
+                    Confirmar causa raiz
+                </button>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% elif investigacao.metodologia_codigo == 'ishikawa' %}
+<form method="post"
+      action="{{ url_for('main.salvar_6m_acr', investigacao_id=investigacao.id) }}">
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                    <div class="d-flex align-items-center gap-2">
+                        <h5 class="mb-1">Diagrama 6M (Ishikawa)</h5>
+                        {{ botao_anexos('investigacao', 'Investigação') }}
+                        {{ botao_anexos('causas', 'Causas') }}
+                    </div>
+                    <small class="text-muted">Adicione e classifique as causas diretamente em cada pilar.</small>
+                </div>
+                <span class="badge {{ 'badge-track-orange' if etapa.status == 'Concluída' else 'badge-track-gray' }}">
+                    {{ etapa.status }}
+                </span>
+            </div>
+
+            <div class="ishikawa-problema">
+                <small>Problema analisado</small>
+                <strong>{{ investigacao.descricao_ocorrencia }}</strong>
+            </div>
+            <div class="ishikawa-vertical">
+                {% for par in categorias_6m.items()|batch(2) %}
+                <div class="ishikawa-par">
+                {% for codigo, rotulo in par %}
+                    {% set itens_categoria = itens_6m_por_categoria[codigo] %}
+                    <section class="ishikawa-pilar {{ 'ishikawa-esquerda' if loop.index is odd else 'ishikawa-direita' }}"
+                             data-pilar-6m="{{ codigo }}">
+                        <div class="ishikawa-ramo"></div>
+                        <div class="ishikawa-card">
+                            <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                                <h6 class="mb-0">{{ rotulo }}</h6>
+                                {% if not somente_leitura and not acoes_vinculadas %}
+                                    <button class="btn btn-laranja btn-sm js-adicionar-causa-6m" type="button" data-categoria="{{ codigo }}" title="Adicionar causa ao pilar {{ rotulo }}">
+                                        <i class="bi bi-plus-lg"></i> Adicionar causa
+                                    </button>
+                                {% endif %}
+                            </div>
+                            <div class="d-grid gap-2 js-lista-causas-6m" data-categoria="{{ codigo }}">
+                                {% for item in itens_categoria %}
+                                    <div class="causa-6m-item">
+                                        <input class="form-control" type="text" name="descricao_6m_{{ codigo }}"
+                                               maxlength="1000" value="{{ item.descricao }}" placeholder="Descrição da causa"
+                                               {% if somente_leitura or acoes_vinculadas %}readonly{% endif %} required>
+                                        <select class="form-select" name="classificacao_6m_{{ codigo }}"
+                                                {% if somente_leitura or acoes_vinculadas %}disabled{% endif %} required>
+                                            {% for valor, descricao in classificacoes_6m.items() %}
+                                                <option value="{{ valor }}" {% if item.classificacao == valor %}selected{% endif %}>{{ descricao }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        {% if not somente_leitura and not acoes_vinculadas %}
+                                            <button class="btn-acao-icon js-remover-causa-6m" type="button" title="Remover causa"><i class="bi bi-x-lg"></i></button>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <div class="text-muted small js-sem-causas-6m">Nenhuma causa adicionada.</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </section>
+                {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="card-footer bg-white d-flex justify-content-end gap-2 py-3">
+            <a class="btn btn-cinza" href="{{ url_for('main.investigacoes_acr') }}">Voltar</a>
+            {% if not somente_leitura and not acoes_vinculadas %}
+                <button class="btn btn-cinza" type="submit" name="acao" value="salvar">
+                    Salvar rascunho
+                </button>
+                <button class="btn btn-laranja" type="submit" name="acao" value="concluir">
+                    Concluir análise
+                </button>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% elif investigacao.metodologia_codigo == 'arvore_causas' %}
+<form id="formArvoreCausas"
+      method="post"
+      action="{{ url_for('main.salvar_arvore_causas_acr', investigacao_id=investigacao.id) }}">
+    <input id="arvore_causas_json" name="arvore_json" type="hidden">
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                    <div class="d-flex align-items-center gap-2">
+                        <h5 class="mb-1">Árvore de Causas</h5>
+                        {{ botao_anexos('investigacao', 'Investigação') }}
+                        {{ botao_anexos('causas', 'Causas') }}
+                    </div>
+                    <small class="text-muted">Parta do evento indesejado e inclua, abaixo dele, os fatos antecedentes e suas ramificações.</small>
+                </div>
+                <span class="badge {{ 'badge-track-orange' if etapa.status == 'Concluída' else 'badge-track-gray' }}">
+                    {{ etapa.status }}
+                </span>
+            </div>
+
+            <div class="adc-arvore">
+                <div class="adc-raiz">
+                    <small>Evento indesejado</small>
+                    <strong>{{ investigacao.descricao_ocorrencia }}</strong>
+                    {% if not somente_leitura and not acoes_vinculadas %}
+                        <button class="btn btn-light btn-sm adc-adicionar js-adc-adicionar"
+                                type="button" data-pai="" title="Adicionar fato antecedente ao evento">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    {% endif %}
+                </div>
+                <div id="arvoreCausasVisual"></div>
+            </div>
+        </div>
+        <div class="card-footer bg-white d-flex justify-content-end gap-2 py-3">
+            <a class="btn btn-cinza" href="{{ url_for('main.investigacoes_acr') }}">Voltar</a>
+            {% if not somente_leitura and not acoes_vinculadas %}
+                <button class="btn btn-cinza" type="submit" name="acao" value="salvar">Salvar rascunho</button>
+                <button class="btn btn-laranja" type="submit" name="acao" value="concluir">Concluir análise</button>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endif %}
+
+{% if causa_raiz %}
+{% if investigacao.metodologia_codigo == '5_porques' %}
+<div class="card border-0 shadow-sm mt-4">
+    <div class="card-body">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <h5 class="mb-0"><i class="bi bi-bullseye me-2"></i>Causas confirmadas</h5>
+            {{ botao_anexos('causas', 'Causas') }}
+        </div>
+        {% for causa in causas_raiz %}
+            <div class="alert alert-track-orange {{ 'mb-2' if not loop.last else 'mb-0' }}">{{ causa.descricao }}</div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="card border-0 shadow-sm mt-4" id="plano-acao">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+            <div class="d-flex align-items-center gap-2">
+                <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Plano de ação</h5>
+                {{ botao_anexos('acoes', 'Ações') }}
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                {% if investigacao.metodologia_codigo in ['ishikawa', 'arvore_causas'] %}
+                    <span class="badge badge-track-gray">{{ causas_raiz|length }} causa(s) tratável(is)</span>
+                {% endif %}
+                <span class="badge badge-track-gray">{{ acoes_vinculadas|length }} ação(ões)</span>
+            </div>
+        </div>
+
+        {% macro cabecalho_acao(campo, titulo) %}
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="th-label">{{ titulo }}</span>
+                <span class="btn-group btn-group-sm">
+                    <a class="btn btn-link p-0 px-1 text-muted"
+                       title="Ordenar crescente"
+                       href="{{ url_for('main.detalhar_investigacao_acr', investigacao_id=investigacao.id, acao_sort=campo, acao_order='asc') }}#plano-acao">
+                        <i class="bi bi-caret-up-fill"></i>
+                    </a>
+                    <a class="btn btn-link p-0 px-1 text-muted"
+                       title="Ordenar decrescente"
+                       href="{{ url_for('main.detalhar_investigacao_acr', investigacao_id=investigacao.id, acao_sort=campo, acao_order='desc') }}#plano-acao">
+                        <i class="bi bi-caret-down-fill"></i>
+                    </a>
+                </span>
+            </div>
+        {% endmacro %}
+
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered align-middle table-fixed">
+                <thead class="table-light">
+                    <tr>
+                        <th>{{ cabecalho_acao('descricao', 'Ação') }}</th>
+                        <th style="width:220px">{{ cabecalho_acao('responsavel', 'Responsável') }}</th>
+                        <th style="width:120px">{{ cabecalho_acao('prazo', 'Prazo') }}</th>
+                        <th style="width:140px">{{ cabecalho_acao('status', 'Status') }}</th>
+                        <th style="width:80px"><span class="th-label">Ações</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for acao in acoes_vinculadas %}
+                        {% set badge_status = {'Em andamento':'badge-track-orange', 'Concluída':'badge-track-orange'}.get(acao.status, 'badge-track-gray') %}
+                        <tr>
+                            <td class="td-truncate" title="{{ acao.descricao }}">{{ acao.descricao }}</td>
+                            <td class="td-truncate" title="{{ acao.responsavel or '' }}">{{ acao.responsavel or '—' }}</td>
+                            <td>{{ acao.prazo.strftime('%d/%m/%Y') if acao.prazo else '—' }}</td>
+                            <td><span class="badge {{ badge_status }}">{{ acao.status }}</span></td>
+                            <td class="text-center">
+                                {% if not somente_leitura %}
+                                    <button class="btn-acao-icon js-editar-acao-acr" type="button"
+                                            data-bs-toggle="modal" data-bs-target="#modalEditarAcaoAcr"
+                                            data-id="{{ acao.id }}"
+                                            data-responsavel-id="{{ acao.responsavel_id }}"
+                                            data-descricao="{{ acao.descricao }}"
+                                            data-prazo="{{ acao.prazo.isoformat() if acao.prazo else '' }}"
+                                            data-status="{{ acao.status }}"
+                                            data-data-conclusao="{{ acao.data_conclusao.isoformat() if acao.data_conclusao else '' }}"
+                                            data-observacoes="{{ acao.observacoes or '' }}"
+                                            data-arquivo-evidencia="{{ acao.arquivo_evidencia or '' }}"
+                                            title="Editar ação">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                {% else %}—{% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="5" class="text-center text-muted py-4">Nenhuma ação encontrada.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if not somente_leitura %}
+            <form method="post" action="{{ url_for('main.criar_acao_acr', investigacao_id=investigacao.id) }}">
+                <div class="row g-3">
+                    {% if causas_raiz|length > 1 %}
+                    <div class="col-12">
+                        <label class="form-label" for="causa_raiz_id">Causa raiz tratada *</label>
+                        <select class="form-select" id="causa_raiz_id" name="causa_raiz_id" required>
+                            <option value="">Selecione</option>
+                            {% for causa in causas_raiz %}
+                                <option value="{{ causa.id }}">{{ causa.descricao }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    <div class="col-12 col-md-5">
+                        <label class="form-label" for="origem_acao_visualizacao">Origem</label>
+                        <input class="form-control campo-readonly" id="origem_acao_visualizacao"
+                               type="text" value="{{ origem_acao_descricao }}" disabled>
+                    </div>
+                    <div class="col-12 col-md-5 autocomplete-wrap">
+                        <label class="form-label" for="responsavel_busca_acr">Responsável *</label>
+                        <input type="hidden" id="responsavel_id" name="responsavel_id" required>
+                        <input class="form-control" id="responsavel_busca_acr" type="text"
+                               placeholder="Digite nome ou matrícula" autocomplete="off" required>
+                        <div class="autocomplete-list" id="listaResponsaveisAcaoAcr"></div>
+                    </div>
+                    <div class="col-12 col-md-2">
+                        <label class="form-label" for="prazo">Prazo *</label>
+                        <input class="form-control" type="date" id="prazo" name="prazo" min="{{ hoje }}" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="descricao">Descrição da ação *</label>
+                        <textarea class="form-control" id="descricao" name="descricao" rows="3" maxlength="4000" required></textarea>
+                    </div>
+                    <div class="col-12 d-flex justify-content-end">
+                        <button class="btn btn-laranja" type="submit">
+                            <i class="bi bi-plus-circle me-1"></i>Adicionar ação
+                        </button>
+                    </div>
+                </div>
+            </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mt-4" id="eficacia">
+    <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <div>
+                <div class="d-flex align-items-center gap-2">
+                    <h5 class="mb-1"><i class="bi bi-check2-circle me-2"></i>Verificação de eficácia</h5>
+                    {{ botao_anexos('eficacia', 'Eficácia') }}
+                </div>
+                <small class="text-muted">Confirme se as ações eliminaram ou controlaram a causa raiz identificada.</small>
+            </div>
+            <span class="badge {{ 'badge-track-orange' if etapa_eficacia.status in ['Concluída', 'Em andamento'] else 'badge-track-gray' }}">{{ etapa_eficacia.status }}</span>
+        </div>
+
+        {% if not acoes_vinculadas %}
+            <div class="alert alert-track-gray mb-0">Cadastre pelo menos uma ação para avançar à eficácia.</div>
+        {% elif not acoes_concluidas %}
+            <div class="alert alert-track-orange mb-0">Todas as ações precisam estar concluídas antes de programar a verificação de eficácia.</div>
+        {% elif verificacao_atual %}
+            <div class="row g-3 mb-3">
+                <div class="col-12 col-md-3"><div class="acr-context-item"><small>Ciclo</small><strong>{{ verificacao_atual.ciclo }}</strong></div></div>
+                <div class="col-12 col-md-3"><div class="acr-context-item"><small>Data prevista</small><strong>{{ verificacao_atual.data_prevista.strftime('%d/%m/%Y') }}</strong></div></div>
+                <div class="col-12 col-md-6"><div class="acr-context-item"><small>Responsável pela verificação</small><strong>{{ verificacao_atual.responsavel }}</strong></div></div>
+                <div class="col-12"><div class="acr-context-item"><small>Critério de eficácia</small><strong>{{ verificacao_atual.criterio }}</strong></div></div>
+            </div>
+            {% if pode_gerenciar_eficacia and verificacao_atual_pode_avaliar %}
+                <form method="post" action="{{ url_for('main.avaliar_eficacia_acr', investigacao_id=investigacao.id, verificacao_id=verificacao_atual.id) }}">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="resultado_eficacia">Resultado *</label>
+                            <select class="form-select" id="resultado_eficacia" name="resultado" required>
+                                <option value="">Selecione</option>
+                                <option value="Eficaz">Eficaz</option>
+                                <option value="Parcialmente eficaz">Parcialmente eficaz</option>
+                                <option value="Ineficaz">Ineficaz</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-8">
+                            <label class="form-label" for="justificativa_eficacia">Justificativa e evidências observadas *</label>
+                            <textarea class="form-control" id="justificativa_eficacia" name="justificativa" rows="3" maxlength="4000" required></textarea>
+                        </div>
+                        <div class="col-12 d-flex justify-content-end"><button class="btn btn-laranja" type="submit"><i class="bi bi-check-circle me-1"></i>Registrar</button></div>
+                    </div>
+                </form>
+            {% elif pode_gerenciar_eficacia %}
+                <div class="alert alert-track-gray mb-0">A avaliação será liberada na data prevista.</div>
+            {% endif %}
+        {% elif pode_gerenciar_eficacia and not somente_leitura %}
+            {% if etapa_eficacia.status == 'Com pendências' %}<div class="alert alert-track-orange">Revise o plano de ação antes de programar um novo ciclo.</div>{% endif %}
+            <form method="post" action="{{ url_for('main.agendar_eficacia_acr', investigacao_id=investigacao.id) }}">
+                <div class="row g-3">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="data_prevista_eficacia">Data prevista *</label>
+                        <input class="form-control" id="data_prevista_eficacia" name="data_prevista" type="date" min="{{ hoje }}" required>
+                    </div>
+                    <div class="col-12 col-md-9">
+                        <label class="form-label" for="criterio_eficacia">Critério de eficácia *</label>
+                        <textarea class="form-control" id="criterio_eficacia" name="criterio" rows="2" maxlength="4000" placeholder="Informe o que deverá ser observado para considerar as ações eficazes." required></textarea>
+                    </div>
+                    <div class="col-12 d-flex justify-content-end"><button class="btn btn-laranja" type="submit"><i class="bi bi-calendar-check me-1"></i>Programar</button></div>
+                </div>
+            </form>
+        {% elif not verificacoes_eficacia %}
+            <div class="alert alert-track-gray mb-0">A programação da eficácia será realizada pelo criador da ACR: {{ investigacao.criador }}.</div>
+        {% endif %}
+
+        {% if verificacoes_eficacia %}
+            <div class="table-responsive mt-4">
+                <table class="table table-bordered align-middle">
+                    <thead><tr><th style="width:80px">Ciclo</th><th style="width:130px">Prevista</th><th style="width:130px">Realizada</th><th>Critério</th><th style="width:170px">Resultado</th></tr></thead>
+                    <tbody>{% for verificacao in verificacoes_eficacia %}<tr><td class="text-center">{{ verificacao.ciclo }}</td><td>{{ verificacao.data_prevista.strftime('%d/%m/%Y') }}</td><td>{{ verificacao.data_realizada.strftime('%d/%m/%Y') if verificacao.data_realizada else '—' }}</td><td title="{{ verificacao.criterio }}" class="td-truncate">{{ verificacao.criterio }}</td><td><span class="badge {{ 'badge-track-orange' if verificacao.resultado == 'Eficaz' else 'badge-track-gray' }}">{{ verificacao.resultado or 'Pendente' }}</span></td></tr>{% endfor %}</tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if not somente_leitura %}
+<style>
+    #modalEditarAcaoAcr .modal-content { max-height:calc(100dvh - 2rem); overflow:hidden; }
+    #modalEditarAcaoAcr #formEditarAcaoAcr { display:flex; flex-direction:column; min-height:0; max-height:inherit; }
+    #modalEditarAcaoAcr .modal-header,
+    #modalEditarAcaoAcr .modal-footer { flex-shrink:0; }
+    #modalEditarAcaoAcr .modal-body { min-height:0; overflow-y:auto; overscroll-behavior:contain; }
+    #modalEditarAcaoAcr .textarea-descricao { min-height:90px; resize:none; }
+    #modalEditarAcaoAcr .textarea-observacoes { min-height:80px; resize:none; }
+    @media (max-height:700px) {
+        #modalEditarAcaoAcr .modal-dialog { margin-top:.5rem; margin-bottom:.5rem; }
+        #modalEditarAcaoAcr .modal-content { max-height:calc(100dvh - 1rem); }
+        #modalEditarAcaoAcr .modal-body { padding-top:.75rem; padding-bottom:.75rem; }
+        #modalEditarAcaoAcr .modal-body .mb-3 { margin-bottom:.75rem !important; }
+    }
+</style>
+<div class="modal fade" id="modalEditarAcaoAcr" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <form id="formEditarAcaoAcr" method="post" enctype="multipart/form-data">
+                <div class="modal-header modal-header-trackplan">
+                    <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Editar Ação</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-2">
+                        <div class="col-md-6"><div class="mb-3">
+                            <label class="form-label" for="editar_origem_acao">Origem</label>
+                            <select class="form-select campo-readonly" id="editar_origem_acao" disabled>
+                                <option selected>{{ origem_acao_descricao }}</option>
+                            </select>
+                        </div></div>
+                        <div class="col-md-6"><div class="mb-3">
+                            <label class="form-label" for="editar_responsavel_acao">Responsável</label>
+                            <select class="form-select" id="editar_responsavel_acao" name="responsavel_id" required>
+                                {% for usuario in responsaveis_acao %}<option value="{{ usuario.id }}">{{ usuario.nome }}</option>{% endfor %}
+                            </select>
+                        </div></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="editar_descricao_acao">Descrição da Ação</label>
+                        <textarea class="form-control textarea-descricao" id="editar_descricao_acao" name="descricao" rows="3" maxlength="4000" required></textarea>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-4"><div class="mb-3">
+                            <label class="form-label" for="editar_prazo_acao">Prazo</label>
+                            <input class="form-control" id="editar_prazo_acao" name="prazo" type="date" required>
+                        </div></div>
+                        <div class="col-md-4"><div class="mb-3">
+                            <label class="form-label" for="editar_status_acao">Status</label>
+                            <select class="form-select" id="editar_status_acao" name="status" required>
+                                {% for status in ['Não iniciada', 'Em andamento', 'Vencida', 'Concluída', 'Cancelada'] %}<option value="{{ status }}">{{ status }}</option>{% endfor %}
+                            </select>
+                            <div class="form-text">Para concluir a ação, preencha a data de conclusão.</div>
+                        </div></div>
+                        <div class="col-md-4"><div class="mb-3">
+                            <label class="form-label" for="editar_data_conclusao_acao">Data de conclusão</label>
+                            <input class="form-control" id="editar_data_conclusao_acao" name="data_conclusao" type="date" max="{{ hoje }}">
+                            <div class="form-text">Não é permitido informar data futura.</div>
+                        </div></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Evidência</label>
+                        <div class="d-flex align-items-center justify-content-between border rounded p-2">
+                            <div id="nomeEvidenciaAtualAcaoAcr" class="text-muted small">Nenhum arquivo anexado</div>
+                            <div class="d-flex gap-2">
+                                <input class="d-none" id="editar_evidencia_acao" name="arquivo_evidencia" type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx">
+                                <button class="btn-acao-icon" id="btnAnexarEvidenciaAcaoAcr" type="button" title="Anexar / Trocar evidência"><i class="bi bi-paperclip"></i></button>
+                                <a class="btn-acao-icon" id="linkEvidenciaAtualAcaoAcr" href="#" target="_blank" rel="noopener" title="Consultar evidência" style="display:none"><i class="bi bi-eye"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="editar_observacoes_acao">Observações</label>
+                        <textarea class="form-control textarea-observacoes" id="editar_observacoes_acao" name="observacoes" rows="3" maxlength="4000" placeholder="Informe aqui detalhes adicionais..."></textarea>
+                        <div class="form-text">Se o status for Cancelada, o preenchimento deste campo é obrigatório.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-cinza" type="button" data-bs-dismiss="modal">Fechar</button>
+                    <button class="btn btn-laranja" type="submit">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+{% set participantes_ids_atuais = participantes_acr|map(attribute='id')|list %}
+<div class="modal fade" id="modalParticipantesAcr" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <form class="modal-content"
+              method="post"
+              action="{{ url_for('main.atualizar_participantes_acr', investigacao_id=investigacao.id) }}">
+            <div class="modal-header modal-header-trackplan">
+                <h5 class="modal-title"><i class="bi bi-people me-2"></i>Participantes da ACR</h5>
+                <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-track-gray py-2">
+                    O criador e o responsável pela investigação já aparecem separadamente e não precisam ser selecionados.
+                </div>
+                <label class="form-label" for="filtro_participantes_acr">Localizar participante</label>
+                <input class="form-control mb-3"
+                       id="filtro_participantes_acr"
+                       type="search"
+                       autocomplete="off"
+                       placeholder="Digite nome ou matrícula">
+                <div class="border rounded" style="max-height:360px;overflow-y:auto">
+                    {% for usuario in participantes_disponiveis %}
+                        {% if usuario.id not in [investigacao.criador_id, investigacao.responsavel_id] %}
+                            <label class="participante-opcao d-flex align-items-center gap-2 px-3 py-2 border-bottom"
+                                   data-busca="{{ (usuario.nome ~ ' ' ~ (usuario.matricula or ''))|lower }}">
+                                <input class="form-check-input mt-0"
+                                       type="checkbox"
+                                       name="participante_ids"
+                                       value="{{ usuario.id }}"
+                                       {% if usuario.id in participantes_ids_atuais %}checked{% endif %}
+                                       {% if somente_leitura %}disabled{% endif %}>
+                                <span>{{ usuario.nome }}{% if usuario.matricula %} <small class="text-muted">- {{ usuario.matricula }}</small>{% endif %}</span>
+                            </label>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center text-muted py-4">Nenhum usuário disponível.</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-cinza" type="button" data-bs-dismiss="modal">Fechar</button>
+                {% if not somente_leitura %}<button class="btn btn-laranja" type="submit">Salvar</button>{% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="modalAnexosAcr" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header modal-header-trackplan">
+                <h5 class="modal-title"><i class="bi bi-paperclip me-2"></i>Anexos — <span id="rotuloEtapaAnexoAcr"></span></h5>
+                <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                {% if not somente_leitura %}
+                    <form class="border rounded p-3 mb-4"
+                          method="post"
+                          enctype="multipart/form-data"
+                          action="{{ url_for('main.enviar_anexo_acr', investigacao_id=investigacao.id) }}">
+                        <input id="etapa_anexo_acr" name="etapa" type="hidden">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="arquivo_anexo_acr">Arquivo *</label>
+                                <input class="form-control"
+                                       id="arquivo_anexo_acr"
+                                       name="arquivo"
+                                       type="file"
+                                       accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx"
+                                       required>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="descricao_anexo_acr">Descrição</label>
+                                <input class="form-control"
+                                       id="descricao_anexo_acr"
+                                       name="descricao"
+                                       type="text"
+                                       maxlength="500"
+                                       placeholder="Identifique o conteúdo do arquivo">
+                            </div>
+                            <div class="col-12 d-flex justify-content-between align-items-center gap-3">
+                                <small class="text-muted">PDF, imagens, Word ou Excel, com até 10 MB.</small>
+                                <button class="btn btn-laranja" type="submit"><i class="bi bi-upload me-1"></i>Anexar</button>
+                            </div>
+                        </div>
+                    </form>
+                {% endif %}
+
+                {% for codigo, rotulo in etapas_evidencia.items() %}
+                    <section class="acr-anexo-etapa d-none" data-anexos-etapa="{{ codigo }}">
+                        <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+                            <strong>Arquivos da etapa</strong>
+                            <span class="badge badge-track-gray">{{ evidencias_por_etapa[codigo]|length }}</span>
+                        </div>
+                        {% for evidencia in evidencias_por_etapa[codigo] %}
+                            <div class="acr-anexo-item">
+                                <div class="d-flex justify-content-between align-items-start gap-3">
+                                    <div class="acr-anexo-nome">
+                                        <strong class="d-block">{{ evidencia.nome_original }}</strong>
+                                        {% if evidencia.descricao %}<span class="d-block small">{{ evidencia.descricao }}</span>{% endif %}
+                                        <small class="text-muted">
+                                            {{ (evidencia.tamanho_bytes / 1048576)|round(2) }} MB
+                                            · {{ evidencia.enviado_por_nome or 'Usuário não identificado' }}
+                                            · {{ evidencia.criado_em.strftime('%d/%m/%Y %H:%M') if evidencia.criado_em else '—' }}
+                                        </small>
+                                    </div>
+                                    <div class="d-flex gap-1 flex-shrink-0">
+                                        <a class="btn-acao-icon"
+                                           href="{{ url_for('main.baixar_anexo_acr', investigacao_id=investigacao.id, evidencia_id=evidencia.id) }}"
+                                           title="Baixar anexo"
+                                           aria-label="Baixar {{ evidencia.nome_original }}">
+                                            <i class="bi bi-download"></i>
+                                        </a>
+                                        {% if not somente_leitura %}
+                                            <form method="post"
+                                                  action="{{ url_for('main.excluir_anexo_acr', investigacao_id=investigacao.id, evidencia_id=evidencia.id) }}"
+                                                  onsubmit="return confirm('Excluir este anexo?');">
+                                                <button class="btn-acao-icon" type="submit" title="Excluir anexo" aria-label="Excluir {{ evidencia.nome_original }}">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="text-center text-muted small py-3">Nenhum arquivo anexado nesta etapa.</div>
+                        {% endfor %}
+                    </section>
+                {% endfor %}
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-cinza" type="button" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mt-4" id="historico-acr">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-4">
+            <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Histórico da ACR</h5>
+            <span class="badge badge-track-gray">{{ historico_acr|length }} evento(s)</span>
+        </div>
+        <ol class="acr-timeline">
+            {% for item in historico_acr %}
+                <li class="acr-timeline-item">
+                    <span class="acr-timeline-dot"></span>
+                    <div class="d-flex flex-wrap justify-content-between gap-2">
+                        <strong>{{ item.evento }}</strong>
+                        <small class="text-muted">{{ item.criado_em.strftime('%d/%m/%Y %H:%M') if item.criado_em else '—' }}</small>
+                    </div>
+                    <div class="text-muted small">{{ item.usuario or 'Usuário não identificado' }}{% if item.etapa %} · {{ item.etapa|replace('_', ' ')|title }}{% endif %}</div>
+                    {% if item.justificativa %}<div class="alert alert-track-gray py-2 px-3 mt-2 mb-0">{{ item.justificativa }}</div>{% endif %}
+                </li>
+            {% else %}
+                <li class="text-center text-muted py-3">Nenhum evento registrado.</li>
+            {% endfor %}
+        </ol>
+    </div>
+</div>
+
+<div class="modal fade" id="modalCancelarAcr" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" method="post" action="{{ url_for('main.cancelar_investigacao_acr', investigacao_id=investigacao.id) }}">
+            <div class="modal-header modal-header-trackplan"><h5 class="modal-title"><i class="bi bi-x-circle me-2"></i>Cancelar ACR</h5><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
+            <div class="modal-body"><label class="form-label" for="justificativa_cancelamento">Justificativa *</label><textarea class="form-control" id="justificativa_cancelamento" name="justificativa_cancelamento" rows="4" maxlength="4000" required></textarea><div class="form-text">As ações vinculadas não serão canceladas automaticamente.</div></div>
+            <div class="modal-footer"><button class="btn btn-cinza" type="button" data-bs-dismiss="modal">Fechar</button><button class="btn btn-laranja" type="submit">Confirmar</button></div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="modalReabrirAcr" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" method="post" action="{{ url_for('main.reabrir_investigacao_acr', investigacao_id=investigacao.id) }}">
+            <div class="modal-header modal-header-trackplan"><h5 class="modal-title"><i class="bi bi-arrow-counterclockwise me-2"></i>Reabrir ACR</h5><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
+            <div class="modal-body"><label class="form-label" for="justificativa_reabertura">Justificativa *</label><textarea class="form-control" id="justificativa_reabertura" name="justificativa_reabertura" rows="4" maxlength="4000" required></textarea><div class="form-text">A investigação retornará ao status Em Investigação.</div></div>
+            <div class="modal-footer"><button class="btn btn-cinza" type="button" data-bs-dismiss="modal">Fechar</button><button class="btn btn-laranja" type="submit">Confirmar</button></div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script id="responsaveis-acao-acr-data" type="application/json">{{ responsaveis_acao|tojson }}</script>
+<script id="classificacoes-6m-data" type="application/json">{{ classificacoes_6m|default({})|tojson }}</script>
+<script id="classificacoes-adc-data" type="application/json">{{ classificacoes_arvore_causas|default({})|tojson }}</script>
+<script id="itens-adc-data" type="application/json">{{ itens_arvore_causas|default([])|tojson }}</script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const classificacoes6m = JSON.parse(document.getElementById('classificacoes-6m-data').textContent || '{}');
+    const criarCausa6m = categoria => {
+        const item = document.createElement('div');
+        item.className = 'causa-6m-item';
+        const descricao = document.createElement('input');
+        descricao.className = 'form-control';
+        descricao.type = 'text';
+        descricao.name = `descricao_6m_${categoria}`;
+        descricao.maxLength = 1000;
+        descricao.placeholder = 'Descrição da causa';
+        descricao.required = true;
+        const classificacao = document.createElement('select');
+        classificacao.className = 'form-select';
+        classificacao.name = `classificacao_6m_${categoria}`;
+        classificacao.required = true;
+        Object.entries(classificacoes6m).forEach(([valor, rotulo]) => {
+            const option = document.createElement('option');
+            option.value = valor;
+            option.textContent = rotulo;
+            classificacao.appendChild(option);
+        });
+        const remover = document.createElement('button');
+        remover.className = 'btn-acao-icon js-remover-causa-6m';
+        remover.type = 'button';
+        remover.title = 'Remover causa';
+        remover.innerHTML = '<i class="bi bi-x-lg"></i>';
+        item.append(descricao, classificacao, remover);
+        return item;
+    };
+    document.querySelectorAll('.js-adicionar-causa-6m').forEach(botao => {
+        botao.addEventListener('click', () => {
+            const lista = document.querySelector(`.js-lista-causas-6m[data-categoria="${botao.dataset.categoria}"]`);
+            if (!lista || lista.querySelectorAll('.causa-6m-item').length >= 20) return;
+            const vazio = lista.querySelector('.js-sem-causas-6m');
+            if (vazio) vazio.remove();
+            const item = criarCausa6m(botao.dataset.categoria);
+            lista.appendChild(item);
+            item.querySelector('input').focus();
+        });
+    });
+    document.addEventListener('click', evento => {
+        const botao = evento.target.closest('.js-remover-causa-6m');
+        if (!botao) return;
+        const lista = botao.closest('.js-lista-causas-6m');
+        botao.closest('.causa-6m-item').remove();
+        if (lista && !lista.querySelector('.causa-6m-item')) {
+            const vazio = document.createElement('div');
+            vazio.className = 'text-muted small js-sem-causas-6m';
+            vazio.textContent = 'Nenhuma causa adicionada.';
+            lista.appendChild(vazio);
+        }
+    });
+    const formArvore = document.getElementById('formArvoreCausas');
+    const arvoreVisual = document.getElementById('arvoreCausasVisual');
+    const arvoreOculta = document.getElementById('arvore_causas_json');
+    if (formArvore && arvoreVisual && arvoreOculta) {
+        const classificacoesAdc = JSON.parse(document.getElementById('classificacoes-adc-data').textContent || '{}');
+        const itensBancoAdc = JSON.parse(document.getElementById('itens-adc-data').textContent || '[]');
+        const editavelAdc = {{ 'false' if somente_leitura or acoes_vinculadas else 'true' }};
+        let contadorAdc = 0;
+        let itensAdc = itensBancoAdc.map(item => ({
+            chave: `n${item.id}`,
+            pai: item.parent_id ? `n${item.parent_id}` : null,
+            descricao: item.descricao || '',
+            classificacao: item.classificacao || 'potencial'
+        }));
+        const novaChaveAdc = () => `novo_${Date.now()}_${++contadorAdc}`;
+        const escaparAdc = valor => String(valor || '').replace(/[&<>"]/g, caractere => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[caractere]));
+        const descendentesAdc = chave => {
+            const filhos = itensAdc.filter(item => item.pai === chave);
+            return filhos.flatMap(item => [item.chave, ...descendentesAdc(item.chave)]);
+        };
+        const criarNoAdc = item => {
+            const li = document.createElement('li');
+            li.className = 'adc-subarvore';
+            const opcoes = Object.entries(classificacoesAdc).map(([valor, rotulo]) =>
+                `<option value="${escaparAdc(valor)}" ${item.classificacao === valor ? 'selected' : ''}>${escaparAdc(rotulo)}</option>`
+            ).join('');
+            li.innerHTML = `
+                <div class="adc-no" data-chave="${escaparAdc(item.chave)}">
+                    <div class="adc-no-cabecalho">
+                        <strong>Fato antecedente</strong>
+                        ${editavelAdc ? `<div class="adc-no-acoes">
+                            <button class="btn-acao-icon js-adc-adicionar" type="button" data-pai="${escaparAdc(item.chave)}" title="Adicionar fato filho abaixo" aria-label="Adicionar fato filho abaixo"><i class="bi bi-plus-lg"></i><span class="adc-direcao">↓</span></button>
+                            <button class="btn-acao-icon js-adc-adicionar-irmao" type="button" data-pai="${escaparAdc(item.pai || '')}" title="Adicionar fato irmão ao lado" aria-label="Adicionar fato irmão ao lado"><i class="bi bi-plus-lg"></i><span class="adc-direcao">↔</span></button>
+                            <button class="btn-acao-icon js-adc-remover" type="button" data-chave="${escaparAdc(item.chave)}" title="Remover fato e suas ramificações"><i class="bi bi-trash"></i></button>
+                        </div>` : ''}
+                    </div>
+                    <textarea class="form-control mb-2 js-adc-descricao" maxlength="1000" placeholder="Descreva um fato objetivo" ${editavelAdc ? '' : 'readonly'} required>${escaparAdc(item.descricao)}</textarea>
+                    <select class="form-select js-adc-classificacao" ${editavelAdc ? '' : 'disabled'} required>${opcoes}</select>
+                </div>`;
+            const filhos = itensAdc.filter(filho => filho.pai === item.chave);
+            if (filhos.length) {
+                const ul = document.createElement('ul');
+                ul.className = 'adc-filhos';
+                filhos.forEach(filho => ul.appendChild(criarNoAdc(filho)));
+                li.appendChild(ul);
+            }
+            return li;
+        };
+        const desenharConectoresAdc = () => {
+            const painel = arvoreVisual.closest('.adc-arvore');
+            const raiz = painel ? painel.querySelector('.adc-raiz') : null;
+            if (!painel || !raiz) return;
+            painel.querySelector('.adc-conectores')?.remove();
+            if (!itensAdc.length) return;
+
+            const namespaceSvg = 'http://www.w3.org/2000/svg';
+            const largura = Math.max(painel.scrollWidth, painel.clientWidth);
+            const altura = Math.max(painel.scrollHeight, painel.clientHeight);
+            const svg = document.createElementNS(namespaceSvg, 'svg');
+            svg.classList.add('adc-conectores');
+            svg.setAttribute('aria-hidden', 'true');
+            svg.setAttribute('width', largura);
+            svg.setAttribute('height', altura);
+            svg.setAttribute('viewBox', `0 0 ${largura} ${altura}`);
+
+            const definicoes = document.createElementNS(namespaceSvg, 'defs');
+            const marcador = document.createElementNS(namespaceSvg, 'marker');
+            marcador.setAttribute('id', 'adc-seta-causal');
+            marcador.setAttribute('markerWidth', '6');
+            marcador.setAttribute('markerHeight', '6');
+            marcador.setAttribute('refX', '5.5');
+            marcador.setAttribute('refY', '3');
+            marcador.setAttribute('orient', 'auto');
+            marcador.setAttribute('markerUnits', 'strokeWidth');
+            const ponta = document.createElementNS(namespaceSvg, 'path');
+            ponta.setAttribute('d', 'M0,0 L6,3 L0,6 Z');
+            ponta.setAttribute('fill', '#8b8f94');
+            marcador.appendChild(ponta);
+            definicoes.appendChild(marcador);
+            svg.appendChild(definicoes);
+
+            const painelRect = painel.getBoundingClientRect();
+            const centroX = elemento => {
+                const rect = elemento.getBoundingClientRect();
+                return rect.left - painelRect.left + painel.scrollLeft + (rect.width / 2);
+            };
+            const topoY = elemento => {
+                const rect = elemento.getBoundingClientRect();
+                return rect.top - painelRect.top + painel.scrollTop;
+            };
+            const baseY = elemento => {
+                const rect = elemento.getBoundingClientRect();
+                return rect.bottom - painelRect.top + painel.scrollTop;
+            };
+            const adicionarLinha = (x1, y1, x2, y2, comSeta = false) => {
+                const linha = document.createElementNS(namespaceSvg, 'line');
+                linha.setAttribute('x1', x1);
+                linha.setAttribute('y1', y1);
+                linha.setAttribute('x2', x2);
+                linha.setAttribute('y2', y2);
+                linha.setAttribute('stroke', '#8b8f94');
+                linha.setAttribute('stroke-width', '1.5');
+                linha.setAttribute('stroke-linecap', 'round');
+                if (comSeta) linha.setAttribute('marker-end', 'url(#adc-seta-causal)');
+                svg.appendChild(linha);
+            };
+
+            const grupos = [{pai: null, elementoPai: raiz}];
+            itensAdc.forEach(item => {
+                const elementoPai = arvoreVisual.querySelector(`[data-chave="${item.chave}"]`);
+                if (elementoPai) grupos.push({pai: item.chave, elementoPai});
+            });
+            grupos.forEach(grupo => {
+                const filhos = itensAdc
+                    .filter(item => item.pai === grupo.pai)
+                    .map(item => arvoreVisual.querySelector(`[data-chave="${item.chave}"]`))
+                    .filter(Boolean);
+                if (!filhos.length) return;
+                const centrosFilhos = filhos.map(centroX);
+                const topoFilhos = Math.min(...filhos.map(topoY));
+                const basePai = baseY(grupo.elementoPai);
+                const centroPai = centroX(grupo.elementoPai);
+                const linhaHorizontalY = basePai + ((topoFilhos - basePai) / 2);
+                if (centrosFilhos.length > 1) {
+                    adicionarLinha(
+                        Math.min(...centrosFilhos), linhaHorizontalY,
+                        Math.max(...centrosFilhos), linhaHorizontalY
+                    );
+                }
+                centrosFilhos.forEach((centroFilho, indice) => {
+                    adicionarLinha(centroFilho, topoY(filhos[indice]), centroFilho, linhaHorizontalY);
+                });
+                adicionarLinha(centroPai, linhaHorizontalY, centroPai, basePai, true);
+            });
+            painel.prepend(svg);
+        };
+        const renderizarAdc = () => {
+            arvoreVisual.innerHTML = '';
+            const raizes = itensAdc.filter(item => !item.pai);
+            if (!raizes.length) {
+                const vazio = document.createElement('div');
+                vazio.className = 'adc-vazio';
+                vazio.textContent = 'Nenhum fato antecedente incluído. Use o botão + do evento indesejado para iniciar.';
+                arvoreVisual.appendChild(vazio);
+                window.requestAnimationFrame(desenharConectoresAdc);
+                return;
+            }
+            const ul = document.createElement('ul');
+            ul.className = 'adc-filhos';
+            raizes.forEach(item => ul.appendChild(criarNoAdc(item)));
+            arvoreVisual.appendChild(ul);
+            window.requestAnimationFrame(desenharConectoresAdc);
+        };
+        const sincronizarAdc = () => {
+            arvoreVisual.querySelectorAll('.adc-no').forEach(no => {
+                const item = itensAdc.find(registro => registro.chave === no.dataset.chave);
+                if (!item) return;
+                item.descricao = no.querySelector('.js-adc-descricao').value.trim();
+                item.classificacao = no.querySelector('.js-adc-classificacao').value;
+            });
+        };
+        const centralizarNoAdc = chave => {
+            const no = arvoreVisual.querySelector(`[data-chave="${chave}"]`);
+            const painel = arvoreVisual.closest('.adc-arvore');
+            if (!no || !painel) return;
+            const campo = no.querySelector('textarea');
+            if (campo) campo.focus({preventScroll: true});
+            const painelRect = painel.getBoundingClientRect();
+            const noRect = no.getBoundingClientRect();
+            const destino = painel.scrollLeft + noRect.left - painelRect.left
+                - ((painel.clientWidth - noRect.width) / 2);
+            painel.scrollTo({left: Math.max(0, destino), behavior: 'smooth'});
+        };
+        document.addEventListener('click', evento => {
+            const adicionar = evento.target.closest('.js-adc-adicionar, .js-adc-adicionar-irmao');
+            if (adicionar && formArvore.contains(adicionar)) {
+                sincronizarAdc();
+                if (itensAdc.length >= 100) return;
+                const chave = novaChaveAdc();
+                itensAdc.push({chave, pai: adicionar.dataset.pai || null, descricao: '', classificacao: 'potencial'});
+                renderizarAdc();
+                window.requestAnimationFrame(() => centralizarNoAdc(chave));
+                return;
+            }
+            const remover = evento.target.closest('.js-adc-remover');
+            if (remover && formArvore.contains(remover)) {
+                sincronizarAdc();
+                const chaves = new Set([remover.dataset.chave, ...descendentesAdc(remover.dataset.chave)]);
+                if (chaves.size > 1 && !window.confirm('Remover este fato e todas as suas ramificações?')) return;
+                itensAdc = itensAdc.filter(item => !chaves.has(item.chave));
+                renderizarAdc();
+            }
+        });
+        formArvore.addEventListener('submit', () => {
+            sincronizarAdc();
+            arvoreOculta.value = JSON.stringify(itensAdc);
+        });
+        window.addEventListener('resize', () => window.requestAnimationFrame(desenharConectoresAdc));
+        if ('ResizeObserver' in window) {
+            const observadorAdc = new ResizeObserver(() => window.requestAnimationFrame(desenharConectoresAdc));
+            observadorAdc.observe(arvoreVisual);
+        }
+        renderizarAdc();
+    }
+    const filtroParticipantes = document.getElementById('filtro_participantes_acr');
+    if (filtroParticipantes) {
+        const normalizarParticipante = texto => (texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        filtroParticipantes.addEventListener('input', () => {
+            const termo = normalizarParticipante(filtroParticipantes.value.trim());
+            document.querySelectorAll('.participante-opcao').forEach(opcao => {
+                opcao.classList.toggle('d-none', !normalizarParticipante(opcao.dataset.busca).includes(termo));
+            });
+        });
+    }
+    const modalAnexos = document.getElementById('modalAnexosAcr');
+    const etapaAnexo = document.getElementById('etapa_anexo_acr');
+    const rotuloEtapaAnexo = document.getElementById('rotuloEtapaAnexoAcr');
+    document.querySelectorAll('[data-anexo-tooltip="true"]').forEach(elemento => {
+        if (window.bootstrap && bootstrap.Tooltip) new bootstrap.Tooltip(elemento);
+    });
+    if (modalAnexos) {
+        modalAnexos.addEventListener('show.bs.modal', evento => {
+            const botao = evento.relatedTarget;
+            if (!botao) return;
+            const codigo = botao.dataset.etapa;
+            const rotulo = botao.dataset.etapaRotulo;
+            if (etapaAnexo) etapaAnexo.value = codigo;
+            if (rotuloEtapaAnexo) rotuloEtapaAnexo.textContent = rotulo;
+            modalAnexos.querySelectorAll('[data-anexos-etapa]').forEach(secao => {
+                secao.classList.toggle('d-none', secao.dataset.anexosEtapa !== codigo);
+            });
+            const tooltip = window.bootstrap && bootstrap.Tooltip
+                ? bootstrap.Tooltip.getInstance(botao)
+                : null;
+            if (tooltip) tooltip.hide();
+        });
+        const etapaInicial = new URLSearchParams(window.location.search).get('anexos_etapa');
+        const botaoInicial = etapaInicial
+            ? document.querySelector(`.btn-anexos-etapa[data-etapa="${etapaInicial}"]`)
+            : null;
+        if (botaoInicial && window.bootstrap && bootstrap.Modal) {
+            bootstrap.Modal.getOrCreateInstance(modalAnexos).show(botaoInicial);
+        }
+    }
+    const usuarios = JSON.parse(document.getElementById('responsaveis-acao-acr-data').textContent || '[]');
+    const busca = document.getElementById('responsavel_busca_acr');
+    const oculto = document.getElementById('responsavel_id');
+    const lista = document.getElementById('listaResponsaveisAcaoAcr');
+    const normalizar = texto => (texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const rotulo = usuario => `${usuario.nome}${usuario.matricula ? ' — ' + usuario.matricula : ''}`;
+    if (busca && oculto && lista) {
+        busca.addEventListener('input', () => {
+            oculto.value = '';
+            lista.innerHTML = '';
+            const termo = normalizar(busca.value.trim());
+            if (termo.length < 2) { lista.style.display = 'none'; return; }
+            const encontrados = usuarios.filter(u => normalizar(`${u.nome} ${u.matricula || ''}`).includes(termo)).slice(0, 12);
+            encontrados.forEach(usuario => {
+                const item = document.createElement('div');
+                item.className = 'autocomplete-item';
+                item.textContent = rotulo(usuario);
+                item.addEventListener('click', () => { busca.value = rotulo(usuario); oculto.value = usuario.id; lista.style.display = 'none'; });
+                lista.appendChild(item);
+            });
+            lista.style.display = encontrados.length ? 'block' : 'none';
+        });
+        busca.closest('form').addEventListener('submit', event => {
+            if (!oculto.value) { event.preventDefault(); busca.setCustomValidity('Selecione um responsável da lista.'); busca.reportValidity(); }
+            else { busca.setCustomValidity(''); }
+        });
+        document.addEventListener('click', event => { if (!event.target.closest('.autocomplete-wrap')) lista.style.display = 'none'; });
+    }
+
+    const formEditar = document.getElementById('formEditarAcaoAcr');
+    const statusEditar = document.getElementById('editar_status_acao');
+    const dataConclusaoEditar = document.getElementById('editar_data_conclusao_acao');
+    const observacoesEditar = document.getElementById('editar_observacoes_acao');
+    const nomeEvidenciaAtual = document.getElementById('nomeEvidenciaAtualAcaoAcr');
+    const inputEvidencia = document.getElementById('editar_evidencia_acao');
+    const btnAnexarEvidencia = document.getElementById('btnAnexarEvidenciaAcaoAcr');
+    const linkEvidenciaAtual = document.getElementById('linkEvidenciaAtualAcaoAcr');
+    const urlEvidenciaBase = `{{ url_for('static', filename='evidencias/__ARQUIVO__') }}`;
+    document.querySelectorAll('.js-editar-acao-acr').forEach(botao => botao.addEventListener('click', () => {
+        formEditar.action = `{{ url_for('main.editar_acao_acr', investigacao_id=investigacao.id, acao_id=0) }}`.replace('/0/editar', `/${botao.dataset.id}/editar`);
+        document.getElementById('editar_descricao_acao').value = botao.dataset.descricao;
+        document.getElementById('editar_responsavel_acao').value = botao.dataset.responsavelId;
+        document.getElementById('editar_prazo_acao').value = botao.dataset.prazo;
+        statusEditar.value = botao.dataset.status;
+        dataConclusaoEditar.value = botao.dataset.dataConclusao;
+        observacoesEditar.value = botao.dataset.observacoes;
+        inputEvidencia.value = '';
+        if (botao.dataset.arquivoEvidencia) {
+            nomeEvidenciaAtual.textContent = botao.dataset.arquivoEvidencia;
+            linkEvidenciaAtual.href = urlEvidenciaBase.replace('__ARQUIVO__', encodeURIComponent(botao.dataset.arquivoEvidencia));
+            linkEvidenciaAtual.style.display = 'inline-block';
+        } else {
+            nomeEvidenciaAtual.textContent = 'Nenhum arquivo anexado';
+            linkEvidenciaAtual.href = '#';
+            linkEvidenciaAtual.style.display = 'none';
+        }
+    }));
+    if (btnAnexarEvidencia) {
+        btnAnexarEvidencia.addEventListener('click', () => inputEvidencia.click());
+    }
+    if (inputEvidencia) {
+        inputEvidencia.addEventListener('change', () => {
+            if (inputEvidencia.files && inputEvidencia.files.length) {
+                nomeEvidenciaAtual.textContent = inputEvidencia.files[0].name;
+                linkEvidenciaAtual.style.display = 'none';
+                linkEvidenciaAtual.href = '#';
+            }
+        });
+    }
+    if (formEditar) {
+        statusEditar.addEventListener('change', () => {
+            if (statusEditar.value === 'Concluída' && !dataConclusaoEditar.value) {
+                dataConclusaoEditar.focus();
+            }
+        });
+        formEditar.addEventListener('submit', event => {
+            if (statusEditar.value === 'Concluída' && !dataConclusaoEditar.value) {
+                event.preventDefault();
+                dataConclusaoEditar.setCustomValidity('Informe a data de conclusão.');
+                dataConclusaoEditar.reportValidity();
+                return;
+            }
+            dataConclusaoEditar.setCustomValidity('');
+            if (statusEditar.value === 'Cancelada' && !observacoesEditar.value.trim()) {
+                event.preventDefault();
+                observacoesEditar.setCustomValidity('Informe a justificativa do cancelamento.');
+                observacoesEditar.reportValidity();
+                return;
+            }
+            observacoesEditar.setCustomValidity('');
+        });
+    }
+});
+</script>
+{% endblock %}
