@@ -435,14 +435,22 @@
                                 </h6>
                                 <div class="table-responsive">
                                     <table class="table table-sm table-bordered align-middle mb-0 detalhe-itens-hs">
+                                        <colgroup>
+                                            <col class="col-hs-numero">
+                                            <col class="col-hs-texto">
+                                            <col class="col-hs-resultado">
+                                            <col class="col-hs-texto">
+                                            <col class="col-hs-texto">
+                                            <col class="col-hs-prazo">
+                                        </colgroup>
                                         <thead>
                                             <tr>
-                                                <th style="width:55px">#</th>
+                                                <th>#</th>
                                                 <th>Item</th>
-                                                <th style="width:100px">Resultado</th>
+                                                <th>Resultado</th>
                                                 <th>Desvio</th>
                                                 <th>Ação</th>
-                                                <th style="width:110px">Prazo</th>
+                                                <th>Prazo</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -592,6 +600,34 @@
         color: #fff;
         background: var(--cor-laranja, #f36b21);
         vertical-align: middle;
+    }
+
+    .detalhe-itens-hs {
+        width: 100%;
+        min-width: 960px;
+        table-layout: fixed;
+    }
+
+    .detalhe-itens-hs .col-hs-numero {
+        width: 5%;
+    }
+
+    .detalhe-itens-hs .col-hs-texto {
+        width: 25%;
+    }
+
+    .detalhe-itens-hs .col-hs-resultado {
+        width: 9%;
+    }
+
+    .detalhe-itens-hs .col-hs-prazo {
+        width: 11%;
+    }
+
+    .detalhe-itens-hs th,
+    .detalhe-itens-hs td {
+        overflow-wrap: break-word;
+        word-break: normal;
     }
 
     .resultado-hs {
