@@ -29,15 +29,24 @@
                     <input class="form-control" id="cpf" name="cpf" inputmode="numeric"
                            maxlength="14" value="{{ request.form.get('cpf', '') }}" required>
                 </div>
-                <div class="col-12 col-md-6">
+                <div class="col-12 col-md-5">
                     <label class="form-label" for="nome">Nome completo *</label>
                     <input class="form-control" id="nome" name="nome" maxlength="160"
                            value="{{ request.form.get('nome', '') }}" required>
                 </div>
-                <div class="col-12 col-md-3">
+                <div class="col-12 col-md-2">
                     <label class="form-label" for="telefone">Telefone *</label>
-                    <input class="form-control" id="telefone" name="telefone" maxlength="30"
+                    <input class="form-control telefone-mask" id="telefone" name="telefone"
+                           type="tel" inputmode="numeric" maxlength="15"
+                           placeholder="(00) 00000-0000"
                            value="{{ request.form.get('telefone', '') }}" required>
+                </div>
+                <div class="col-12 col-md-2">
+                    <label class="form-label" for="telefone_alternativo">Telefone alternativo</label>
+                    <input class="form-control telefone-mask" id="telefone_alternativo"
+                           name="telefone_alternativo" type="tel" inputmode="numeric"
+                           maxlength="15" placeholder="(00) 00000-0000"
+                           value="{{ request.form.get('telefone_alternativo', '') }}">
                 </div>
                 <div class="col-12 col-md-5">
                     <label class="form-label" for="email">E-mail</label>
@@ -174,4 +183,43 @@
         <button class="btn btn-laranja" type="submit">Salvar candidato</button>
     </div>
 </form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(() => {
+    const somenteDigitos = (valor, limite) => valor.replace(/\D/g, '').slice(0, limite);
+
+    const formatarCpf = (valor) => {
+        const numeros = somenteDigitos(valor, 11);
+        return numeros
+            .replace(/^(\d{3})(\d)/, '$1.$2')
+            .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+            .replace(/\.(\d{3})(\d)/, '.$1-$2');
+    };
+
+    const formatarTelefone = (valor) => {
+        const numeros = somenteDigitos(valor, 11);
+        if (numeros.length <= 10) {
+            return numeros
+                .replace(/^(\d{2})(\d)/, '($1) $2')
+                .replace(/(\d{4})(\d)/, '$1-$2');
+        }
+        return numeros
+            .replace(/^(\d{2})(\d)/, '($1) $2')
+            .replace(/(\d{5})(\d)/, '$1-$2');
+    };
+
+    const cpf = document.getElementById('cpf');
+    cpf.addEventListener('input', () => { cpf.value = formatarCpf(cpf.value); });
+    cpf.value = formatarCpf(cpf.value);
+
+    document.querySelectorAll('.telefone-mask').forEach((campo) => {
+        campo.addEventListener('input', () => {
+            campo.value = formatarTelefone(campo.value);
+        });
+        campo.value = formatarTelefone(campo.value);
+    });
+})();
+</script>
 {% endblock %}

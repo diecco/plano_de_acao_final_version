@@ -53,6 +53,11 @@ def cpf_valido(valor):
     return True
 
 
+def telefone_valido(valor):
+    telefone = _somente_digitos(valor)
+    return len(telefone) in (10, 11) and telefone[:2] != "00"
+
+
 def _aplicar_escopo(condicoes, parametros, alias="ca"):
     perfil = session.get("perfil")
     usuario_id = session.get("usuario_id")
@@ -100,6 +105,7 @@ def register_recrutamento_routes(blueprint):
                     c.nome,
                     c.cpf,
                     c.telefone,
+                    c.telefone_alternativo,
                     ca.cargo_pretendido,
                     ca.origem,
                     ca.status,
@@ -147,7 +153,10 @@ def register_recrutamento_routes(blueprint):
             if request.method == "POST":
                 cpf = _somente_digitos(request.form.get("cpf"))
                 nome = (request.form.get("nome") or "").strip()
-                telefone = (request.form.get("telefone") or "").strip()
+                telefone = _somente_digitos(request.form.get("telefone"))
+                telefone_alternativo = _somente_digitos(
+                    request.form.get("telefone_alternativo")
+                ) or None
                 email = (request.form.get("email") or "").strip().lower() or None
                 cidade = (request.form.get("cidade") or "").strip() or None
                 estado = (request.form.get("estado") or "").strip().upper() or None
@@ -167,8 +176,17 @@ def register_recrutamento_routes(blueprint):
                     raise ValueError("Informe um CPF válido.")
                 if not nome:
                     raise ValueError("Informe o nome do candidato.")
-                if not telefone:
-                    raise ValueError("Informe o telefone do candidato.")
+                if not telefone_valido(telefone):
+                    raise ValueError(
+                        "Informe um telefone válido com DDD, no formato "
+                        "(##) ####-#### ou (##) #####-####."
+                    )
+                if telefone_alternativo and not telefone_valido(
+                    telefone_alternativo
+                ):
+                    raise ValueError(
+                        "Informe um telefone alternativo válido com DDD."
+                    )
                 if estado and len(estado) != 2:
                     raise ValueError("Informe a UF com duas letras.")
                 if not cargo_pretendido:
@@ -213,11 +231,13 @@ def register_recrutamento_routes(blueprint):
 
                 cursor.execute("""
                     INSERT INTO recrutamento_candidatos (
-                        cpf, nome, telefone, email, cidade, estado,
+                        cpf, nome, telefone, telefone_alternativo,
+                        email, cidade, estado,
                         curriculo_arquivo, observacoes, criado_por
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
-                    cpf, nome, telefone, email, cidade, estado,
+                    cpf, nome, telefone, telefone_alternativo,
+                    email, cidade, estado,
                     curriculo, observacoes, session["usuario_id"],
                 ))
                 candidato_id = cursor.lastrowid

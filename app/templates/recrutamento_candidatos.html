@@ -98,7 +98,24 @@
         <tbody>
             {% for item in candidaturas %}
                 <tr>
-                    <td><strong>{{ item.nome }}</strong><br><small class="text-muted">{{ item.telefone }}</small></td>
+                    <td>
+                        <strong>{{ item.nome }}</strong><br>
+                        <small class="text-muted">
+                            {% if item.telefone|length == 11 %}
+                                ({{ item.telefone[:2] }}) {{ item.telefone[2:7] }}-{{ item.telefone[7:] }}
+                            {% else %}
+                                ({{ item.telefone[:2] }}) {{ item.telefone[2:6] }}-{{ item.telefone[6:] }}
+                            {% endif %}
+                            {% if item.telefone_alternativo %}
+                                <br>Alternativo:
+                                {% if item.telefone_alternativo|length == 11 %}
+                                    ({{ item.telefone_alternativo[:2] }}) {{ item.telefone_alternativo[2:7] }}-{{ item.telefone_alternativo[7:] }}
+                                {% else %}
+                                    ({{ item.telefone_alternativo[:2] }}) {{ item.telefone_alternativo[2:6] }}-{{ item.telefone_alternativo[6:] }}
+                                {% endif %}
+                            {% endif %}
+                        </small>
+                    </td>
                     <td class="cpf">{{ item.cpf[:3] }}.{{ item.cpf[3:6] }}.{{ item.cpf[6:9] }}-{{ item.cpf[9:] }}</td>
                     <td>{{ item.cargo_pretendido }}</td>
                     <td>{{ origens.get(item.origem, item.origem) }}</td>

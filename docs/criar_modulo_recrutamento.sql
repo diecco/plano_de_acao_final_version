@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS recrutamento_candidatos (
     cpf CHAR(11) NOT NULL,
     nome VARCHAR(160) NOT NULL,
     telefone VARCHAR(30) NOT NULL,
+    telefone_alternativo VARCHAR(30) NULL,
     email VARCHAR(150) NULL,
     cidade VARCHAR(120) NULL,
     estado CHAR(2) NULL,
