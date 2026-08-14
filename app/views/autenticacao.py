@@ -75,6 +75,9 @@ def register_autenticacao_routes(blueprint):
                 session['acesso_acr'] = permissao(
                     usuario.get('acesso_acr')
                 )
+                session['acesso_recrutamento'] = permissao(
+                    usuario.get('acesso_recrutamento')
+                )
 
                 # Flags adicionais
                 session['pode_ser_instrutor'] = permissao(usuario.get('pode_ser_instrutor'))

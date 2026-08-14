@@ -13,7 +13,22 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 203)
+        self.assertEqual(len(self.routes), 206)
+
+    def test_recrutamento_routes_are_registered(self):
+        expected = {
+            ("/recrutamento/candidatos", ("GET",)): "main.recrutamento_candidatos",
+            (
+                "/recrutamento/candidatos/novo",
+                ("GET", "POST"),
+            ): "main.novo_candidato_recrutamento",
+            (
+                "/recrutamento/curriculos/<path:nome>",
+                ("GET",),
+            ): "main.baixar_curriculo_recrutamento",
+        }
+        for route, endpoint in expected.items():
+            self.assertEqual(self.routes.get(route), endpoint)
 
     def test_acr_routes_are_registered(self):
         expected = {

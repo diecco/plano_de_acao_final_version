@@ -361,6 +361,40 @@
             </section>
         {% endif %}
 
+        {% if session.get('acesso_recrutamento') or is_admin %}
+            {% set endpoints_recrutamento = [
+                'main.recrutamento_candidatos',
+                'main.novo_candidato_recrutamento',
+                'main.baixar_curriculo_recrutamento'
+            ] %}
+            <section class="sidebar-module"
+                     data-search-label="recrutamento seleção candidatos processos seletivos">
+                <button class="sidebar-module-toggle {% if request.endpoint in endpoints_recrutamento %}active{% endif %}"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#menuRecrutamento"
+                        aria-expanded="{{ 'true' if request.endpoint in endpoints_recrutamento else 'false' }}"
+                        aria-controls="menuRecrutamento"
+                        title="Recrutamento e Seleção">
+                    <i class="bi bi-person-workspace"></i>
+                    <span class="sidebar-label">Recrutamento e Seleção</span>
+                    <i class="bi bi-chevron-down sidebar-chevron"></i>
+                </button>
+                <div class="collapse sidebar-submenu {% if request.endpoint in endpoints_recrutamento %}show{% endif %}"
+                     id="menuRecrutamento"
+                     data-bs-parent="#sidebarMenuAccordion">
+                    <a href="{{ url_for('main.recrutamento_candidatos') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.recrutamento_candidatos' %}active{% endif %}">
+                        <i class="bi bi-people"></i><span>Candidatos</span>
+                    </a>
+                    <a href="{{ url_for('main.novo_candidato_recrutamento') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.novo_candidato_recrutamento' %}active{% endif %}">
+                        <i class="bi bi-person-plus"></i><span>Novo candidato</span>
+                    </a>
+                </div>
+            </section>
+        {% endif %}
+
         {% if session.get('acesso_detectores_gas') or is_admin %}
             {% set endpoints_detectores = [
                 'main.painel_detectores_gas',

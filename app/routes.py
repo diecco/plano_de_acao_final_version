@@ -26,6 +26,7 @@ from app.views.pcpm_movimentacoes import register_pcpm_movimentacoes_routes
 from app.views.plano_acao import register_plano_acao_routes
 from app.views.procedimentos import register_procedimentos_routes
 from app.views.recusa_tarefa import register_recusa_tarefa_routes
+from app.views.recrutamento import register_recrutamento_routes
 from app.views.reconhecimentos import register_reconhecimentos_routes
 from app.views.setores import register_setores_routes
 from app.views.superintendencias import register_superintendencias_routes
@@ -58,6 +59,7 @@ register_pcpm_movimentacoes_routes(main_routes)
 register_plano_acao_routes(main_routes)
 register_procedimentos_routes(main_routes)
 register_recusa_tarefa_routes(main_routes)
+register_recrutamento_routes(main_routes)
 register_reconhecimentos_routes(main_routes)
 register_treinamentos_routes(main_routes)
 register_usuarios_routes(main_routes)

@@ -1,0 +1,115 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Recrutamento e Seleção{% endblock %}
+
+{% block extra_css %}
+<style>
+    .recrutamento-metricas { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+    .recrutamento-metrica { background:#fff; border:1px solid #e5e7eb; border-left:4px solid #f36b21; border-radius:10px; padding:14px 16px; }
+    .recrutamento-metrica strong { color:#374151; display:block; font-size:1.4rem; }
+    .recrutamento-metrica span { color:#6b7280; font-size:.82rem; }
+    .cpf { font-variant-numeric:tabular-nums; white-space:nowrap; }
+    @media (max-width: 720px) { .recrutamento-metricas { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+<div class="page-header">
+    <h2 class="page-title text-center mb-0">
+        <i class="bi bi-person-workspace me-2"></i>Recrutamento e Seleção
+    </h2>
+</div>
+<hr>
+
+<div class="recrutamento-metricas mb-4">
+    <div class="recrutamento-metrica">
+        <strong>{{ candidaturas|length }}</strong>
+        <span>Candidatura(s) no resultado</span>
+    </div>
+    <div class="recrutamento-metrica">
+        <strong>{{ candidaturas|selectattr('status', 'equalto', 'em_triagem')|list|length }}</strong>
+        <span>Em triagem</span>
+    </div>
+    <div class="recrutamento-metrica">
+        <strong>{{ candidaturas|selectattr('status', 'equalto', 'liberado_admissao')|list|length }}</strong>
+        <span>Liberadas para admissão</span>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get">
+            <div class="row g-3 align-items-end">
+                <div class="col-12 col-lg-7">
+                    <label class="form-label" for="busca">Busca</label>
+                    <input class="form-control" id="busca" name="busca"
+                           value="{{ busca }}"
+                           placeholder="Nome, CPF ou cargo pretendido">
+                </div>
+                <div class="col-12 col-lg-3">
+                    <label class="form-label" for="status">Situação</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">Todas</option>
+                        {% for valor, rotulo in [
+                            ('cadastrado', 'Cadastrado'),
+                            ('em_triagem', 'Em triagem'),
+                            ('aguardando_entrevista_rh', 'Aguardando entrevista RH'),
+                            ('aguardando_entrevista_gestor', 'Aguardando entrevista do gestor'),
+                            ('stand_by', 'Stand-by'),
+                            ('reprovado', 'Reprovado'),
+                            ('em_pre_admissao', 'Em pré-admissão'),
+                            ('liberado_admissao', 'Liberado para admissão')
+                        ] %}
+                            <option value="{{ valor }}" {% if status == valor %}selected{% endif %}>{{ rotulo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-lg-2">
+                    <div class="d-flex justify-content-end gap-2">
+                        <button class="btn btn-laranja" type="submit" title="Filtrar">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+                        <a class="btn btn-cinza" href="{{ url_for('main.recrutamento_candidatos') }}" title="Limpar filtros">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+                        <a class="btn btn-laranja" href="{{ url_for('main.novo_candidato_recrutamento') }}" title="Novo candidato">
+                            <i class="bi bi-plus-circle"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Candidato</th>
+                <th>CPF</th>
+                <th>Cargo pretendido</th>
+                <th>Origem</th>
+                <th>Centro de custos</th>
+                <th>Responsável RH</th>
+                <th>Situação</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in candidaturas %}
+                <tr>
+                    <td><strong>{{ item.nome }}</strong><br><small class="text-muted">{{ item.telefone }}</small></td>
+                    <td class="cpf">{{ item.cpf[:3] }}.{{ item.cpf[3:6] }}.{{ item.cpf[6:9] }}-{{ item.cpf[9:] }}</td>
+                    <td>{{ item.cargo_pretendido }}</td>
+                    <td>{{ origens.get(item.origem, item.origem) }}</td>
+                    <td>{{ item.centro_custos_codigo }}</td>
+                    <td>{{ item.responsavel_rh_nome }}</td>
+                    <td><span class="badge bg-secondary">{{ item.status|replace('_', ' ')|title }}</span></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="7" class="text-center text-muted py-4">Nenhuma candidatura encontrada.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

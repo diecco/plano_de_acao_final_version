@@ -118,6 +118,17 @@
                         <div class="form-check mt-3">
                             <input class="form-check-input"
                                    type="checkbox"
+                                   name="acesso_recrutamento"
+                                   id="acesso_recrutamento"
+                                   {% if usuario.acesso_recrutamento %}checked{% endif %}>
+                            <label class="form-check-label" for="acesso_recrutamento">
+                                Recrutamento e Seleção
+                            </label>
+                        </div>
+
+                        <div class="form-check mt-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
                                    name="acesso_acr"
                                    id="acesso_acr"
                                    {% if usuario.acesso_acr %}checked{% endif %}>
