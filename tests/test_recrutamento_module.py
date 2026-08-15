@@ -13,6 +13,7 @@ class RecrutamentoModuleTests(unittest.TestCase):
         for nome in (
             "recrutamento_candidatos.html",
             "novo_candidato_recrutamento.html",
+            "recrutamento_candidatura_detalhe.html",
         ):
             app.jinja_env.get_template(nome)
 
@@ -26,7 +27,7 @@ class RecrutamentoModuleTests(unittest.TestCase):
         )
         self.assertGreaterEqual(
             source.count('@module_required("acesso_recrutamento")'),
-            3,
+            7,
         )
         self.assertNotIn("acesso_gestao_pessoas", source)
 
@@ -100,6 +101,17 @@ class RecrutamentoModuleTests(unittest.TestCase):
         self.assertIn("formatarCpf", template)
         self.assertIn("formatarTelefone", template)
         self.assertIn("telefone_alternativo", migration)
+
+    def test_selection_workflow_has_server_side_rules(self):
+        source = (ROOT / "app" / "views" / "recrutamento.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("_status_apos_avaliacao", source)
+        self.assertIn("_pode_gerenciar_candidatura", source)
+        self.assertIn("etapa[\"avaliador_id\"] != session.get(\"usuario_id\")", source)
+        self.assertIn("aguardando_entrevista_rh", source)
+        self.assertIn("aguardando_entrevista_gestor", source)
+        self.assertIn("aguardando_proposta", source)
 
 
 if __name__ == "__main__":

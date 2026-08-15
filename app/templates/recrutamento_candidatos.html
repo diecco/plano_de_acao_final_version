@@ -93,6 +93,7 @@
                 <th>Centro de custos</th>
                 <th>Responsável RH</th>
                 <th>Situação</th>
+                <th class="text-center">Ações</th>
             </tr>
         </thead>
         <tbody>
@@ -122,9 +123,14 @@
                     <td>{{ item.centro_custos_codigo }}</td>
                     <td>{{ item.responsavel_rh_nome }}</td>
                     <td><span class="badge bg-secondary">{{ item.status|replace('_', ' ')|title }}</span></td>
+                    <td class="text-center">
+                        <a class="btn btn-sm btn-laranja" href="{{ url_for('main.detalhe_candidatura_recrutamento', candidatura_id=item.candidatura_id) }}" title="Ver processo seletivo">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </td>
                 </tr>
             {% else %}
-                <tr><td colspan="7" class="text-center text-muted py-4">Nenhuma candidatura encontrada.</td></tr>
+                <tr><td colspan="8" class="text-center text-muted py-4">Nenhuma candidatura encontrada.</td></tr>
             {% endfor %}
         </tbody>
     </table>
