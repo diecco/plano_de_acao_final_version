@@ -132,6 +132,34 @@ class RecrutamentoModuleTests(unittest.TestCase):
         self.assertIn("decisao_resultado", migration)
         self.assertIn("recrutamento_pareceres_complementares", migration)
 
+    def test_practical_test_requires_an_explicit_choice(self):
+        view = (ROOT / "app" / "views" / "recrutamento.py").read_text(
+            encoding="utf-8"
+        )
+        template = (
+            ROOT / "app" / "templates" / "novo_candidato_recrutamento.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(
+            'request.form.get("exige_teste_pratico") or ""',
+            view,
+        )
+        self.assertIn('value="" disabled', template)
+        self.assertNotIn(
+            "request.form.get('exige_teste_pratico', 'nao_aplicavel')",
+            template,
+        )
+
+    def test_assignment_notifies_evaluator_by_email(self):
+        source = (ROOT / "app" / "views" / "recrutamento.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("Nova avaliação atribuída a você - TrackPlan", source)
+        self.assertIn("mail.send(msg)", source)
+        self.assertIn('avaliador.get("email")', source)
+        self.assertIn('"main.detalhe_minha_avaliacao_recrutamento"', source)
+
 
 if __name__ == "__main__":
     unittest.main()

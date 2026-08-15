@@ -135,8 +135,9 @@
                 <div class="col-12 col-md-5">
                     <label class="form-label" for="exige_teste_pratico">Teste prático *</label>
                     <select class="form-select" id="exige_teste_pratico" name="exige_teste_pratico" required>
+                        <option value="" disabled {% if not request.form.get('exige_teste_pratico') %}selected{% endif %}>Selecione</option>
                         {% for valor, rotulo in testes_praticos.items() %}
-                            <option value="{{ valor }}" {% if request.form.get('exige_teste_pratico', 'nao_aplicavel') == valor %}selected{% endif %}>{{ rotulo }}</option>
+                            <option value="{{ valor }}" {% if request.form.get('exige_teste_pratico') == valor %}selected{% endif %}>{{ rotulo }}</option>
                         {% endfor %}
                     </select>
                 </div>

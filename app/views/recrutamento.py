@@ -1,8 +1,10 @@
 import re
 from datetime import date
+from html import escape
 
 from flask import (
     abort,
+    current_app,
     flash,
     redirect,
     render_template,
@@ -11,7 +13,9 @@ from flask import (
     session,
     url_for,
 )
+from flask_mail import Message
 
+from app import mail
 from app.decorators import login_required, module_required
 from app.upload_security import UploadService, UploadValidationError
 from app.utils.db import get_db_connection
@@ -182,7 +186,7 @@ def register_recrutamento_routes(blueprint):
                 cargo_pretendido = (request.form.get("cargo_pretendido") or "").strip()
                 origem = (request.form.get("origem") or "").strip()
                 detalhe_origem = (request.form.get("detalhe_origem") or "").strip() or None
-                teste_pratico = (request.form.get("exige_teste_pratico") or "nao_aplicavel").strip()
+                teste_pratico = (request.form.get("exige_teste_pratico") or "").strip()
                 observacoes = (request.form.get("observacoes") or "").strip() or None
 
                 if session.get("perfil") in ("basico", "intermediario"):
@@ -473,7 +477,7 @@ def register_recrutamento_routes(blueprint):
             if etapa["tipo"] == "entrevista_comportamental":
                 raise ValueError("A entrevista comportamental pertence ao RH responsável.")
             cursor.execute("""
-                SELECT id, nome FROM usuarios
+                SELECT id, nome, email FROM usuarios
                 WHERE id = %s AND ativo = 1 AND tem_acesso_sistema = 1
                   AND centro_custos_id = %s
             """, (avaliador_id, candidatura["centro_custos_id"]))
@@ -488,6 +492,63 @@ def register_recrutamento_routes(blueprint):
             """, (candidatura_id, f"{etapa['nome']} atribuída a {avaliador['nome']}.", session["usuario_id"]))
             conn.commit()
             flash("Avaliador definido com sucesso.", "success")
+
+            if avaliador.get("email"):
+                try:
+                    cursor.execute("""
+                        SELECT c.nome AS candidato_nome, ca.cargo_pretendido
+                        FROM recrutamento_candidaturas ca
+                        JOIN recrutamento_candidatos c ON c.id = ca.candidato_id
+                        WHERE ca.id = %s
+                    """, (candidatura_id,))
+                    dados_email = cursor.fetchone() or {}
+                    link_avaliacao = url_for(
+                        "main.detalhe_minha_avaliacao_recrutamento",
+                        etapa_id=etapa_id,
+                        _external=True,
+                    )
+                    msg = Message(
+                        subject="Nova avaliação atribuída a você - TrackPlan",
+                        recipients=[avaliador["email"]],
+                    )
+                    msg.html = f"""
+                    <div style="font-family:Arial,sans-serif;font-size:15px;color:#343a40;">
+                        <div style="text-align:center;">
+                            <img src="https://www.trackplan.com.br/imagens/barra_email.png"
+                                 alt="TrackPlan" style="height:50px;margin-bottom:20px;">
+                        </div>
+                        <p>Olá <strong>{escape(avaliador['nome'])}</strong>,</p>
+                        <p>Uma nova avaliação de candidato foi atribuída a você no TrackPlan.</p>
+                        <p>
+                            <strong>Etapa:</strong> {escape(etapa['nome'])}<br>
+                            <strong>Candidato:</strong> {escape(dados_email.get('candidato_nome') or '-')}<br>
+                            <strong>Cargo pretendido:</strong> {escape(dados_email.get('cargo_pretendido') or '-')}
+                        </p>
+                        <p>Acesse a área restrita da avaliação para consultar as informações permitidas e registrar seu parecer.</p>
+                        <p>
+                            <a href="{link_avaliacao}"
+                               style="display:inline-block;background:#ea6a23;color:#fff;padding:10px 18px;text-decoration:none;border-radius:5px;">
+                                Abrir avaliação
+                            </a>
+                        </p>
+                        <p style="font-size:13px;color:#666;">Equipe TrackPlan</p>
+                    </div>
+                    """
+                    mail.send(msg)
+                except Exception:
+                    current_app.logger.exception(
+                        "Falha ao enviar notificação da etapa de recrutamento %s.",
+                        etapa_id,
+                    )
+                    flash(
+                        "A atribuição foi salva, mas o e-mail de notificação não pôde ser enviado.",
+                        "warning",
+                    )
+            else:
+                flash(
+                    "A atribuição foi salva, mas o avaliador não possui e-mail cadastrado.",
+                    "warning",
+                )
         except ValueError as exc:
             conn.rollback()
             flash(str(exc), "danger")
