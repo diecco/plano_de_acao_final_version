@@ -84,6 +84,12 @@ CREATE TABLE IF NOT EXISTS recrutamento_candidaturas (
         'aguardando_documentos', 'liberado_admissao', 'encerrado',
         'desistente'
     ) NOT NULL DEFAULT 'cadastrado',
+    decisao_resultado ENUM(
+        'aprovado', 'aprovado_restricao', 'reprovado', 'stand_by'
+    ) NULL,
+    decisao_parecer TEXT NULL,
+    decisao_por INT NULL,
+    decisao_em DATETIME NULL,
     data_entrada DATE NOT NULL,
     encerrado_em DATETIME NULL,
     criado_por INT NOT NULL,
@@ -100,6 +106,8 @@ CREATE TABLE IF NOT EXISTS recrutamento_candidaturas (
         FOREIGN KEY (responsavel_rh_id) REFERENCES usuarios(id),
     CONSTRAINT fk_recrutamento_candidatura_criado_por
         FOREIGN KEY (criado_por) REFERENCES usuarios(id),
+    CONSTRAINT fk_recrutamento_candidatura_decisao_por
+        FOREIGN KEY (decisao_por) REFERENCES usuarios(id) ON DELETE SET NULL,
     INDEX idx_recrutamento_candidatura_status (status),
     INDEX idx_recrutamento_candidatura_cc (centro_custos_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -140,6 +148,20 @@ CREATE TABLE IF NOT EXISTS recrutamento_etapas (
         FOREIGN KEY (avaliador_id) REFERENCES usuarios(id) ON DELETE SET NULL,
     CONSTRAINT fk_recrutamento_etapa_registrado_por
         FOREIGN KEY (registrado_por) REFERENCES usuarios(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS recrutamento_pareceres_complementares (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    etapa_id INT NOT NULL,
+    parecer TEXT NOT NULL,
+    autor_id INT NOT NULL,
+    criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_recrutamento_complemento_etapa
+        FOREIGN KEY (etapa_id) REFERENCES recrutamento_etapas(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_recrutamento_complemento_autor
+        FOREIGN KEY (autor_id) REFERENCES usuarios(id),
+    INDEX idx_recrutamento_complemento_etapa (etapa_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS recrutamento_propostas (

@@ -67,7 +67,6 @@ def telefone_valido(valor):
 
 def _aplicar_escopo(condicoes, parametros, alias="ca"):
     perfil = session.get("perfil")
-    usuario_id = session.get("usuario_id")
     centro_custos_id = session.get("centro_custos_id")
 
     if perfil in ("administrador", "avancado"):
@@ -77,40 +76,22 @@ def _aplicar_escopo(condicoes, parametros, alias="ca"):
         parametros.append(centro_custos_id)
         return
 
-    condicoes.append(
-        f"({alias}.responsavel_rh_id = %s OR {alias}.criado_por = %s OR EXISTS ("
-        "SELECT 1 FROM recrutamento_etapas etapa_escopo "
-        f"WHERE etapa_escopo.candidatura_id = {alias}.id "
-        "AND etapa_escopo.avaliador_id = %s))"
-    )
-    parametros.extend([usuario_id, usuario_id, usuario_id])
+    condicoes.append(f"{alias}.centro_custos_id = %s")
+    parametros.append(centro_custos_id)
 
 
 def _pode_gerenciar_candidatura(candidatura):
-    return (
-        session.get("perfil") == "administrador"
-        or candidatura["responsavel_rh_id"] == session.get("usuario_id")
+    if session.get("perfil") in ("administrador", "avancado"):
+        return True
+    return candidatura["centro_custos_id"] == session.get("centro_custos_id")
+
+
+def _etapas_obrigatorias_concluidas(etapas):
+    return all(
+        not etapa["obrigatoria"]
+        or etapa["status"] in ("realizada", "dispensada")
+        for etapa in etapas
     )
-
-
-def _status_apos_avaliacao(etapas):
-    resultados = {etapa["resultado"] for etapa in etapas if etapa["resultado"]}
-    if "reprovado" in resultados:
-        return "reprovado"
-    if "stand_by" in resultados:
-        return "stand_by"
-
-    pendentes = [
-        etapa for etapa in etapas
-        if etapa["obrigatoria"] and etapa["status"] not in ("realizada", "dispensada")
-    ]
-    if any(etapa["tipo"] == "entrevista_comportamental" for etapa in pendentes):
-        return "aguardando_entrevista_rh"
-    if any(etapa["tipo"] == "entrevista_tecnica" for etapa in pendentes):
-        return "aguardando_entrevista_gestor"
-    if pendentes:
-        return "em_avaliacao"
-    return "aguardando_proposta"
 
 
 def register_recrutamento_routes(blueprint):
@@ -391,6 +372,19 @@ def register_recrutamento_routes(blueprint):
             """, (candidatura_id,))
             etapas = cursor.fetchall()
             cursor.execute("""
+                SELECT pc.*, u.nome AS autor_nome
+                FROM recrutamento_pareceres_complementares pc
+                JOIN usuarios u ON u.id = pc.autor_id
+                JOIN recrutamento_etapas e ON e.id = pc.etapa_id
+                WHERE e.candidatura_id = %s
+                ORDER BY pc.criado_em, pc.id
+            """, (candidatura_id,))
+            complementos_por_etapa = {}
+            for complemento in cursor.fetchall():
+                complementos_por_etapa.setdefault(
+                    complemento["etapa_id"], []
+                ).append(complemento)
+            cursor.execute("""
                 SELECT h.*, u.nome AS usuario_nome
                 FROM recrutamento_historico h
                 JOIN usuarios u ON u.id = h.usuario_id
@@ -402,7 +396,6 @@ def register_recrutamento_routes(blueprint):
                 SELECT id, nome, matricula FROM usuarios
                 WHERE ativo = 1 AND tem_acesso_sistema = 1
                   AND centro_custos_id = %s
-                  AND (acesso_recrutamento = 1 OR perfil = 'administrador')
                 ORDER BY nome
             """, (candidatura["centro_custos_id"],))
             avaliadores = cursor.fetchall()
@@ -413,6 +406,8 @@ def register_recrutamento_routes(blueprint):
             "recrutamento_candidatura_detalhe.html",
             candidatura=candidatura, etapas=etapas, historico=historico,
             avaliadores=avaliadores, resultados=RESULTADOS_ETAPA,
+            complementos_por_etapa=complementos_por_etapa,
+            etapas_concluidas=_etapas_obrigatorias_concluidas(etapas),
             origens=ORIGENS_CANDIDATURA,
             pode_gerenciar=_pode_gerenciar_candidatura(candidatura),
         )
@@ -433,17 +428,17 @@ def register_recrutamento_routes(blueprint):
             if candidatura["status"] not in ("cadastrado", "em_triagem"):
                 raise ValueError("A seleção desta candidatura já foi iniciada.")
             cursor.execute("""
-                UPDATE recrutamento_etapas SET avaliador_id = %s, status = 'pendente'
-                WHERE candidatura_id = %s AND tipo = 'entrevista_comportamental'
-            """, (candidatura["responsavel_rh_id"], candidatura_id))
-            cursor.execute("UPDATE recrutamento_candidaturas SET status = 'aguardando_entrevista_rh' WHERE id = %s", (candidatura_id,))
+                UPDATE recrutamento_etapas SET status = 'pendente'
+                WHERE candidatura_id = %s
+            """, (candidatura_id,))
+            cursor.execute("UPDATE recrutamento_candidaturas SET status = 'em_avaliacao' WHERE id = %s", (candidatura_id,))
             cursor.execute("""
                 INSERT INTO recrutamento_historico
                     (candidatura_id, evento, descricao, usuario_id)
                 VALUES (%s, 'selecao_iniciada', %s, %s)
-            """, (candidatura_id, "Seleção iniciada e entrevista comportamental encaminhada ao RH.", session["usuario_id"]))
+            """, (candidatura_id, "Seleção iniciada com etapas independentes e paralelas.", session["usuario_id"]))
             conn.commit()
-            flash("Seleção iniciada. A entrevista comportamental já pode ser registrada.", "success")
+            flash("Seleção iniciada. As etapas já podem ser conduzidas em paralelo.", "success")
         except ValueError as exc:
             conn.rollback()
             flash(str(exc), "danger")
@@ -469,6 +464,8 @@ def register_recrutamento_routes(blueprint):
                 abort(404)
             if not _pode_gerenciar_candidatura(candidatura):
                 abort(403)
+            if candidatura["status"] in ("cadastrado", "em_triagem"):
+                raise ValueError("Inicie a seleção antes de atribuir as avaliações.")
             cursor.execute("SELECT * FROM recrutamento_etapas WHERE id = %s AND candidatura_id = %s", (etapa_id, candidatura_id))
             etapa = cursor.fetchone()
             if etapa is None:
@@ -479,7 +476,6 @@ def register_recrutamento_routes(blueprint):
                 SELECT id, nome FROM usuarios
                 WHERE id = %s AND ativo = 1 AND tem_acesso_sistema = 1
                   AND centro_custos_id = %s
-                  AND (acesso_recrutamento = 1 OR perfil = 'administrador')
             """, (avaliador_id, candidatura["centro_custos_id"]))
             avaliador = cursor.fetchone()
             if avaliador is None:
@@ -505,7 +501,6 @@ def register_recrutamento_routes(blueprint):
 
     @blueprint.route("/recrutamento/candidaturas/<int:candidatura_id>/etapas/<int:etapa_id>/avaliar", methods=["POST"])
     @login_required
-    @module_required("acesso_recrutamento")
     def avaliar_etapa_recrutamento(candidatura_id, etapa_id):
         resultado = (request.form.get("resultado") or "").strip()
         parecer = (request.form.get("parecer") or "").strip()
@@ -521,10 +516,22 @@ def register_recrutamento_routes(blueprint):
             etapa = cursor.fetchone()
             if etapa is None:
                 abort(404)
-            if session.get("perfil") != "administrador" and etapa["avaliador_id"] != session.get("usuario_id"):
+            avaliacao_rh = (
+                etapa["tipo"] == "entrevista_comportamental"
+                and session.get("acesso_recrutamento")
+                and _pode_gerenciar_candidatura(candidatura)
+            )
+            avaliacao_atribuida = etapa["avaliador_id"] == session.get("usuario_id")
+            if session.get("perfil") != "administrador" and not avaliacao_rh and not avaliacao_atribuida:
                 abort(403)
+            if etapa["status"] == "realizada":
+                raise ValueError("Esta avaliação já foi concluída e não pode ser alterada.")
             if candidatura["status"] in ("reprovado", "encerrado", "desistente"):
                 raise ValueError("Esta candidatura não aceita novas avaliações.")
+            if candidatura.get("decisao_resultado"):
+                raise ValueError("A decisão consolidada já foi registrada.")
+            if candidatura["status"] in ("cadastrado", "em_triagem"):
+                raise ValueError("A seleção ainda não foi iniciada.")
             if resultado not in RESULTADOS_ETAPA:
                 raise ValueError("Selecione um resultado válido.")
             if not parecer:
@@ -537,9 +544,7 @@ def register_recrutamento_routes(blueprint):
                     restricao = %s, realizada_em = NOW(), registrado_por = %s
                 WHERE id = %s
             """, (resultado, parecer, restricao, session["usuario_id"], etapa_id))
-            cursor.execute("SELECT tipo, status, resultado, obrigatoria FROM recrutamento_etapas WHERE candidatura_id = %s", (candidatura_id,))
-            novo_status = _status_apos_avaliacao(cursor.fetchall())
-            cursor.execute("UPDATE recrutamento_candidaturas SET status = %s WHERE id = %s", (novo_status, candidatura_id))
+            cursor.execute("UPDATE recrutamento_candidaturas SET status = 'em_avaliacao' WHERE id = %s", (candidatura_id,))
             cursor.execute("""
                 INSERT INTO recrutamento_historico
                     (candidatura_id, evento, descricao, usuario_id)
@@ -556,7 +561,206 @@ def register_recrutamento_routes(blueprint):
         finally:
             cursor.close()
             conn.close()
+        if etapa and etapa["tipo"] != "entrevista_comportamental":
+            return redirect(url_for("main.detalhe_minha_avaliacao_recrutamento", etapa_id=etapa_id))
         return redirect(url_for("main.detalhe_candidatura_recrutamento", candidatura_id=candidatura_id))
+
+    @blueprint.route("/recrutamento/candidaturas/<int:candidatura_id>/etapas/<int:etapa_id>/complementar", methods=["POST"])
+    @login_required
+    @module_required("acesso_recrutamento")
+    def complementar_parecer_recrutamento(candidatura_id, etapa_id):
+        parecer = (request.form.get("parecer_complementar") or "").strip()
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute("SELECT * FROM recrutamento_candidaturas WHERE id = %s", (candidatura_id,))
+            candidatura = cursor.fetchone()
+            if candidatura is None:
+                abort(404)
+            if not _pode_gerenciar_candidatura(candidatura):
+                abort(403)
+            cursor.execute("""
+                SELECT * FROM recrutamento_etapas
+                WHERE id = %s AND candidatura_id = %s
+            """, (etapa_id, candidatura_id))
+            etapa = cursor.fetchone()
+            if etapa is None:
+                abort(404)
+            if etapa["tipo"] != "entrevista_comportamental" or etapa["status"] != "realizada":
+                raise ValueError("O complemento exige um parecer comportamental concluído.")
+            if not parecer:
+                raise ValueError("Informe o parecer complementar.")
+            cursor.execute("""
+                INSERT INTO recrutamento_pareceres_complementares
+                    (etapa_id, parecer, autor_id)
+                VALUES (%s, %s, %s)
+            """, (etapa_id, parecer, session["usuario_id"]))
+            cursor.execute("""
+                INSERT INTO recrutamento_historico
+                    (candidatura_id, evento, descricao, usuario_id)
+                VALUES (%s, 'parecer_complementar', %s, %s)
+            """, (candidatura_id, "Parecer complementar do RH registrado.", session["usuario_id"]))
+            conn.commit()
+            flash("Parecer complementar registrado e preservado no histórico.", "success")
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "danger")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+        return redirect(url_for("main.detalhe_candidatura_recrutamento", candidatura_id=candidatura_id))
+
+    @blueprint.route("/recrutamento/candidaturas/<int:candidatura_id>/decidir", methods=["POST"])
+    @login_required
+    @module_required("acesso_recrutamento")
+    def decidir_candidatura_recrutamento(candidatura_id):
+        resultado = (request.form.get("decisao_resultado") or "").strip()
+        parecer = (request.form.get("decisao_parecer") or "").strip()
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute("SELECT * FROM recrutamento_candidaturas WHERE id = %s FOR UPDATE", (candidatura_id,))
+            candidatura = cursor.fetchone()
+            if candidatura is None:
+                abort(404)
+            if not _pode_gerenciar_candidatura(candidatura):
+                abort(403)
+            if candidatura.get("decisao_resultado"):
+                raise ValueError("A decisão consolidada já foi registrada.")
+            cursor.execute("SELECT obrigatoria, status FROM recrutamento_etapas WHERE candidatura_id = %s", (candidatura_id,))
+            if not _etapas_obrigatorias_concluidas(cursor.fetchall()):
+                raise ValueError("Conclua todas as etapas obrigatórias antes da decisão final.")
+            if resultado not in RESULTADOS_ETAPA:
+                raise ValueError("Selecione uma decisão válida.")
+            if not parecer:
+                raise ValueError("A justificativa da decisão consolidada é obrigatória.")
+            novo_status = {
+                "aprovado": "aguardando_proposta",
+                "aprovado_restricao": "aguardando_proposta",
+                "reprovado": "reprovado",
+                "stand_by": "stand_by",
+            }[resultado]
+            cursor.execute("""
+                UPDATE recrutamento_candidaturas
+                SET status = %s, decisao_resultado = %s, decisao_parecer = %s,
+                    decisao_por = %s, decisao_em = NOW()
+                WHERE id = %s
+            """, (novo_status, resultado, parecer, session["usuario_id"], candidatura_id))
+            cursor.execute("""
+                INSERT INTO recrutamento_historico
+                    (candidatura_id, evento, descricao, usuario_id)
+                VALUES (%s, 'decisao_consolidada', %s, %s)
+            """, (candidatura_id, f"Decisão consolidada: {RESULTADOS_ETAPA[resultado]}.", session["usuario_id"]))
+            conn.commit()
+            flash("Decisão consolidada registrada com sucesso.", "success")
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "danger")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+        return redirect(url_for("main.detalhe_candidatura_recrutamento", candidatura_id=candidatura_id))
+
+    @blueprint.route("/recrutamento/minhas-avaliacoes")
+    @login_required
+    def minhas_avaliacoes_recrutamento():
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute("""
+                SELECT e.id AS etapa_id, e.nome AS etapa_nome, e.status,
+                       e.resultado, e.data_prevista, e.realizada_em,
+                       c.nome AS candidato_nome, c.telefone,
+                       ca.cargo_pretendido
+                FROM recrutamento_etapas e
+                JOIN recrutamento_candidaturas ca ON ca.id = e.candidatura_id
+                JOIN recrutamento_candidatos c ON c.id = ca.candidato_id
+                WHERE e.avaliador_id = %s
+                  AND e.tipo <> 'entrevista_comportamental'
+                ORDER BY (e.status = 'realizada'), e.data_prevista, c.nome
+            """, (session["usuario_id"],))
+            avaliacoes = cursor.fetchall()
+        finally:
+            cursor.close()
+            conn.close()
+        return render_template("recrutamento_minhas_avaliacoes.html", avaliacoes=avaliacoes, resultados=RESULTADOS_ETAPA)
+
+    @blueprint.route("/recrutamento/minhas-avaliacoes/<int:etapa_id>")
+    @login_required
+    def detalhe_minha_avaliacao_recrutamento(etapa_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute("""
+                SELECT e.*, ca.cargo_pretendido, c.nome AS candidato_nome,
+                       c.telefone, c.curriculo_arquivo
+                FROM recrutamento_etapas e
+                JOIN recrutamento_candidaturas ca ON ca.id = e.candidatura_id
+                JOIN recrutamento_candidatos c ON c.id = ca.candidato_id
+                WHERE e.id = %s AND e.avaliador_id = %s
+                  AND e.tipo <> 'entrevista_comportamental'
+            """, (etapa_id, session["usuario_id"]))
+            etapa = cursor.fetchone()
+            if etapa is None:
+                abort(404)
+            cursor.execute("""
+                SELECT e.parecer, e.restricao, e.realizada_em,
+                       u.nome AS autor_nome
+                FROM recrutamento_etapas e
+                LEFT JOIN usuarios u ON u.id = e.registrado_por
+                WHERE e.candidatura_id = %s
+                  AND e.tipo = 'entrevista_comportamental'
+                  AND e.parecer IS NOT NULL
+            """, (etapa["candidatura_id"],))
+            parecer_rh = cursor.fetchone()
+            cursor.execute("""
+                SELECT pc.parecer, pc.criado_em, u.nome AS autor_nome
+                FROM recrutamento_pareceres_complementares pc
+                JOIN usuarios u ON u.id = pc.autor_id
+                JOIN recrutamento_etapas e ON e.id = pc.etapa_id
+                WHERE e.candidatura_id = %s
+                  AND e.tipo = 'entrevista_comportamental'
+                ORDER BY pc.criado_em, pc.id
+            """, (etapa["candidatura_id"],))
+            pareceres_complementares = cursor.fetchall()
+        finally:
+            cursor.close()
+            conn.close()
+        return render_template(
+            "recrutamento_minha_avaliacao_detalhe.html", etapa=etapa,
+            parecer_rh=parecer_rh,
+            pareceres_complementares=pareceres_complementares,
+            resultados=RESULTADOS_ETAPA,
+        )
+
+    @blueprint.route("/recrutamento/minhas-avaliacoes/<int:etapa_id>/curriculo")
+    @login_required
+    def curriculo_minha_avaliacao_recrutamento(etapa_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute("""
+                SELECT c.curriculo_arquivo
+                FROM recrutamento_etapas e
+                JOIN recrutamento_candidaturas ca ON ca.id = e.candidatura_id
+                JOIN recrutamento_candidatos c ON c.id = ca.candidato_id
+                WHERE e.id = %s AND e.avaliador_id = %s
+                  AND e.tipo <> 'entrevista_comportamental'
+            """, (etapa_id, session["usuario_id"]))
+            registro = cursor.fetchone()
+            if registro is None or not registro["curriculo_arquivo"]:
+                abort(404)
+        finally:
+            cursor.close()
+            conn.close()
+        diretorio = UploadService.resolver_diretorio("app/static/recrutamento_curriculos")
+        return send_from_directory(diretorio, registro["curriculo_arquivo"], as_attachment=True)
 
     @blueprint.route("/recrutamento/curriculos/<path:nome>")
     @login_required

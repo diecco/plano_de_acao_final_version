@@ -14,6 +14,8 @@ class RecrutamentoModuleTests(unittest.TestCase):
             "recrutamento_candidatos.html",
             "novo_candidato_recrutamento.html",
             "recrutamento_candidatura_detalhe.html",
+            "recrutamento_minhas_avaliacoes.html",
+            "recrutamento_minha_avaliacao_detalhe.html",
         ):
             app.jinja_env.get_template(nome)
 
@@ -106,12 +108,29 @@ class RecrutamentoModuleTests(unittest.TestCase):
         source = (ROOT / "app" / "views" / "recrutamento.py").read_text(
             encoding="utf-8"
         )
-        self.assertIn("_status_apos_avaliacao", source)
+        self.assertIn("_etapas_obrigatorias_concluidas", source)
         self.assertIn("_pode_gerenciar_candidatura", source)
-        self.assertIn("etapa[\"avaliador_id\"] != session.get(\"usuario_id\")", source)
-        self.assertIn("aguardando_entrevista_rh", source)
-        self.assertIn("aguardando_entrevista_gestor", source)
-        self.assertIn("aguardando_proposta", source)
+        self.assertIn("etapa[\"avaliador_id\"] == session.get(\"usuario_id\")", source)
+        self.assertIn("decisao_consolidada", source)
+        self.assertIn("recrutamento_pareceres_complementares", source)
+        self.assertIn("e.avaliador_id = %s", source)
+
+    def test_evaluator_view_minimizes_personal_data(self):
+        source = (ROOT / "app" / "views" / "recrutamento.py").read_text(
+            encoding="utf-8"
+        )
+        detalhe = (ROOT / "app" / "templates" / "recrutamento_minha_avaliacao_detalhe.html").read_text(encoding="utf-8")
+        self.assertIn("candidato_nome", detalhe)
+        self.assertIn("telefone", detalhe)
+        self.assertIn("cargo_pretendido", detalhe)
+        self.assertIn("parecer_rh", detalhe)
+        self.assertNotIn("cpf", detalhe.lower())
+        self.assertIn("curriculo_minha_avaliacao_recrutamento", source)
+
+    def test_parallel_flow_migration_is_available(self):
+        migration = (ROOT / "docs" / "ajustar_fluxo_avaliacoes_recrutamento.sql").read_text(encoding="utf-8")
+        self.assertIn("decisao_resultado", migration)
+        self.assertIn("recrutamento_pareceres_complementares", migration)
 
 
 if __name__ == "__main__":

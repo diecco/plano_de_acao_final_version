@@ -365,6 +365,7 @@
             {% set endpoints_recrutamento = [
                 'main.recrutamento_candidatos',
                 'main.novo_candidato_recrutamento',
+                'main.detalhe_candidatura_recrutamento',
                 'main.baixar_curriculo_recrutamento'
             ] %}
             <section class="sidebar-module"
@@ -394,6 +395,15 @@
                 </div>
             </section>
         {% endif %}
+
+        <section class="sidebar-module" data-search-label="minhas avaliações recrutamento entrevistas">
+            <a href="{{ url_for('main.minhas_avaliacoes_recrutamento') }}"
+               class="sidebar-module-toggle text-decoration-none {% if request.endpoint in ['main.minhas_avaliacoes_recrutamento', 'main.detalhe_minha_avaliacao_recrutamento'] %}active{% endif %}"
+               title="Minhas avaliações">
+                <i class="bi bi-clipboard-check"></i>
+                <span class="sidebar-label">Minhas avaliações</span>
+            </a>
+        </section>
 
         {% if session.get('acesso_detectores_gas') or is_admin %}
             {% set endpoints_detectores = [

@@ -81,14 +81,14 @@
                             <h5 class="mb-1">{{ etapa.nome }}</h5>
                             <div class="etapa-meta">
                                 {{ 'Obrigatória' if etapa.obrigatoria else 'Opcional' }} ·
-                                Avaliador: {{ etapa.avaliador_nome or 'Não definido' }}
+                                Avaliador: {{ 'Equipe de RH' if etapa.tipo == 'entrevista_comportamental' else (etapa.avaliador_nome or 'Não definido') }}
                             </div>
                         </div>
                     </div>
                     <span class="badge bg-secondary">{{ etapa.status|replace('_', ' ')|title }}</span>
                 </div>
 
-                {% if pode_gerenciar and etapa.tipo != 'entrevista_comportamental' and etapa.status != 'realizada' %}
+                {% if pode_gerenciar and candidatura.status not in ('cadastrado', 'em_triagem') and etapa.tipo != 'entrevista_comportamental' and etapa.status != 'realizada' %}
                     <form class="row g-2 align-items-end mt-2" method="post" action="{{ url_for('main.atribuir_etapa_recrutamento', candidatura_id=candidatura.id, etapa_id=etapa.id) }}">
                         <div class="col-md-9">
                             <label class="form-label" for="avaliador-{{ etapa.id }}">Avaliador</label>
@@ -110,8 +110,18 @@
                         <strong class="text-orange">{{ resultados.get(etapa.resultado, etapa.resultado) }}</strong>
                         <div class="parecer-box mt-2">{{ etapa.parecer }}</div>
                         {% if etapa.restricao %}<div class="parecer-box mt-2"><strong>Restrição:</strong> {{ etapa.restricao }}</div>{% endif %}
+                        {% for complemento in complementos_por_etapa.get(etapa.id, []) %}
+                            <div class="parecer-box mt-2"><strong>Complemento:</strong> {{ complemento.parecer }}<small class="text-muted d-block mt-2">{{ complemento.autor_nome }} · {{ complemento.criado_em.strftime('%d/%m/%Y %H:%M') }}</small></div>
+                        {% endfor %}
+                        {% if pode_gerenciar and etapa.tipo == 'entrevista_comportamental' %}
+                            <form class="mt-3" method="post" action="{{ url_for('main.complementar_parecer_recrutamento', candidatura_id=candidatura.id, etapa_id=etapa.id) }}">
+                                <label class="form-label" for="complemento-{{ etapa.id }}">Parecer complementar</label>
+                                <textarea class="form-control" id="complemento-{{ etapa.id }}" name="parecer_complementar" rows="2" required></textarea>
+                                <div class="d-flex justify-content-end mt-2"><button class="btn btn-cinza" type="submit"><i class="bi bi-plus-circle me-1"></i>Adicionar complemento</button></div>
+                            </form>
+                        {% endif %}
                     </div>
-                {% elif etapa.avaliador_id == session.get('usuario_id') or session.get('perfil') == 'administrador' %}
+                {% elif candidatura.status not in ('cadastrado', 'em_triagem') and ((etapa.tipo == 'entrevista_comportamental' and pode_gerenciar) or etapa.avaliador_id == session.get('usuario_id') or session.get('perfil') == 'administrador') %}
                     <form class="mt-3" method="post" action="{{ url_for('main.avaliar_etapa_recrutamento', candidatura_id=candidatura.id, etapa_id=etapa.id) }}">
                         <div class="row g-3">
                             <div class="col-md-4">
@@ -139,6 +149,26 @@
         </div>
     {% endfor %}
 </div>
+
+{% if etapas_concluidas %}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-check2-square me-2"></i>Decisão consolidada do RH</h5></div>
+    <div class="card-body">
+        {% if candidatura.decisao_resultado %}
+            <strong class="text-orange">{{ resultados.get(candidatura.decisao_resultado, candidatura.decisao_resultado) }}</strong>
+            <div class="parecer-box mt-2">{{ candidatura.decisao_parecer }}</div>
+        {% elif pode_gerenciar %}
+            <form method="post" action="{{ url_for('main.decidir_candidatura_recrutamento', candidatura_id=candidatura.id) }}">
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label" for="decisaoResultado">Decisão *</label><select class="form-select" id="decisaoResultado" name="decisao_resultado" required><option value="">Selecione</option>{% for valor, rotulo in resultados.items() %}<option value="{{ valor }}">{{ rotulo }}</option>{% endfor %}</select></div>
+                    <div class="col-md-8"><label class="form-label" for="decisaoParecer">Justificativa *</label><textarea class="form-control" id="decisaoParecer" name="decisao_parecer" rows="3" required></textarea></div>
+                    <div class="col-12 d-flex justify-content-end"><button class="btn btn-laranja" type="submit"><i class="bi bi-check2-circle me-1"></i>Registrar decisão</button></div>
+                </div>
+            </form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Histórico</h5></div>

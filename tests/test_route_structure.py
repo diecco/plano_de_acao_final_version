@@ -13,7 +13,7 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 210)
+        self.assertEqual(len(self.routes), 215)
 
     def test_recrutamento_routes_are_registered(self):
         expected = {
@@ -30,6 +30,11 @@ class RouteStructureTests(unittest.TestCase):
             ("/recrutamento/candidaturas/<int:candidatura_id>/iniciar-selecao", ("POST",)): "main.iniciar_selecao_recrutamento",
             ("/recrutamento/candidaturas/<int:candidatura_id>/etapas/<int:etapa_id>/atribuir", ("POST",)): "main.atribuir_etapa_recrutamento",
             ("/recrutamento/candidaturas/<int:candidatura_id>/etapas/<int:etapa_id>/avaliar", ("POST",)): "main.avaliar_etapa_recrutamento",
+            ("/recrutamento/candidaturas/<int:candidatura_id>/etapas/<int:etapa_id>/complementar", ("POST",)): "main.complementar_parecer_recrutamento",
+            ("/recrutamento/candidaturas/<int:candidatura_id>/decidir", ("POST",)): "main.decidir_candidatura_recrutamento",
+            ("/recrutamento/minhas-avaliacoes", ("GET",)): "main.minhas_avaliacoes_recrutamento",
+            ("/recrutamento/minhas-avaliacoes/<int:etapa_id>", ("GET",)): "main.detalhe_minha_avaliacao_recrutamento",
+            ("/recrutamento/minhas-avaliacoes/<int:etapa_id>/curriculo", ("GET",)): "main.curriculo_minha_avaliacao_recrutamento",
         }
         for route, endpoint in expected.items():
             self.assertEqual(self.routes.get(route), endpoint)
