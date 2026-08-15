@@ -414,6 +414,7 @@ def register_recrutamento_routes(blueprint):
             etapas_concluidas=_etapas_obrigatorias_concluidas(etapas),
             origens=ORIGENS_CANDIDATURA,
             pode_gerenciar=_pode_gerenciar_candidatura(candidatura),
+            hoje=date.today(),
         )
 
     @blueprint.route("/recrutamento/candidaturas/<int:candidatura_id>/iniciar-selecao", methods=["POST"])
@@ -459,6 +460,7 @@ def register_recrutamento_routes(blueprint):
     @module_required("acesso_recrutamento")
     def atribuir_etapa_recrutamento(candidatura_id, etapa_id):
         avaliador_id = request.form.get("avaliador_id", type=int)
+        prazo_texto = (request.form.get("data_prevista") or "").strip()
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         try:
@@ -476,6 +478,14 @@ def register_recrutamento_routes(blueprint):
                 abort(404)
             if etapa["tipo"] == "entrevista_comportamental":
                 raise ValueError("A entrevista comportamental pertence ao RH responsável.")
+            if not prazo_texto:
+                raise ValueError("Informe o prazo para conclusão da avaliação.")
+            try:
+                prazo = date.fromisoformat(prazo_texto)
+            except ValueError as exc:
+                raise ValueError("Informe um prazo válido para a avaliação.") from exc
+            if prazo < date.today():
+                raise ValueError("O prazo da avaliação não pode ser anterior à data atual.")
             cursor.execute("""
                 SELECT id, nome, email FROM usuarios
                 WHERE id = %s AND ativo = 1 AND tem_acesso_sistema = 1
@@ -484,12 +494,21 @@ def register_recrutamento_routes(blueprint):
             avaliador = cursor.fetchone()
             if avaliador is None:
                 raise ValueError("Selecione um avaliador habilitado do mesmo centro de custos.")
-            cursor.execute("UPDATE recrutamento_etapas SET avaliador_id = %s, status = 'pendente' WHERE id = %s", (avaliador_id, etapa_id))
+            cursor.execute("""
+                UPDATE recrutamento_etapas
+                SET avaliador_id = %s, data_prevista = %s, status = 'pendente'
+                WHERE id = %s
+            """, (avaliador_id, prazo, etapa_id))
             cursor.execute("""
                 INSERT INTO recrutamento_historico
                     (candidatura_id, evento, descricao, usuario_id)
                 VALUES (%s, 'etapa_atribuida', %s, %s)
-            """, (candidatura_id, f"{etapa['nome']} atribuída a {avaliador['nome']}.", session["usuario_id"]))
+            """, (
+                candidatura_id,
+                f"{etapa['nome']} atribuída a {avaliador['nome']} com prazo até "
+                f"{prazo.strftime('%d/%m/%Y')}.",
+                session["usuario_id"],
+            ))
             conn.commit()
             flash("Avaliador definido com sucesso.", "success")
 
@@ -522,7 +541,8 @@ def register_recrutamento_routes(blueprint):
                         <p>
                             <strong>Etapa:</strong> {escape(etapa['nome'])}<br>
                             <strong>Candidato:</strong> {escape(dados_email.get('candidato_nome') or '-')}<br>
-                            <strong>Cargo pretendido:</strong> {escape(dados_email.get('cargo_pretendido') or '-')}
+                            <strong>Cargo pretendido:</strong> {escape(dados_email.get('cargo_pretendido') or '-')}<br>
+                            <strong>Prazo:</strong> {prazo.strftime('%d/%m/%Y')}
                         </p>
                         <p>Acesse a área restrita da avaliação para consultar as informações permitidas e registrar seu parecer.</p>
                         <p>

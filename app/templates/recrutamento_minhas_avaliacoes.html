@@ -14,7 +14,7 @@
                     <td><strong>{{ item.candidato_nome }}</strong><br><small class="text-muted">{% if item.telefone|length == 11 %}({{ item.telefone[:2] }}) {{ item.telefone[2:7] }}-{{ item.telefone[7:] }}{% else %}({{ item.telefone[:2] }}) {{ item.telefone[2:6] }}-{{ item.telefone[6:] }}{% endif %}</small></td>
                     <td>{{ item.cargo_pretendido }}</td>
                     <td>{{ item.etapa_nome }}</td>
-                    <td>{{ item.data_prevista.strftime('%d/%m/%Y %H:%M') if item.data_prevista else '-' }}</td>
+                    <td>{{ item.data_prevista.strftime('%d/%m/%Y') if item.data_prevista else '-' }}</td>
                     <td><span class="badge bg-secondary">{{ resultados.get(item.resultado, item.status|replace('_', ' ')|title) }}</span></td>
                     <td class="text-center"><a class="btn btn-sm btn-laranja" href="{{ url_for('main.detalhe_minha_avaliacao_recrutamento', etapa_id=item.etapa_id) }}" title="{{ 'Consultar' if item.status == 'realizada' else 'Avaliar' }}"><i class="bi {{ 'bi-eye' if item.status == 'realizada' else 'bi-pencil-square' }}"></i></a></td>
                 </tr>

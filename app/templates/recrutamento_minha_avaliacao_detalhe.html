@@ -11,7 +11,8 @@
     <div class="row g-3">
         <div class="col-md-4"><small class="text-muted d-block">Candidato</small><strong>{{ etapa.candidato_nome }}</strong></div>
         <div class="col-md-4"><small class="text-muted d-block">Telefone</small>{% if etapa.telefone|length == 11 %}({{ etapa.telefone[:2] }}) {{ etapa.telefone[2:7] }}-{{ etapa.telefone[7:] }}{% else %}({{ etapa.telefone[:2] }}) {{ etapa.telefone[2:6] }}-{{ etapa.telefone[6:] }}{% endif %}</div>
-        <div class="col-md-4"><small class="text-muted d-block">Cargo pretendido</small>{{ etapa.cargo_pretendido }}</div>
+        <div class="col-md-3"><small class="text-muted d-block">Cargo pretendido</small>{{ etapa.cargo_pretendido }}</div>
+        <div class="col-md-3"><small class="text-muted d-block">Prazo</small><strong>{{ etapa.data_prevista.strftime('%d/%m/%Y') if etapa.data_prevista else '-' }}</strong></div>
     </div>
     {% if etapa.curriculo_arquivo %}<div class="d-flex justify-content-end mt-3"><a class="btn btn-cinza" href="{{ url_for('main.curriculo_minha_avaliacao_recrutamento', etapa_id=etapa.id) }}"><i class="bi bi-paperclip me-1"></i>Currículo</a></div>{% endif %}
 </div>

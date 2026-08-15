@@ -82,6 +82,7 @@
                             <div class="etapa-meta">
                                 {{ 'Obrigatória' if etapa.obrigatoria else 'Opcional' }} ·
                                 Avaliador: {{ 'Equipe de RH' if etapa.tipo == 'entrevista_comportamental' else (etapa.avaliador_nome or 'Não definido') }}
+                                {% if etapa.data_prevista %} · Prazo: {{ etapa.data_prevista.strftime('%d/%m/%Y') }}{% endif %}
                             </div>
                         </div>
                     </div>
@@ -90,7 +91,7 @@
 
                 {% if pode_gerenciar and candidatura.status not in ('cadastrado', 'em_triagem') and etapa.tipo != 'entrevista_comportamental' and etapa.status != 'realizada' %}
                     <form class="row g-2 align-items-end mt-2" method="post" action="{{ url_for('main.atribuir_etapa_recrutamento', candidatura_id=candidatura.id, etapa_id=etapa.id) }}">
-                        <div class="col-md-9">
+                        <div class="col-md-6">
                             <label class="form-label" for="avaliador-{{ etapa.id }}">Avaliador</label>
                             <select class="form-select" id="avaliador-{{ etapa.id }}" name="avaliador_id" required>
                                 <option value="">Selecione</option>
@@ -98,6 +99,12 @@
                                     <option value="{{ avaliador.id }}" {% if etapa.avaliador_id == avaliador.id %}selected{% endif %}>{{ avaliador.nome }}{% if avaliador.matricula %} · {{ avaliador.matricula }}{% endif %}</option>
                                 {% endfor %}
                             </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" for="prazo-{{ etapa.id }}">Prazo *</label>
+                            <input class="form-control" id="prazo-{{ etapa.id }}" name="data_prevista"
+                                   type="date" min="{{ hoje.isoformat() }}"
+                                   value="{{ etapa.data_prevista.strftime('%Y-%m-%d') if etapa.data_prevista else '' }}" required>
                         </div>
                         <div class="col-md-3 d-flex justify-content-end">
                             <button class="btn btn-cinza" type="submit"><i class="bi bi-person-plus me-1"></i>Atribuir</button>

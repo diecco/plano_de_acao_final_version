@@ -160,6 +160,23 @@ class RecrutamentoModuleTests(unittest.TestCase):
         self.assertIn('avaliador.get("email")', source)
         self.assertIn('"main.detalhe_minha_avaliacao_recrutamento"', source)
 
+    def test_assignment_requires_and_displays_deadline(self):
+        source = (ROOT / "app" / "views" / "recrutamento.py").read_text(
+            encoding="utf-8"
+        )
+        manager_template = (
+            ROOT / "app" / "templates" / "recrutamento_candidatura_detalhe.html"
+        ).read_text(encoding="utf-8")
+        evaluator_template = (
+            ROOT / "app" / "templates" / "recrutamento_minha_avaliacao_detalhe.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('request.form.get("data_prevista")', source)
+        self.assertIn("prazo < date.today()", source)
+        self.assertIn("SET avaliador_id = %s, data_prevista = %s", source)
+        self.assertIn('name="data_prevista"', manager_template)
+        self.assertIn("etapa.data_prevista", evaluator_template)
+
 
 if __name__ == "__main__":
     unittest.main()
