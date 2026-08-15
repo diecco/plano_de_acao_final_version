@@ -202,6 +202,20 @@ class RecrutamentoModuleTests(unittest.TestCase):
         self.assertIn("CREATE TABLE IF NOT EXISTS recrutamento_etapas_historico", migration)
         self.assertIn("CREATE TABLE IF NOT EXISTS recrutamento_complementos_historico", migration)
 
+    def test_candidate_reuse_requires_consolidated_decision(self):
+        source = (ROOT / "app" / "views" / "recrutamento.py").read_text(
+            encoding="utf-8"
+        )
+        template = (
+            ROOT / "app" / "templates" / "recrutamento_candidatura_detalhe.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('if not candidatura.get("decisao_resultado")', source)
+        self.assertGreaterEqual(
+            template.count("pode_gerenciar and candidatura.decisao_resultado"),
+            2,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -32,7 +32,7 @@
         <form method="post" action="{{ url_for('main.iniciar_selecao_recrutamento', candidatura_id=candidatura.id) }}">
             <button class="btn btn-laranja" type="submit"><i class="bi bi-play-fill me-1"></i>Iniciar seleção</button>
         </form>
-    {% elif pode_gerenciar %}
+    {% elif pode_gerenciar and candidatura.decisao_resultado %}
         <button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalReaproveitar">
             <i class="bi bi-arrow-repeat me-1"></i>Reaproveitar candidatura
         </button>
@@ -233,7 +233,7 @@
     </div>
 </div>
 
-{% if pode_gerenciar and candidatura.status not in ('cadastrado', 'em_triagem') %}
+{% if pode_gerenciar and candidatura.decisao_resultado %}
 <div class="modal fade" id="modalReaproveitar" tabindex="-1" aria-labelledby="tituloReaproveitar" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">

@@ -485,8 +485,11 @@ def register_recrutamento_routes(blueprint):
                 abort(404)
             if not _pode_gerenciar_candidatura(candidatura):
                 abort(403)
-            if candidatura["status"] in ("cadastrado", "em_triagem"):
-                raise ValueError("Inicie a seleção antes de reaproveitar a candidatura.")
+            if not candidatura.get("decisao_resultado"):
+                raise ValueError(
+                    "Conclua o ciclo atual com uma decisão consolidada antes de "
+                    "reaproveitar a candidatura."
+                )
             if not cargo_pretendido:
                 raise ValueError("Informe o cargo da nova oportunidade.")
             if teste_pratico not in TESTES_PRATICOS:
