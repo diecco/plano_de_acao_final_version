@@ -45,33 +45,11 @@ RESULTADOS_ETAPA = {
 }
 
 STATUS_VALIDACAO_CLIENTE = {
-    "aguardando_envio": "Aguardando envio",
-    "em_analise": "Em análise",
-    "complementacao": "Complementação solicitada",
+    "nao_iniciado": "Não iniciado",
+    "aguardando_validacao": "Aguardando validação",
     "aprovado": "Aprovado",
     "reprovado": "Reprovado",
-    "cancelado": "Cancelado",
 }
-
-MOTIVOS_VALIDACAO_CLIENTE = {
-    "restricao_cliente": "Restrição cadastral indicada pelo cliente",
-    "divergencia_documental": "Divergência documental",
-    "informacoes_insuficientes": "Informações insuficientes",
-    "criterio_interno_cliente": "Critério interno do cliente",
-    "outro": "Outro motivo não detalhado",
-}
-
-
-def _mobilizacao_liberada(validacoes):
-    obrigatorias = [item for item in validacoes if item["obrigatoria"]]
-    return not obrigatorias or all(
-        item["status"] == "aprovado"
-        and (
-            not item.get("validade_aprovacao")
-            or item["validade_aprovacao"] >= date.today()
-        )
-        for item in obrigatorias
-    )
 
 
 def _somente_digitos(valor):
@@ -474,21 +452,13 @@ def register_recrutamento_routes(blueprint):
                             complemento_anterior["etapa_historico_id"], []
                         ).append(complemento_anterior)
             cursor.execute("""
-                SELECT vc.*, criador.nome AS criado_por_nome,
-                       atualizador.nome AS atualizado_por_nome
+                SELECT vc.*
                 FROM recrutamento_validacoes_cliente vc
-                JOIN usuarios criador ON criador.id = vc.criado_por
-                LEFT JOIN usuarios atualizador ON atualizador.id = vc.atualizado_por
                 WHERE vc.candidatura_id = %s
-                ORDER BY vc.criado_em DESC, vc.id DESC
+                ORDER BY vc.id DESC
+                LIMIT 1
             """, (candidatura_id,))
-            validacoes_cliente = cursor.fetchall()
-            for validacao in validacoes_cliente:
-                validacao["expirada"] = bool(
-                    validacao["status"] == "aprovado"
-                    and validacao.get("validade_aprovacao")
-                    and validacao["validade_aprovacao"] < date.today()
-                )
+            pre_cadastro_cliente = cursor.fetchone()
         finally:
             cursor.close()
             conn.close()
@@ -504,10 +474,8 @@ def register_recrutamento_routes(blueprint):
             ciclos_anteriores=ciclos_anteriores,
             etapas_ciclos=etapas_ciclos,
             complementos_ciclos=complementos_ciclos,
-            validacoes_cliente=validacoes_cliente,
+            pre_cadastro_cliente=pre_cadastro_cliente,
             status_validacao_cliente=STATUS_VALIDACAO_CLIENTE,
-            motivos_validacao_cliente=MOTIVOS_VALIDACAO_CLIENTE,
-            mobilizacao_liberada=_mobilizacao_liberada(validacoes_cliente),
         )
 
     @blueprint.route("/recrutamento/candidaturas/<int:candidatura_id>/reaproveitar", methods=["POST"])
@@ -570,12 +538,22 @@ def register_recrutamento_routes(blueprint):
             )
             numero_ciclo = cursor.fetchone()["numero"]
             cursor.execute("""
+                SELECT cliente, status, observacao_operacional
+                FROM recrutamento_validacoes_cliente
+                WHERE candidatura_id = %s
+                ORDER BY id DESC LIMIT 1
+            """, (candidatura_id,))
+            pre_cadastro_atual = cursor.fetchone() or {}
+            cursor.execute("""
                 INSERT INTO recrutamento_ciclos_historico (
                     candidatura_id, numero_ciclo, cargo_id, cargo_pretendido,
                     exige_teste_pratico, status, decisao_resultado,
                     decisao_parecer, decisao_por,
-                    decisao_em, justificativa_reaproveitamento, arquivado_por
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    decisao_em, justificativa_reaproveitamento, arquivado_por,
+                    pre_cadastro_cliente, pre_cadastro_status,
+                    pre_cadastro_observacao
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                          %s, %s, %s)
             """, (
                 candidatura_id, numero_ciclo, candidatura.get("cargo_id"),
                 candidatura["cargo_pretendido"],
@@ -584,6 +562,9 @@ def register_recrutamento_routes(blueprint):
                 candidatura.get("decisao_parecer"),
                 candidatura.get("decisao_por"), candidatura.get("decisao_em"),
                 justificativa, session["usuario_id"],
+                pre_cadastro_atual.get("cliente"),
+                pre_cadastro_atual.get("status"),
+                pre_cadastro_atual.get("observacao_operacional"),
             ))
             ciclo_historico_id = cursor.lastrowid
             cursor.execute("""
@@ -664,6 +645,10 @@ def register_recrutamento_routes(blueprint):
                     decisao_em = NULL, encerrado_em = NULL
                 WHERE id = %s
             """, (cargo_id, cargo_pretendido, teste_pratico, candidatura_id))
+            cursor.execute(
+                "DELETE FROM recrutamento_validacoes_cliente WHERE candidatura_id = %s",
+                (candidatura_id,),
+            )
             cursor.execute("""
                 INSERT INTO recrutamento_historico
                     (candidatura_id, evento, descricao, usuario_id)
@@ -694,18 +679,15 @@ def register_recrutamento_routes(blueprint):
             candidatura_id=candidatura_id,
         ))
 
-    @blueprint.route("/recrutamento/candidaturas/<int:candidatura_id>/validacoes-cliente", methods=["POST"])
+    @blueprint.route("/recrutamento/candidaturas/<int:candidatura_id>/pre-cadastro-cliente", methods=["POST"])
     @login_required
     @module_required("acesso_recrutamento")
-    def criar_validacao_cliente_recrutamento(candidatura_id):
+    def salvar_pre_cadastro_cliente_recrutamento(candidatura_id):
         cliente = (request.form.get("cliente") or "").strip()
-        unidade = (request.form.get("unidade") or "").strip() or None
-        sistema_externo = (request.form.get("sistema_externo") or "").strip() or None
-        documento = (request.form.get("documento_identidade") or "").strip()
-        obrigatoria = 1 if request.form.get("obrigatoria") else 0
+        status = (request.form.get("status") or "").strip()
+        observacao = (request.form.get("observacao") or "").strip() or None
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        evidencia = None
         try:
             cursor.execute(
                 "SELECT * FROM recrutamento_candidaturas WHERE id = %s",
@@ -717,177 +699,56 @@ def register_recrutamento_routes(blueprint):
             if not _pode_gerenciar_candidatura(candidatura):
                 abort(403)
             if candidatura["status"] in ("cadastrado", "em_triagem"):
-                raise ValueError(
-                    "Inicie a seleção antes de cadastrar a validação do cliente."
-                )
+                raise ValueError("Inicie a seleção antes do pré-cadastro no cliente.")
             if not cliente:
-                raise ValueError("Informe o cliente responsável pela validação.")
-            if not documento:
-                raise ValueError("Informe o documento de identidade do candidato.")
-            arquivo = request.files.get("evidencia")
-            if arquivo and arquivo.filename:
-                evidencia = UploadService.salvar(
-                    arquivo,
-                    {"pdf", "png", "jpg", "jpeg"},
-                    "validacao_cliente",
-                    "app/static/recrutamento_curriculos",
-                )
-            cursor.execute("""
-                INSERT INTO recrutamento_validacoes_cliente (
-                    candidatura_id, cliente, unidade, sistema_externo,
-                    documento_identidade, obrigatoria, evidencia_arquivo,
-                    criado_por
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                candidatura_id, cliente, unidade, sistema_externo,
-                documento, obrigatoria, evidencia, session["usuario_id"],
-            ))
-            cursor.execute("""
-                INSERT INTO recrutamento_historico
-                    (candidatura_id, evento, descricao, usuario_id)
-                VALUES (%s, 'validacao_cliente_criada', %s, %s)
-            """, (
-                candidatura_id,
-                f"Pré-cadastro criado para {cliente}"
-                f"{' - ' + unidade if unidade else ''}.",
-                session["usuario_id"],
-            ))
-            conn.commit()
-            flash("Validação para mobilização cadastrada.", "success")
-        except (ValueError, UploadValidationError) as exc:
-            conn.rollback()
-            if evidencia:
-                UploadService.excluir(
-                    evidencia, "app/static/recrutamento_curriculos"
-                )
-            flash(str(exc), "danger")
-        except Exception:
-            conn.rollback()
-            if evidencia:
-                UploadService.excluir(
-                    evidencia, "app/static/recrutamento_curriculos"
-                )
-            raise
-        finally:
-            cursor.close()
-            conn.close()
-        return redirect(url_for(
-            "main.detalhe_candidatura_recrutamento",
-            candidatura_id=candidatura_id,
-        ))
-
-    @blueprint.route("/recrutamento/candidaturas/<int:candidatura_id>/validacoes-cliente/<int:validacao_id>", methods=["POST"])
-    @login_required
-    @module_required("acesso_recrutamento")
-    def atualizar_validacao_cliente_recrutamento(candidatura_id, validacao_id):
-        status = (request.form.get("status") or "").strip()
-        protocolo = (request.form.get("protocolo") or "").strip() or None
-        data_solicitacao = request.form.get("data_solicitacao") or None
-        data_resposta = request.form.get("data_resposta") or None
-        validade = request.form.get("validade_aprovacao") or None
-        motivo = (request.form.get("motivo_categoria") or "").strip() or None
-        observacao = (request.form.get("observacao_operacional") or "").strip() or None
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        nova_evidencia = None
-        evidencia_anterior = None
-        try:
-            cursor.execute(
-                "SELECT * FROM recrutamento_candidaturas WHERE id = %s",
-                (candidatura_id,),
-            )
-            candidatura = cursor.fetchone()
-            if candidatura is None:
-                abort(404)
-            if not _pode_gerenciar_candidatura(candidatura):
-                abort(403)
-            cursor.execute("""
-                SELECT * FROM recrutamento_validacoes_cliente
-                WHERE id = %s AND candidatura_id = %s FOR UPDATE
-            """, (validacao_id, candidatura_id))
-            validacao = cursor.fetchone()
-            if validacao is None:
-                abort(404)
+                raise ValueError("Informe o cliente.")
             if status not in STATUS_VALIDACAO_CLIENTE:
                 raise ValueError("Selecione uma situação válida.")
-            if status in ("em_analise", "complementacao", "aprovado", "reprovado") and not data_solicitacao:
-                raise ValueError("Informe a data da solicitação ao cliente.")
-            if status in ("aprovado", "reprovado") and not data_resposta:
-                raise ValueError("Informe a data da resposta do cliente.")
-            try:
-                solicitacao_data = (
-                    date.fromisoformat(data_solicitacao)
-                    if data_solicitacao else None
-                )
-                resposta_data = (
-                    date.fromisoformat(data_resposta) if data_resposta else None
-                )
-                validade_data = date.fromisoformat(validade) if validade else None
-            except ValueError as exc:
-                raise ValueError("Informe datas válidas para a validação.") from exc
-            if solicitacao_data and resposta_data:
-                if resposta_data < solicitacao_data:
-                    raise ValueError("A resposta não pode ser anterior à solicitação.")
-            if validade_data and resposta_data and validade_data < resposta_data:
-                raise ValueError("A validade não pode ser anterior à aprovação.")
-            if status == "reprovado" and motivo not in MOTIVOS_VALIDACAO_CLIENTE:
-                raise ValueError("Informe a categoria operacional da reprovação.")
-            if status != "reprovado":
-                motivo = None
-            if status != "aprovado":
-                validade = None
+            if status == "reprovado" and not observacao:
+                raise ValueError("Informe o motivo operacional da reprovação.")
 
-            arquivo = request.files.get("evidencia")
-            if arquivo and arquivo.filename:
-                nova_evidencia = UploadService.salvar(
-                    arquivo,
-                    {"pdf", "png", "jpg", "jpeg"},
-                    "validacao_cliente",
-                    "app/static/recrutamento_curriculos",
-                )
-                evidencia_anterior = validacao.get("evidencia_arquivo")
-            evidencia_final = nova_evidencia or validacao.get("evidencia_arquivo")
             cursor.execute("""
-                UPDATE recrutamento_validacoes_cliente
-                SET status = %s, protocolo = %s, data_solicitacao = %s,
-                    data_resposta = %s, validade_aprovacao = %s,
-                    motivo_categoria = %s, observacao_operacional = %s,
-                    evidencia_arquivo = %s, atualizado_por = %s
-                WHERE id = %s
-            """, (
-                status, protocolo, data_solicitacao, data_resposta, validade,
-                motivo, observacao, evidencia_final, session["usuario_id"],
-                validacao_id,
-            ))
+                SELECT id FROM recrutamento_validacoes_cliente
+                WHERE candidatura_id = %s ORDER BY id DESC LIMIT 1 FOR UPDATE
+            """, (candidatura_id,))
+            registro = cursor.fetchone()
+            if registro:
+                cursor.execute("""
+                    UPDATE recrutamento_validacoes_cliente
+                    SET cliente = %s, status = %s,
+                        observacao_operacional = %s, atualizado_por = %s
+                    WHERE id = %s
+                """, (
+                    cliente, status, observacao, session["usuario_id"],
+                    registro["id"],
+                ))
+            else:
+                cursor.execute("""
+                    INSERT INTO recrutamento_validacoes_cliente (
+                        candidatura_id, cliente, documento_identidade,
+                        obrigatoria, status, observacao_operacional, criado_por
+                    ) VALUES (%s, %s, '-', 1, %s, %s, %s)
+                """, (
+                    candidatura_id, cliente, status, observacao,
+                    session["usuario_id"],
+                ))
             cursor.execute("""
                 INSERT INTO recrutamento_historico
                     (candidatura_id, evento, descricao, usuario_id)
-                VALUES (%s, 'validacao_cliente_atualizada', %s, %s)
+                VALUES (%s, 'pre_cadastro_cliente', %s, %s)
             """, (
                 candidatura_id,
-                f"Pré-cadastro de {validacao['cliente']} atualizado para "
+                f"Pré-cadastro no cliente {cliente}: "
                 f"{STATUS_VALIDACAO_CLIENTE[status]}.",
                 session["usuario_id"],
             ))
             conn.commit()
-            if evidencia_anterior:
-                UploadService.excluir(
-                    evidencia_anterior, "app/static/recrutamento_curriculos"
-                )
-            flash("Validação para mobilização atualizada.", "success")
-        except (ValueError, UploadValidationError) as exc:
+            flash("Etapa de pré-cadastro atualizada.", "success")
+        except ValueError as exc:
             conn.rollback()
-            if nova_evidencia:
-                UploadService.excluir(
-                    nova_evidencia, "app/static/recrutamento_curriculos"
-                )
             flash(str(exc), "danger")
         except Exception:
             conn.rollback()
-            if nova_evidencia:
-                UploadService.excluir(
-                    nova_evidencia, "app/static/recrutamento_curriculos"
-                )
             raise
         finally:
             cursor.close()
@@ -896,33 +757,6 @@ def register_recrutamento_routes(blueprint):
             "main.detalhe_candidatura_recrutamento",
             candidatura_id=candidatura_id,
         ))
-
-    @blueprint.route("/recrutamento/validacoes-cliente/<int:validacao_id>/evidencia")
-    @login_required
-    @module_required("acesso_recrutamento")
-    def evidencia_validacao_cliente_recrutamento(validacao_id):
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        try:
-            cursor.execute("""
-                SELECT vc.evidencia_arquivo, ca.*
-                FROM recrutamento_validacoes_cliente vc
-                JOIN recrutamento_candidaturas ca ON ca.id = vc.candidatura_id
-                WHERE vc.id = %s
-            """, (validacao_id,))
-            validacao = cursor.fetchone()
-            if validacao is None or not validacao.get("evidencia_arquivo"):
-                abort(404)
-            if not _pode_gerenciar_candidatura(validacao):
-                abort(403)
-            nome = validacao["evidencia_arquivo"]
-        finally:
-            cursor.close()
-            conn.close()
-        diretorio = UploadService.resolver_diretorio(
-            "app/static/recrutamento_curriculos"
-        )
-        return send_from_directory(diretorio, nome, as_attachment=True)
 
     @blueprint.route("/recrutamento/candidaturas/<int:candidatura_id>/iniciar-selecao", methods=["POST"])
     @login_required
@@ -1221,8 +1055,22 @@ def register_recrutamento_routes(blueprint):
             cursor.execute("SELECT obrigatoria, status FROM recrutamento_etapas WHERE candidatura_id = %s", (candidatura_id,))
             if not _etapas_obrigatorias_concluidas(cursor.fetchall()):
                 raise ValueError("Conclua todas as etapas obrigatórias antes da decisão final.")
+            cursor.execute("""
+                SELECT status FROM recrutamento_validacoes_cliente
+                WHERE candidatura_id = %s ORDER BY id DESC LIMIT 1
+            """, (candidatura_id,))
+            pre_cadastro = cursor.fetchone()
+            if pre_cadastro is None or pre_cadastro["status"] == "nao_iniciado":
+                raise ValueError(
+                    "Inicie o pré-cadastro no cliente antes da decisão consolidada."
+                )
             if resultado not in RESULTADOS_ETAPA:
                 raise ValueError("Selecione uma decisão válida.")
+            if pre_cadastro["status"] == "reprovado" and resultado != "reprovado":
+                raise ValueError(
+                    "O cliente reprovou o pré-cadastro; a decisão consolidada "
+                    "deve ser Reprovado."
+                )
             if not parecer:
                 raise ValueError("A justificativa da decisão consolidada é obrigatória.")
             novo_status = {

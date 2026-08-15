@@ -13,7 +13,6 @@
     .etapa-numero { width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background:#f36b21; color:#fff; font-weight:700; }
     .etapa-meta { color:#6b7280; font-size:.86rem; }
     .parecer-box { background:#f8f9fa; border-radius:8px; padding:12px; white-space:pre-wrap; }
-    .validacao-card { border:1px solid #e5e7eb; border-radius:10px; padding:14px; background:#fff; }
     .historico-item { border-left:2px solid #f36b21; padding:0 0 14px 14px; }
     .modal-header-trackplan { background:#f36b21; color:#fff; }
     @media (max-width: 992px) { .processo-resumo { grid-template-columns:repeat(2,minmax(0,1fr)); } }
@@ -71,69 +70,9 @@
     </div>
 </div>
 
-{% if candidatura.status not in ('cadastrado', 'em_triagem') %}
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-white d-flex align-items-center justify-content-between gap-3">
-        <div>
-            <h5 class="mb-0"><i class="bi bi-building-check me-2"></i>Validação para mobilização</h5>
-            <small class="text-muted">Pré-cadastro e retorno do cliente</small>
-        </div>
-        <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-secondary">{{ 'Liberada' if mobilizacao_liberada else 'Pendente' }}</span>
-            {% if pode_gerenciar %}
-                <button class="btn btn-sm btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalNovaValidacao" title="Cadastrar pré-cadastro no cliente"><i class="bi bi-plus-lg"></i></button>
-            {% endif %}
-        </div>
-    </div>
-    <div class="card-body">
-        {% for validacao in validacoes_cliente %}
-            <div class="validacao-card mb-3">
-                <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
-                    <div>
-                        <strong>{{ validacao.cliente }}{% if validacao.unidade %} · {{ validacao.unidade }}{% endif %}</strong>
-                        <div class="text-muted small">{{ validacao.sistema_externo or 'Sistema não informado' }} · {{ 'Obrigatória' if validacao.obrigatoria else 'Opcional' }}</div>
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="badge bg-secondary">{{ 'Aprovação expirada' if validacao.expirada else status_validacao_cliente.get(validacao.status, validacao.status) }}</span>
-                        {% if validacao.evidencia_arquivo %}<a class="btn btn-sm btn-cinza" href="{{ url_for('main.evidencia_validacao_cliente_recrutamento', validacao_id=validacao.id) }}" title="Baixar evidência"><i class="bi bi-paperclip"></i></a>{% endif %}
-                        {% if pode_gerenciar %}<button class="btn btn-sm btn-cinza" type="button" data-bs-toggle="collapse" data-bs-target="#validacao-{{ validacao.id }}" title="Gerenciar validação"><i class="bi bi-pencil-square"></i></button>{% endif %}
-                    </div>
-                </div>
-                <div class="row g-2 mt-2 small">
-                    <div class="col-md-3"><span class="text-muted">Protocolo:</span> {{ validacao.protocolo or '-' }}</div>
-                    <div class="col-md-3"><span class="text-muted">Solicitação:</span> {{ validacao.data_solicitacao.strftime('%d/%m/%Y') if validacao.data_solicitacao else '-' }}</div>
-                    <div class="col-md-3"><span class="text-muted">Resposta:</span> {{ validacao.data_resposta.strftime('%d/%m/%Y') if validacao.data_resposta else '-' }}</div>
-                    <div class="col-md-3"><span class="text-muted">Validade:</span> {{ validacao.validade_aprovacao.strftime('%d/%m/%Y') if validacao.validade_aprovacao else '-' }}</div>
-                </div>
-                {% if validacao.motivo_categoria %}<div class="parecer-box mt-2"><strong>Categoria:</strong> {{ motivos_validacao_cliente.get(validacao.motivo_categoria, validacao.motivo_categoria) }}</div>{% endif %}
-                {% if validacao.observacao_operacional %}<div class="parecer-box mt-2">{{ validacao.observacao_operacional }}</div>{% endif %}
-                {% if pode_gerenciar %}
-                    <div class="collapse mt-3" id="validacao-{{ validacao.id }}">
-                        <form method="post" enctype="multipart/form-data" action="{{ url_for('main.atualizar_validacao_cliente_recrutamento', candidatura_id=candidatura.id, validacao_id=validacao.id) }}">
-                            <div class="row g-3">
-                                <div class="col-md-4"><label class="form-label">Documento de identidade</label><input class="form-control" value="{{ validacao.documento_identidade }}" readonly></div>
-                                <div class="col-md-4"><label class="form-label">Situação *</label><select class="form-select status-validacao" name="status" data-motivo="motivo-{{ validacao.id }}" required>{% for valor, rotulo in status_validacao_cliente.items() %}<option value="{{ valor }}" {% if validacao.status == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}</select></div>
-                                <div class="col-md-4"><label class="form-label">Protocolo</label><input class="form-control" name="protocolo" value="{{ validacao.protocolo or '' }}" maxlength="100"></div>
-                                <div class="col-md-4"><label class="form-label">Data da solicitação</label><input class="form-control" type="date" name="data_solicitacao" value="{{ validacao.data_solicitacao.isoformat() if validacao.data_solicitacao else '' }}"></div>
-                                <div class="col-md-4"><label class="form-label">Data da resposta</label><input class="form-control" type="date" name="data_resposta" value="{{ validacao.data_resposta.isoformat() if validacao.data_resposta else '' }}"></div>
-                                <div class="col-md-4"><label class="form-label">Validade da aprovação</label><input class="form-control" type="date" name="validade_aprovacao" value="{{ validacao.validade_aprovacao.isoformat() if validacao.validade_aprovacao else '' }}"></div>
-                                <div class="col-md-4" id="motivo-{{ validacao.id }}"><label class="form-label">Categoria da reprovação</label><select class="form-select" name="motivo_categoria"><option value="">Selecione</option>{% for valor, rotulo in motivos_validacao_cliente.items() %}<option value="{{ valor }}" {% if validacao.motivo_categoria == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}</select></div>
-                                <div class="col-md-8"><label class="form-label">Observação operacional</label><textarea class="form-control" name="observacao_operacional" rows="2">{{ validacao.observacao_operacional or '' }}</textarea></div>
-                                <div class="col-md-4"><label class="form-label">Substituir evidência</label><input class="form-control" type="file" name="evidencia" accept=".pdf,.png,.jpg,.jpeg"></div>
-                                <div class="col-12 d-flex justify-content-end"><button class="btn btn-laranja" type="submit">Salvar</button></div>
-                            </div>
-                        </form>
-                    </div>
-                {% endif %}
-            </div>
-        {% else %}<p class="text-muted mb-0">Nenhum pré-cadastro no cliente foi registrado.</p>{% endfor %}
-    </div>
-</div>
-{% endif %}
-
 <div class="d-flex align-items-center justify-content-between mb-3">
     <h4 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Etapas da seleção</h4>
-    <span class="badge bg-secondary">{{ etapas|length }} etapa(s)</span>
+    <span class="badge bg-secondary">{{ etapas|length + 1 }} etapa(s)</span>
 </div>
 
 <div class="row g-3 mb-4">
@@ -221,6 +160,42 @@
             </div>
         </div>
     {% endfor %}
+    <div class="col-12">
+        <div class="etapa-card">
+            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                <div class="d-flex gap-3 align-items-center">
+                    <span class="etapa-numero">{{ etapas|length + 1 }}</span>
+                    <div>
+                        <h5 class="mb-1">Pré-cadastro cliente</h5>
+                        <div class="etapa-meta">Etapa paralela · Responsável: Equipe de RH</div>
+                    </div>
+                </div>
+                <span class="badge bg-secondary">{{ status_validacao_cliente.get(pre_cadastro_cliente.status, pre_cadastro_cliente.status) if pre_cadastro_cliente else 'Não iniciado' }}</span>
+            </div>
+            {% if pre_cadastro_cliente and pre_cadastro_cliente.observacao_operacional %}
+                <div class="parecer-box mt-3">{{ pre_cadastro_cliente.observacao_operacional }}</div>
+            {% endif %}
+            {% if pode_gerenciar and not candidatura.decisao_resultado %}
+                <form class="row g-3 align-items-end mt-2" method="post" action="{{ url_for('main.salvar_pre_cadastro_cliente_recrutamento', candidatura_id=candidatura.id) }}">
+                    <div class="col-md-5">
+                        <label class="form-label" for="clientePreCadastro">Cliente *</label>
+                        <input class="form-control" id="clientePreCadastro" name="cliente" value="{{ pre_cadastro_cliente.cliente if pre_cadastro_cliente else '' }}" maxlength="160" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="statusPreCadastro">Status *</label>
+                        <select class="form-select" id="statusPreCadastro" name="status" required>
+                            {% for valor, rotulo in status_validacao_cliente.items() %}<option value="{{ valor }}" {% if (pre_cadastro_cliente.status if pre_cadastro_cliente else 'nao_iniciado') == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex justify-content-end"><button class="btn btn-laranja" type="submit">Salvar</button></div>
+                    <div class="col-12 d-none" id="observacaoPreCadastro">
+                        <label class="form-label" for="textoPreCadastro">Motivo operacional da reprovação *</label>
+                        <textarea class="form-control" id="textoPreCadastro" name="observacao" rows="2">{{ pre_cadastro_cliente.observacao_operacional if pre_cadastro_cliente else '' }}</textarea>
+                    </div>
+                </form>
+            {% endif %}
+        </div>
+    </div>
 </div>
 
 {% if etapas_concluidas %}
@@ -230,10 +205,23 @@
         {% if candidatura.decisao_resultado %}
             <strong class="text-orange">{{ resultados.get(candidatura.decisao_resultado, candidatura.decisao_resultado) }}</strong>
             <div class="parecer-box mt-2">{{ candidatura.decisao_parecer }}</div>
+        {% elif pode_gerenciar and (not pre_cadastro_cliente or pre_cadastro_cliente.status == 'nao_iniciado') %}
+            <div class="alert alert-secondary mb-0">
+                Inicie o pré-cadastro no cliente para liberar a decisão consolidada do RH.
+            </div>
         {% elif pode_gerenciar %}
             <form method="post" action="{{ url_for('main.decidir_candidatura_recrutamento', candidatura_id=candidatura.id) }}">
                 <div class="row g-3">
-                    <div class="col-md-4"><label class="form-label" for="decisaoResultado">Decisão *</label><select class="form-select" id="decisaoResultado" name="decisao_resultado" required><option value="">Selecione</option>{% for valor, rotulo in resultados.items() %}<option value="{{ valor }}">{{ rotulo }}</option>{% endfor %}</select></div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="decisaoResultado">Decisão *</label>
+                        {% if pre_cadastro_cliente.status == 'reprovado' %}
+                            <input type="hidden" name="decisao_resultado" value="reprovado">
+                            <input class="form-control" id="decisaoResultado" value="Reprovado" disabled>
+                            <small class="text-muted">Resultado obrigatório devido à reprovação do cliente.</small>
+                        {% else %}
+                            <select class="form-select" id="decisaoResultado" name="decisao_resultado" required><option value="">Selecione</option>{% for valor, rotulo in resultados.items() %}<option value="{{ valor }}">{{ rotulo }}</option>{% endfor %}</select>
+                        {% endif %}
+                    </div>
                     <div class="col-md-8"><label class="form-label" for="decisaoParecer">Justificativa *</label><textarea class="form-control" id="decisaoParecer" name="decisao_parecer" rows="3" required></textarea></div>
                     <div class="col-12 d-flex justify-content-end"><button class="btn btn-laranja" type="submit"><i class="bi bi-check2-circle me-1"></i>Registrar decisão</button></div>
                 </div>
@@ -260,6 +248,14 @@
                             <p><strong>Motivo do reaproveitamento:</strong> {{ ciclo.justificativa_reaproveitamento }}</p>
                             {% if ciclo.decisao_resultado %}
                                 <div class="parecer-box mb-3"><strong>Decisão:</strong> {{ resultados.get(ciclo.decisao_resultado, ciclo.decisao_resultado) }}<br>{{ ciclo.decisao_parecer or '' }}</div>
+                            {% endif %}
+                            {% if ciclo.pre_cadastro_status %}
+                                <div class="parecer-box mb-3">
+                                    <strong>Pré-cadastro cliente:</strong>
+                                    {{ ciclo.pre_cadastro_cliente or '-' }} ·
+                                    {{ status_validacao_cliente.get(ciclo.pre_cadastro_status, ciclo.pre_cadastro_status) }}
+                                    {% if ciclo.pre_cadastro_observacao %}<div class="mt-2">{{ ciclo.pre_cadastro_observacao }}</div>{% endif %}
+                                </div>
                             {% endif %}
                             {% for etapa_anterior in etapas_ciclos.get(ciclo.id, []) %}
                                 <div class="parecer-box mb-2">
@@ -353,32 +349,6 @@
 </div>
 {% endif %}
 
-{% if pode_gerenciar and candidatura.status not in ('cadastrado', 'em_triagem') %}
-<div class="modal fade" id="modalNovaValidacao" tabindex="-1" aria-labelledby="tituloNovaValidacao" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header modal-header-trackplan">
-                <h5 class="modal-title" id="tituloNovaValidacao"><i class="bi bi-building-check me-2"></i>Novo pré-cadastro no cliente</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <form method="post" enctype="multipart/form-data" action="{{ url_for('main.criar_validacao_cliente_recrutamento', candidatura_id=candidatura.id) }}">
-                <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-md-6"><label class="form-label" for="clienteValidacao">Cliente *</label><input class="form-control" id="clienteValidacao" name="cliente" maxlength="160" required></div>
-                        <div class="col-md-6"><label class="form-label" for="unidadeValidacao">Unidade</label><input class="form-control" id="unidadeValidacao" name="unidade" maxlength="160"></div>
-                        <div class="col-md-6"><label class="form-label" for="sistemaValidacao">Sistema externo</label><input class="form-control" id="sistemaValidacao" name="sistema_externo" placeholder="Ex.: Banco DOC" maxlength="120"></div>
-                        <div class="col-md-6"><label class="form-label" for="documentoValidacao">Documento de identidade *</label><input class="form-control" id="documentoValidacao" name="documento_identidade" maxlength="40" autocomplete="off" required></div>
-                        <div class="col-md-6"><label class="form-label" for="evidenciaValidacao">Evidência inicial</label><input class="form-control" id="evidenciaValidacao" type="file" name="evidencia" accept=".pdf,.png,.jpg,.jpeg"></div>
-                        <div class="col-md-6 d-flex align-items-end"><div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="validacaoObrigatoria" name="obrigatoria" checked><label class="form-check-label" for="validacaoObrigatoria">Obrigatória para esta oportunidade</label></div></div>
-                    </div>
-                    <div class="alert alert-secondary mt-3 mb-0">Registre apenas o resultado operacional informado pelo cliente. Não inclua antecedentes, processos ou alegações pessoais.</div>
-                </div>
-                <div class="modal-footer"><button class="btn btn-cinza" type="button" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-laranja" type="submit">Cadastrar</button></div>
-            </form>
-        </div>
-    </div>
-</div>
-{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -401,17 +371,18 @@ if (novoCargo) {
         if (opcao.dataset.nome) document.getElementById('novoCargoPretendido').value = opcao.dataset.nome;
     });
 }
-document.querySelectorAll('.status-validacao').forEach(function (select) {
-    function atualizarMotivo() {
-        const bloco = document.getElementById(select.dataset.motivo);
-        const campo = bloco.querySelector('select');
-        const reprovado = select.value === 'reprovado';
+const statusPreCadastro = document.getElementById('statusPreCadastro');
+if (statusPreCadastro) {
+    function atualizarObservacaoPreCadastro() {
+        const bloco = document.getElementById('observacaoPreCadastro');
+        const campo = document.getElementById('textoPreCadastro');
+        const reprovado = statusPreCadastro.value === 'reprovado';
         bloco.classList.toggle('d-none', !reprovado);
         campo.required = reprovado;
         if (!reprovado) campo.value = '';
     }
-    select.addEventListener('change', atualizarMotivo);
-    atualizarMotivo();
-});
+    statusPreCadastro.addEventListener('change', atualizarObservacaoPreCadastro);
+    atualizarObservacaoPreCadastro();
+}
 </script>
 {% endblock %}

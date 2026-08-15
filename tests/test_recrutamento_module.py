@@ -216,7 +216,7 @@ class RecrutamentoModuleTests(unittest.TestCase):
             2,
         )
 
-    def test_client_validation_is_parallel_and_minimizes_sensitive_data(self):
+    def test_client_pre_registration_is_a_simple_parallel_stage(self):
         source = (ROOT / "app" / "views" / "recrutamento.py").read_text(
             encoding="utf-8"
         )
@@ -224,20 +224,21 @@ class RecrutamentoModuleTests(unittest.TestCase):
             ROOT / "app" / "templates" / "recrutamento_candidatura_detalhe.html"
         ).read_text(encoding="utf-8")
         migration = (
-            ROOT / "docs" / "adicionar_validacao_cliente_recrutamento.sql"
+            ROOT / "docs" / "simplificar_pre_cadastro_cliente_recrutamento.sql"
         ).read_text(encoding="utf-8")
 
-        self.assertIn("def criar_validacao_cliente_recrutamento", source)
-        self.assertIn("def atualizar_validacao_cliente_recrutamento", source)
-        self.assertIn("def evidencia_validacao_cliente_recrutamento", source)
-        self.assertIn("_mobilizacao_liberada", source)
-        self.assertIn('validacao["expirada"]', source)
-        self.assertIn("Validação para mobilização", template)
-        self.assertIn('name="documento_identidade"', template)
-        self.assertIn('name="obrigatoria"', template)
-        self.assertIn("recrutamento_validacoes_cliente", migration)
-        self.assertNotIn("antecedentes_criminais TEXT", migration)
-        self.assertNotIn("processo_judicial TEXT", migration)
+        self.assertIn("def salvar_pre_cadastro_cliente_recrutamento", source)
+        self.assertIn('"nao_iniciado": "Não iniciado"', source)
+        self.assertIn('"aguardando_validacao": "Aguardando validação"', source)
+        self.assertIn("Pré-cadastro cliente", template)
+        self.assertIn('name="cliente"', template)
+        self.assertIn('name="status"', template)
+        self.assertNotIn('name="documento_identidade"', template)
+        self.assertNotIn("modalNovaValidacao", template)
+        self.assertIn('pre_cadastro["status"] == "reprovado"', source)
+        self.assertIn("pre_cadastro_cliente", migration)
+        self.assertIn("aguardando_validacao", migration)
+        self.assertIn("DELETE FROM recrutamento_validacoes_cliente", source)
 
 
 if __name__ == "__main__":
