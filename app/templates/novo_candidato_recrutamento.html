@@ -4,10 +4,22 @@
 
 {% block extra_css %}
 <style>
-    .form-section { border-bottom:1px solid #e5e7eb; margin-bottom:1.4rem; padding-bottom:1.4rem; }
+    .candidate-form .card-body { padding:1.25rem; }
+    .form-section { border-bottom:1px solid #e5e7eb; margin-bottom:1rem; padding-bottom:1rem; }
     .form-section:last-child { border-bottom:0; margin-bottom:0; }
-    .form-section-title { color:#f36b21; font-size:1.05rem; font-weight:700; margin-bottom:1rem; }
-    .experiencia-card { background:#f8f9fa; border:1px solid #e5e7eb; border-radius:10px; padding:1rem; }
+    .form-section-title { color:#f36b21; font-size:1rem; font-weight:700; margin-bottom:.75rem; }
+    .candidate-form .form-label { font-size:.88rem; margin-bottom:.3rem; }
+    .experience-header { color:#6b7280; font-size:.78rem; font-weight:700; padding:0 .65rem .35rem; text-transform:uppercase; }
+    .experience-row { align-items:end; background:#f8f9fa; border:1px solid #e5e7eb; border-radius:9px; margin:0 0 .5rem; padding:.65rem; }
+    .experience-number { align-items:center; background:#f36b21; border-radius:50%; color:#fff; display:flex; font-size:.78rem; font-weight:700; height:28px; justify-content:center; margin-bottom:.35rem; width:28px; }
+    .experience-current { align-items:center; display:flex; min-height:38px; padding-bottom:.35rem; }
+    .experience-mobile-label { display:none; }
+    @media (max-width: 767.98px) {
+        .experience-header { display:none; }
+        .experience-row { align-items:start; padding:.8rem; }
+        .experience-mobile-label { display:block; }
+        .experience-current { min-height:0; padding:.25rem 0 0; }
+    }
 </style>
 {% endblock %}
 
@@ -19,57 +31,63 @@
 </div>
 <hr>
 
-<form method="post" enctype="multipart/form-data" class="card border-0 shadow-sm">
+<form method="post" enctype="multipart/form-data" class="card border-0 shadow-sm candidate-form">
     <div class="card-body">
         <section class="form-section">
             <h3 class="form-section-title">Identificação e contato</h3>
-            <div class="row g-3">
-                <div class="col-12 col-md-3">
+            <div class="row g-2">
+                <div class="col-12 col-md-2">
                     <label class="form-label" for="cpf">CPF *</label>
                     <input class="form-control" id="cpf" name="cpf" inputmode="numeric"
                            maxlength="14" value="{{ request.form.get('cpf', '') }}" required>
                 </div>
-                <div class="col-12 col-md-5">
+                <div class="col-12 col-md-4">
                     <label class="form-label" for="nome">Nome completo *</label>
                     <input class="form-control" id="nome" name="nome" maxlength="160"
                            value="{{ request.form.get('nome', '') }}" required>
                 </div>
-                <div class="col-12 col-md-2">
+                <div class="col-12 col-md-3">
                     <label class="form-label" for="telefone">Telefone *</label>
                     <input class="form-control telefone-mask" id="telefone" name="telefone"
                            type="tel" inputmode="numeric" maxlength="15"
                            placeholder="(00) 00000-0000"
                            value="{{ request.form.get('telefone', '') }}" required>
                 </div>
-                <div class="col-12 col-md-2">
+                <div class="col-12 col-md-3">
                     <label class="form-label" for="telefone_alternativo">Telefone alternativo</label>
                     <input class="form-control telefone-mask" id="telefone_alternativo"
                            name="telefone_alternativo" type="tel" inputmode="numeric"
                            maxlength="15" placeholder="(00) 00000-0000"
                            value="{{ request.form.get('telefone_alternativo', '') }}">
                 </div>
-                <div class="col-12 col-md-5">
+                <div class="col-12 col-md-4">
                     <label class="form-label" for="email">E-mail</label>
                     <input class="form-control" type="email" id="email" name="email" maxlength="150"
                            value="{{ request.form.get('email', '') }}">
                 </div>
-                <div class="col-12 col-md-5">
+                <div class="col-12 col-md-3">
                     <label class="form-label" for="cidade">Cidade</label>
                     <input class="form-control" id="cidade" name="cidade" maxlength="120"
                            value="{{ request.form.get('cidade', '') }}">
                 </div>
-                <div class="col-12 col-md-2">
+                <div class="col-4 col-md-1">
                     <label class="form-label" for="estado">UF</label>
                     <input class="form-control text-uppercase" id="estado" name="estado" maxlength="2"
                            value="{{ request.form.get('estado', '') }}">
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="curriculo">Currículo</label>
+                    <input class="form-control" type="file" id="curriculo" name="curriculo"
+                           accept=".pdf,.doc,.docx">
+                    <div class="form-text">PDF, DOC ou DOCX.</div>
                 </div>
             </div>
         </section>
 
         <section class="form-section">
             <h3 class="form-section-title">Candidatura inicial</h3>
-            <div class="row g-3">
-                <div class="col-12 col-md-4">
+            <div class="row g-2">
+                <div class="col-12 col-md-3">
                     <label class="form-label" for="cargo_pretendido">Cargo pretendido *</label>
                     <input class="form-control" id="cargo_pretendido" name="cargo_pretendido"
                            list="lista_cargos" maxlength="160"
@@ -78,7 +96,7 @@
                         {% for cargo in cargos %}<option value="{{ cargo.nome }}">{% endfor %}
                     </datalist>
                 </div>
-                <div class="col-12 col-md-4">
+                <div class="col-12 col-md-5">
                     <label class="form-label" for="origem">Origem *</label>
                     <select class="form-select" id="origem" name="origem" required>
                         <option value="">Selecione</option>
@@ -94,7 +112,7 @@
                            placeholder="Nome de quem indicou ou outro detalhe">
                 </div>
                 {% if permite_escolher_centro %}
-                    <div class="col-12 col-md-6">
+                    <div class="col-12 col-md-7">
                         <label class="form-label" for="centro_custos_id">Centro de custos *</label>
                         <select class="form-select" id="centro_custos_id" name="centro_custos_id" required>
                             <option value="">Selecione</option>
@@ -107,8 +125,14 @@
                     </div>
                 {% else %}
                     <input type="hidden" name="centro_custos_id" value="{{ centro_custos_usuario }}">
+                    <div class="col-12 col-md-7">
+                        <label class="form-label">Centro de custos</label>
+                        {% for centro in centros_custos if centro.id == centro_custos_usuario %}
+                            <input class="form-control" value="{{ centro.codigo }} — {{ centro.descricao }}" disabled>
+                        {% endfor %}
+                    </div>
                 {% endif %}
-                <div class="col-12 col-md-6">
+                <div class="col-12 col-md-5">
                     <label class="form-label" for="exige_teste_pratico">Teste prático *</label>
                     <select class="form-select" id="exige_teste_pratico" name="exige_teste_pratico" required>
                         {% for valor, rotulo in testes_praticos.items() %}
@@ -116,66 +140,62 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-12">
-                    <label class="form-label" for="curriculo">Currículo</label>
-                    <input class="form-control" type="file" id="curriculo" name="curriculo"
-                           accept=".pdf,.doc,.docx">
-                    <div class="form-text">Formatos permitidos: PDF, DOC e DOCX.</div>
-                </div>
             </div>
         </section>
 
         <section class="form-section">
             <h3 class="form-section-title">Últimas experiências profissionais</h3>
-            <div class="row g-3">
-                {% for ordem in range(1, 4) %}
-                    <div class="col-12">
-                        <div class="experiencia-card">
-                            <strong class="d-block mb-2">Experiência {{ ordem }}</strong>
-                            <div class="row g-3">
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label" for="experiencia_empresa_{{ ordem }}">Empresa</label>
-                                    <input class="form-control" id="experiencia_empresa_{{ ordem }}"
-                                           name="experiencia_empresa_{{ ordem }}" maxlength="160"
-                                           value="{{ request.form.get('experiencia_empresa_' ~ ordem, '') }}">
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label" for="experiencia_cargo_{{ ordem }}">Cargo</label>
-                                    <input class="form-control" id="experiencia_cargo_{{ ordem }}"
-                                           name="experiencia_cargo_{{ ordem }}" maxlength="160"
-                                           value="{{ request.form.get('experiencia_cargo_' ~ ordem, '') }}">
-                                </div>
-                                <div class="col-6 col-md-2">
-                                    <label class="form-label" for="experiencia_inicio_{{ ordem }}">Início</label>
-                                    <input class="form-control" type="date" id="experiencia_inicio_{{ ordem }}"
-                                           name="experiencia_inicio_{{ ordem }}"
-                                           value="{{ request.form.get('experiencia_inicio_' ~ ordem, '') }}">
-                                </div>
-                                <div class="col-6 col-md-2">
-                                    <label class="form-label" for="experiencia_fim_{{ ordem }}">Fim</label>
-                                    <input class="form-control" type="date" id="experiencia_fim_{{ ordem }}"
-                                           name="experiencia_fim_{{ ordem }}"
-                                           value="{{ request.form.get('experiencia_fim_' ~ ordem, '') }}">
-                                </div>
-                                <div class="col-12">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox"
-                                               id="experiencia_atual_{{ ordem }}"
-                                               name="experiencia_atual_{{ ordem }}" value="1"
-                                               {% if request.form.get('experiencia_atual_' ~ ordem) %}checked{% endif %}>
-                                        <label class="form-check-label" for="experiencia_atual_{{ ordem }}">Emprego atual</label>
-                                    </div>
-                                </div>
-                            </div>
+            <div class="row experience-header g-2">
+                <div class="col-md-1"></div>
+                <div class="col-md-3">Empresa</div>
+                <div class="col-md-3">Cargo</div>
+                <div class="col-md-2">Início</div>
+                <div class="col-md-2">Fim</div>
+                <div class="col-md-1">Atual</div>
+            </div>
+            {% for ordem in range(1, 4) %}
+                <div class="row g-2 experience-row">
+                    <div class="col-12 col-md-1"><span class="experience-number">{{ ordem }}</span></div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label experience-mobile-label" for="experiencia_empresa_{{ ordem }}">Empresa</label>
+                        <input class="form-control" id="experiencia_empresa_{{ ordem }}"
+                               name="experiencia_empresa_{{ ordem }}" maxlength="160"
+                               value="{{ request.form.get('experiencia_empresa_' ~ ordem, '') }}">
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label experience-mobile-label" for="experiencia_cargo_{{ ordem }}">Cargo</label>
+                        <input class="form-control" id="experiencia_cargo_{{ ordem }}"
+                               name="experiencia_cargo_{{ ordem }}" maxlength="160"
+                               value="{{ request.form.get('experiencia_cargo_' ~ ordem, '') }}">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label experience-mobile-label" for="experiencia_inicio_{{ ordem }}">Início</label>
+                        <input class="form-control" type="date" id="experiencia_inicio_{{ ordem }}"
+                               name="experiencia_inicio_{{ ordem }}"
+                               value="{{ request.form.get('experiencia_inicio_' ~ ordem, '') }}">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label experience-mobile-label" for="experiencia_fim_{{ ordem }}">Fim</label>
+                        <input class="form-control" type="date" id="experiencia_fim_{{ ordem }}"
+                               name="experiencia_fim_{{ ordem }}"
+                               value="{{ request.form.get('experiencia_fim_' ~ ordem, '') }}">
+                    </div>
+                    <div class="col-12 col-md-1 experience-current">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox"
+                                   id="experiencia_atual_{{ ordem }}"
+                                   name="experiencia_atual_{{ ordem }}" value="1"
+                                   {% if request.form.get('experiencia_atual_' ~ ordem) %}checked{% endif %}>
+                            <label class="form-check-label experience-mobile-label" for="experiencia_atual_{{ ordem }}">Emprego atual</label>
                         </div>
                     </div>
-                {% endfor %}
-            </div>
+                </div>
+            {% endfor %}
         </section>
 
         <section>
             <label class="form-label" for="observacoes">Observações</label>
-            <textarea class="form-control" id="observacoes" name="observacoes" rows="3">{{ request.form.get('observacoes', '') }}</textarea>
+            <textarea class="form-control" id="observacoes" name="observacoes" rows="2">{{ request.form.get('observacoes', '') }}</textarea>
         </section>
     </div>
     <div class="card-footer bg-white d-flex justify-content-end gap-2 py-3">
