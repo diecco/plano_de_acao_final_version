@@ -13,7 +13,7 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 216)
+        self.assertEqual(len(self.routes), 219)
 
     def test_recrutamento_routes_are_registered(self):
         expected = {
@@ -28,6 +28,9 @@ class RouteStructureTests(unittest.TestCase):
             ): "main.baixar_curriculo_recrutamento",
             ("/recrutamento/candidaturas/<int:candidatura_id>", ("GET",)): "main.detalhe_candidatura_recrutamento",
             ("/recrutamento/candidaturas/<int:candidatura_id>/reaproveitar", ("POST",)): "main.reaproveitar_candidatura_recrutamento",
+            ("/recrutamento/candidaturas/<int:candidatura_id>/validacoes-cliente", ("POST",)): "main.criar_validacao_cliente_recrutamento",
+            ("/recrutamento/candidaturas/<int:candidatura_id>/validacoes-cliente/<int:validacao_id>", ("POST",)): "main.atualizar_validacao_cliente_recrutamento",
+            ("/recrutamento/validacoes-cliente/<int:validacao_id>/evidencia", ("GET",)): "main.evidencia_validacao_cliente_recrutamento",
             ("/recrutamento/candidaturas/<int:candidatura_id>/iniciar-selecao", ("POST",)): "main.iniciar_selecao_recrutamento",
             ("/recrutamento/candidaturas/<int:candidatura_id>/etapas/<int:etapa_id>/atribuir", ("POST",)): "main.atribuir_etapa_recrutamento",
             ("/recrutamento/candidaturas/<int:candidatura_id>/etapas/<int:etapa_id>/avaliar", ("POST",)): "main.avaliar_etapa_recrutamento",

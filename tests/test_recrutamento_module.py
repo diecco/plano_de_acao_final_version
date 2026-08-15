@@ -216,6 +216,29 @@ class RecrutamentoModuleTests(unittest.TestCase):
             2,
         )
 
+    def test_client_validation_is_parallel_and_minimizes_sensitive_data(self):
+        source = (ROOT / "app" / "views" / "recrutamento.py").read_text(
+            encoding="utf-8"
+        )
+        template = (
+            ROOT / "app" / "templates" / "recrutamento_candidatura_detalhe.html"
+        ).read_text(encoding="utf-8")
+        migration = (
+            ROOT / "docs" / "adicionar_validacao_cliente_recrutamento.sql"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("def criar_validacao_cliente_recrutamento", source)
+        self.assertIn("def atualizar_validacao_cliente_recrutamento", source)
+        self.assertIn("def evidencia_validacao_cliente_recrutamento", source)
+        self.assertIn("_mobilizacao_liberada", source)
+        self.assertIn('validacao["expirada"]', source)
+        self.assertIn("Validação para mobilização", template)
+        self.assertIn('name="documento_identidade"', template)
+        self.assertIn('name="obrigatoria"', template)
+        self.assertIn("recrutamento_validacoes_cliente", migration)
+        self.assertNotIn("antecedentes_criminais TEXT", migration)
+        self.assertNotIn("processo_judicial TEXT", migration)
+
 
 if __name__ == "__main__":
     unittest.main()
