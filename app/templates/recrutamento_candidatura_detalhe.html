@@ -14,6 +14,7 @@
     .etapa-meta { color:#6b7280; font-size:.86rem; }
     .parecer-box { background:#f8f9fa; border-radius:8px; padding:12px; white-space:pre-wrap; }
     .historico-item { border-left:2px solid #f36b21; padding:0 0 14px 14px; }
+    .modal-header-trackplan { background:#f36b21; color:#fff; }
     @media (max-width: 992px) { .processo-resumo { grid-template-columns:repeat(2,minmax(0,1fr)); } }
     @media (max-width: 576px) { .processo-resumo { grid-template-columns:1fr; } }
 </style>
@@ -31,6 +32,10 @@
         <form method="post" action="{{ url_for('main.iniciar_selecao_recrutamento', candidatura_id=candidatura.id) }}">
             <button class="btn btn-laranja" type="submit"><i class="bi bi-play-fill me-1"></i>Iniciar seleção</button>
         </form>
+    {% elif pode_gerenciar %}
+        <button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalReaproveitar">
+            <i class="bi bi-arrow-repeat me-1"></i>Reaproveitar candidatura
+        </button>
     {% else %}
         <span></span>
     {% endif %}
@@ -177,6 +182,45 @@
 </div>
 {% endif %}
 
+{% if ciclos_anteriores %}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-layers me-2"></i>Ciclos anteriores</h5></div>
+    <div class="card-body">
+        <div class="accordion" id="ciclosAnteriores">
+            {% for ciclo in ciclos_anteriores %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#ciclo-{{ ciclo.id }}">
+                            Ciclo {{ ciclo.numero_ciclo }} · {{ ciclo.cargo_pretendido }} · {{ ciclo.status|replace('_', ' ')|title }}
+                        </button>
+                    </h2>
+                    <div id="ciclo-{{ ciclo.id }}" class="accordion-collapse collapse" data-bs-parent="#ciclosAnteriores">
+                        <div class="accordion-body">
+                            <p><strong>Motivo do reaproveitamento:</strong> {{ ciclo.justificativa_reaproveitamento }}</p>
+                            {% if ciclo.decisao_resultado %}
+                                <div class="parecer-box mb-3"><strong>Decisão:</strong> {{ resultados.get(ciclo.decisao_resultado, ciclo.decisao_resultado) }}<br>{{ ciclo.decisao_parecer or '' }}</div>
+                            {% endif %}
+                            {% for etapa_anterior in etapas_ciclos.get(ciclo.id, []) %}
+                                <div class="parecer-box mb-2">
+                                    <strong>{{ etapa_anterior.nome }}</strong> · {{ resultados.get(etapa_anterior.resultado, etapa_anterior.status|replace('_', ' ')|title) }}
+                                    {% if etapa_anterior.avaliador_nome %}<small class="text-muted"> · {{ etapa_anterior.avaliador_nome }}</small>{% endif %}
+                                    {% if etapa_anterior.parecer %}<div class="mt-2">{{ etapa_anterior.parecer }}</div>{% endif %}
+                                    {% if etapa_anterior.restricao %}<div class="mt-1"><strong>Restrição:</strong> {{ etapa_anterior.restricao }}</div>{% endif %}
+                                    {% for complemento in complementos_ciclos.get(etapa_anterior.id, []) %}
+                                        <div class="mt-2"><strong>Complemento:</strong> {{ complemento.parecer }}<small class="text-muted d-block">{{ complemento.autor_nome or 'Usuário removido' }}</small></div>
+                                    {% endfor %}
+                                </div>
+                            {% endfor %}
+                            <small class="text-muted">Arquivado por {{ ciclo.arquivado_por_nome }} em {{ ciclo.arquivado_em.strftime('%d/%m/%Y %H:%M') }}</small>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Histórico</h5></div>
     <div class="card-body">
@@ -188,6 +232,65 @@
         {% else %}<p class="text-muted mb-0">Nenhum evento registrado.</p>{% endfor %}
     </div>
 </div>
+
+{% if pode_gerenciar and candidatura.status not in ('cadastrado', 'em_triagem') %}
+<div class="modal fade" id="modalReaproveitar" tabindex="-1" aria-labelledby="tituloReaproveitar" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header modal-header-trackplan">
+                <h5 class="modal-title" id="tituloReaproveitar"><i class="bi bi-arrow-repeat me-2"></i>Reaproveitar candidatura</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form method="post" action="{{ url_for('main.reaproveitar_candidatura_recrutamento', candidatura_id=candidatura.id) }}">
+                <div class="modal-body">
+                    <div class="alert alert-secondary">O ciclo atual será preservado integralmente. Marque somente as avaliações que precisam ser realizadas novamente.</div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="novoCargoId">Cargo cadastrado</label>
+                            <select class="form-select" id="novoCargoId" name="cargo_id">
+                                <option value="">Outro cargo</option>
+                                {% for cargo in cargos %}<option value="{{ cargo.id }}" data-nome="{{ cargo.nome }}">{{ cargo.nome }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="novoCargoPretendido">Cargo da nova oportunidade *</label>
+                            <input class="form-control" id="novoCargoPretendido" name="cargo_pretendido" value="{{ candidatura.cargo_pretendido }}" maxlength="160" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="novoTestePratico">Teste prático no novo ciclo *</label>
+                            <select class="form-select" id="novoTestePratico" name="exige_teste_pratico" required>
+                                {% for valor, rotulo in {'nao_aplicavel':'Não aplicável','obrigatorio':'Obrigatório','recomendado':'Recomendado'}.items() %}
+                                    <option value="{{ valor }}" {% if candidatura.exige_teste_pratico == valor %}selected{% endif %}>{{ rotulo }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="justificativaReaproveitamento">Justificativa *</label>
+                            <textarea class="form-control" id="justificativaReaproveitamento" name="justificativa" rows="3" minlength="10" required></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label d-block">Avaliações que devem ser reabertas</label>
+                            {% for etapa in etapas %}
+                                <div class="form-check border rounded p-3 ps-5 mb-2">
+                                    <input class="form-check-input" type="checkbox" name="etapas_reabrir" value="{{ etapa.id }}" id="reabrir-{{ etapa.id }}">
+                                    <label class="form-check-label" for="reabrir-{{ etapa.id }}">
+                                        <strong>{{ etapa.nome }}</strong><br>
+                                        <small class="text-muted">Atual: {{ resultados.get(etapa.resultado, etapa.status|replace('_', ' ')|title) }}. Desmarcada, esta avaliação será mantida como válida.</small>
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-cinza" type="button" data-bs-dismiss="modal">Cancelar</button>
+                    <button class="btn btn-laranja" type="submit">Iniciar novo ciclo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -203,5 +306,12 @@ document.querySelectorAll('.resultado-etapa').forEach(function (select) {
         if (!exibir) campo.value = '';
     });
 });
+const novoCargo = document.getElementById('novoCargoId');
+if (novoCargo) {
+    novoCargo.addEventListener('change', function () {
+        const opcao = this.options[this.selectedIndex];
+        if (opcao.dataset.nome) document.getElementById('novoCargoPretendido').value = opcao.dataset.nome;
+    });
+}
 </script>
 {% endblock %}

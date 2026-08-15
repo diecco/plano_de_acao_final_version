@@ -403,19 +403,244 @@ def register_recrutamento_routes(blueprint):
                 ORDER BY nome
             """, (candidatura["centro_custos_id"],))
             avaliadores = cursor.fetchall()
+            cursor.execute("SELECT id, nome FROM cargos WHERE ativo = 1 ORDER BY nome")
+            cargos = cursor.fetchall()
+            cursor.execute("""
+                SELECT ch.*, u.nome AS arquivado_por_nome
+                FROM recrutamento_ciclos_historico ch
+                JOIN usuarios u ON u.id = ch.arquivado_por
+                WHERE ch.candidatura_id = %s
+                ORDER BY ch.numero_ciclo DESC
+            """, (candidatura_id,))
+            ciclos_anteriores = cursor.fetchall()
+            etapas_ciclos = {}
+            complementos_ciclos = {}
+            if ciclos_anteriores:
+                ids_ciclos = [ciclo["id"] for ciclo in ciclos_anteriores]
+                placeholders = ", ".join(["%s"] * len(ids_ciclos))
+                cursor.execute(f"""
+                    SELECT eh.*, u.nome AS avaliador_nome
+                    FROM recrutamento_etapas_historico eh
+                    LEFT JOIN usuarios u ON u.id = eh.avaliador_id
+                    WHERE eh.ciclo_historico_id IN ({placeholders})
+                    ORDER BY eh.ordem, eh.id
+                """, tuple(ids_ciclos))
+                etapas_anteriores = cursor.fetchall()
+                for etapa_anterior in etapas_anteriores:
+                    etapas_ciclos.setdefault(
+                        etapa_anterior["ciclo_historico_id"], []
+                    ).append(etapa_anterior)
+                ids_etapas_historicas = [etapa["id"] for etapa in etapas_anteriores]
+                if ids_etapas_historicas:
+                    placeholders = ", ".join(["%s"] * len(ids_etapas_historicas))
+                    cursor.execute(f"""
+                        SELECT ch.*, u.nome AS autor_nome
+                        FROM recrutamento_complementos_historico ch
+                        LEFT JOIN usuarios u ON u.id = ch.autor_id
+                        WHERE ch.etapa_historico_id IN ({placeholders})
+                        ORDER BY ch.criado_em, ch.id
+                    """, tuple(ids_etapas_historicas))
+                    for complemento_anterior in cursor.fetchall():
+                        complementos_ciclos.setdefault(
+                            complemento_anterior["etapa_historico_id"], []
+                        ).append(complemento_anterior)
         finally:
             cursor.close()
             conn.close()
         return render_template(
             "recrutamento_candidatura_detalhe.html",
             candidatura=candidatura, etapas=etapas, historico=historico,
-            avaliadores=avaliadores, resultados=RESULTADOS_ETAPA,
+            avaliadores=avaliadores, cargos=cargos, resultados=RESULTADOS_ETAPA,
             complementos_por_etapa=complementos_por_etapa,
             etapas_concluidas=_etapas_obrigatorias_concluidas(etapas),
             origens=ORIGENS_CANDIDATURA,
             pode_gerenciar=_pode_gerenciar_candidatura(candidatura),
             hoje=date.today(),
+            ciclos_anteriores=ciclos_anteriores,
+            etapas_ciclos=etapas_ciclos,
+            complementos_ciclos=complementos_ciclos,
         )
+
+    @blueprint.route("/recrutamento/candidaturas/<int:candidatura_id>/reaproveitar", methods=["POST"])
+    @login_required
+    @module_required("acesso_recrutamento")
+    def reaproveitar_candidatura_recrutamento(candidatura_id):
+        cargo_id = request.form.get("cargo_id", type=int)
+        cargo_pretendido = (request.form.get("cargo_pretendido") or "").strip()
+        teste_pratico = (request.form.get("exige_teste_pratico") or "").strip()
+        justificativa = (request.form.get("justificativa") or "").strip()
+        etapas_reabrir = {
+            int(valor) for valor in request.form.getlist("etapas_reabrir")
+            if valor.isdigit()
+        }
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute(
+                "SELECT * FROM recrutamento_candidaturas WHERE id = %s FOR UPDATE",
+                (candidatura_id,),
+            )
+            candidatura = cursor.fetchone()
+            if candidatura is None:
+                abort(404)
+            if not _pode_gerenciar_candidatura(candidatura):
+                abort(403)
+            if candidatura["status"] in ("cadastrado", "em_triagem"):
+                raise ValueError("Inicie a seleção antes de reaproveitar a candidatura.")
+            if not cargo_pretendido:
+                raise ValueError("Informe o cargo da nova oportunidade.")
+            if teste_pratico not in TESTES_PRATICOS:
+                raise ValueError("Selecione a regra de teste prático do novo ciclo.")
+            if len(justificativa) < 10:
+                raise ValueError(
+                    "Informe uma justificativa com pelo menos 10 caracteres."
+                )
+            if cargo_id:
+                cursor.execute(
+                    "SELECT id FROM cargos WHERE id = %s AND ativo = 1",
+                    (cargo_id,),
+                )
+                if cursor.fetchone() is None:
+                    raise ValueError("Selecione um cargo ativo.")
+
+            cursor.execute(
+                "SELECT * FROM recrutamento_etapas WHERE candidatura_id = %s ORDER BY ordem, id FOR UPDATE",
+                (candidatura_id,),
+            )
+            etapas_atuais = cursor.fetchall()
+            ids_etapas = {etapa["id"] for etapa in etapas_atuais}
+            if not etapas_reabrir.issubset(ids_etapas):
+                raise ValueError("Foi selecionada uma etapa inválida para reabertura.")
+
+            cursor.execute(
+                "SELECT COALESCE(MAX(numero_ciclo), 0) + 1 AS numero FROM recrutamento_ciclos_historico WHERE candidatura_id = %s",
+                (candidatura_id,),
+            )
+            numero_ciclo = cursor.fetchone()["numero"]
+            cursor.execute("""
+                INSERT INTO recrutamento_ciclos_historico (
+                    candidatura_id, numero_ciclo, cargo_id, cargo_pretendido,
+                    exige_teste_pratico, status, decisao_resultado,
+                    decisao_parecer, decisao_por,
+                    decisao_em, justificativa_reaproveitamento, arquivado_por
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                candidatura_id, numero_ciclo, candidatura.get("cargo_id"),
+                candidatura["cargo_pretendido"],
+                candidatura["exige_teste_pratico"], candidatura["status"],
+                candidatura.get("decisao_resultado"),
+                candidatura.get("decisao_parecer"),
+                candidatura.get("decisao_por"), candidatura.get("decisao_em"),
+                justificativa, session["usuario_id"],
+            ))
+            ciclo_historico_id = cursor.lastrowid
+            cursor.execute("""
+                INSERT INTO recrutamento_etapas_historico (
+                    ciclo_historico_id, etapa_origem_id, tipo, nome, ordem,
+                    obrigatoria, papel_responsavel, avaliador_id, status,
+                    resultado, parecer, restricao, motivo_dispensa,
+                    data_prevista, realizada_em, registrado_por,
+                    criado_em, atualizado_em
+                )
+                SELECT %s, id, tipo, nome, ordem, obrigatoria,
+                       papel_responsavel, avaliador_id, status, resultado,
+                       parecer, restricao, motivo_dispensa, data_prevista,
+                       realizada_em, registrado_por, criado_em, atualizado_em
+                FROM recrutamento_etapas WHERE candidatura_id = %s
+            """, (ciclo_historico_id, candidatura_id))
+
+            cursor.execute("""
+                INSERT INTO recrutamento_complementos_historico (
+                    etapa_historico_id, parecer, autor_id, criado_em
+                )
+                SELECT eh.id, pc.parecer, pc.autor_id, pc.criado_em
+                FROM recrutamento_pareceres_complementares pc
+                JOIN recrutamento_etapas_historico eh
+                  ON eh.etapa_origem_id = pc.etapa_id
+                 AND eh.ciclo_historico_id = %s
+            """, (ciclo_historico_id,))
+
+            etapa_pratica = next(
+                (etapa for etapa in etapas_atuais if etapa["tipo"] == "teste_pratico"),
+                None,
+            )
+            if teste_pratico == "nao_aplicavel" and etapa_pratica:
+                cursor.execute(
+                    "DELETE FROM recrutamento_pareceres_complementares WHERE etapa_id = %s",
+                    (etapa_pratica["id"],),
+                )
+                cursor.execute(
+                    "DELETE FROM recrutamento_etapas WHERE id = %s",
+                    (etapa_pratica["id"],),
+                )
+            elif teste_pratico != "nao_aplicavel" and etapa_pratica is None:
+                cursor.execute("""
+                    INSERT INTO recrutamento_etapas (
+                        candidatura_id, tipo, nome, ordem,
+                        obrigatoria, papel_responsavel
+                    ) VALUES (%s, 'teste_pratico', 'Teste prático', 3, %s, 'gestor')
+                """, (
+                    candidatura_id,
+                    1 if teste_pratico == "obrigatorio" else 0,
+                ))
+            elif etapa_pratica:
+                cursor.execute(
+                    "UPDATE recrutamento_etapas SET obrigatoria = %s WHERE id = %s",
+                    (1 if teste_pratico == "obrigatorio" else 0, etapa_pratica["id"]),
+                )
+
+            for etapa_id in etapas_reabrir:
+                cursor.execute(
+                    "DELETE FROM recrutamento_pareceres_complementares WHERE etapa_id = %s",
+                    (etapa_id,),
+                )
+                cursor.execute("""
+                    UPDATE recrutamento_etapas
+                    SET avaliador_id = NULL, status = 'pendente', resultado = NULL,
+                        parecer = NULL, restricao = NULL, motivo_dispensa = NULL,
+                        data_prevista = NULL, realizada_em = NULL,
+                        registrado_por = NULL
+                    WHERE id = %s AND candidatura_id = %s
+                """, (etapa_id, candidatura_id))
+
+            cursor.execute("""
+                UPDATE recrutamento_candidaturas
+                SET cargo_id = %s, cargo_pretendido = %s,
+                    exige_teste_pratico = %s,
+                    status = 'em_avaliacao', decisao_resultado = NULL,
+                    decisao_parecer = NULL, decisao_por = NULL,
+                    decisao_em = NULL, encerrado_em = NULL
+                WHERE id = %s
+            """, (cargo_id, cargo_pretendido, teste_pratico, candidatura_id))
+            cursor.execute("""
+                INSERT INTO recrutamento_historico
+                    (candidatura_id, evento, descricao, usuario_id)
+                VALUES (%s, 'candidatura_reaproveitada', %s, %s)
+            """, (
+                candidatura_id,
+                f"Candidatura reaproveitada de {candidatura['cargo_pretendido']} "
+                f"para {cargo_pretendido}. {len(etapas_reabrir)} etapa(s) reaberta(s). "
+                f"Justificativa: {justificativa}",
+                session["usuario_id"],
+            ))
+            conn.commit()
+            flash(
+                "Novo ciclo iniciado. O ciclo anterior foi preservado no histórico.",
+                "success",
+            )
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "danger")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+        return redirect(url_for(
+            "main.detalhe_candidatura_recrutamento",
+            candidatura_id=candidatura_id,
+        ))
 
     @blueprint.route("/recrutamento/candidaturas/<int:candidatura_id>/iniciar-selecao", methods=["POST"])
     @login_required

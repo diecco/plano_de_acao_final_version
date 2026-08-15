@@ -13,7 +13,7 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 215)
+        self.assertEqual(len(self.routes), 216)
 
     def test_recrutamento_routes_are_registered(self):
         expected = {
@@ -27,6 +27,7 @@ class RouteStructureTests(unittest.TestCase):
                 ("GET",),
             ): "main.baixar_curriculo_recrutamento",
             ("/recrutamento/candidaturas/<int:candidatura_id>", ("GET",)): "main.detalhe_candidatura_recrutamento",
+            ("/recrutamento/candidaturas/<int:candidatura_id>/reaproveitar", ("POST",)): "main.reaproveitar_candidatura_recrutamento",
             ("/recrutamento/candidaturas/<int:candidatura_id>/iniciar-selecao", ("POST",)): "main.iniciar_selecao_recrutamento",
             ("/recrutamento/candidaturas/<int:candidatura_id>/etapas/<int:etapa_id>/atribuir", ("POST",)): "main.atribuir_etapa_recrutamento",
             ("/recrutamento/candidaturas/<int:candidatura_id>/etapas/<int:etapa_id>/avaliar", ("POST",)): "main.avaliar_etapa_recrutamento",

@@ -177,6 +177,31 @@ class RecrutamentoModuleTests(unittest.TestCase):
         self.assertIn('name="data_prevista"', manager_template)
         self.assertIn("etapa.data_prevista", evaluator_template)
 
+    def test_candidate_reuse_preserves_previous_cycle(self):
+        source = (ROOT / "app" / "views" / "recrutamento.py").read_text(
+            encoding="utf-8"
+        )
+        template = (
+            ROOT / "app" / "templates" / "recrutamento_candidatura_detalhe.html"
+        ).read_text(encoding="utf-8")
+        migration = (
+            ROOT / "docs" / "adicionar_reaproveitamento_candidatura.sql"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("def reaproveitar_candidatura_recrutamento", source)
+        self.assertIn("recrutamento_ciclos_historico", source)
+        self.assertIn("recrutamento_etapas_historico", source)
+        self.assertIn("recrutamento_complementos_historico", source)
+        self.assertIn("etapas_reabrir", source)
+        self.assertIn("Reaproveitar candidatura", template)
+        self.assertIn('name="cargo_pretendido"', template)
+        self.assertIn('name="justificativa"', template)
+        self.assertIn('name="etapas_reabrir"', template)
+        self.assertIn('name="exige_teste_pratico"', template)
+        self.assertIn("CREATE TABLE IF NOT EXISTS recrutamento_ciclos_historico", migration)
+        self.assertIn("CREATE TABLE IF NOT EXISTS recrutamento_etapas_historico", migration)
+        self.assertIn("CREATE TABLE IF NOT EXISTS recrutamento_complementos_historico", migration)
+
 
 if __name__ == "__main__":
     unittest.main()
