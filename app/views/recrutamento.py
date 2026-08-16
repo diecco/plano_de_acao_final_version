@@ -1196,6 +1196,7 @@ def register_recrutamento_routes(blueprint):
     @login_required
     @module_required("acesso_recrutamento")
     def salvar_proposta_recrutamento(candidatura_id):
+        acao = (request.form.get("acao") or "").strip()
         status = (request.form.get("status") or "").strip()
         data_envio = request.form.get("data_envio") or None
         observacoes = (request.form.get("observacoes") or "").strip() or None
@@ -1217,23 +1218,32 @@ def register_recrutamento_routes(blueprint):
                 raise ValueError(
                     "A proposta exige decisão consolidada favorável do RH."
                 )
-            if status not in STATUS_PROPOSTA:
-                raise ValueError("Selecione uma situação válida para a proposta.")
+            if candidatura["status"] == "liberado_admissao":
+                raise ValueError("A pré-admissão já foi concluída.")
             cursor.execute("""
                 SELECT * FROM recrutamento_propostas
                 WHERE candidatura_id = %s ORDER BY id DESC LIMIT 1 FOR UPDATE
             """, (candidatura_id,))
             proposta = cursor.fetchone()
             status_anterior = proposta["status"] if proposta else "nao_enviada"
-            if status in ("aceita", "rejeitada", "sem_retorno"):
-                if status_anterior not in ("enviada", status):
+            if acao in ("registrar_envio", "editar_envio"):
+                if acao == "editar_envio" and not proposta:
+                    raise ValueError("O envio da proposta ainda não foi registrado.")
+                status = status_anterior if acao == "editar_envio" else "enviada"
+            elif acao == "registrar_retorno":
+                if status not in ("aceita", "rejeitada", "sem_retorno"):
+                    raise ValueError("Selecione o retorno do candidato.")
+                if not proposta or not proposta.get("enviada_em"):
                     raise ValueError(
                         "Marque a proposta como Enviada antes de registrar o retorno."
                     )
-            if status in ("enviada", "aceita", "rejeitada", "sem_retorno"):
-                data_envio = data_envio or (proposta or {}).get("enviada_em")
-                if not data_envio:
-                    raise ValueError("Informe a data de envio da proposta.")
+                data_envio = proposta["enviada_em"]
+            else:
+                raise ValueError("Operação inválida para a proposta.")
+
+            data_envio = data_envio or (proposta or {}).get("enviada_em")
+            if not data_envio:
+                raise ValueError("Informe a data de envio da proposta.")
             try:
                 data_envio_valida = (
                     date.fromisoformat(str(data_envio)[:10]) if data_envio else None
@@ -1282,6 +1292,15 @@ def register_recrutamento_routes(blueprint):
                     SELECT %s, id, 1, 'pendente'
                     FROM recrutamento_tipos_documento WHERE ativo = 1
                 """, (candidatura_id,))
+            elif status in ("rejeitada", "sem_retorno") and status_anterior == "aceita":
+                cursor.execute(
+                    "DELETE FROM recrutamento_documentos_candidatura WHERE candidatura_id = %s",
+                    (candidatura_id,),
+                )
+                cursor.execute(
+                    "DELETE FROM recrutamento_pre_admissao WHERE candidatura_id = %s",
+                    (candidatura_id,),
+                )
             cursor.execute("""
                 INSERT INTO recrutamento_historico
                     (candidatura_id, evento, descricao, usuario_id)

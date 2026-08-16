@@ -232,35 +232,43 @@
 {% endif %}
 
 {% if candidatura.decisao_resultado in ('aprovado', 'aprovado_restricao') %}
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-white d-flex align-items-center justify-content-between gap-3">
-        <h5 class="mb-0"><i class="bi bi-send me-2"></i>Envio da proposta</h5>
-        <span class="badge bg-secondary">{{ status_proposta.get(proposta.status, proposta.status) if proposta else 'Não enviada' }}</span>
+<div class="d-flex align-items-center justify-content-between mb-3"><h4 class="mb-0"><i class="bi bi-signpost-split me-2"></i>Fluxo pós-seleção</h4></div>
+<div class="etapa-card mb-3">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+        <div class="d-flex gap-3 align-items-center"><span class="etapa-numero">1</span><div><h5 class="mb-1">Envio da proposta</h5><div class="etapa-meta">Registro do envio formal ao candidato</div></div></div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-secondary">{{ 'Enviada' if proposta and proposta.enviada_em else 'Não enviada' }}</span>
+            {% if pode_gerenciar and candidatura.status != 'liberado_admissao' %}<button class="btn btn-sm {{ 'btn-cinza' if proposta and proposta.enviada_em else 'btn-laranja' }}" type="button" data-bs-toggle="collapse" data-bs-target="#formEnvioProposta" title="{{ 'Editar envio' if proposta and proposta.enviada_em else 'Registrar envio' }}"><i class="bi {{ 'bi-pencil-square' if proposta and proposta.enviada_em else 'bi-send' }}"></i></button>{% endif %}
+        </div>
     </div>
-    <div class="card-body">
-        {% if pode_gerenciar and candidatura.status != 'liberado_admissao' %}
-            <form class="row g-3 align-items-end" method="post" action="{{ url_for('main.salvar_proposta_recrutamento', candidatura_id=candidatura.id) }}">
-                <div class="col-md-4">
-                    <label class="form-label" for="statusProposta">Status *</label>
-                    <select class="form-select" id="statusProposta" name="status" required>
-                        {% for valor, rotulo in status_proposta.items() %}<option value="{{ valor }}" {% if (proposta.status if proposta else 'nao_enviada') == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-3" id="blocoDataProposta">
-                    <label class="form-label" for="dataEnvioProposta">Data de envio *</label>
-                    <input class="form-control" id="dataEnvioProposta" type="date" name="data_envio" max="{{ hoje.isoformat() }}" value="{{ proposta.enviada_em.strftime('%Y-%m-%d') if proposta and proposta.enviada_em else '' }}">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label" for="observacoesProposta">Observações</label>
-                    <input class="form-control" id="observacoesProposta" name="observacoes" maxlength="500" value="{{ proposta.observacoes if proposta else '' }}">
-                </div>
-                <div class="col-md-1 d-flex justify-content-end"><button class="btn btn-laranja" type="submit" title="Salvar proposta"><i class="bi bi-check-lg"></i></button></div>
-            </form>
-        {% elif proposta %}
-            <div class="parecer-box">Enviada em {{ proposta.enviada_em.strftime('%d/%m/%Y') if proposta.enviada_em else '-' }}{% if proposta.observacoes %}<br>{{ proposta.observacoes }}{% endif %}</div>
-        {% endif %}
-    </div>
+    {% if proposta and proposta.enviada_em %}<div class="parecer-box mt-3"><strong>Enviada em:</strong> {{ proposta.enviada_em.strftime('%d/%m/%Y') }}{% if proposta.observacoes %}<br>{{ proposta.observacoes }}{% endif %}</div>{% endif %}
+    {% if pode_gerenciar and candidatura.status != 'liberado_admissao' %}
+        <div class="collapse mt-3" id="formEnvioProposta"><form class="row g-3 align-items-end" method="post" action="{{ url_for('main.salvar_proposta_recrutamento', candidatura_id=candidatura.id) }}">
+            <input type="hidden" name="acao" value="{{ 'editar_envio' if proposta and proposta.enviada_em else 'registrar_envio' }}">
+            <div class="col-md-3"><label class="form-label" for="dataEnvioProposta">Data de envio *</label><input class="form-control" id="dataEnvioProposta" type="date" name="data_envio" max="{{ hoje.isoformat() }}" value="{{ proposta.enviada_em.strftime('%Y-%m-%d') if proposta and proposta.enviada_em else hoje.isoformat() }}" required></div>
+            <div class="col-md-7"><label class="form-label" for="observacoesProposta">Observações</label><input class="form-control" id="observacoesProposta" name="observacoes" maxlength="500" value="{{ proposta.observacoes if proposta else '' }}"></div>
+            <div class="col-md-2 d-flex justify-content-end gap-2"><button class="btn btn-cinza" type="button" data-bs-toggle="collapse" data-bs-target="#formEnvioProposta">Cancelar</button><button class="btn btn-laranja" type="submit">Salvar</button></div>
+        </form></div>
+    {% endif %}
 </div>
+
+{% if proposta and proposta.enviada_em %}
+<div class="etapa-card mb-4">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+        <div class="d-flex gap-3 align-items-center"><span class="etapa-numero">2</span><div><h5 class="mb-1">Retorno do candidato</h5><div class="etapa-meta">Aceite ou encerramento da proposta enviada</div></div></div>
+        <div class="d-flex align-items-center gap-2"><span class="badge bg-secondary">{{ status_proposta.get(proposta.status, proposta.status) if proposta.status != 'enviada' else 'Aguardando retorno' }}</span>{% if pode_gerenciar and candidatura.status != 'liberado_admissao' and proposta.status != 'enviada' %}<button class="btn btn-sm btn-cinza" type="button" data-bs-toggle="collapse" data-bs-target="#formRetornoProposta" title="Editar retorno"><i class="bi bi-pencil-square"></i></button>{% endif %}</div>
+    </div>
+    {% if proposta.status != 'enviada' %}<div class="parecer-box mt-3"><strong>Resultado:</strong> {{ status_proposta.get(proposta.status, proposta.status) }}</div>{% endif %}
+    {% if pode_gerenciar and candidatura.status != 'liberado_admissao' %}
+        <div class="{{ 'collapse mt-3' if proposta.status != 'enviada' else 'mt-3' }}" id="formRetornoProposta"><form class="row g-3 align-items-end" method="post" action="{{ url_for('main.salvar_proposta_recrutamento', candidatura_id=candidatura.id) }}">
+            <input type="hidden" name="acao" value="registrar_retorno">
+            <div class="col-md-5"><label class="form-label" for="statusRetornoProposta">Resultado *</label><select class="form-select" id="statusRetornoProposta" name="status" required><option value="">Selecione</option>{% for valor in ('aceita', 'rejeitada', 'sem_retorno') %}<option value="{{ valor }}" {% if proposta.status == valor %}selected{% endif %}>{{ status_proposta[valor] }}</option>{% endfor %}</select></div>
+            <div class="col-md-5"><label class="form-label" for="observacoesRetorno">Observações</label><input class="form-control" id="observacoesRetorno" name="observacoes" maxlength="500" value="{{ proposta.observacoes or '' }}"></div>
+            <div class="col-md-2 d-flex justify-content-end gap-2">{% if proposta.status != 'enviada' %}<button class="btn btn-cinza" type="button" data-bs-toggle="collapse" data-bs-target="#formRetornoProposta">Cancelar</button>{% endif %}<button class="btn btn-laranja" type="submit">Registrar</button></div>
+        </form></div>
+    {% endif %}
+</div>
+{% endif %}
 {% endif %}
 
 {% if proposta and proposta.status == 'aceita' and pre_admissao %}
@@ -492,18 +500,6 @@ if (statusPreCadastro) {
     }
     statusPreCadastro.addEventListener('change', atualizarObservacaoPreCadastro);
     atualizarObservacaoPreCadastro();
-}
-const statusProposta = document.getElementById('statusProposta');
-if (statusProposta) {
-    function atualizarDataProposta() {
-        const exigeData = statusProposta.value !== 'nao_enviada';
-        const campo = document.getElementById('dataEnvioProposta');
-        document.getElementById('blocoDataProposta').classList.toggle('d-none', !exigeData);
-        campo.required = exigeData;
-        if (statusProposta.value === 'enviada' && !campo.value) campo.value = '{{ hoje.isoformat() }}';
-    }
-    statusProposta.addEventListener('change', atualizarDataProposta);
-    atualizarDataProposta();
 }
 const statusExame = document.getElementById('statusExame');
 if (statusExame) {
