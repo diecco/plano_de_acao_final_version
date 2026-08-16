@@ -1459,6 +1459,7 @@ def register_recrutamento_routes(blueprint):
         status = (request.form.get("status") or "").strip()
         data_exame = request.form.get("data_exame") or None
         resultado = (request.form.get("resultado") or "").strip() or None
+        observacoes_enviadas = "observacoes" in request.form
         observacoes = (request.form.get("observacoes") or "").strip() or None
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
@@ -1487,6 +1488,8 @@ def register_recrutamento_routes(blueprint):
             pre_admissao_atual = cursor.fetchone()
             if pre_admissao_atual is None:
                 raise ValueError("A pré-admissão ainda não foi iniciada.")
+            if not observacoes_enviadas:
+                observacoes = pre_admissao_atual.get("observacoes")
             if status not in STATUS_EXAME_ADMISSIONAL:
                 raise ValueError("Selecione uma situação válida para o exame.")
             if status != "agendado":

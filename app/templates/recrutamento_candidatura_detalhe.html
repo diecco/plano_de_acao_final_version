@@ -11,6 +11,7 @@
     .parecer-box.compacto { white-space:normal; }
     .historico-item { border-left:2px solid #f36b21; padding:0 0 14px 14px; }
     .modal-header-trackplan { background:#f36b21; color:#fff; }
+    .btn-cabecalho-acao { min-width:42px; min-height:38px; display:inline-flex; align-items:center; justify-content:center; }
 </style>
 {% endblock %}
 
@@ -33,10 +34,10 @@
     <div class="card-header bg-white d-flex align-items-center justify-content-between">
         <h5 class="mb-0"><i class="bi bi-person-vcard me-2"></i>Dados do candidato</h5>
         <div class="d-flex align-items-center gap-2">
-            {% if candidatura.curriculo_arquivo %}<a class="btn-acao-icon" href="{{ url_for('main.baixar_curriculo_recrutamento', nome=candidatura.curriculo_arquivo) }}" title="Baixar currículo"><i class="bi bi-paperclip"></i></a>{% endif %}
-            {% if pode_gerenciar and candidatura.status in ('cadastrado', 'em_triagem') %}<form method="post" action="{{ url_for('main.iniciar_selecao_recrutamento', candidatura_id=candidatura.id) }}"><button class="btn-acao-icon" type="submit" title="Iniciar seleção"><i class="bi bi-play-fill"></i></button></form>{% elif pode_gerenciar and candidatura.decisao_resultado %}<button class="btn-acao-icon" type="button" data-bs-toggle="modal" data-bs-target="#modalReaproveitar" title="Reaproveitar candidatura"><i class="bi bi-arrow-repeat"></i></button>{% endif %}
-            {% if pode_encerrar %}<button class="btn-acao-icon" type="button" data-bs-toggle="modal" data-bs-target="#modalEncerrarCandidatura" title="Encerrar processo"><i class="bi bi-x-circle"></i></button>{% endif %}
-            <a class="btn-acao-icon" href="{{ url_for('main.recrutamento_candidatos') }}" title="Voltar"><i class="bi bi-arrow-left"></i></a>
+            {% if candidatura.curriculo_arquivo %}<a class="btn btn-laranja btn-cabecalho-acao" href="{{ url_for('main.baixar_curriculo_recrutamento', nome=candidatura.curriculo_arquivo) }}" title="Baixar currículo"><i class="bi bi-paperclip"></i></a>{% endif %}
+            {% if pode_gerenciar and candidatura.status in ('cadastrado', 'em_triagem') %}<form method="post" action="{{ url_for('main.iniciar_selecao_recrutamento', candidatura_id=candidatura.id) }}"><button class="btn btn-laranja btn-cabecalho-acao" type="submit" title="Iniciar seleção"><i class="bi bi-play-fill"></i></button></form>{% elif pode_gerenciar and candidatura.decisao_resultado %}<button class="btn btn-laranja btn-cabecalho-acao" type="button" data-bs-toggle="modal" data-bs-target="#modalReaproveitar" title="Reaproveitar candidatura"><i class="bi bi-arrow-repeat"></i></button>{% endif %}
+            {% if pode_encerrar %}<button class="btn btn-laranja btn-cabecalho-acao" type="button" data-bs-toggle="modal" data-bs-target="#modalEncerrarCandidatura" title="Encerrar processo"><i class="bi bi-x-circle"></i></button>{% endif %}
+            <a class="btn btn-cinza btn-cabecalho-acao" href="{{ url_for('main.recrutamento_candidatos') }}" title="Voltar"><i class="bi bi-arrow-left"></i></a>
         </div>
     </div>
     <div class="card-body">
@@ -55,7 +56,7 @@
 {% if candidatura.status not in ('cadastrado', 'em_triagem') %}
 <div class="d-flex align-items-center justify-content-between mb-3">
     <h4 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Etapas da seleção</h4>
-    <div class="d-flex align-items-center gap-2"><span class="badge bg-secondary">{{ etapas|length + 1 }} etapa(s)</span><button class="btn-acao-icon" type="button" data-bs-toggle="collapse" data-bs-target="#etapasSelecaoConteudo" title="Recolher ou expandir etapas"><i class="bi bi-chevron-up"></i></button></div>
+    <div class="d-flex align-items-center gap-2"><span class="badge bg-secondary">{{ etapas|length + 1 }} etapa(s)</span><button class="btn-acao-icon collapse-section-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#etapasSelecaoConteudo" aria-expanded="true" title="Recolher etapas"><i class="bi bi-chevron-up"></i></button></div>
 </div>
 
 <div class="collapse show" id="etapasSelecaoConteudo"><div class="row g-3 mb-4">
@@ -112,7 +113,7 @@
                             <form class="mt-3" method="post" action="{{ url_for('main.complementar_parecer_recrutamento', candidatura_id=candidatura.id, etapa_id=etapa.id) }}">
                                 <label class="form-label" for="complemento-{{ etapa.id }}">Parecer complementar</label>
                                 <textarea class="form-control" id="complemento-{{ etapa.id }}" name="parecer_complementar" rows="2" required></textarea>
-                                <div class="d-flex justify-content-end mt-2"><button class="btn btn-cinza" type="submit"><i class="bi bi-plus-circle me-1"></i>Adicionar complemento</button></div>
+                                <div class="d-flex justify-content-end mt-2"><button class="btn btn-laranja" type="submit">Registrar</button></div>
                             </form>
                         {% endif %}
                     </div>
@@ -135,7 +136,7 @@
                                 <textarea class="form-control" id="texto-restricao-{{ etapa.id }}" name="restricao" rows="2"></textarea>
                             </div>
                             <div class="col-12 d-flex justify-content-end">
-                                <button class="btn btn-laranja" type="submit"><i class="bi bi-check2-circle me-1"></i>Registrar parecer</button>
+                                <button class="btn btn-laranja" type="submit">Registrar</button>
                             </div>
                         </div>
                     </form>
@@ -156,7 +157,7 @@
                 <div class="d-flex align-items-center gap-2">
                     <span class="badge bg-secondary">{{ status_validacao_cliente.get(pre_cadastro_cliente.status, pre_cadastro_cliente.status) if pre_cadastro_cliente else 'Não iniciado' }}</span>
                     {% if pode_gerenciar and candidatura.status != 'liberado_admissao' %}
-                        <button class="btn btn-sm {{ 'btn-cinza' if pre_cadastro_cliente else 'btn-laranja' }}" type="button" data-bs-toggle="collapse" data-bs-target="#formPreCadastroCliente" title="{{ 'Editar pré-cadastro' if pre_cadastro_cliente else 'Registrar pré-cadastro' }}"><i class="bi {{ 'bi-pencil-square' if pre_cadastro_cliente else 'bi-plus-lg' }}"></i></button>
+                        <button class="btn btn-sm btn-laranja" type="button" data-bs-toggle="collapse" data-bs-target="#formPreCadastroCliente" title="{{ 'Editar pré-cadastro' if pre_cadastro_cliente else 'Registrar pré-cadastro' }}"><i class="bi {{ 'bi-pencil-square' if pre_cadastro_cliente else 'bi-plus-lg' }}"></i></button>
                     {% endif %}
                 </div>
             </div>
@@ -216,7 +217,7 @@
                         {% endif %}
                     </div>
                     <div class="col-md-8"><label class="form-label" for="decisaoParecer">Justificativa *</label><textarea class="form-control" id="decisaoParecer" name="decisao_parecer" rows="3" required></textarea></div>
-                    <div class="col-12 d-flex justify-content-end"><button class="btn btn-laranja" type="submit"><i class="bi bi-check2-circle me-1"></i>Registrar</button></div>
+                    <div class="col-12 d-flex justify-content-end"><button class="btn btn-laranja" type="submit">Registrar</button></div>
                 </div>
             </form>
         {% endif %}
@@ -225,7 +226,11 @@
 {% endif %}
 
 {% if candidatura.decisao_resultado in ('aprovado', 'aprovado_restricao') %}
-<div class="d-flex align-items-center justify-content-between mb-3"><h4 class="mb-0"><i class="bi bi-signpost-split me-2"></i>Fluxo pós-seleção</h4></div>
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <h4 class="mb-0"><i class="bi bi-signpost-split me-2"></i>Fluxo pós-seleção</h4>
+    <button class="btn-acao-icon collapse-section-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#fluxoPosSelecaoConteudo" aria-expanded="true" title="Recolher fluxo pós-seleção"><i class="bi bi-chevron-up"></i></button>
+</div>
+<div class="collapse show" id="fluxoPosSelecaoConteudo">
 <div class="etapa-card mb-3">
     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
         <div class="d-flex gap-3 align-items-center"><span class="etapa-numero">1</span><div><h5 class="mb-1">Envio da proposta</h5><div class="etapa-meta">Registro do envio formal ao candidato</div></div></div>
@@ -276,7 +281,7 @@
                 <div><h6 class="text-orange mb-1">Exame admissional</h6><div class="etapa-meta">Agendamento e resultado ocupacional</div></div>
                 <div class="d-flex align-items-center gap-2">
                     <span class="badge bg-secondary">{{ status_exame_admissional.get(pre_admissao.aso_status, pre_admissao.aso_status) }}</span>
-                    {% if pode_gerenciar and not pre_admissao.liberado_admissao_em %}<button class="btn btn-sm btn-cinza" type="button" data-bs-toggle="collapse" data-bs-target="#formExameAdmissional" title="Editar exame admissional"><i class="bi bi-pencil-square"></i></button>{% endif %}
+                    {% if pode_gerenciar and not pre_admissao.liberado_admissao_em %}<button class="btn btn-sm btn-laranja" type="button" data-bs-toggle="collapse" data-bs-target="#formExameAdmissional" title="Editar exame admissional"><i class="bi bi-pencil-square"></i></button>{% endif %}
                 </div>
             </div>
             <div class="parecer-box compacto mt-3">
@@ -293,16 +298,16 @@
                 </div>
                 <div class="col-md-2" id="blocoDataExame">
                     <label class="form-label" for="dataExame">Data do exame *</label>
-                    <input class="form-control" id="dataExame" type="date" name="data_exame" value="{{ pre_admissao.aso_data_prevista.isoformat() if pre_admissao.aso_data_prevista else '' }}">
+                    <input class="form-control" id="dataExame" type="date" name="data_exame" value="{{ pre_admissao.aso_data_prevista.isoformat() if pre_admissao.aso_data_prevista else '' }}" {% if pre_admissao.aso_status != 'agendado' %}disabled{% endif %}>
                 </div>
                 <div class="col-md-2" id="blocoResultadoExame">
                     <label class="form-label" for="resultadoExame">Resultado *</label>
-                    <select class="form-select" id="resultadoExame" name="resultado">
+                    <select class="form-select" id="resultadoExame" name="resultado" {% if pre_admissao.aso_status != 'concluido' %}disabled{% endif %}>
                         <option value="">Selecione</option>
                         {% for valor, rotulo in resultados_exame_admissional.items() %}<option value="{{ valor }}" {% if pre_admissao.aso_resultado == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3"><label class="form-label" for="observacoesExame">Observações</label><input class="form-control" id="observacoesExame" name="observacoes" maxlength="500" value="{{ pre_admissao.observacoes or '' }}"></div>
+                <div class="col-md-3"><label class="form-label" for="observacoesExame">Observações</label><input class="form-control" id="observacoesExame" name="observacoes" maxlength="500" value="{{ pre_admissao.observacoes or '' }}" {% if pre_admissao.aso_status not in ('concluido', 'cancelado') %}disabled{% endif %}></div>
                 <div class="col-md-2 d-flex justify-content-end gap-2"><button class="btn btn-cinza" type="button" data-bs-toggle="collapse" data-bs-target="#formExameAdmissional">Cancelar</button><button class="btn btn-laranja" type="submit">Salvar</button></div>
             </form>
             </div>
@@ -326,7 +331,7 @@
                         </tbody>
                     </table>
                 </div>
-                {% if pode_gerenciar and not pre_admissao.liberado_admissao_em %}<div class="d-flex justify-content-end"><button class="btn btn-cinza" type="submit">Salvar documentos</button></div>{% endif %}
+                {% if pode_gerenciar and not pre_admissao.liberado_admissao_em %}<div class="d-flex justify-content-end"><button class="btn btn-laranja" type="submit">Salvar</button></div>{% endif %}
             </form>
         {% else %}<div class="alert alert-secondary">Nenhum tipo de documento ativo foi configurado.</div>{% endif %}
 
@@ -339,6 +344,7 @@
     </div>
 </div>
 {% endif %}
+</div>
 
 {% if ciclos_anteriores %}
 <div class="card border-0 shadow-sm mb-4">
@@ -401,8 +407,11 @@
 {% endif %}
 
 <div class="card border-0 shadow-sm">
-    <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Histórico</h5></div>
-    <div class="card-body">
+    <div class="card-header bg-white d-flex align-items-center justify-content-between">
+        <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Histórico</h5>
+        <button class="btn-acao-icon collapse-section-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#historicoRecrutamentoConteudo" aria-expanded="true" title="Recolher histórico"><i class="bi bi-chevron-up"></i></button>
+    </div>
+    <div class="card-body collapse show" id="historicoRecrutamentoConteudo">
         {% for item in historico %}
             <div class="historico-item">
                 <strong>{{ item.descricao }}</strong><br>
@@ -545,19 +554,37 @@ if (statusExame) {
     function atualizarExame() {
         const permiteData = statusExame.value === 'agendado';
         const concluido = statusExame.value === 'concluido';
+        const cancelado = statusExame.value === 'cancelado';
         const data = document.getElementById('dataExame');
         const resultado = document.getElementById('resultadoExame');
+        const observacoes = document.getElementById('observacoesExame');
         data.disabled = !permiteData;
         resultado.disabled = !concluido;
+        observacoes.disabled = !(concluido || cancelado);
         data.required = permiteData;
         resultado.required = concluido;
-        if (!concluido) resultado.value = '';
-        const observacoes = document.getElementById('observacoesExame');
-        observacoes.required = statusExame.value === 'cancelado' || (concluido && resultado.value === 'apto_restricao');
+        observacoes.required = cancelado || (concluido && resultado.value === 'apto_restricao');
     }
     statusExame.addEventListener('change', atualizarExame);
     document.getElementById('resultadoExame').addEventListener('change', atualizarExame);
     atualizarExame();
 }
+document.querySelectorAll('.collapse-section-toggle').forEach(function (botao) {
+    const seletor = botao.getAttribute('data-bs-target');
+    const alvo = seletor ? document.querySelector(seletor) : null;
+    const icone = botao.querySelector('i');
+    if (!alvo || !icone) return;
+
+    alvo.addEventListener('shown.bs.collapse', function () {
+        icone.className = 'bi bi-chevron-up';
+        botao.setAttribute('aria-expanded', 'true');
+        botao.title = botao.title.replace('Expandir', 'Recolher');
+    });
+    alvo.addEventListener('hidden.bs.collapse', function () {
+        icone.className = 'bi bi-chevron-down';
+        botao.setAttribute('aria-expanded', 'false');
+        botao.title = botao.title.replace('Recolher', 'Expandir');
+    });
+});
 </script>
 {% endblock %}
