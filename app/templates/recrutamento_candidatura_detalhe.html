@@ -187,17 +187,17 @@
             {% if pode_gerenciar and candidatura.status != 'liberado_admissao' %}
                 <div class="collapse mt-3" id="formPreCadastroCliente">
                 <form class="row g-3 align-items-end" method="post" action="{{ url_for('main.salvar_pre_cadastro_cliente_recrutamento', candidatura_id=candidatura.id) }}">
-                    <div class="col-md-5">
+                    <div class="col-md-7">
                         <label class="form-label" for="clientePreCadastro">Cliente *</label>
                         <input class="form-control" id="clientePreCadastro" name="cliente" value="{{ pre_cadastro_cliente.cliente if pre_cadastro_cliente else '' }}" maxlength="160" required>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label" for="statusPreCadastro">Status *</label>
                         <select class="form-select" id="statusPreCadastro" name="status" required>
                             {% for valor, rotulo in status_validacao_cliente.items() %}<option value="{{ valor }}" {% if (pre_cadastro_cliente.status if pre_cadastro_cliente else 'nao_iniciado') == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-3 d-flex justify-content-end gap-2"><button class="btn btn-cinza" type="button" data-bs-toggle="collapse" data-bs-target="#formPreCadastroCliente">Cancelar</button><button class="btn btn-laranja" type="submit">Salvar</button></div>
+                    <div class="col-md-2 d-flex justify-content-end gap-2"><button class="btn btn-cinza" type="button" data-bs-toggle="collapse" data-bs-target="#formPreCadastroCliente">Cancelar</button><button class="btn btn-laranja" type="submit">Salvar</button></div>
                     <div class="col-12 d-none" id="observacaoPreCadastro">
                         <label class="form-label" for="textoPreCadastro">Motivo operacional da reprovação *</label>
                         <textarea class="form-control" id="textoPreCadastro" name="observacao" rows="2">{{ pre_cadastro_cliente.observacao_operacional if pre_cadastro_cliente else '' }}</textarea>
@@ -312,11 +312,11 @@
                         {% for valor, rotulo in status_exame_admissional.items() %}<option value="{{ valor }}" {% if pre_admissao.aso_status == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3" id="blocoDataExame">
+                <div class="col-md-2" id="blocoDataExame">
                     <label class="form-label" for="dataExame">Data do exame *</label>
                     <input class="form-control" id="dataExame" type="date" name="data_exame" value="{{ pre_admissao.aso_data_prevista.isoformat() if pre_admissao.aso_data_prevista else '' }}">
                 </div>
-                <div class="col-md-3" id="blocoResultadoExame">
+                <div class="col-md-2" id="blocoResultadoExame">
                     <label class="form-label" for="resultadoExame">Resultado *</label>
                     <select class="form-select" id="resultadoExame" name="resultado">
                         <option value="">Selecione</option>
@@ -324,7 +324,7 @@
                     </select>
                 </div>
                 <div class="col-md-3"><label class="form-label" for="observacoesExame">Observações</label><input class="form-control" id="observacoesExame" name="observacoes" maxlength="500" value="{{ pre_admissao.observacoes or '' }}"></div>
-                <div class="col-12 d-flex justify-content-end gap-2"><button class="btn btn-cinza" type="button" data-bs-toggle="collapse" data-bs-target="#formExameAdmissional">Cancelar</button><button class="btn btn-laranja" type="submit">Salvar</button></div>
+                <div class="col-md-2 d-flex justify-content-end gap-2"><button class="btn btn-cinza" type="button" data-bs-toggle="collapse" data-bs-target="#formExameAdmissional">Cancelar</button><button class="btn btn-laranja" type="submit">Salvar</button></div>
             </form>
             </div>
             {% endif %}
