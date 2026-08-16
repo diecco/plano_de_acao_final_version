@@ -239,6 +239,10 @@ class RecrutamentoModuleTests(unittest.TestCase):
         self.assertIn("pre_cadastro_cliente", migration)
         self.assertIn("aguardando_validacao", migration)
         self.assertIn("DELETE FROM recrutamento_validacoes_cliente", source)
+        self.assertIn(
+            "pode_gerenciar and candidatura.status != 'liberado_admissao'",
+            template,
+        )
 
     def test_proposal_and_pre_admission_follow_business_rules(self):
         source = (ROOT / "app" / "views" / "recrutamento.py").read_text(

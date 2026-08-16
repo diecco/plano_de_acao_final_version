@@ -175,7 +175,7 @@
             {% if pre_cadastro_cliente and pre_cadastro_cliente.observacao_operacional %}
                 <div class="parecer-box mt-3">{{ pre_cadastro_cliente.observacao_operacional }}</div>
             {% endif %}
-            {% if pode_gerenciar and not candidatura.decisao_resultado %}
+            {% if pode_gerenciar and candidatura.status != 'liberado_admissao' %}
                 <form class="row g-3 align-items-end mt-2" method="post" action="{{ url_for('main.salvar_pre_cadastro_cliente_recrutamento', candidatura_id=candidatura.id) }}">
                     <div class="col-md-5">
                         <label class="form-label" for="clientePreCadastro">Cliente *</label>
