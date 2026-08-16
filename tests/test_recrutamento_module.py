@@ -342,6 +342,8 @@ class RecrutamentoModuleTests(unittest.TestCase):
         self.assertIn(">Salvar</button>", cadastro)
         self.assertIn("and not etapa.avaliador_id", detalhe)
         self.assertIn("Gerdau - Ouro Branco", detalhe)
+        self.assertIn('onchange="atualizarCamposExameAdmissional(this.value)"', detalhe)
+        self.assertIn("function atualizarCamposExameAdmissional(status)", detalhe)
         self.assertIn("data.disabled = !permiteData", detalhe)
         self.assertIn("resultado.disabled = !concluido", detalhe)
         self.assertIn("observacoes.disabled = !(concluido || cancelado)", detalhe)
