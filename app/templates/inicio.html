@@ -1,0 +1,159 @@
+{% extends "layout.html" %}
+{% set no_global_card = true %}
+
+{% block titulo %}Início{% endblock %}
+
+{% block extra_css %}
+<style>
+    .inicio-trackplan {
+        position: relative;
+        min-height: calc(100vh - 112px);
+        overflow: hidden;
+        border-radius: 14px;
+        background: #f4f5f6;
+    }
+
+    .inicio-trackplan::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: url("{{ url_for('static', filename='imagens/fundo_gestao_rotina.png') }}")
+                    right bottom / cover no-repeat;
+        opacity: .72;
+        pointer-events: none;
+    }
+
+    .comunicado-modal .modal-dialog {
+        max-width: min(1100px, calc(100vw - 2rem));
+    }
+
+    .comunicado-modal .modal-content {
+        overflow: hidden;
+        border: 0;
+        border-radius: 14px;
+        background: transparent;
+        box-shadow: 0 16px 52px rgba(0, 0, 0, .28);
+    }
+
+    .comunicado-modal .btn-close {
+        position: absolute;
+        z-index: 10;
+        top: 14px;
+        right: 14px;
+        width: 2rem;
+        height: 2rem;
+        padding: .45rem;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, .94);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, .22);
+        opacity: 1;
+    }
+
+    .comunicado-imagem {
+        display: block;
+        width: 100%;
+        max-height: 84vh;
+        object-fit: contain;
+        background: #fff;
+    }
+
+    .comunicado-modal .carousel-control-prev,
+    .comunicado-modal .carousel-control-next {
+        width: 8%;
+    }
+
+    .comunicado-modal .carousel-control-prev-icon,
+    .comunicado-modal .carousel-control-next-icon {
+        padding: 1.2rem;
+        border-radius: 50%;
+        background-color: rgba(37, 42, 48, .62);
+        background-size: 52%;
+    }
+
+    .comunicado-modal .carousel-indicators [data-bs-target] {
+        width: 9px;
+        height: 9px;
+        border: 0;
+        border-radius: 50%;
+        background-color: #f36b21;
+    }
+
+    @media (max-width: 767.98px) {
+        .inicio-trackplan { min-height: calc(100vh - 92px); }
+        .inicio-trackplan::after { background-size: auto 78%; }
+    }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+<section class="inicio-trackplan" aria-label="Página inicial do TrackPlan"></section>
+
+{% if comunicados %}
+<div class="modal fade comunicado-modal"
+     id="modalComunicados"
+     tabindex="-1"
+     aria-label="Comunicados"
+     aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Fechar"></button>
+
+            <div id="carrosselComunicados" class="carousel slide" data-bs-interval="false">
+                <div class="carousel-inner">
+                    {% for comunicado in comunicados %}
+                    <div class="carousel-item {% if loop.first %}active{% endif %}">
+                        <img class="comunicado-imagem"
+                             src="{{ url_for('static', filename='comunicados/' ~ comunicado.imagem) }}"
+                             alt="Comunicado {{ loop.index }}">
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if comunicados|length > 1 %}
+                <div class="carousel-indicators">
+                    {% for comunicado in comunicados %}
+                    <button type="button"
+                            data-bs-target="#carrosselComunicados"
+                            data-bs-slide-to="{{ loop.index0 }}"
+                            class="{% if loop.first %}active{% endif %}"
+                            aria-current="{{ 'true' if loop.first else 'false' }}"
+                            aria-label="Comunicado {{ loop.index }}"></button>
+                    {% endfor %}
+                </div>
+                <button class="carousel-control-prev"
+                        type="button"
+                        data-bs-target="#carrosselComunicados"
+                        data-bs-slide="prev"
+                        aria-label="Comunicado anterior">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                </button>
+                <button class="carousel-control-next"
+                        type="button"
+                        data-bs-target="#carrosselComunicados"
+                        data-bs-slide="next"
+                        aria-label="Próximo comunicado">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if comunicados %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const elemento = document.getElementById('modalComunicados');
+    if (elemento && window.bootstrap) {
+        bootstrap.Modal.getOrCreateInstance(elemento).show();
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

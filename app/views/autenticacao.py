@@ -102,11 +102,8 @@ def register_autenticacao_routes(blueprint):
                 if usuario.get('precisa_alterar_senha'):
                     return redirect('/alterar_senha')
 
-                # Redirecionamento
-                if session['perfil'] == 'administrador':
-                    return redirect('/admin')
-
-                return redirect('/dashboard')
+                # Todos os perfis iniciam na central neutra do TrackPlan.
+                return redirect('/inicio')
 
             flash('Email ou senha inválidos.', 'warning')
 
