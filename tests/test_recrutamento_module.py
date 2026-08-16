@@ -240,6 +240,32 @@ class RecrutamentoModuleTests(unittest.TestCase):
         self.assertIn("aguardando_validacao", migration)
         self.assertIn("DELETE FROM recrutamento_validacoes_cliente", source)
 
+    def test_proposal_and_pre_admission_follow_business_rules(self):
+        source = (ROOT / "app" / "views" / "recrutamento.py").read_text(
+            encoding="utf-8"
+        )
+        template = (
+            ROOT / "app" / "templates" / "recrutamento_candidatura_detalhe.html"
+        ).read_text(encoding="utf-8")
+        migration = (
+            ROOT / "docs" / "adicionar_proposta_pre_admissao_recrutamento.sql"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('"nao_enviada": "Não enviada"', source)
+        self.assertIn('"sem_retorno": "Sem retorno"', source)
+        self.assertIn("def salvar_proposta_recrutamento", source)
+        self.assertIn('status_anterior not in ("enviada", status)', source)
+        self.assertIn("def salvar_exame_admissional_recrutamento", source)
+        self.assertIn('"concluido": "Concluído"', source)
+        self.assertIn('"apto_restricao": "Apto com restrição"', source)
+        self.assertIn("def salvar_documentos_pre_admissao_recrutamento", source)
+        self.assertIn("def concluir_pre_admissao_recrutamento", source)
+        self.assertIn("Envio da proposta", template)
+        self.assertIn("Exame admissional", template)
+        self.assertIn("Documentação admissional", template)
+        self.assertIn("recrutamento_tipos_documento", migration)
+        self.assertIn("nao_aplicavel", migration)
+
 
 if __name__ == "__main__":
     unittest.main()

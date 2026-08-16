@@ -51,6 +51,35 @@ STATUS_VALIDACAO_CLIENTE = {
     "reprovado": "Reprovado",
 }
 
+STATUS_PROPOSTA = {
+    "nao_enviada": "Não enviada",
+    "enviada": "Enviada",
+    "aceita": "Aceita",
+    "rejeitada": "Rejeitada",
+    "sem_retorno": "Sem retorno",
+}
+
+STATUS_EXAME_ADMISSIONAL = {
+    "aguardando_agendamento": "Aguardando agendamento",
+    "agendado": "Agendado",
+    "aguardando_resultado": "Aguardando resultado",
+    "concluido": "Concluído",
+    "cancelado": "Cancelado",
+}
+
+RESULTADOS_EXAME_ADMISSIONAL = {
+    "apto": "Apto",
+    "inapto": "Inapto",
+    "apto_restricao": "Apto com restrição",
+}
+
+STATUS_DOCUMENTO_ADMISSIONAL = {
+    "pendente": "Pendente",
+    "recebido": "Recebido",
+    "nao_aplicavel": "Não aplicável",
+    "inconsistente": "Com inconsistência",
+}
+
 
 def _somente_digitos(valor):
     return re.sub(r"\D", "", valor or "")
@@ -459,6 +488,28 @@ def register_recrutamento_routes(blueprint):
                 LIMIT 1
             """, (candidatura_id,))
             pre_cadastro_cliente = cursor.fetchone()
+            cursor.execute("""
+                SELECT * FROM recrutamento_propostas
+                WHERE candidatura_id = %s
+                ORDER BY id DESC LIMIT 1
+            """, (candidatura_id,))
+            proposta = cursor.fetchone()
+            cursor.execute("""
+                SELECT * FROM recrutamento_pre_admissao
+                WHERE candidatura_id = %s
+            """, (candidatura_id,))
+            pre_admissao = cursor.fetchone()
+            documentos_admissionais = []
+            if pre_admissao:
+                cursor.execute("""
+                    SELECT dc.*, td.nome
+                    FROM recrutamento_documentos_candidatura dc
+                    JOIN recrutamento_tipos_documento td
+                      ON td.id = dc.tipo_documento_id
+                    WHERE dc.candidatura_id = %s
+                    ORDER BY td.nome
+                """, (candidatura_id,))
+                documentos_admissionais = cursor.fetchall()
         finally:
             cursor.close()
             conn.close()
@@ -476,6 +527,13 @@ def register_recrutamento_routes(blueprint):
             complementos_ciclos=complementos_ciclos,
             pre_cadastro_cliente=pre_cadastro_cliente,
             status_validacao_cliente=STATUS_VALIDACAO_CLIENTE,
+            proposta=proposta,
+            status_proposta=STATUS_PROPOSTA,
+            pre_admissao=pre_admissao,
+            status_exame_admissional=STATUS_EXAME_ADMISSIONAL,
+            resultados_exame_admissional=RESULTADOS_EXAME_ADMISSIONAL,
+            documentos_admissionais=documentos_admissionais,
+            status_documento_admissional=STATUS_DOCUMENTO_ADMISSIONAL,
         )
 
     @blueprint.route("/recrutamento/candidaturas/<int:candidatura_id>/reaproveitar", methods=["POST"])
@@ -545,15 +603,28 @@ def register_recrutamento_routes(blueprint):
             """, (candidatura_id,))
             pre_cadastro_atual = cursor.fetchone() or {}
             cursor.execute("""
+                SELECT status, enviada_em FROM recrutamento_propostas
+                WHERE candidatura_id = %s ORDER BY id DESC LIMIT 1
+            """, (candidatura_id,))
+            proposta_atual = cursor.fetchone() or {}
+            cursor.execute("""
+                SELECT aso_status, aso_resultado, aso_data_prevista,
+                       documentos_status
+                FROM recrutamento_pre_admissao WHERE candidatura_id = %s
+            """, (candidatura_id,))
+            pre_admissao_atual = cursor.fetchone() or {}
+            cursor.execute("""
                 INSERT INTO recrutamento_ciclos_historico (
                     candidatura_id, numero_ciclo, cargo_id, cargo_pretendido,
                     exige_teste_pratico, status, decisao_resultado,
                     decisao_parecer, decisao_por,
                     decisao_em, justificativa_reaproveitamento, arquivado_por,
                     pre_cadastro_cliente, pre_cadastro_status,
-                    pre_cadastro_observacao
+                    pre_cadastro_observacao, proposta_status,
+                    proposta_enviada_em, aso_status, aso_resultado,
+                    aso_data_prevista, documentos_status
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                          %s, %s, %s)
+                          %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 candidatura_id, numero_ciclo, candidatura.get("cargo_id"),
                 candidatura["cargo_pretendido"],
@@ -565,6 +636,12 @@ def register_recrutamento_routes(blueprint):
                 pre_cadastro_atual.get("cliente"),
                 pre_cadastro_atual.get("status"),
                 pre_cadastro_atual.get("observacao_operacional"),
+                proposta_atual.get("status"),
+                proposta_atual.get("enviada_em"),
+                pre_admissao_atual.get("aso_status"),
+                pre_admissao_atual.get("aso_resultado"),
+                pre_admissao_atual.get("aso_data_prevista"),
+                pre_admissao_atual.get("documentos_status"),
             ))
             ciclo_historico_id = cursor.lastrowid
             cursor.execute("""
@@ -647,6 +724,18 @@ def register_recrutamento_routes(blueprint):
             """, (cargo_id, cargo_pretendido, teste_pratico, candidatura_id))
             cursor.execute(
                 "DELETE FROM recrutamento_validacoes_cliente WHERE candidatura_id = %s",
+                (candidatura_id,),
+            )
+            cursor.execute(
+                "DELETE FROM recrutamento_documentos_candidatura WHERE candidatura_id = %s",
+                (candidatura_id,),
+            )
+            cursor.execute(
+                "DELETE FROM recrutamento_pre_admissao WHERE candidatura_id = %s",
+                (candidatura_id,),
+            )
+            cursor.execute(
+                "DELETE FROM recrutamento_propostas WHERE candidatura_id = %s",
                 (candidatura_id,),
             )
             cursor.execute("""
@@ -1102,6 +1191,358 @@ def register_recrutamento_routes(blueprint):
             cursor.close()
             conn.close()
         return redirect(url_for("main.detalhe_candidatura_recrutamento", candidatura_id=candidatura_id))
+
+    @blueprint.route("/recrutamento/candidaturas/<int:candidatura_id>/proposta", methods=["POST"])
+    @login_required
+    @module_required("acesso_recrutamento")
+    def salvar_proposta_recrutamento(candidatura_id):
+        status = (request.form.get("status") or "").strip()
+        data_envio = request.form.get("data_envio") or None
+        observacoes = (request.form.get("observacoes") or "").strip() or None
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute(
+                "SELECT * FROM recrutamento_candidaturas WHERE id = %s FOR UPDATE",
+                (candidatura_id,),
+            )
+            candidatura = cursor.fetchone()
+            if candidatura is None:
+                abort(404)
+            if not _pode_gerenciar_candidatura(candidatura):
+                abort(403)
+            if candidatura.get("decisao_resultado") not in (
+                "aprovado", "aprovado_restricao"
+            ):
+                raise ValueError(
+                    "A proposta exige decisão consolidada favorável do RH."
+                )
+            if status not in STATUS_PROPOSTA:
+                raise ValueError("Selecione uma situação válida para a proposta.")
+            cursor.execute("""
+                SELECT * FROM recrutamento_propostas
+                WHERE candidatura_id = %s ORDER BY id DESC LIMIT 1 FOR UPDATE
+            """, (candidatura_id,))
+            proposta = cursor.fetchone()
+            status_anterior = proposta["status"] if proposta else "nao_enviada"
+            if status in ("aceita", "rejeitada", "sem_retorno"):
+                if status_anterior not in ("enviada", status):
+                    raise ValueError(
+                        "Marque a proposta como Enviada antes de registrar o retorno."
+                    )
+            if status in ("enviada", "aceita", "rejeitada", "sem_retorno"):
+                data_envio = data_envio or (proposta or {}).get("enviada_em")
+                if not data_envio:
+                    raise ValueError("Informe a data de envio da proposta.")
+            try:
+                data_envio_valida = (
+                    date.fromisoformat(str(data_envio)[:10]) if data_envio else None
+                )
+            except ValueError as exc:
+                raise ValueError("Informe uma data de envio válida.") from exc
+            if data_envio_valida and data_envio_valida > date.today():
+                raise ValueError("A data de envio não pode ser futura.")
+
+            if proposta:
+                cursor.execute("""
+                    UPDATE recrutamento_propostas
+                    SET status = %s, enviada_em = %s, observacoes = %s
+                    WHERE id = %s
+                """, (status, data_envio_valida, observacoes, proposta["id"]))
+            else:
+                cursor.execute("""
+                    INSERT INTO recrutamento_propostas (
+                        candidatura_id, status, enviada_em, observacoes, criado_por
+                    ) VALUES (%s, %s, %s, %s, %s)
+                """, (
+                    candidatura_id, status, data_envio_valida, observacoes,
+                    session["usuario_id"],
+                ))
+
+            status_candidatura = {
+                "nao_enviada": "aguardando_proposta",
+                "enviada": "proposta_enviada",
+                "aceita": "em_pre_admissao",
+                "rejeitada": "proposta_recusada",
+                "sem_retorno": "proposta_enviada",
+            }[status]
+            cursor.execute(
+                "UPDATE recrutamento_candidaturas SET status = %s WHERE id = %s",
+                (status_candidatura, candidatura_id),
+            )
+            if status == "aceita":
+                cursor.execute("""
+                    INSERT IGNORE INTO recrutamento_pre_admissao (candidatura_id)
+                    VALUES (%s)
+                """, (candidatura_id,))
+                cursor.execute("""
+                    INSERT IGNORE INTO recrutamento_documentos_candidatura (
+                        candidatura_id, tipo_documento_id, obrigatorio, status
+                    )
+                    SELECT %s, id, 1, 'pendente'
+                    FROM recrutamento_tipos_documento WHERE ativo = 1
+                """, (candidatura_id,))
+            cursor.execute("""
+                INSERT INTO recrutamento_historico
+                    (candidatura_id, evento, descricao, usuario_id)
+                VALUES (%s, 'proposta_atualizada', %s, %s)
+            """, (
+                candidatura_id,
+                f"Proposta atualizada para {STATUS_PROPOSTA[status]}.",
+                session["usuario_id"],
+            ))
+            conn.commit()
+            flash("Situação da proposta atualizada.", "success")
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "danger")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+        return redirect(url_for(
+            "main.detalhe_candidatura_recrutamento",
+            candidatura_id=candidatura_id,
+        ))
+
+    @blueprint.route("/recrutamento/candidaturas/<int:candidatura_id>/pre-admissao/exame", methods=["POST"])
+    @login_required
+    @module_required("acesso_recrutamento")
+    def salvar_exame_admissional_recrutamento(candidatura_id):
+        status = (request.form.get("status") or "").strip()
+        data_exame = request.form.get("data_exame") or None
+        resultado = (request.form.get("resultado") or "").strip() or None
+        observacoes = (request.form.get("observacoes") or "").strip() or None
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute(
+                "SELECT * FROM recrutamento_candidaturas WHERE id = %s",
+                (candidatura_id,),
+            )
+            candidatura = cursor.fetchone()
+            if candidatura is None:
+                abort(404)
+            if not _pode_gerenciar_candidatura(candidatura):
+                abort(403)
+            cursor.execute("""
+                SELECT status FROM recrutamento_propostas
+                WHERE candidatura_id = %s ORDER BY id DESC LIMIT 1
+            """, (candidatura_id,))
+            proposta = cursor.fetchone()
+            if not proposta or proposta["status"] != "aceita":
+                raise ValueError("A pré-admissão exige uma proposta aceita.")
+            if status not in STATUS_EXAME_ADMISSIONAL:
+                raise ValueError("Selecione uma situação válida para o exame.")
+            if status in ("agendado", "aguardando_resultado", "concluido"):
+                if not data_exame:
+                    raise ValueError("Informe a data do exame admissional.")
+            try:
+                data_exame_valida = date.fromisoformat(data_exame) if data_exame else None
+            except ValueError as exc:
+                raise ValueError("Informe uma data válida para o exame.") from exc
+            if status == "concluido" and resultado not in RESULTADOS_EXAME_ADMISSIONAL:
+                raise ValueError("Informe o resultado do exame concluído.")
+            if status != "concluido":
+                resultado = None
+            if status == "cancelado" and not observacoes:
+                raise ValueError("Justifique o cancelamento do exame.")
+            if resultado == "apto_restricao" and not observacoes:
+                raise ValueError("Registre a orientação operacional da restrição.")
+            cursor.execute("""
+                UPDATE recrutamento_pre_admissao
+                SET aso_status = %s, aso_data_prevista = %s,
+                    aso_resultado = %s,
+                    aso_resultado_em = CASE WHEN %s = 'concluido' THEN CURDATE() ELSE NULL END,
+                    observacoes = %s
+                WHERE candidatura_id = %s
+            """, (
+                status, data_exame_valida, resultado, status,
+                observacoes, candidatura_id,
+            ))
+            cursor.execute("""
+                INSERT INTO recrutamento_historico
+                    (candidatura_id, evento, descricao, usuario_id)
+                VALUES (%s, 'exame_admissional', %s, %s)
+            """, (
+                candidatura_id,
+                f"Exame admissional atualizado para {STATUS_EXAME_ADMISSIONAL[status]}.",
+                session["usuario_id"],
+            ))
+            conn.commit()
+            flash("Exame admissional atualizado.", "success")
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "danger")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+        return redirect(url_for(
+            "main.detalhe_candidatura_recrutamento",
+            candidatura_id=candidatura_id,
+        ))
+
+    @blueprint.route("/recrutamento/candidaturas/<int:candidatura_id>/pre-admissao/documentos", methods=["POST"])
+    @login_required
+    @module_required("acesso_recrutamento")
+    def salvar_documentos_pre_admissao_recrutamento(candidatura_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute(
+                "SELECT * FROM recrutamento_candidaturas WHERE id = %s",
+                (candidatura_id,),
+            )
+            candidatura = cursor.fetchone()
+            if candidatura is None:
+                abort(404)
+            if not _pode_gerenciar_candidatura(candidatura):
+                abort(403)
+            cursor.execute("""
+                SELECT dc.id FROM recrutamento_documentos_candidatura dc
+                WHERE dc.candidatura_id = %s
+            """, (candidatura_id,))
+            documentos = cursor.fetchall()
+            if not documentos:
+                raise ValueError("A pré-admissão ainda não foi iniciada.")
+            for documento in documentos:
+                documento_id = documento["id"]
+                status = (request.form.get(f"status_{documento_id}") or "").strip()
+                observacao = (
+                    request.form.get(f"observacao_{documento_id}") or ""
+                ).strip() or None
+                if status not in STATUS_DOCUMENTO_ADMISSIONAL:
+                    raise ValueError("Foi informada uma situação documental inválida.")
+                if status == "inconsistente" and not observacao:
+                    raise ValueError(
+                        "Descreva a inconsistência do documento correspondente."
+                    )
+                cursor.execute("""
+                    UPDATE recrutamento_documentos_candidatura
+                    SET status = %s, observacoes = %s,
+                        recebido_em = CASE WHEN %s = 'recebido' THEN NOW() ELSE NULL END,
+                        conferido_em = NOW(), conferido_por = %s
+                    WHERE id = %s AND candidatura_id = %s
+                """, (
+                    status, observacao, status, session["usuario_id"],
+                    documento_id, candidatura_id,
+                ))
+            cursor.execute("""
+                SELECT COUNT(*) AS pendentes
+                FROM recrutamento_documentos_candidatura
+                WHERE candidatura_id = %s AND obrigatorio = 1
+                  AND status NOT IN ('recebido', 'nao_aplicavel')
+            """, (candidatura_id,))
+            documentos_status = (
+                "completo" if cursor.fetchone()["pendentes"] == 0 else "pendente"
+            )
+            cursor.execute("""
+                UPDATE recrutamento_pre_admissao SET documentos_status = %s
+                WHERE candidatura_id = %s
+            """, (documentos_status, candidatura_id))
+            cursor.execute("""
+                INSERT INTO recrutamento_historico
+                    (candidatura_id, evento, descricao, usuario_id)
+                VALUES (%s, 'documentos_pre_admissao', %s, %s)
+            """, (
+                candidatura_id, "Checklist documental atualizado.",
+                session["usuario_id"],
+            ))
+            conn.commit()
+            flash("Checklist documental atualizado.", "success")
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "danger")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+        return redirect(url_for(
+            "main.detalhe_candidatura_recrutamento",
+            candidatura_id=candidatura_id,
+        ))
+
+    @blueprint.route("/recrutamento/candidaturas/<int:candidatura_id>/pre-admissao/concluir", methods=["POST"])
+    @login_required
+    @module_required("acesso_recrutamento")
+    def concluir_pre_admissao_recrutamento(candidatura_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute(
+                "SELECT * FROM recrutamento_candidaturas WHERE id = %s FOR UPDATE",
+                (candidatura_id,),
+            )
+            candidatura = cursor.fetchone()
+            if candidatura is None:
+                abort(404)
+            if not _pode_gerenciar_candidatura(candidatura):
+                abort(403)
+            cursor.execute("""
+                SELECT status FROM recrutamento_propostas
+                WHERE candidatura_id = %s ORDER BY id DESC LIMIT 1
+            """, (candidatura_id,))
+            proposta = cursor.fetchone()
+            cursor.execute("""
+                SELECT status FROM recrutamento_validacoes_cliente
+                WHERE candidatura_id = %s ORDER BY id DESC LIMIT 1
+            """, (candidatura_id,))
+            validacao_cliente = cursor.fetchone()
+            cursor.execute(
+                "SELECT * FROM recrutamento_pre_admissao WHERE candidatura_id = %s",
+                (candidatura_id,),
+            )
+            pre_admissao = cursor.fetchone()
+            if not proposta or proposta["status"] != "aceita":
+                raise ValueError("A proposta ainda não foi aceita.")
+            if not validacao_cliente or validacao_cliente["status"] != "aprovado":
+                raise ValueError("O pré-cadastro do cliente ainda não foi aprovado.")
+            if not pre_admissao or pre_admissao["aso_status"] != "concluido":
+                raise ValueError("O exame admissional ainda não foi concluído.")
+            if pre_admissao.get("aso_resultado") not in ("apto", "apto_restricao"):
+                raise ValueError("O resultado do exame não permite a admissão.")
+            if pre_admissao["documentos_status"] != "completo":
+                raise ValueError("Conclua o checklist de documentos obrigatórios.")
+            cursor.execute("""
+                UPDATE recrutamento_pre_admissao
+                SET liberado_admissao_em = NOW(), liberado_por = %s
+                WHERE candidatura_id = %s
+            """, (session["usuario_id"], candidatura_id))
+            cursor.execute("""
+                UPDATE recrutamento_candidaturas
+                SET status = 'liberado_admissao', encerrado_em = NOW()
+                WHERE id = %s
+            """, (candidatura_id,))
+            cursor.execute("""
+                INSERT INTO recrutamento_historico
+                    (candidatura_id, evento, descricao, usuario_id)
+                VALUES (%s, 'pre_admissao_concluida', %s, %s)
+            """, (
+                candidatura_id, "Candidato liberado para admissão.",
+                session["usuario_id"],
+            ))
+            conn.commit()
+            flash("Candidato liberado para admissão.", "success")
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "danger")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+        return redirect(url_for(
+            "main.detalhe_candidatura_recrutamento",
+            candidatura_id=candidatura_id,
+        ))
 
     @blueprint.route("/recrutamento/minhas-avaliacoes")
     @login_required

@@ -231,6 +231,102 @@
 </div>
 {% endif %}
 
+{% if candidatura.decisao_resultado in ('aprovado', 'aprovado_restricao') %}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white d-flex align-items-center justify-content-between gap-3">
+        <h5 class="mb-0"><i class="bi bi-send me-2"></i>Envio da proposta</h5>
+        <span class="badge bg-secondary">{{ status_proposta.get(proposta.status, proposta.status) if proposta else 'Não enviada' }}</span>
+    </div>
+    <div class="card-body">
+        {% if pode_gerenciar and candidatura.status != 'liberado_admissao' %}
+            <form class="row g-3 align-items-end" method="post" action="{{ url_for('main.salvar_proposta_recrutamento', candidatura_id=candidatura.id) }}">
+                <div class="col-md-4">
+                    <label class="form-label" for="statusProposta">Status *</label>
+                    <select class="form-select" id="statusProposta" name="status" required>
+                        {% for valor, rotulo in status_proposta.items() %}<option value="{{ valor }}" {% if (proposta.status if proposta else 'nao_enviada') == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3" id="blocoDataProposta">
+                    <label class="form-label" for="dataEnvioProposta">Data de envio *</label>
+                    <input class="form-control" id="dataEnvioProposta" type="date" name="data_envio" max="{{ hoje.isoformat() }}" value="{{ proposta.enviada_em.strftime('%Y-%m-%d') if proposta and proposta.enviada_em else '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="observacoesProposta">Observações</label>
+                    <input class="form-control" id="observacoesProposta" name="observacoes" maxlength="500" value="{{ proposta.observacoes if proposta else '' }}">
+                </div>
+                <div class="col-md-1 d-flex justify-content-end"><button class="btn btn-laranja" type="submit" title="Salvar proposta"><i class="bi bi-check-lg"></i></button></div>
+            </form>
+        {% elif proposta %}
+            <div class="parecer-box">Enviada em {{ proposta.enviada_em.strftime('%d/%m/%Y') if proposta.enviada_em else '-' }}{% if proposta.observacoes %}<br>{{ proposta.observacoes }}{% endif %}</div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% if proposta and proposta.status == 'aceita' and pre_admissao %}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white d-flex align-items-center justify-content-between gap-3">
+        <h5 class="mb-0"><i class="bi bi-clipboard2-check me-2"></i>Pré-admissão</h5>
+        <span class="badge bg-secondary">{{ 'Liberado para admissão' if pre_admissao.liberado_admissao_em else 'Em andamento' }}</span>
+    </div>
+    <div class="card-body">
+        <h6 class="text-orange mb-3">Exame admissional</h6>
+        <form class="row g-3 align-items-end mb-4" method="post" action="{{ url_for('main.salvar_exame_admissional_recrutamento', candidatura_id=candidatura.id) }}">
+            <div class="col-md-3">
+                <label class="form-label" for="statusExame">Status *</label>
+                <select class="form-select" id="statusExame" name="status" required {% if not pode_gerenciar or pre_admissao.liberado_admissao_em %}disabled{% endif %}>
+                    {% for valor, rotulo in status_exame_admissional.items() %}<option value="{{ valor }}" {% if pre_admissao.aso_status == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3" id="blocoDataExame">
+                <label class="form-label" for="dataExame">Data do exame *</label>
+                <input class="form-control" id="dataExame" type="date" name="data_exame" value="{{ pre_admissao.aso_data_prevista.isoformat() if pre_admissao.aso_data_prevista else '' }}" {% if not pode_gerenciar or pre_admissao.liberado_admissao_em %}disabled{% endif %}>
+            </div>
+            <div class="col-md-3" id="blocoResultadoExame">
+                <label class="form-label" for="resultadoExame">Resultado *</label>
+                <select class="form-select" id="resultadoExame" name="resultado" {% if not pode_gerenciar or pre_admissao.liberado_admissao_em %}disabled{% endif %}>
+                    <option value="">Selecione</option>
+                    {% for valor, rotulo in resultados_exame_admissional.items() %}<option value="{{ valor }}" {% if pre_admissao.aso_resultado == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label" for="observacoesExame">Observações</label>
+                <input class="form-control" id="observacoesExame" name="observacoes" maxlength="500" value="{{ pre_admissao.observacoes or '' }}" {% if not pode_gerenciar or pre_admissao.liberado_admissao_em %}disabled{% endif %}>
+            </div>
+            {% if pode_gerenciar and not pre_admissao.liberado_admissao_em %}<div class="col-md-1 d-flex justify-content-end"><button class="btn btn-laranja" type="submit" title="Salvar exame"><i class="bi bi-check-lg"></i></button></div>{% endif %}
+        </form>
+
+        <h6 class="text-orange mb-3">Documentação admissional</h6>
+        {% if documentos_admissionais %}
+            <form method="post" action="{{ url_for('main.salvar_documentos_pre_admissao_recrutamento', candidatura_id=candidatura.id) }}">
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle mb-3">
+                        <thead><tr><th>Documento</th><th style="width:240px">Status</th><th>Observações</th></tr></thead>
+                        <tbody>
+                        {% for documento in documentos_admissionais %}
+                            <tr>
+                                <td>{{ documento.nome }}{% if documento.obrigatorio %} *{% endif %}</td>
+                                <td><select class="form-select form-select-sm" name="status_{{ documento.id }}" {% if not pode_gerenciar or pre_admissao.liberado_admissao_em %}disabled{% endif %}>{% for valor, rotulo in status_documento_admissional.items() %}<option value="{{ valor }}" {% if documento.status == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}</select></td>
+                                <td><input class="form-control form-control-sm" name="observacao_{{ documento.id }}" maxlength="500" value="{{ documento.observacoes or '' }}" {% if not pode_gerenciar or pre_admissao.liberado_admissao_em %}disabled{% endif %}></td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if pode_gerenciar and not pre_admissao.liberado_admissao_em %}<div class="d-flex justify-content-end"><button class="btn btn-cinza" type="submit">Salvar documentos</button></div>{% endif %}
+            </form>
+        {% else %}<div class="alert alert-secondary">Nenhum tipo de documento ativo foi configurado.</div>{% endif %}
+
+        {% if pode_gerenciar and not pre_admissao.liberado_admissao_em %}
+            <hr>
+            <form class="d-flex justify-content-end" method="post" action="{{ url_for('main.concluir_pre_admissao_recrutamento', candidatura_id=candidatura.id) }}">
+                <button class="btn btn-laranja" type="submit"><i class="bi bi-check2-circle me-1"></i>Liberar para admissão</button>
+            </form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 {% if ciclos_anteriores %}
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-layers me-2"></i>Ciclos anteriores</h5></div>
@@ -255,6 +351,19 @@
                                     {{ ciclo.pre_cadastro_cliente or '-' }} ·
                                     {{ status_validacao_cliente.get(ciclo.pre_cadastro_status, ciclo.pre_cadastro_status) }}
                                     {% if ciclo.pre_cadastro_observacao %}<div class="mt-2">{{ ciclo.pre_cadastro_observacao }}</div>{% endif %}
+                                </div>
+                            {% endif %}
+                            {% if ciclo.proposta_status %}
+                                <div class="parecer-box mb-3">
+                                    <strong>Proposta:</strong>
+                                    {{ status_proposta.get(ciclo.proposta_status, ciclo.proposta_status) }}
+                                    {% if ciclo.proposta_enviada_em %} · Enviada em {{ ciclo.proposta_enviada_em.strftime('%d/%m/%Y') }}{% endif %}
+                                    {% if ciclo.aso_status %}
+                                        <br><strong>Exame admissional:</strong>
+                                        {{ status_exame_admissional.get(ciclo.aso_status, ciclo.aso_status) }}
+                                        {% if ciclo.aso_resultado %} · {{ resultados_exame_admissional.get(ciclo.aso_resultado, ciclo.aso_resultado) }}{% endif %}
+                                    {% endif %}
+                                    {% if ciclo.documentos_status %}<br><strong>Documentação:</strong> {{ ciclo.documentos_status|replace('_', ' ')|title }}{% endif %}
                                 </div>
                             {% endif %}
                             {% for etapa_anterior in etapas_ciclos.get(ciclo.id, []) %}
@@ -383,6 +492,34 @@ if (statusPreCadastro) {
     }
     statusPreCadastro.addEventListener('change', atualizarObservacaoPreCadastro);
     atualizarObservacaoPreCadastro();
+}
+const statusProposta = document.getElementById('statusProposta');
+if (statusProposta) {
+    function atualizarDataProposta() {
+        const exigeData = statusProposta.value !== 'nao_enviada';
+        const campo = document.getElementById('dataEnvioProposta');
+        document.getElementById('blocoDataProposta').classList.toggle('d-none', !exigeData);
+        campo.required = exigeData;
+        if (statusProposta.value === 'enviada' && !campo.value) campo.value = '{{ hoje.isoformat() }}';
+    }
+    statusProposta.addEventListener('change', atualizarDataProposta);
+    atualizarDataProposta();
+}
+const statusExame = document.getElementById('statusExame');
+if (statusExame) {
+    function atualizarExame() {
+        const exigeData = ['agendado', 'aguardando_resultado', 'concluido'].includes(statusExame.value);
+        const concluido = statusExame.value === 'concluido';
+        const data = document.getElementById('dataExame');
+        const resultado = document.getElementById('resultadoExame');
+        document.getElementById('blocoDataExame').classList.toggle('d-none', !exigeData);
+        document.getElementById('blocoResultadoExame').classList.toggle('d-none', !concluido);
+        data.required = exigeData;
+        resultado.required = concluido;
+        if (!concluido) resultado.value = '';
+    }
+    statusExame.addEventListener('change', atualizarExame);
+    atualizarExame();
 }
 </script>
 {% endblock %}
