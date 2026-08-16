@@ -29,17 +29,22 @@
     <h2 class="page-title text-center mb-0 flex-grow-1">
         <i class="bi bi-person-check me-2"></i>Processo seletivo
     </h2>
-    {% if pode_gerenciar and candidatura.status in ('cadastrado', 'em_triagem') %}
-        <form method="post" action="{{ url_for('main.iniciar_selecao_recrutamento', candidatura_id=candidatura.id) }}">
-            <button class="btn btn-laranja" type="submit"><i class="bi bi-play-fill me-1"></i>Iniciar seleção</button>
-        </form>
-    {% elif pode_gerenciar and candidatura.decisao_resultado %}
-        <button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalReaproveitar">
-            <i class="bi bi-arrow-repeat me-1"></i>Reaproveitar candidatura
-        </button>
-    {% else %}
-        <span></span>
-    {% endif %}
+    <div class="d-flex justify-content-end gap-2 flex-wrap">
+        {% if pode_gerenciar and candidatura.status in ('cadastrado', 'em_triagem') %}
+            <form method="post" action="{{ url_for('main.iniciar_selecao_recrutamento', candidatura_id=candidatura.id) }}">
+                <button class="btn btn-laranja" type="submit"><i class="bi bi-play-fill me-1"></i>Iniciar seleção</button>
+            </form>
+        {% elif pode_gerenciar and candidatura.decisao_resultado %}
+            <button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalReaproveitar">
+                <i class="bi bi-arrow-repeat me-1"></i>Reaproveitar candidatura
+            </button>
+        {% endif %}
+        {% if pode_encerrar %}
+            <button class="btn btn-cinza" type="button" data-bs-toggle="modal" data-bs-target="#modalEncerrarCandidatura">
+                <i class="bi bi-x-circle me-1"></i>Encerrar processo
+            </button>
+        {% endif %}
+    </div>
 </div>
 <hr>
 
@@ -47,8 +52,15 @@
     <div class="resumo-item"><small>Candidato</small><strong>{{ candidatura.nome }}</strong></div>
     <div class="resumo-item"><small>Cargo pretendido</small><strong>{{ candidatura.cargo_pretendido }}</strong></div>
     <div class="resumo-item"><small>Centro de custos</small><strong>{{ candidatura.centro_custos_codigo }}</strong></div>
-    <div class="resumo-item"><small>Situação</small><span class="badge bg-secondary">{{ candidatura.status|replace('_', ' ')|title }}</span></div>
+    <div class="resumo-item"><small>Situação</small><span class="badge bg-secondary">{{ status_candidatura.get(candidatura.status, candidatura.status|replace('_', ' ')|title) }}</span></div>
 </div>
+
+{% if candidatura_encerrada and candidatura.status in ('desistente', 'encerrado') %}
+<div class="alert alert-secondary d-flex align-items-center gap-2 mb-4">
+    <i class="bi bi-lock-fill"></i>
+    <span><strong>{{ status_candidatura[candidatura.status] }}.</strong> O histórico foi preservado e o processo não aceita novas alterações.</span>
+</div>
+{% endif %}
 
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white d-flex align-items-center justify-content-between">
@@ -428,6 +440,40 @@
         {% else %}<p class="text-muted mb-0">Nenhum evento registrado.</p>{% endfor %}
     </div>
 </div>
+
+{% if pode_encerrar %}
+<div class="modal fade" id="modalEncerrarCandidatura" tabindex="-1" aria-labelledby="tituloEncerrarCandidatura" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header modal-header-trackplan">
+                <h5 class="modal-title" id="tituloEncerrarCandidatura"><i class="bi bi-x-circle me-2"></i>Encerrar processo</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form method="post" action="{{ url_for('main.encerrar_candidatura_recrutamento', candidatura_id=candidatura.id) }}">
+                <div class="modal-body">
+                    <div class="alert alert-secondary">O encerramento bloqueia novas alterações, mas preserva todas as informações e o histórico já registrados.</div>
+                    <div class="mb-3">
+                        <label class="form-label" for="tipoEncerramento">Motivo do encerramento *</label>
+                        <select class="form-select" id="tipoEncerramento" name="tipo_encerramento" required>
+                            <option value="">Selecione</option>
+                            <option value="desistencia">Candidato declinou</option>
+                            <option value="cancelamento_rh">Processo cancelado pelo RH</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label" for="justificativaEncerramento">Justificativa *</label>
+                        <textarea class="form-control" id="justificativaEncerramento" name="justificativa" rows="4" minlength="10" maxlength="1000" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-cinza" type="button" data-bs-dismiss="modal">Voltar</button>
+                    <button class="btn btn-laranja" type="submit">Confirmar encerramento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 {% if pode_gerenciar and candidatura.decisao_resultado %}
 <div class="modal fade" id="modalReaproveitar" tabindex="-1" aria-labelledby="tituloReaproveitar" aria-hidden="true">

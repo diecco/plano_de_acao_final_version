@@ -284,6 +284,24 @@ class RecrutamentoModuleTests(unittest.TestCase):
         self.assertIn("recrutamento_tipos_documento", migration)
         self.assertIn("nao_aplicavel", migration)
 
+    def test_candidate_or_hr_can_end_recruitment_without_losing_history(self):
+        source = (ROOT / "app" / "views" / "recrutamento.py").read_text(
+            encoding="utf-8"
+        )
+        template = (
+            ROOT / "app" / "templates" / "recrutamento_candidatura_detalhe.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("def encerrar_candidatura_recrutamento", source)
+        self.assertIn('"desistente": "Candidato declinou"', source)
+        self.assertIn('"encerrado": "Cancelado pelo RH"', source)
+        self.assertIn("_validar_candidatura_aberta(candidatura)", source)
+        self.assertIn("INSERT INTO recrutamento_historico", source)
+        self.assertIn('name="tipo_encerramento"', template)
+        self.assertIn('value="desistencia"', template)
+        self.assertIn('value="cancelamento_rh"', template)
+        self.assertIn('name="justificativa"', template)
+
 
 if __name__ == "__main__":
     unittest.main()

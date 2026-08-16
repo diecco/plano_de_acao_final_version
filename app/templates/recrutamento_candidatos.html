@@ -50,16 +50,7 @@
                     <label class="form-label" for="status">Situação</label>
                     <select class="form-select" id="status" name="status">
                         <option value="">Todas</option>
-                        {% for valor, rotulo in [
-                            ('cadastrado', 'Cadastrado'),
-                            ('em_triagem', 'Em triagem'),
-                            ('aguardando_entrevista_rh', 'Aguardando entrevista RH'),
-                            ('aguardando_entrevista_gestor', 'Aguardando entrevista do gestor'),
-                            ('stand_by', 'Stand-by'),
-                            ('reprovado', 'Reprovado'),
-                            ('em_pre_admissao', 'Em pré-admissão'),
-                            ('liberado_admissao', 'Liberado para admissão')
-                        ] %}
+                        {% for valor, rotulo in status_candidatura.items() %}
                             <option value="{{ valor }}" {% if status == valor %}selected{% endif %}>{{ rotulo }}</option>
                         {% endfor %}
                     </select>
@@ -122,7 +113,7 @@
                     <td>{{ origens.get(item.origem, item.origem) }}</td>
                     <td>{{ item.centro_custos_codigo }}</td>
                     <td>{{ item.responsavel_rh_nome }}</td>
-                    <td><span class="badge bg-secondary">{{ item.status|replace('_', ' ')|title }}</span></td>
+                    <td><span class="badge bg-secondary">{{ status_candidatura.get(item.status, item.status|replace('_', ' ')|title) }}</span></td>
                     <td class="text-center">
                         <a class="btn btn-sm btn-laranja" href="{{ url_for('main.detalhe_candidatura_recrutamento', candidatura_id=item.candidatura_id) }}" title="Ver processo seletivo">
                             <i class="bi bi-eye"></i>
