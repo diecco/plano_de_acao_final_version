@@ -22,6 +22,10 @@ def create_app():
     # Limite total por requisição, incluindo os campos do formulário.
     app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024
 
+    # Direciona os uploads para o disco persistente quando UPLOAD_ROOT estiver configurado.
+    from app.upload_security import configurar_uploads_persistentes
+    configurar_uploads_persistentes(app)
+
     # --- E-mail
     app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER')
     app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', '465'))
