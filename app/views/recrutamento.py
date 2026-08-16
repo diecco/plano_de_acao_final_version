@@ -153,7 +153,7 @@ def _pode_gerenciar_candidatura(candidatura):
 def _etapas_obrigatorias_concluidas(etapas):
     return all(
         not etapa["obrigatoria"]
-        or etapa["status"] in ("realizada", "dispensada")
+        or etapa["status"] in ("realizada", "dispensada", "cancelada")
         for etapa in etapas
     )
 
@@ -555,6 +555,12 @@ def register_recrutamento_routes(blueprint):
             conn.close()
         pode_gerenciar_base = _pode_gerenciar_candidatura(candidatura)
         candidatura_encerrada = candidatura["status"] in STATUS_CANDIDATURA_BLOQUEADA
+        reprovacao_comportamental = any(
+            etapa["tipo"] == "entrevista_comportamental"
+            and etapa["status"] == "realizada"
+            and etapa["resultado"] == "reprovado"
+            for etapa in etapas
+        )
         return render_template(
             "recrutamento_candidatura_detalhe.html",
             candidatura=candidatura, etapas=etapas, historico=historico,
@@ -582,6 +588,7 @@ def register_recrutamento_routes(blueprint):
             resultados_exame_admissional=RESULTADOS_EXAME_ADMISSIONAL,
             documentos_admissionais=documentos_admissionais,
             status_documento_admissional=STATUS_DOCUMENTO_ADMISSIONAL,
+            reprovacao_comportamental=reprovacao_comportamental,
         )
 
     @blueprint.route("/recrutamento/candidaturas/<int:candidatura_id>/encerrar", methods=["POST"])
@@ -1140,6 +1147,7 @@ def register_recrutamento_routes(blueprint):
         resultado = (request.form.get("resultado") or "").strip()
         parecer = (request.form.get("parecer") or "").strip()
         restricao = (request.form.get("restricao") or "").strip() or None
+        origem = (request.form.get("origem") or "").strip()
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         try:
@@ -1166,6 +1174,8 @@ def register_recrutamento_routes(blueprint):
                 raise ValueError("A decisão consolidada já foi registrada.")
             if candidatura["status"] in ("cadastrado", "em_triagem"):
                 raise ValueError("A seleção ainda não foi iniciada.")
+            if etapa["status"] in ("cancelada", "dispensada"):
+                raise ValueError("Esta etapa foi encerrada e não aceita avaliação.")
             if resultado not in RESULTADOS_ETAPA:
                 raise ValueError("Selecione um resultado válido.")
             if not parecer:
@@ -1184,6 +1194,63 @@ def register_recrutamento_routes(blueprint):
                     (candidatura_id, evento, descricao, usuario_id)
                 VALUES (%s, 'etapa_avaliada', %s, %s)
             """, (candidatura_id, f"{etapa['nome']} registrada: {RESULTADOS_ETAPA[resultado]}.", session["usuario_id"]))
+            motivo_cancelamento_comportamental = (
+                "Cancelada automaticamente devido à reprovação na "
+                "entrevista comportamental."
+            )
+            if etapa["tipo"] == "entrevista_comportamental" and resultado == "reprovado":
+                cursor.execute("""
+                    UPDATE recrutamento_etapas
+                    SET status = 'cancelada', resultado = 'nao_realizado',
+                        motivo_dispensa = %s, realizada_em = NOW(),
+                        registrado_por = %s
+                    WHERE candidatura_id = %s
+                      AND tipo IN ('entrevista_tecnica', 'teste_pratico')
+                      AND status NOT IN ('realizada', 'dispensada', 'cancelada')
+                """, (
+                    motivo_cancelamento_comportamental,
+                    session["usuario_id"],
+                    candidatura_id,
+                ))
+                etapas_canceladas = cursor.rowcount
+                if etapas_canceladas:
+                    cursor.execute("""
+                        INSERT INTO recrutamento_historico
+                            (candidatura_id, evento, descricao, usuario_id)
+                        VALUES (%s, 'etapas_canceladas_automaticamente', %s, %s)
+                    """, (
+                        candidatura_id,
+                        f"{etapas_canceladas} etapa(s) técnica(s) pendente(s) "
+                        "cancelada(s) automaticamente devido à reprovação na "
+                        "entrevista comportamental.",
+                        session["usuario_id"],
+                    ))
+            elif etapa["tipo"] == "entrevista_comportamental":
+                cursor.execute("""
+                    UPDATE recrutamento_etapas
+                    SET status = CASE
+                            WHEN avaliador_id IS NULL THEN 'pendente'
+                            ELSE 'agendada'
+                        END,
+                        resultado = NULL, motivo_dispensa = NULL,
+                        realizada_em = NULL, registrado_por = NULL
+                    WHERE candidatura_id = %s
+                      AND tipo IN ('entrevista_tecnica', 'teste_pratico')
+                      AND status = 'cancelada'
+                      AND motivo_dispensa = %s
+                """, (candidatura_id, motivo_cancelamento_comportamental))
+                etapas_reabertas = cursor.rowcount
+                if etapas_reabertas:
+                    cursor.execute("""
+                        INSERT INTO recrutamento_historico
+                            (candidatura_id, evento, descricao, usuario_id)
+                        VALUES (%s, 'etapas_reabertas_automaticamente', %s, %s)
+                    """, (
+                        candidatura_id,
+                        f"{etapas_reabertas} etapa(s) técnica(s) reaberta(s) "
+                        "após a alteração do resultado da entrevista comportamental.",
+                        session["usuario_id"],
+                    ))
             conn.commit()
             flash("Parecer registrado com sucesso.", "success")
         except ValueError as exc:
@@ -1195,8 +1262,8 @@ def register_recrutamento_routes(blueprint):
         finally:
             cursor.close()
             conn.close()
-        if etapa and etapa["tipo"] != "entrevista_comportamental":
-            return redirect(url_for("main.detalhe_minha_avaliacao_recrutamento", etapa_id=etapa_id))
+        if origem == "minhas_avaliacoes":
+            return redirect(url_for("main.minhas_avaliacoes_recrutamento"))
         return redirect(url_for("main.detalhe_candidatura_recrutamento", candidatura_id=candidatura_id))
 
     @blueprint.route("/recrutamento/candidaturas/<int:candidatura_id>/etapas/<int:etapa_id>/complementar", methods=["POST"])
@@ -1266,21 +1333,39 @@ def register_recrutamento_routes(blueprint):
             _validar_candidatura_aberta(candidatura)
             if candidatura.get("decisao_resultado"):
                 raise ValueError("A decisão consolidada já foi registrada.")
-            cursor.execute("SELECT obrigatoria, status FROM recrutamento_etapas WHERE candidatura_id = %s", (candidatura_id,))
-            if not _etapas_obrigatorias_concluidas(cursor.fetchall()):
+            cursor.execute("""
+                SELECT obrigatoria, status, tipo, resultado
+                FROM recrutamento_etapas WHERE candidatura_id = %s
+            """, (candidatura_id,))
+            etapas_decisao = cursor.fetchall()
+            if not _etapas_obrigatorias_concluidas(etapas_decisao):
                 raise ValueError("Conclua todas as etapas obrigatórias antes da decisão final.")
+            reprovacao_comportamental = any(
+                etapa_decisao["tipo"] == "entrevista_comportamental"
+                and etapa_decisao["resultado"] == "reprovado"
+                for etapa_decisao in etapas_decisao
+            )
             cursor.execute("""
                 SELECT status FROM recrutamento_validacoes_cliente
                 WHERE candidatura_id = %s ORDER BY id DESC LIMIT 1
             """, (candidatura_id,))
             pre_cadastro = cursor.fetchone()
-            if pre_cadastro is None or pre_cadastro["status"] == "nao_iniciado":
+            if (
+                not reprovacao_comportamental
+                and (pre_cadastro is None or pre_cadastro["status"] == "nao_iniciado")
+            ):
                 raise ValueError(
                     "Inicie o pré-cadastro no cliente antes da decisão consolidada."
                 )
+            if reprovacao_comportamental:
+                resultado = "reprovado"
             if resultado not in RESULTADOS_ETAPA:
                 raise ValueError("Selecione uma decisão válida.")
-            if pre_cadastro["status"] == "reprovado" and resultado != "reprovado":
+            if (
+                pre_cadastro
+                and pre_cadastro["status"] == "reprovado"
+                and resultado != "reprovado"
+            ):
                 raise ValueError(
                     "O cliente reprovou o pré-cadastro; a decisão consolidada "
                     "deve ser Reprovado."

@@ -115,6 +115,37 @@ class RecrutamentoModuleTests(unittest.TestCase):
         self.assertIn("recrutamento_pareceres_complementares", source)
         self.assertIn("e.avaliador_id = %s", source)
 
+    def test_behavioral_rejection_cancels_pending_technical_stages(self):
+        from app.views.recrutamento import _etapas_obrigatorias_concluidas
+
+        source = (ROOT / "app" / "views" / "recrutamento.py").read_text(
+            encoding="utf-8"
+        )
+        manager_template = (
+            ROOT / "app" / "templates" / "recrutamento_candidatura_detalhe.html"
+        ).read_text(encoding="utf-8")
+        evaluator_template = (
+            ROOT / "app" / "templates" / "recrutamento_minha_avaliacao_detalhe.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertTrue(_etapas_obrigatorias_concluidas([
+            {"obrigatoria": 1, "status": "realizada"},
+            {"obrigatoria": 1, "status": "cancelada"},
+        ]))
+        self.assertIn(
+            "etapa[\"tipo\"] == \"entrevista_comportamental\" and resultado == \"reprovado\"",
+            source,
+        )
+        self.assertIn("etapas_canceladas_automaticamente", source)
+        self.assertIn("etapas_reabertas_automaticamente", source)
+        self.assertIn("tipo IN ('entrevista_tecnica', 'teste_pratico')", source)
+        self.assertIn("reprovacao_comportamental=reprovacao_comportamental", source)
+        self.assertIn("etapa.status in ('cancelada', 'dispensada')", manager_template)
+        self.assertIn("etapa.status in ('cancelada', 'dispensada')", evaluator_template)
+        self.assertIn('name="origem" value="minhas_avaliacoes"', evaluator_template)
+        self.assertIn('origem == "minhas_avaliacoes"', source)
+        self.assertIn('url_for("main.minhas_avaliacoes_recrutamento")', source)
+
     def test_evaluator_view_minimizes_personal_data(self):
         source = (ROOT / "app" / "views" / "recrutamento.py").read_text(
             encoding="utf-8"

@@ -33,7 +33,9 @@
 {% endif %}
 
 <div class="avaliacao-bloco">
-    {% if etapa.status == 'realizada' and etapa.decisao_resultado %}
+    {% if etapa.status in ('cancelada', 'dispensada') %}
+        <div class="alert alert-secondary mb-0"><i class="bi bi-lock-fill me-2"></i>{{ etapa.motivo_dispensa or 'Esta avaliação foi encerrada sem realização.' }}</div>
+    {% elif etapa.status == 'realizada' and etapa.decisao_resultado %}
         <h5>Resultado: {{ resultados.get(etapa.resultado, etapa.resultado) }}</h5>
         <div class="parecer-box mt-3">{{ etapa.parecer }}</div>
         {% if etapa.restricao %}<div class="parecer-box mt-2"><strong>Restrição:</strong> {{ etapa.restricao }}</div>{% endif %}
@@ -42,6 +44,7 @@
         <div class="alert alert-secondary mb-0"><i class="bi bi-lock-fill me-2"></i>O processo seletivo foi encerrado e esta avaliação não aceita novos registros.</div>
     {% else %}
         <form method="post" action="{{ url_for('main.avaliar_etapa_recrutamento', candidatura_id=etapa.candidatura_id, etapa_id=etapa.id) }}">
+            <input type="hidden" name="origem" value="minhas_avaliacoes">
             <div class="row g-3">
                 <div class="col-md-4"><label class="form-label" for="resultado">Resultado *</label><select class="form-select" id="resultado" name="resultado" required><option value="">Selecione</option>{% for valor, rotulo in resultados.items() %}<option value="{{ valor }}" {% if etapa.resultado == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}</select></div>
                 <div class="col-md-8"><label class="form-label" for="parecer">Parecer *</label><textarea class="form-control" id="parecer" name="parecer" rows="4" required>{{ etapa.parecer or '' }}</textarea></div>
@@ -51,6 +54,6 @@
         </form>
     {% endif %}
 </div>
-{% if (etapa.status == 'realizada' and etapa.decisao_resultado) or etapa.candidatura_status in ('encerrado', 'desistente', 'liberado_admissao') %}<div class="d-flex justify-content-start mt-3"><a class="btn btn-cinza" href="{{ url_for('main.minhas_avaliacoes_recrutamento') }}">Voltar</a></div>{% endif %}
+{% if etapa.status in ('cancelada', 'dispensada') or (etapa.status == 'realizada' and etapa.decisao_resultado) or etapa.candidatura_status in ('encerrado', 'desistente', 'liberado_admissao') %}<div class="d-flex justify-content-start mt-3"><a class="btn btn-cinza" href="{{ url_for('main.minhas_avaliacoes_recrutamento') }}">Voltar</a></div>{% endif %}
 {% endblock %}
 {% block scripts %}{{ super() }}<script>const resultado=document.getElementById('resultado');if(resultado){resultado.addEventListener('change',function(){const bloco=document.getElementById('blocoRestricao');const campo=document.getElementById('restricao');const exibir=this.value==='aprovado_restricao';bloco.classList.toggle('d-none',!exibir);campo.required=exibir;if(!exibir)campo.value='';});}</script>{% endblock %}

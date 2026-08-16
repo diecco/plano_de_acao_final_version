@@ -16,7 +16,7 @@
                     <td>{{ item.etapa_nome }}</td>
                     <td>{{ item.data_prevista.strftime('%d/%m/%Y') if item.data_prevista else '-' }}</td>
                     <td><span class="badge bg-secondary">{{ resultados.get(item.resultado, item.status|replace('_', ' ')|title) }}</span></td>
-                    {% set pode_editar = item.candidatura_status not in ('encerrado', 'desistente', 'liberado_admissao') and not item.decisao_resultado %}
+                    {% set pode_editar = item.status not in ('cancelada', 'dispensada') and item.candidatura_status not in ('encerrado', 'desistente', 'liberado_admissao') and not item.decisao_resultado %}
                     <td class="text-center"><a class="btn-acao-icon" href="{{ url_for('main.detalhe_minha_avaliacao_recrutamento', etapa_id=item.etapa_id) }}" title="{{ 'Editar avaliação' if pode_editar else 'Consultar' }}"><i class="bi {{ 'bi-pencil-square' if pode_editar else 'bi-eye' }}"></i></a></td>
                 </tr>
             {% else %}<tr><td colspan="6" class="text-center text-muted py-4">Nenhuma avaliação foi atribuída a você.</td></tr>{% endfor %}

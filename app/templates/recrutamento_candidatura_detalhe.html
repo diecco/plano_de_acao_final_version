@@ -78,7 +78,7 @@
                     <span class="badge bg-secondary">{{ etapa.status|replace('_', ' ')|title }}</span>
                 </div>
 
-                {% if pode_gerenciar and etapa.tipo != 'entrevista_comportamental' and etapa.status != 'realizada' and not etapa.avaliador_id %}
+                {% if pode_gerenciar and etapa.tipo != 'entrevista_comportamental' and etapa.status not in ('realizada', 'dispensada', 'cancelada') and not etapa.avaliador_id %}
                     <form class="row g-2 align-items-end mt-2" method="post" action="{{ url_for('main.atribuir_etapa_recrutamento', candidatura_id=candidatura.id, etapa_id=etapa.id) }}">
                         <div class="col-md-6">
                             <label class="form-label" for="avaliador-{{ etapa.id }}">Avaliador</label>
@@ -116,6 +116,11 @@
                                 <div class="d-flex justify-content-end mt-2"><button class="btn btn-laranja" type="submit">Registrar</button></div>
                             </form>
                         {% endif %}
+                    </div>
+                {% elif etapa.status in ('cancelada', 'dispensada') %}
+                    <div class="parecer-box compacto mt-3">
+                        <strong>{{ etapa.status|title }}:</strong>
+                        {{ etapa.motivo_dispensa or 'Etapa encerrada sem realização.' }}
                     </div>
                 {% elif candidatura.status not in ('cadastrado', 'em_triagem') and ((etapa.tipo == 'entrevista_comportamental' and pode_gerenciar) or etapa.avaliador_id == session.get('usuario_id') or session.get('perfil') == 'administrador') %}
                     <form class="mt-3" method="post" action="{{ url_for('main.avaliar_etapa_recrutamento', candidatura_id=candidatura.id, etapa_id=etapa.id) }}">
@@ -199,7 +204,7 @@
         {% if candidatura.decisao_resultado %}
             <strong class="text-orange">{{ resultados.get(candidatura.decisao_resultado, candidatura.decisao_resultado) }}</strong>
             <div class="parecer-box mt-2">{{ candidatura.decisao_parecer }}</div>
-        {% elif pode_gerenciar and (not pre_cadastro_cliente or pre_cadastro_cliente.status == 'nao_iniciado') %}
+        {% elif pode_gerenciar and not reprovacao_comportamental and (not pre_cadastro_cliente or pre_cadastro_cliente.status == 'nao_iniciado') %}
             <div class="alert alert-secondary mb-0">
                 Inicie o pré-cadastro no cliente para liberar a decisão consolidada do RH.
             </div>
@@ -208,10 +213,10 @@
                 <div class="row g-3">
                     <div class="col-md-4">
                         <label class="form-label" for="decisaoResultado">Decisão *</label>
-                        {% if pre_cadastro_cliente.status == 'reprovado' %}
+                        {% if reprovacao_comportamental or (pre_cadastro_cliente and pre_cadastro_cliente.status == 'reprovado') %}
                             <input type="hidden" name="decisao_resultado" value="reprovado">
                             <input class="form-control" id="decisaoResultado" value="Reprovado" disabled>
-                            <small class="text-muted">Resultado obrigatório devido à reprovação do cliente.</small>
+                            <small class="text-muted">Resultado obrigatório devido à reprovação {{ 'na entrevista comportamental' if reprovacao_comportamental else 'do cliente' }}.</small>
                         {% else %}
                             <select class="form-select" id="decisaoResultado" name="decisao_resultado" required><option value="">Selecione</option>{% for valor, rotulo in resultados.items() %}<option value="{{ valor }}">{{ rotulo }}</option>{% endfor %}</select>
                         {% endif %}
