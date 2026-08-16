@@ -23,6 +23,24 @@ class RecrutamentoModuleTests(unittest.TestCase):
         source = (ROOT / "app" / "routes.py").read_text(encoding="utf-8")
         self.assertIn("register_recrutamento_routes", source)
 
+    def test_recruitment_lists_use_server_side_pagination(self):
+        source = (ROOT / "app" / "views" / "recrutamento.py").read_text(
+            encoding="utf-8"
+        )
+        candidatos = (
+            ROOT / "app" / "templates" / "recrutamento_candidatos.html"
+        ).read_text(encoding="utf-8")
+        avaliacoes = (
+            ROOT / "app" / "templates" / "recrutamento_minhas_avaliacoes.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertGreaterEqual(source.count("per_page = 30"), 2)
+        self.assertGreaterEqual(source.count("LIMIT %s OFFSET %s"), 2)
+        self.assertIn("total_paginas=total_paginas", source)
+        self.assertIn("busca=busca, status=status, page=p", candidatos)
+        self.assertIn("Exibindo página", candidatos)
+        self.assertIn("Exibindo página", avaliacoes)
+
     def test_all_module_routes_require_exclusive_permission(self):
         source = (ROOT / "app" / "views" / "recrutamento.py").read_text(
             encoding="utf-8"

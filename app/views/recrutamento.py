@@ -170,6 +170,11 @@ def register_recrutamento_routes(blueprint):
     def recrutamento_candidatos():
         busca = (request.args.get("busca") or "").strip()
         status = (request.args.get("status") or "").strip()
+        page = request.args.get("page", 1, type=int)
+        per_page = 30
+        if page < 1:
+            page = 1
+
         condicoes = ["1 = 1"]
         parametros = []
         _aplicar_escopo(condicoes, parametros)
@@ -185,6 +190,24 @@ def register_recrutamento_routes(blueprint):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         try:
+            where_clause = " AND ".join(condicoes)
+            cursor.execute(f"""
+                SELECT COUNT(*) AS total
+                FROM recrutamento_candidaturas ca
+                JOIN recrutamento_candidatos c ON c.id = ca.candidato_id
+                JOIN centros_custos cc ON cc.id = ca.centro_custos_id
+                JOIN usuarios u ON u.id = ca.responsavel_rh_id
+                WHERE {where_clause}
+            """, tuple(parametros))
+            total_registros = cursor.fetchone()["total"]
+            total_paginas = (
+                total_registros + per_page - 1
+            ) // per_page
+
+            if total_paginas > 0 and page > total_paginas:
+                page = total_paginas
+
+            offset = (page - 1) * per_page
             cursor.execute(f"""
                 SELECT
                     ca.id AS candidatura_id,
@@ -203,9 +226,10 @@ def register_recrutamento_routes(blueprint):
                 JOIN recrutamento_candidatos c ON c.id = ca.candidato_id
                 JOIN centros_custos cc ON cc.id = ca.centro_custos_id
                 JOIN usuarios u ON u.id = ca.responsavel_rh_id
-                WHERE {" AND ".join(condicoes)}
+                WHERE {where_clause}
                 ORDER BY ca.criado_em DESC
-            """, tuple(parametros))
+                LIMIT %s OFFSET %s
+            """, tuple(parametros + [per_page, offset]))
             candidaturas = cursor.fetchall()
         finally:
             cursor.close()
@@ -218,6 +242,10 @@ def register_recrutamento_routes(blueprint):
             status_candidatura=STATUS_CANDIDATURA,
             busca=busca,
             status=status,
+            page=page,
+            per_page=per_page,
+            total_registros=total_registros,
+            total_paginas=total_paginas,
         )
 
     @blueprint.route("/recrutamento/candidatos/novo", methods=["GET", "POST"])
@@ -1797,9 +1825,30 @@ def register_recrutamento_routes(blueprint):
     @blueprint.route("/recrutamento/minhas-avaliacoes")
     @login_required
     def minhas_avaliacoes_recrutamento():
+        page = request.args.get("page", 1, type=int)
+        per_page = 30
+        if page < 1:
+            page = 1
+
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         try:
+            cursor.execute("""
+                SELECT COUNT(*) AS total
+                FROM recrutamento_etapas e
+                JOIN recrutamento_candidaturas ca ON ca.id = e.candidatura_id
+                WHERE e.avaliador_id = %s
+                  AND e.tipo <> 'entrevista_comportamental'
+            """, (session["usuario_id"],))
+            total_registros = cursor.fetchone()["total"]
+            total_paginas = (
+                total_registros + per_page - 1
+            ) // per_page
+
+            if total_paginas > 0 and page > total_paginas:
+                page = total_paginas
+
+            offset = (page - 1) * per_page
             cursor.execute("""
                 SELECT e.id AS etapa_id, e.nome AS etapa_nome, e.status,
                        e.resultado, e.data_prevista, e.realizada_em,
@@ -1812,12 +1861,21 @@ def register_recrutamento_routes(blueprint):
                 WHERE e.avaliador_id = %s
                   AND e.tipo <> 'entrevista_comportamental'
                 ORDER BY (e.status = 'realizada'), e.data_prevista, c.nome
-            """, (session["usuario_id"],))
+                LIMIT %s OFFSET %s
+            """, (session["usuario_id"], per_page, offset))
             avaliacoes = cursor.fetchall()
         finally:
             cursor.close()
             conn.close()
-        return render_template("recrutamento_minhas_avaliacoes.html", avaliacoes=avaliacoes, resultados=RESULTADOS_ETAPA)
+        return render_template(
+            "recrutamento_minhas_avaliacoes.html",
+            avaliacoes=avaliacoes,
+            resultados=RESULTADOS_ETAPA,
+            page=page,
+            per_page=per_page,
+            total_registros=total_registros,
+            total_paginas=total_paginas,
+        )
 
     @blueprint.route("/recrutamento/minhas-avaliacoes/<int:etapa_id>")
     @login_required
