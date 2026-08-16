@@ -243,7 +243,10 @@ class RecrutamentoModuleTests(unittest.TestCase):
             "pode_gerenciar and candidatura.status != 'liberado_admissao'",
             template,
         )
-        self.assertIn('id="formPreCadastroCliente"', template)
+        self.assertIn(
+            '<div class="collapse mt-3" id="formPreCadastroCliente">',
+            template,
+        )
         self.assertIn("Editar pré-cadastro", template)
 
     def test_proposal_and_pre_admission_follow_business_rules(self):
@@ -272,7 +275,10 @@ class RecrutamentoModuleTests(unittest.TestCase):
         self.assertIn("def concluir_pre_admissao_recrutamento", source)
         self.assertIn("Envio da proposta", template)
         self.assertIn("Exame admissional", template)
-        self.assertIn('id="formExameAdmissional"', template)
+        self.assertIn(
+            '<div class="collapse mt-3" id="formExameAdmissional">',
+            template,
+        )
         self.assertIn("Editar exame admissional", template)
         self.assertIn("Documentação admissional", template)
         self.assertIn("recrutamento_tipos_documento", migration)

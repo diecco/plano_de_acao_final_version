@@ -185,7 +185,8 @@
                 </div>
             {% endif %}
             {% if pode_gerenciar and candidatura.status != 'liberado_admissao' %}
-                <form class="row g-3 align-items-end mt-3 collapse" id="formPreCadastroCliente" method="post" action="{{ url_for('main.salvar_pre_cadastro_cliente_recrutamento', candidatura_id=candidatura.id) }}">
+                <div class="collapse mt-3" id="formPreCadastroCliente">
+                <form class="row g-3 align-items-end" method="post" action="{{ url_for('main.salvar_pre_cadastro_cliente_recrutamento', candidatura_id=candidatura.id) }}">
                     <div class="col-md-5">
                         <label class="form-label" for="clientePreCadastro">Cliente *</label>
                         <input class="form-control" id="clientePreCadastro" name="cliente" value="{{ pre_cadastro_cliente.cliente if pre_cadastro_cliente else '' }}" maxlength="160" required>
@@ -202,6 +203,7 @@
                         <textarea class="form-control" id="textoPreCadastro" name="observacao" rows="2">{{ pre_cadastro_cliente.observacao_operacional if pre_cadastro_cliente else '' }}</textarea>
                     </div>
                 </form>
+                </div>
             {% endif %}
         </div>
     </div>
@@ -302,7 +304,8 @@
                 {% if pre_admissao.observacoes %}<br>{{ pre_admissao.observacoes }}{% endif %}
             </div>
             {% if pode_gerenciar and not pre_admissao.liberado_admissao_em %}
-            <form class="row g-3 align-items-end mt-3 collapse" id="formExameAdmissional" method="post" action="{{ url_for('main.salvar_exame_admissional_recrutamento', candidatura_id=candidatura.id) }}">
+            <div class="collapse mt-3" id="formExameAdmissional">
+            <form class="row g-3 align-items-end" method="post" action="{{ url_for('main.salvar_exame_admissional_recrutamento', candidatura_id=candidatura.id) }}">
                 <div class="col-md-3">
                     <label class="form-label" for="statusExame">Status *</label>
                     <select class="form-select" id="statusExame" name="status" required>
@@ -323,6 +326,7 @@
                 <div class="col-md-3"><label class="form-label" for="observacoesExame">Observações</label><input class="form-control" id="observacoesExame" name="observacoes" maxlength="500" value="{{ pre_admissao.observacoes or '' }}"></div>
                 <div class="col-12 d-flex justify-content-end gap-2"><button class="btn btn-cinza" type="button" data-bs-toggle="collapse" data-bs-target="#formExameAdmissional">Cancelar</button><button class="btn btn-laranja" type="submit">Salvar</button></div>
             </form>
+            </div>
             {% endif %}
         </div>
 
