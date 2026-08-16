@@ -24,10 +24,13 @@
     }
 
     .comunicado-modal .modal-dialog {
+        width: fit-content;
         max-width: min(1100px, calc(100vw - 2rem));
     }
 
     .comunicado-modal .modal-content {
+        width: fit-content;
+        max-width: calc(100vw - 2rem);
         overflow: hidden;
         border: 0;
         border-radius: 14px;
@@ -51,10 +54,10 @@
 
     .comunicado-imagem {
         display: block;
-        width: 100%;
+        width: auto;
+        max-width: min(1100px, calc(100vw - 2rem));
         max-height: 84vh;
-        object-fit: contain;
-        background: #fff;
+        height: auto;
     }
 
     .comunicado-modal .carousel-control-prev,
@@ -101,7 +104,10 @@
                     data-bs-dismiss="modal"
                     aria-label="Fechar"></button>
 
-            <div id="carrosselComunicados" class="carousel slide" data-bs-interval="false">
+            <div id="carrosselComunicados"
+                 class="carousel slide"
+                 data-bs-ride="carousel"
+                 data-bs-interval="5000">
                 <div class="carousel-inner">
                     {% for comunicado in comunicados %}
                     <div class="carousel-item {% if loop.first %}active{% endif %}">
