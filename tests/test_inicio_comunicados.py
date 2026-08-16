@@ -33,6 +33,10 @@ class InicioComunicadosTests(unittest.TestCase):
         self.assertIn('data-bs-dismiss="modal"', template)
         self.assertIn('class="carousel slide"', template)
         self.assertIn("comunicados/' ~ comunicado.imagem", template)
+        self.assertIn(
+            "calc(100dvh - var(--topbar-height) - 56px)",
+            template,
+        )
 
     def test_visual_communications_use_persistent_uploads(self):
         upload_source = (ROOT / "app" / "upload_security.py").read_text(

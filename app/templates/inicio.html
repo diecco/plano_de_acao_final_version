@@ -7,7 +7,9 @@
 <style>
     .inicio-trackplan {
         position: relative;
-        min-height: calc(100vh - 112px);
+        height: calc(100vh - var(--topbar-height) - 56px);
+        height: calc(100dvh - var(--topbar-height) - 56px);
+        min-height: 0;
         overflow: hidden;
         border-radius: 14px;
         background: #f4f5f6;
@@ -82,7 +84,10 @@
     }
 
     @media (max-width: 767.98px) {
-        .inicio-trackplan { min-height: calc(100vh - 92px); }
+        .inicio-trackplan {
+            height: calc(100vh - 104px);
+            height: calc(100dvh - 104px);
+        }
         .inicio-trackplan::after { background-size: auto 78%; }
     }
 </style>
