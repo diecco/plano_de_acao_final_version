@@ -4,56 +4,23 @@
 
 {% block extra_css %}
 <style>
-    .processo-resumo { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
-    .resumo-item, .etapa-card { border:1px solid #e5e7eb; border-left:4px solid #f36b21; border-radius:10px; background:#fff; }
-    .resumo-item { padding:12px 14px; }
-    .resumo-item small { display:block; color:#6b7280; margin-bottom:3px; }
-    .resumo-item strong { color:#374151; }
-    .etapa-card { padding:16px; height:100%; }
+    .etapa-card { border:1px solid #e5e7eb; border-left:4px solid #f36b21; border-radius:10px; background:#fff; padding:16px; height:100%; }
     .etapa-numero { width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background:#f36b21; color:#fff; font-weight:700; }
     .etapa-meta { color:#6b7280; font-size:.86rem; }
     .parecer-box { background:#f8f9fa; border-radius:8px; padding:12px; white-space:pre-wrap; }
     .parecer-box.compacto { white-space:normal; }
     .historico-item { border-left:2px solid #f36b21; padding:0 0 14px 14px; }
     .modal-header-trackplan { background:#f36b21; color:#fff; }
-    @media (max-width: 992px) { .processo-resumo { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-    @media (max-width: 576px) { .processo-resumo { grid-template-columns:1fr; } }
 </style>
 {% endblock %}
 
 {% block conteudo %}
-<div class="page-header d-flex align-items-center justify-content-between gap-3 flex-wrap">
-    <a class="btn btn-cinza" href="{{ url_for('main.recrutamento_candidatos') }}" title="Voltar">
-        <i class="bi bi-arrow-left"></i>
-    </a>
+<div class="page-header">
     <h2 class="page-title text-center mb-0 flex-grow-1">
         <i class="bi bi-person-check me-2"></i>Processo seletivo
     </h2>
-    <div class="d-flex justify-content-end gap-2 flex-wrap">
-        {% if pode_gerenciar and candidatura.status in ('cadastrado', 'em_triagem') %}
-            <form method="post" action="{{ url_for('main.iniciar_selecao_recrutamento', candidatura_id=candidatura.id) }}">
-                <button class="btn btn-laranja" type="submit"><i class="bi bi-play-fill me-1"></i>Iniciar seleção</button>
-            </form>
-        {% elif pode_gerenciar and candidatura.decisao_resultado %}
-            <button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalReaproveitar">
-                <i class="bi bi-arrow-repeat me-1"></i>Reaproveitar candidatura
-            </button>
-        {% endif %}
-        {% if pode_encerrar %}
-            <button class="btn btn-cinza" type="button" data-bs-toggle="modal" data-bs-target="#modalEncerrarCandidatura">
-                <i class="bi bi-x-circle me-1"></i>Encerrar processo
-            </button>
-        {% endif %}
-    </div>
 </div>
 <hr>
-
-<div class="processo-resumo mb-4">
-    <div class="resumo-item"><small>Candidato</small><strong>{{ candidatura.nome }}</strong></div>
-    <div class="resumo-item"><small>Cargo pretendido</small><strong>{{ candidatura.cargo_pretendido }}</strong></div>
-    <div class="resumo-item"><small>Centro de custos</small><strong>{{ candidatura.centro_custos_codigo }}</strong></div>
-    <div class="resumo-item"><small>Situação</small><span class="badge bg-secondary">{{ status_candidatura.get(candidatura.status, candidatura.status|replace('_', ' ')|title) }}</span></div>
-</div>
 
 {% if candidatura_encerrada and candidatura.status in ('desistente', 'encerrado') %}
 <div class="alert alert-secondary d-flex align-items-center gap-2 mb-4">
@@ -65,30 +32,33 @@
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white d-flex align-items-center justify-content-between">
         <h5 class="mb-0"><i class="bi bi-person-vcard me-2"></i>Dados do candidato</h5>
-        {% if candidatura.curriculo_arquivo %}
-            <a class="btn btn-sm btn-cinza" href="{{ url_for('main.baixar_curriculo_recrutamento', nome=candidatura.curriculo_arquivo) }}">
-                <i class="bi bi-paperclip me-1"></i>Currículo
-            </a>
-        {% endif %}
+        <div class="d-flex align-items-center gap-2">
+            {% if candidatura.curriculo_arquivo %}<a class="btn-acao-icon" href="{{ url_for('main.baixar_curriculo_recrutamento', nome=candidatura.curriculo_arquivo) }}" title="Baixar currículo"><i class="bi bi-paperclip"></i></a>{% endif %}
+            {% if pode_gerenciar and candidatura.status in ('cadastrado', 'em_triagem') %}<form method="post" action="{{ url_for('main.iniciar_selecao_recrutamento', candidatura_id=candidatura.id) }}"><button class="btn-acao-icon" type="submit" title="Iniciar seleção"><i class="bi bi-play-fill"></i></button></form>{% elif pode_gerenciar and candidatura.decisao_resultado %}<button class="btn-acao-icon" type="button" data-bs-toggle="modal" data-bs-target="#modalReaproveitar" title="Reaproveitar candidatura"><i class="bi bi-arrow-repeat"></i></button>{% endif %}
+            {% if pode_encerrar %}<button class="btn-acao-icon" type="button" data-bs-toggle="modal" data-bs-target="#modalEncerrarCandidatura" title="Encerrar processo"><i class="bi bi-x-circle"></i></button>{% endif %}
+            <a class="btn-acao-icon" href="{{ url_for('main.recrutamento_candidatos') }}" title="Voltar"><i class="bi bi-arrow-left"></i></a>
+        </div>
     </div>
     <div class="card-body">
         <div class="row g-3">
+            <div class="col-md-4"><small class="text-muted d-block">Nome</small><strong>{{ candidatura.nome }}</strong></div>
             <div class="col-md-3"><small class="text-muted d-block">CPF</small>{{ candidatura.cpf[:3] }}.{{ candidatura.cpf[3:6] }}.{{ candidatura.cpf[6:9] }}-{{ candidatura.cpf[9:] }}</div>
+            <div class="col-md-5"><small class="text-muted d-block">Cargo pretendido</small>{{ candidatura.cargo_pretendido }}</div>
             <div class="col-md-3"><small class="text-muted d-block">Telefone</small>{% if candidatura.telefone|length == 11 %}({{ candidatura.telefone[:2] }}) {{ candidatura.telefone[2:7] }}-{{ candidatura.telefone[7:] }}{% else %}({{ candidatura.telefone[:2] }}) {{ candidatura.telefone[2:6] }}-{{ candidatura.telefone[6:] }}{% endif %}</div>
             <div class="col-md-3"><small class="text-muted d-block">E-mail</small>{{ candidatura.email or '-' }}</div>
-            <div class="col-md-3"><small class="text-muted d-block">Origem</small>{{ origens.get(candidatura.origem, candidatura.origem) }}</div>
-            <div class="col-md-6"><small class="text-muted d-block">Responsável RH</small>{{ candidatura.responsavel_rh_nome }}</div>
-            <div class="col-md-6"><small class="text-muted d-block">Localidade</small>{{ candidatura.cidade or '-' }}{% if candidatura.estado %} / {{ candidatura.estado }}{% endif %}</div>
+            <div class="col-md-3"><small class="text-muted d-block">Origem</small>{{ origens.get(candidatura.origem, candidatura.origem) }}{% if candidatura.detalhe_origem %} · {{ candidatura.detalhe_origem }}{% endif %}</div>
+            <div class="col-md-3"><small class="text-muted d-block">Localidade</small>{{ candidatura.cidade or '-' }}{% if candidatura.estado %} / {{ candidatura.estado }}{% endif %}</div>
         </div>
     </div>
 </div>
 
+{% if candidatura.status not in ('cadastrado', 'em_triagem') %}
 <div class="d-flex align-items-center justify-content-between mb-3">
     <h4 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Etapas da seleção</h4>
-    <span class="badge bg-secondary">{{ etapas|length + 1 }} etapa(s)</span>
+    <div class="d-flex align-items-center gap-2"><span class="badge bg-secondary">{{ etapas|length + 1 }} etapa(s)</span><button class="btn-acao-icon" type="button" data-bs-toggle="collapse" data-bs-target="#etapasSelecaoConteudo" title="Recolher ou expandir etapas"><i class="bi bi-chevron-up"></i></button></div>
 </div>
 
-<div class="row g-3 mb-4">
+<div class="collapse show" id="etapasSelecaoConteudo"><div class="row g-3 mb-4">
     {% for etapa in etapas %}
         <div class="col-12">
             <div class="etapa-card">
@@ -107,7 +77,7 @@
                     <span class="badge bg-secondary">{{ etapa.status|replace('_', ' ')|title }}</span>
                 </div>
 
-                {% if pode_gerenciar and candidatura.status not in ('cadastrado', 'em_triagem') and etapa.tipo != 'entrevista_comportamental' and etapa.status != 'realizada' %}
+                {% if pode_gerenciar and etapa.tipo != 'entrevista_comportamental' and etapa.status != 'realizada' and not etapa.avaliador_id %}
                     <form class="row g-2 align-items-end mt-2" method="post" action="{{ url_for('main.atribuir_etapa_recrutamento', candidatura_id=candidatura.id, etapa_id=etapa.id) }}">
                         <div class="col-md-6">
                             <label class="form-label" for="avaliador-{{ etapa.id }}">Avaliador</label>
@@ -200,7 +170,7 @@
                 <form class="row g-3 align-items-end" method="post" action="{{ url_for('main.salvar_pre_cadastro_cliente_recrutamento', candidatura_id=candidatura.id) }}">
                     <div class="col-md-7">
                         <label class="form-label" for="clientePreCadastro">Cliente *</label>
-                        <input class="form-control" id="clientePreCadastro" name="cliente" value="{{ pre_cadastro_cliente.cliente if pre_cadastro_cliente else '' }}" maxlength="160" required>
+                        <input class="form-control" id="clientePreCadastro" name="cliente" value="{{ pre_cadastro_cliente.cliente if pre_cadastro_cliente else 'Gerdau - Ouro Branco' }}" maxlength="160" required>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label" for="statusPreCadastro">Status *</label>
@@ -218,7 +188,8 @@
             {% endif %}
         </div>
     </div>
-</div>
+</div></div>
+{% endif %}
 
 {% if etapas_concluidas %}
 <div class="card border-0 shadow-sm mb-4">
@@ -245,7 +216,7 @@
                         {% endif %}
                     </div>
                     <div class="col-md-8"><label class="form-label" for="decisaoParecer">Justificativa *</label><textarea class="form-control" id="decisaoParecer" name="decisao_parecer" rows="3" required></textarea></div>
-                    <div class="col-12 d-flex justify-content-end"><button class="btn btn-laranja" type="submit"><i class="bi bi-check2-circle me-1"></i>Registrar decisão</button></div>
+                    <div class="col-12 d-flex justify-content-end"><button class="btn btn-laranja" type="submit"><i class="bi bi-check2-circle me-1"></i>Registrar</button></div>
                 </div>
             </form>
         {% endif %}
@@ -572,17 +543,20 @@ if (statusPreCadastro) {
 const statusExame = document.getElementById('statusExame');
 if (statusExame) {
     function atualizarExame() {
-        const exigeData = ['agendado', 'aguardando_resultado', 'concluido'].includes(statusExame.value);
+        const permiteData = statusExame.value === 'agendado';
         const concluido = statusExame.value === 'concluido';
         const data = document.getElementById('dataExame');
         const resultado = document.getElementById('resultadoExame');
-        document.getElementById('blocoDataExame').classList.toggle('d-none', !exigeData);
-        document.getElementById('blocoResultadoExame').classList.toggle('d-none', !concluido);
-        data.required = exigeData;
+        data.disabled = !permiteData;
+        resultado.disabled = !concluido;
+        data.required = permiteData;
         resultado.required = concluido;
         if (!concluido) resultado.value = '';
+        const observacoes = document.getElementById('observacoesExame');
+        observacoes.required = statusExame.value === 'cancelado' || (concluido && resultado.value === 'apto_restricao');
     }
     statusExame.addEventListener('change', atualizarExame);
+    document.getElementById('resultadoExame').addEventListener('change', atualizarExame);
     atualizarExame();
 }
 </script>

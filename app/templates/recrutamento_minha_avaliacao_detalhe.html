@@ -2,20 +2,25 @@
 {% block titulo %}Minha avaliação{% endblock %}
 {% block extra_css %}<style>.avaliacao-bloco{border:1px solid #e5e7eb;border-left:4px solid #f36b21;border-radius:10px;background:#fff;padding:16px}.parecer-box{background:#f8f9fa;border-radius:8px;padding:12px;white-space:pre-wrap}</style>{% endblock %}
 {% block conteudo %}
-<div class="page-header d-flex align-items-center justify-content-between gap-3">
-    <a class="btn btn-cinza" href="{{ url_for('main.minhas_avaliacoes_recrutamento') }}" title="Voltar"><i class="bi bi-arrow-left"></i></a>
-    <h2 class="page-title text-center mb-0 flex-grow-1"><i class="bi bi-clipboard-check me-2"></i>{{ etapa.nome }}</h2><span></span>
+<div class="page-header">
+    <h2 class="page-title text-center mb-0"><i class="bi bi-clipboard-check me-2"></i>{{ etapa.nome }}</h2>
 </div>
 <hr>
 <div class="avaliacao-bloco mb-4">
     <div class="row g-3">
-        <div class="col-md-4"><small class="text-muted d-block">Candidato</small><strong>{{ etapa.candidato_nome }}</strong></div>
-        <div class="col-md-4"><small class="text-muted d-block">Telefone</small>{% if etapa.telefone|length == 11 %}({{ etapa.telefone[:2] }}) {{ etapa.telefone[2:7] }}-{{ etapa.telefone[7:] }}{% else %}({{ etapa.telefone[:2] }}) {{ etapa.telefone[2:6] }}-{{ etapa.telefone[6:] }}{% endif %}</div>
+        <div class="col-md-3"><small class="text-muted d-block">Candidato</small><strong>{{ etapa.candidato_nome }}</strong></div>
+        <div class="col-md-3"><small class="text-muted d-block">Telefone</small>{% if etapa.telefone|length == 11 %}({{ etapa.telefone[:2] }}) {{ etapa.telefone[2:7] }}-{{ etapa.telefone[7:] }}{% else %}({{ etapa.telefone[:2] }}) {{ etapa.telefone[2:6] }}-{{ etapa.telefone[6:] }}{% endif %}</div>
         <div class="col-md-3"><small class="text-muted d-block">Cargo pretendido</small>{{ etapa.cargo_pretendido }}</div>
-        <div class="col-md-3"><small class="text-muted d-block">Prazo</small><strong>{{ etapa.data_prevista.strftime('%d/%m/%Y') if etapa.data_prevista else '-' }}</strong></div>
+        <div class="col-md-3 d-flex justify-content-between align-items-start"><div><small class="text-muted d-block">Prazo</small><strong>{{ etapa.data_prevista.strftime('%d/%m/%Y') if etapa.data_prevista else '-' }}</strong></div>{% if etapa.curriculo_arquivo %}<a class="btn-acao-icon" href="{{ url_for('main.curriculo_minha_avaliacao_recrutamento', etapa_id=etapa.id) }}" title="Baixar currículo"><i class="bi bi-paperclip"></i></a>{% endif %}</div>
     </div>
-    {% if etapa.curriculo_arquivo %}<div class="d-flex justify-content-end mt-3"><a class="btn btn-cinza" href="{{ url_for('main.curriculo_minha_avaliacao_recrutamento', etapa_id=etapa.id) }}"><i class="bi bi-paperclip me-1"></i>Currículo</a></div>{% endif %}
 </div>
+
+{% if experiencias %}
+<div class="avaliacao-bloco mb-4">
+    <h5><i class="bi bi-briefcase me-2"></i>Experiências profissionais</h5>
+    <div class="table-responsive mt-3"><table class="table table-sm table-bordered align-middle mb-0"><thead><tr><th>Empresa</th><th>Cargo</th><th>Início</th><th>Fim</th></tr></thead><tbody>{% for experiencia in experiencias %}<tr><td>{{ experiencia.empresa }}</td><td>{{ experiencia.cargo }}</td><td>{{ experiencia.data_inicio.strftime('%d/%m/%Y') if experiencia.data_inicio else '-' }}</td><td>{{ 'Atual' if experiencia.emprego_atual else (experiencia.data_fim.strftime('%d/%m/%Y') if experiencia.data_fim else '-') }}</td></tr>{% endfor %}</tbody></table></div>
+</div>
+{% endif %}
 
 {% if parecer_rh %}
 <div class="avaliacao-bloco mb-4">
@@ -28,7 +33,7 @@
 {% endif %}
 
 <div class="avaliacao-bloco">
-    {% if etapa.status == 'realizada' %}
+    {% if etapa.status == 'realizada' and etapa.decisao_resultado %}
         <h5>Resultado: {{ resultados.get(etapa.resultado, etapa.resultado) }}</h5>
         <div class="parecer-box mt-3">{{ etapa.parecer }}</div>
         {% if etapa.restricao %}<div class="parecer-box mt-2"><strong>Restrição:</strong> {{ etapa.restricao }}</div>{% endif %}
@@ -38,13 +43,14 @@
     {% else %}
         <form method="post" action="{{ url_for('main.avaliar_etapa_recrutamento', candidatura_id=etapa.candidatura_id, etapa_id=etapa.id) }}">
             <div class="row g-3">
-                <div class="col-md-4"><label class="form-label" for="resultado">Resultado *</label><select class="form-select" id="resultado" name="resultado" required><option value="">Selecione</option>{% for valor, rotulo in resultados.items() %}<option value="{{ valor }}">{{ rotulo }}</option>{% endfor %}</select></div>
-                <div class="col-md-8"><label class="form-label" for="parecer">Parecer *</label><textarea class="form-control" id="parecer" name="parecer" rows="4" required></textarea></div>
-                <div class="col-12 d-none" id="blocoRestricao"><label class="form-label" for="restricao">Restrição *</label><textarea class="form-control" id="restricao" name="restricao" rows="2"></textarea></div>
-                <div class="col-12 d-flex justify-content-end"><button class="btn btn-laranja" type="submit"><i class="bi bi-check2-circle me-1"></i>Concluir avaliação</button></div>
+                <div class="col-md-4"><label class="form-label" for="resultado">Resultado *</label><select class="form-select" id="resultado" name="resultado" required><option value="">Selecione</option>{% for valor, rotulo in resultados.items() %}<option value="{{ valor }}" {% if etapa.resultado == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}</select></div>
+                <div class="col-md-8"><label class="form-label" for="parecer">Parecer *</label><textarea class="form-control" id="parecer" name="parecer" rows="4" required>{{ etapa.parecer or '' }}</textarea></div>
+                <div class="col-12 {{ '' if etapa.resultado == 'aprovado_restricao' else 'd-none' }}" id="blocoRestricao"><label class="form-label" for="restricao">Restrição *</label><textarea class="form-control" id="restricao" name="restricao" rows="2">{{ etapa.restricao or '' }}</textarea></div>
+                <div class="col-12 d-flex justify-content-between align-items-center"><a class="btn btn-cinza" href="{{ url_for('main.minhas_avaliacoes_recrutamento') }}">Voltar</a><button class="btn btn-laranja" type="submit">Salvar</button></div>
             </div>
         </form>
     {% endif %}
 </div>
+{% if (etapa.status == 'realizada' and etapa.decisao_resultado) or etapa.candidatura_status in ('encerrado', 'desistente', 'liberado_admissao') %}<div class="d-flex justify-content-start mt-3"><a class="btn btn-cinza" href="{{ url_for('main.minhas_avaliacoes_recrutamento') }}">Voltar</a></div>{% endif %}
 {% endblock %}
 {% block scripts %}{{ super() }}<script>const resultado=document.getElementById('resultado');if(resultado){resultado.addEventListener('change',function(){const bloco=document.getElementById('blocoRestricao');const campo=document.getElementById('restricao');const exibir=this.value==='aprovado_restricao';bloco.classList.toggle('d-none',!exibir);campo.required=exibir;if(!exibir)campo.value='';});}</script>{% endblock %}

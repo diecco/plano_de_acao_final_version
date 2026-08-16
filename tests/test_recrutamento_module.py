@@ -295,12 +295,60 @@ class RecrutamentoModuleTests(unittest.TestCase):
         self.assertIn("def encerrar_candidatura_recrutamento", source)
         self.assertIn('"desistente": "Candidato declinou"', source)
         self.assertIn('"encerrado": "Cancelado pelo RH"', source)
+        self.assertIn(
+            'STATUS_CANDIDATURA_ENCERRADA = ("encerrado", "desistente")',
+            source,
+        )
+        self.assertIn('"liberado_admissao"', source)
+        self.assertIn("pode_encerrar=(", source)
         self.assertIn("_validar_candidatura_aberta(candidatura)", source)
         self.assertIn("INSERT INTO recrutamento_historico", source)
         self.assertIn('name="tipo_encerramento"', template)
         self.assertIn('value="desistencia"', template)
         self.assertIn('value="cancelamento_rh"', template)
         self.assertIn('name="justificativa"', template)
+
+    def test_recruitment_templates_compile_after_layout_adjustments(self):
+        from app import create_app
+
+        app = create_app()
+        for template in (
+            "novo_candidato_recrutamento.html",
+            "recrutamento_candidatos.html",
+            "recrutamento_candidatura_detalhe.html",
+            "recrutamento_minhas_avaliacoes.html",
+            "recrutamento_minha_avaliacao_detalhe.html",
+        ):
+            app.jinja_env.get_template(template)
+
+    def test_recruitment_layout_and_editing_adjustments_are_preserved(self):
+        source = (ROOT / "app" / "views" / "recrutamento.py").read_text(
+            encoding="utf-8"
+        )
+        cadastro = (
+            ROOT / "app" / "templates" / "novo_candidato_recrutamento.html"
+        ).read_text(encoding="utf-8")
+        detalhe = (
+            ROOT / "app" / "templates" / "recrutamento_candidatura_detalhe.html"
+        ).read_text(encoding="utf-8")
+        avaliacao = (
+            ROOT / "app" / "templates" / "recrutamento_minha_avaliacao_detalhe.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("const cpfValido", cadastro)
+        self.assertIn("request.form.get('estado', 'MG')", cadastro)
+        self.assertIn('id="cargo_id"', cadastro)
+        self.assertIn(">Voltar</a>", cadastro)
+        self.assertIn(">Salvar</button>", cadastro)
+        self.assertIn("and not etapa.avaliador_id", detalhe)
+        self.assertIn("Gerdau - Ouro Branco", detalhe)
+        self.assertIn("data.disabled = !permiteData", detalhe)
+        self.assertIn("resultado.disabled = !concluido", detalhe)
+        self.assertIn("já foi atribuída e não pode ser reatribuída", source)
+        self.assertIn("DATE_SUB(h.criado_em, INTERVAL 3 HOUR)", source)
+        self.assertIn("recrutamento_experiencias", source)
+        self.assertIn("Experiências profissionais", avaliacao)
+        self.assertIn("etapa.decisao_resultado", avaliacao)
 
 
 if __name__ == "__main__":

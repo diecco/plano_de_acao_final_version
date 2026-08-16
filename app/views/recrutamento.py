@@ -99,7 +99,10 @@ STATUS_CANDIDATURA = {
     "desistente": "Candidato declinou",
 }
 
-STATUS_CANDIDATURA_ENCERRADA = ("encerrado", "desistente", "liberado_admissao")
+STATUS_CANDIDATURA_ENCERRADA = ("encerrado", "desistente")
+STATUS_CANDIDATURA_BLOQUEADA = (
+    "encerrado", "desistente", "liberado_admissao"
+)
 
 
 def _somente_digitos(valor):
@@ -156,7 +159,7 @@ def _etapas_obrigatorias_concluidas(etapas):
 
 
 def _validar_candidatura_aberta(candidatura):
-    if candidatura["status"] in STATUS_CANDIDATURA_ENCERRADA:
+    if candidatura["status"] in STATUS_CANDIDATURA_BLOQUEADA:
         raise ValueError("Esta candidatura já foi encerrada e não aceita alterações.")
 
 
@@ -247,6 +250,14 @@ def register_recrutamento_routes(blueprint):
                 estado = (request.form.get("estado") or "").strip().upper() or None
                 cargo_id = request.form.get("cargo_id", type=int)
                 cargo_pretendido = (request.form.get("cargo_pretendido") or "").strip()
+                if cargo_id:
+                    cargo_selecionado = next(
+                        (cargo for cargo in cargos if cargo["id"] == cargo_id),
+                        None,
+                    )
+                    if cargo_selecionado is None:
+                        raise ValueError("Selecione um cargo pretendido válido.")
+                    cargo_pretendido = cargo_selecionado["nome"]
                 origem = (request.form.get("origem") or "").strip()
                 detalhe_origem = (request.form.get("detalhe_origem") or "").strip() or None
                 teste_pratico = (request.form.get("exige_teste_pratico") or "").strip()
@@ -452,7 +463,9 @@ def register_recrutamento_routes(blueprint):
                     complemento["etapa_id"], []
                 ).append(complemento)
             cursor.execute("""
-                SELECT h.*, u.nome AS usuario_nome
+                SELECT h.*,
+                       DATE_SUB(h.criado_em, INTERVAL 3 HOUR) AS criado_em,
+                       u.nome AS usuario_nome
                 FROM recrutamento_historico h
                 JOIN usuarios u ON u.id = h.usuario_id
                 WHERE h.candidatura_id = %s
@@ -541,7 +554,7 @@ def register_recrutamento_routes(blueprint):
             cursor.close()
             conn.close()
         pode_gerenciar_base = _pode_gerenciar_candidatura(candidatura)
-        candidatura_encerrada = candidatura["status"] in STATUS_CANDIDATURA_ENCERRADA
+        candidatura_encerrada = candidatura["status"] in STATUS_CANDIDATURA_BLOQUEADA
         return render_template(
             "recrutamento_candidatura_detalhe.html",
             candidatura=candidatura, etapas=etapas, historico=historico,
@@ -550,7 +563,10 @@ def register_recrutamento_routes(blueprint):
             etapas_concluidas=_etapas_obrigatorias_concluidas(etapas),
             origens=ORIGENS_CANDIDATURA,
             pode_gerenciar=pode_gerenciar_base and not candidatura_encerrada,
-            pode_encerrar=pode_gerenciar_base and not candidatura_encerrada,
+            pode_encerrar=(
+                pode_gerenciar_base
+                and candidatura["status"] not in STATUS_CANDIDATURA_ENCERRADA
+            ),
             candidatura_encerrada=candidatura_encerrada,
             status_candidatura=STATUS_CANDIDATURA,
             hoje=date.today(),
@@ -598,7 +614,8 @@ def register_recrutamento_routes(blueprint):
                 abort(404)
             if not _pode_gerenciar_candidatura(candidatura):
                 abort(403)
-            _validar_candidatura_aberta(candidatura)
+            if candidatura["status"] in STATUS_CANDIDATURA_ENCERRADA:
+                raise ValueError("Esta candidatura já possui um encerramento registrado.")
             if tipo not in encerramentos:
                 raise ValueError("Selecione o motivo do encerramento.")
             if len(justificativa) < 10:
@@ -1005,12 +1022,16 @@ def register_recrutamento_routes(blueprint):
             _validar_candidatura_aberta(candidatura)
             if candidatura["status"] in ("cadastrado", "em_triagem"):
                 raise ValueError("Inicie a seleção antes de atribuir as avaliações.")
-            cursor.execute("SELECT * FROM recrutamento_etapas WHERE id = %s AND candidatura_id = %s", (etapa_id, candidatura_id))
+            cursor.execute("SELECT * FROM recrutamento_etapas WHERE id = %s AND candidatura_id = %s FOR UPDATE", (etapa_id, candidatura_id))
             etapa = cursor.fetchone()
             if etapa is None:
                 abort(404)
             if etapa["tipo"] == "entrevista_comportamental":
                 raise ValueError("A entrevista comportamental pertence ao RH responsável.")
+            if etapa.get("avaliador_id"):
+                raise ValueError(
+                    "Esta avaliação já foi atribuída e não pode ser reatribuída."
+                )
             if not prazo_texto:
                 raise ValueError("Informe o prazo para conclusão da avaliação.")
             try:
@@ -1139,8 +1160,6 @@ def register_recrutamento_routes(blueprint):
             if session.get("perfil") != "administrador" and not avaliacao_rh and not avaliacao_atribuida:
                 abort(403)
             _validar_candidatura_aberta(candidatura)
-            if etapa["status"] == "realizada":
-                raise ValueError("Esta avaliação já foi concluída e não pode ser alterada.")
             if candidatura["status"] in ("reprovado", "encerrado", "desistente"):
                 raise ValueError("Esta candidatura não aceita novas avaliações.")
             if candidatura.get("decisao_resultado"):
@@ -1461,13 +1480,27 @@ def register_recrutamento_routes(blueprint):
             proposta = cursor.fetchone()
             if not proposta or proposta["status"] != "aceita":
                 raise ValueError("A pré-admissão exige uma proposta aceita.")
+            cursor.execute(
+                "SELECT * FROM recrutamento_pre_admissao WHERE candidatura_id = %s",
+                (candidatura_id,),
+            )
+            pre_admissao_atual = cursor.fetchone()
+            if pre_admissao_atual is None:
+                raise ValueError("A pré-admissão ainda não foi iniciada.")
             if status not in STATUS_EXAME_ADMISSIONAL:
                 raise ValueError("Selecione uma situação válida para o exame.")
-            if status in ("agendado", "aguardando_resultado", "concluido"):
-                if not data_exame:
-                    raise ValueError("Informe a data do exame admissional.")
+            if status != "agendado":
+                data_exame = pre_admissao_atual.get("aso_data_prevista")
+            if status == "agendado" and not data_exame:
+                raise ValueError("Informe a data do exame admissional.")
+            if status in ("aguardando_resultado", "concluido") and not data_exame:
+                raise ValueError("Agende o exame antes de avançar esta etapa.")
             try:
-                data_exame_valida = date.fromisoformat(data_exame) if data_exame else None
+                data_exame_valida = (
+                    data_exame
+                    if isinstance(data_exame, date)
+                    else date.fromisoformat(data_exame) if data_exame else None
+                )
             except ValueError as exc:
                 raise ValueError("Informe uma data válida para o exame.") from exc
             if status == "concluido" and resultado not in RESULTADOS_EXAME_ADMISSIONAL:
@@ -1683,7 +1716,8 @@ def register_recrutamento_routes(blueprint):
                 SELECT e.id AS etapa_id, e.nome AS etapa_nome, e.status,
                        e.resultado, e.data_prevista, e.realizada_em,
                        c.nome AS candidato_nome, c.telefone,
-                       ca.cargo_pretendido, ca.status AS candidatura_status
+                       ca.cargo_pretendido, ca.status AS candidatura_status,
+                       ca.decisao_resultado
                 FROM recrutamento_etapas e
                 JOIN recrutamento_candidaturas ca ON ca.id = e.candidatura_id
                 JOIN recrutamento_candidatos c ON c.id = ca.candidato_id
@@ -1704,9 +1738,9 @@ def register_recrutamento_routes(blueprint):
         cursor = conn.cursor(dictionary=True)
         try:
             cursor.execute("""
-                SELECT e.*, ca.cargo_pretendido,
+                SELECT e.*, ca.cargo_pretendido, ca.decisao_resultado,
                        ca.status AS candidatura_status,
-                       c.nome AS candidato_nome,
+                       c.id AS candidato_id, c.nome AS candidato_nome,
                        c.telefone, c.curriculo_arquivo
                 FROM recrutamento_etapas e
                 JOIN recrutamento_candidaturas ca ON ca.id = e.candidatura_id
@@ -1737,6 +1771,13 @@ def register_recrutamento_routes(blueprint):
                 ORDER BY pc.criado_em, pc.id
             """, (etapa["candidatura_id"],))
             pareceres_complementares = cursor.fetchall()
+            cursor.execute("""
+                SELECT ordem, empresa, cargo, data_inicio, data_fim, emprego_atual
+                FROM recrutamento_experiencias
+                WHERE candidato_id = %s
+                ORDER BY ordem, id
+            """, (etapa["candidato_id"],))
+            experiencias = cursor.fetchall()
         finally:
             cursor.close()
             conn.close()
@@ -1744,6 +1785,7 @@ def register_recrutamento_routes(blueprint):
             "recrutamento_minha_avaliacao_detalhe.html", etapa=etapa,
             parecer_rh=parecer_rh,
             pareceres_complementares=pareceres_complementares,
+            experiencias=experiencias,
             resultados=RESULTADOS_ETAPA,
         )
 

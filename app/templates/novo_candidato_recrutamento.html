@@ -40,6 +40,7 @@
                     <label class="form-label" for="cpf">CPF *</label>
                     <input class="form-control" id="cpf" name="cpf" inputmode="numeric"
                            maxlength="14" value="{{ request.form.get('cpf', '') }}" required>
+                    <div class="invalid-feedback">Informe um CPF válido.</div>
                 </div>
                 <div class="col-12 col-md-4">
                     <label class="form-label" for="nome">Nome completo *</label>
@@ -72,8 +73,12 @@
                 </div>
                 <div class="col-4 col-md-1">
                     <label class="form-label" for="estado">UF</label>
-                    <input class="form-control text-uppercase" id="estado" name="estado" maxlength="2"
-                           value="{{ request.form.get('estado', '') }}">
+                    <select class="form-select" id="estado" name="estado">
+                        {% set uf_selecionada = request.form.get('estado', 'MG') %}
+                        {% for uf in ('AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO') %}
+                            <option value="{{ uf }}" {% if uf_selecionada == uf %}selected{% endif %}>{{ uf }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <div class="col-12 col-md-4">
                     <label class="form-label" for="curriculo">Currículo</label>
@@ -88,13 +93,14 @@
             <h3 class="form-section-title">Candidatura inicial</h3>
             <div class="row g-2">
                 <div class="col-12 col-md-3">
-                    <label class="form-label" for="cargo_pretendido">Cargo pretendido *</label>
-                    <input class="form-control" id="cargo_pretendido" name="cargo_pretendido"
-                           list="lista_cargos" maxlength="160"
-                           value="{{ request.form.get('cargo_pretendido', '') }}" required>
-                    <datalist id="lista_cargos">
-                        {% for cargo in cargos %}<option value="{{ cargo.nome }}">{% endfor %}
-                    </datalist>
+                    <label class="form-label" for="cargo_id">Cargo pretendido *</label>
+                    <select class="form-select" id="cargo_id" name="cargo_id" required>
+                        <option value="">Selecione</option>
+                        {% for cargo in cargos %}<option value="{{ cargo.id }}" data-nome="{{ cargo.nome }}" {% if request.form.get('cargo_id')|int == cargo.id %}selected{% endif %}>{{ cargo.nome }}</option>{% endfor %}
+                        <option value="outro" {% if request.form.get('cargo_id') == 'outro' %}selected{% endif %}>Outro cargo</option>
+                    </select>
+                    <input type="hidden" id="cargo_pretendido" name="cargo_pretendido" value="{{ request.form.get('cargo_pretendido', '') }}">
+                    <input class="form-control mt-2 d-none" id="cargo_pretendido_outro" maxlength="160" placeholder="Informe o cargo pretendido">
                 </div>
                 <div class="col-12 col-md-5">
                     <label class="form-label" for="origem">Origem *</label>
@@ -199,9 +205,9 @@
             <textarea class="form-control" id="observacoes" name="observacoes" rows="2">{{ request.form.get('observacoes', '') }}</textarea>
         </section>
     </div>
-    <div class="card-footer bg-white d-flex justify-content-end gap-2 py-3">
-        <a class="btn btn-cinza" href="{{ url_for('main.recrutamento_candidatos') }}">Cancelar</a>
-        <button class="btn btn-laranja" type="submit">Salvar candidato</button>
+    <div class="card-footer bg-white d-flex justify-content-between gap-2 py-3">
+        <a class="btn btn-cinza" href="{{ url_for('main.recrutamento_candidatos') }}">Voltar</a>
+        <button class="btn btn-laranja" type="submit">Salvar</button>
     </div>
 </form>
 {% endblock %}
@@ -232,8 +238,46 @@
     };
 
     const cpf = document.getElementById('cpf');
-    cpf.addEventListener('input', () => { cpf.value = formatarCpf(cpf.value); });
+    const cpfValido = (valor) => {
+        const numeros = somenteDigitos(valor, 11);
+        if (numeros.length !== 11 || /^(\d)\1{10}$/.test(numeros)) return false;
+        for (let tamanho = 9; tamanho <= 10; tamanho += 1) {
+            let soma = 0;
+            for (let indice = 0; indice < tamanho; indice += 1) soma += Number(numeros[indice]) * (tamanho + 1 - indice);
+            let digito = (soma * 10) % 11;
+            if (digito === 10) digito = 0;
+            if (digito !== Number(numeros[tamanho])) return false;
+        }
+        return true;
+    };
+    const validarCpf = () => {
+        const completo = somenteDigitos(cpf.value, 11).length === 11;
+        cpf.setCustomValidity(!completo || cpfValido(cpf.value) ? '' : 'Informe um CPF válido.');
+        cpf.classList.toggle('is-invalid', completo && !cpfValido(cpf.value));
+        cpf.classList.toggle('is-valid', completo && cpfValido(cpf.value));
+    };
+    cpf.addEventListener('input', () => { cpf.value = formatarCpf(cpf.value); validarCpf(); });
+    cpf.addEventListener('blur', validarCpf);
     cpf.value = formatarCpf(cpf.value);
+    validarCpf();
+
+    const cargoId = document.getElementById('cargo_id');
+    const cargoPretendido = document.getElementById('cargo_pretendido');
+    const cargoOutro = document.getElementById('cargo_pretendido_outro');
+    const atualizarCargo = () => {
+        const outro = cargoId.value === 'outro';
+        cargoOutro.classList.toggle('d-none', !outro);
+        cargoOutro.required = outro;
+        if (outro) {
+            cargoOutro.value = cargoPretendido.value;
+        } else {
+            cargoPretendido.value = cargoId.selectedOptions[0]?.dataset.nome || '';
+            cargoOutro.value = '';
+        }
+    };
+    cargoOutro.addEventListener('input', () => { cargoPretendido.value = cargoOutro.value; });
+    cargoId.addEventListener('change', atualizarCargo);
+    atualizarCargo();
 
     document.querySelectorAll('.telefone-mask').forEach((campo) => {
         campo.addEventListener('input', () => {
