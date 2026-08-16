@@ -13,6 +13,7 @@
     .etapa-numero { width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background:#f36b21; color:#fff; font-weight:700; }
     .etapa-meta { color:#6b7280; font-size:.86rem; }
     .parecer-box { background:#f8f9fa; border-radius:8px; padding:12px; white-space:pre-wrap; }
+    .parecer-box.compacto { white-space:normal; }
     .historico-item { border-left:2px solid #f36b21; padding:0 0 14px 14px; }
     .modal-header-trackplan { background:#f36b21; color:#fff; }
     @media (max-width: 992px) { .processo-resumo { grid-template-columns:repeat(2,minmax(0,1fr)); } }
@@ -178,10 +179,8 @@
                 </div>
             </div>
             {% if pre_cadastro_cliente %}
-                <div class="parecer-box mt-3">
-                    <strong>Cliente:</strong> {{ pre_cadastro_cliente.cliente }}<br>
-                    <strong>Status:</strong> {{ status_validacao_cliente.get(pre_cadastro_cliente.status, pre_cadastro_cliente.status) }}
-                    {% if pre_cadastro_cliente.observacao_operacional %}<br>{{ pre_cadastro_cliente.observacao_operacional }}{% endif %}
+                <div class="parecer-box compacto mt-3">
+                    <strong>Cliente:</strong> {{ pre_cadastro_cliente.cliente }} <span class="text-muted mx-2">·</span> <strong>Status:</strong> {{ status_validacao_cliente.get(pre_cadastro_cliente.status, pre_cadastro_cliente.status) }}{% if pre_cadastro_cliente.observacao_operacional and pre_cadastro_cliente.observacao_operacional|string|lower != 'none' %}<br>{{ pre_cadastro_cliente.observacao_operacional }}{% endif %}
                 </div>
             {% endif %}
             {% if pode_gerenciar and candidatura.status != 'liberado_admissao' %}
@@ -297,11 +296,8 @@
                     {% if pode_gerenciar and not pre_admissao.liberado_admissao_em %}<button class="btn btn-sm btn-cinza" type="button" data-bs-toggle="collapse" data-bs-target="#formExameAdmissional" title="Editar exame admissional"><i class="bi bi-pencil-square"></i></button>{% endif %}
                 </div>
             </div>
-            <div class="parecer-box mt-3">
-                <strong>Status:</strong> {{ status_exame_admissional.get(pre_admissao.aso_status, pre_admissao.aso_status) }}
-                {% if pre_admissao.aso_data_prevista %}<br><strong>Data do exame:</strong> {{ pre_admissao.aso_data_prevista.strftime('%d/%m/%Y') }}{% endif %}
-                {% if pre_admissao.aso_resultado %}<br><strong>Resultado:</strong> {{ resultados_exame_admissional.get(pre_admissao.aso_resultado, pre_admissao.aso_resultado) }}{% endif %}
-                {% if pre_admissao.observacoes %}<br>{{ pre_admissao.observacoes }}{% endif %}
+            <div class="parecer-box compacto mt-3">
+                <strong>Status:</strong> {{ status_exame_admissional.get(pre_admissao.aso_status, pre_admissao.aso_status) }}{% if pre_admissao.aso_data_prevista %} <span class="text-muted mx-2">·</span> <strong>Data do exame:</strong> {{ pre_admissao.aso_data_prevista.strftime('%d/%m/%Y') }}{% endif %}{% if pre_admissao.aso_resultado %} <span class="text-muted mx-2">·</span> <strong>Resultado:</strong> {{ resultados_exame_admissional.get(pre_admissao.aso_resultado, pre_admissao.aso_resultado) }}{% endif %}{% if pre_admissao.observacoes and pre_admissao.observacoes|string|lower != 'none' %}<br>{{ pre_admissao.observacoes }}{% endif %}
             </div>
             {% if pode_gerenciar and not pre_admissao.liberado_admissao_em %}
             <div class="collapse mt-3" id="formExameAdmissional">
