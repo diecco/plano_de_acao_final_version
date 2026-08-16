@@ -170,13 +170,22 @@
                         <div class="etapa-meta">Etapa paralela · Responsável: Equipe de RH</div>
                     </div>
                 </div>
-                <span class="badge bg-secondary">{{ status_validacao_cliente.get(pre_cadastro_cliente.status, pre_cadastro_cliente.status) if pre_cadastro_cliente else 'Não iniciado' }}</span>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-secondary">{{ status_validacao_cliente.get(pre_cadastro_cliente.status, pre_cadastro_cliente.status) if pre_cadastro_cliente else 'Não iniciado' }}</span>
+                    {% if pode_gerenciar and candidatura.status != 'liberado_admissao' %}
+                        <button class="btn btn-sm {{ 'btn-cinza' if pre_cadastro_cliente else 'btn-laranja' }}" type="button" data-bs-toggle="collapse" data-bs-target="#formPreCadastroCliente" title="{{ 'Editar pré-cadastro' if pre_cadastro_cliente else 'Registrar pré-cadastro' }}"><i class="bi {{ 'bi-pencil-square' if pre_cadastro_cliente else 'bi-plus-lg' }}"></i></button>
+                    {% endif %}
+                </div>
             </div>
-            {% if pre_cadastro_cliente and pre_cadastro_cliente.observacao_operacional %}
-                <div class="parecer-box mt-3">{{ pre_cadastro_cliente.observacao_operacional }}</div>
+            {% if pre_cadastro_cliente %}
+                <div class="parecer-box mt-3">
+                    <strong>Cliente:</strong> {{ pre_cadastro_cliente.cliente }}<br>
+                    <strong>Status:</strong> {{ status_validacao_cliente.get(pre_cadastro_cliente.status, pre_cadastro_cliente.status) }}
+                    {% if pre_cadastro_cliente.observacao_operacional %}<br>{{ pre_cadastro_cliente.observacao_operacional }}{% endif %}
+                </div>
             {% endif %}
             {% if pode_gerenciar and candidatura.status != 'liberado_admissao' %}
-                <form class="row g-3 align-items-end mt-2" method="post" action="{{ url_for('main.salvar_pre_cadastro_cliente_recrutamento', candidatura_id=candidatura.id) }}">
+                <form class="row g-3 align-items-end mt-3 collapse" id="formPreCadastroCliente" method="post" action="{{ url_for('main.salvar_pre_cadastro_cliente_recrutamento', candidatura_id=candidatura.id) }}">
                     <div class="col-md-5">
                         <label class="form-label" for="clientePreCadastro">Cliente *</label>
                         <input class="form-control" id="clientePreCadastro" name="cliente" value="{{ pre_cadastro_cliente.cliente if pre_cadastro_cliente else '' }}" maxlength="160" required>
@@ -187,7 +196,7 @@
                             {% for valor, rotulo in status_validacao_cliente.items() %}<option value="{{ valor }}" {% if (pre_cadastro_cliente.status if pre_cadastro_cliente else 'nao_iniciado') == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-3 d-flex justify-content-end"><button class="btn btn-laranja" type="submit">Salvar</button></div>
+                    <div class="col-md-3 d-flex justify-content-end gap-2"><button class="btn btn-cinza" type="button" data-bs-toggle="collapse" data-bs-target="#formPreCadastroCliente">Cancelar</button><button class="btn btn-laranja" type="submit">Salvar</button></div>
                     <div class="col-12 d-none" id="observacaoPreCadastro">
                         <label class="form-label" for="textoPreCadastro">Motivo operacional da reprovação *</label>
                         <textarea class="form-control" id="textoPreCadastro" name="observacao" rows="2">{{ pre_cadastro_cliente.observacao_operacional if pre_cadastro_cliente else '' }}</textarea>
@@ -278,31 +287,44 @@
         <span class="badge bg-secondary">{{ 'Liberado para admissão' if pre_admissao.liberado_admissao_em else 'Em andamento' }}</span>
     </div>
     <div class="card-body">
-        <h6 class="text-orange mb-3">Exame admissional</h6>
-        <form class="row g-3 align-items-end mb-4" method="post" action="{{ url_for('main.salvar_exame_admissional_recrutamento', candidatura_id=candidatura.id) }}">
-            <div class="col-md-3">
-                <label class="form-label" for="statusExame">Status *</label>
-                <select class="form-select" id="statusExame" name="status" required {% if not pode_gerenciar or pre_admissao.liberado_admissao_em %}disabled{% endif %}>
-                    {% for valor, rotulo in status_exame_admissional.items() %}<option value="{{ valor }}" {% if pre_admissao.aso_status == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
-                </select>
+        <div class="border rounded p-3 mb-4">
+            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                <div><h6 class="text-orange mb-1">Exame admissional</h6><div class="etapa-meta">Agendamento e resultado ocupacional</div></div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-secondary">{{ status_exame_admissional.get(pre_admissao.aso_status, pre_admissao.aso_status) }}</span>
+                    {% if pode_gerenciar and not pre_admissao.liberado_admissao_em %}<button class="btn btn-sm btn-cinza" type="button" data-bs-toggle="collapse" data-bs-target="#formExameAdmissional" title="Editar exame admissional"><i class="bi bi-pencil-square"></i></button>{% endif %}
+                </div>
             </div>
-            <div class="col-md-3" id="blocoDataExame">
-                <label class="form-label" for="dataExame">Data do exame *</label>
-                <input class="form-control" id="dataExame" type="date" name="data_exame" value="{{ pre_admissao.aso_data_prevista.isoformat() if pre_admissao.aso_data_prevista else '' }}" {% if not pode_gerenciar or pre_admissao.liberado_admissao_em %}disabled{% endif %}>
+            <div class="parecer-box mt-3">
+                <strong>Status:</strong> {{ status_exame_admissional.get(pre_admissao.aso_status, pre_admissao.aso_status) }}
+                {% if pre_admissao.aso_data_prevista %}<br><strong>Data do exame:</strong> {{ pre_admissao.aso_data_prevista.strftime('%d/%m/%Y') }}{% endif %}
+                {% if pre_admissao.aso_resultado %}<br><strong>Resultado:</strong> {{ resultados_exame_admissional.get(pre_admissao.aso_resultado, pre_admissao.aso_resultado) }}{% endif %}
+                {% if pre_admissao.observacoes %}<br>{{ pre_admissao.observacoes }}{% endif %}
             </div>
-            <div class="col-md-3" id="blocoResultadoExame">
-                <label class="form-label" for="resultadoExame">Resultado *</label>
-                <select class="form-select" id="resultadoExame" name="resultado" {% if not pode_gerenciar or pre_admissao.liberado_admissao_em %}disabled{% endif %}>
-                    <option value="">Selecione</option>
-                    {% for valor, rotulo in resultados_exame_admissional.items() %}<option value="{{ valor }}" {% if pre_admissao.aso_resultado == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label" for="observacoesExame">Observações</label>
-                <input class="form-control" id="observacoesExame" name="observacoes" maxlength="500" value="{{ pre_admissao.observacoes or '' }}" {% if not pode_gerenciar or pre_admissao.liberado_admissao_em %}disabled{% endif %}>
-            </div>
-            {% if pode_gerenciar and not pre_admissao.liberado_admissao_em %}<div class="col-md-1 d-flex justify-content-end"><button class="btn btn-laranja" type="submit" title="Salvar exame"><i class="bi bi-check-lg"></i></button></div>{% endif %}
-        </form>
+            {% if pode_gerenciar and not pre_admissao.liberado_admissao_em %}
+            <form class="row g-3 align-items-end mt-3 collapse" id="formExameAdmissional" method="post" action="{{ url_for('main.salvar_exame_admissional_recrutamento', candidatura_id=candidatura.id) }}">
+                <div class="col-md-3">
+                    <label class="form-label" for="statusExame">Status *</label>
+                    <select class="form-select" id="statusExame" name="status" required>
+                        {% for valor, rotulo in status_exame_admissional.items() %}<option value="{{ valor }}" {% if pre_admissao.aso_status == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3" id="blocoDataExame">
+                    <label class="form-label" for="dataExame">Data do exame *</label>
+                    <input class="form-control" id="dataExame" type="date" name="data_exame" value="{{ pre_admissao.aso_data_prevista.isoformat() if pre_admissao.aso_data_prevista else '' }}">
+                </div>
+                <div class="col-md-3" id="blocoResultadoExame">
+                    <label class="form-label" for="resultadoExame">Resultado *</label>
+                    <select class="form-select" id="resultadoExame" name="resultado">
+                        <option value="">Selecione</option>
+                        {% for valor, rotulo in resultados_exame_admissional.items() %}<option value="{{ valor }}" {% if pre_admissao.aso_resultado == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3"><label class="form-label" for="observacoesExame">Observações</label><input class="form-control" id="observacoesExame" name="observacoes" maxlength="500" value="{{ pre_admissao.observacoes or '' }}"></div>
+                <div class="col-12 d-flex justify-content-end gap-2"><button class="btn btn-cinza" type="button" data-bs-toggle="collapse" data-bs-target="#formExameAdmissional">Cancelar</button><button class="btn btn-laranja" type="submit">Salvar</button></div>
+            </form>
+            {% endif %}
+        </div>
 
         <h6 class="text-orange mb-3">Documentação admissional</h6>
         {% if documentos_admissionais %}
