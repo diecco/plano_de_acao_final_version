@@ -292,7 +292,9 @@
             <form class="row g-3 align-items-end" method="post" action="{{ url_for('main.salvar_exame_admissional_recrutamento', candidatura_id=candidatura.id) }}">
                 <div class="col-md-3">
                     <label class="form-label" for="statusExame">Status *</label>
-                    <select class="form-select" id="statusExame" name="status" onchange="atualizarCamposExameAdmissional(this.value)" required>
+                    <select class="form-select" id="statusExame" name="status"
+                            onchange="document.getElementById('dataExame').disabled=this.value!=='agendado'; document.getElementById('dataExame').required=this.value==='agendado'; document.getElementById('resultadoExame').disabled=this.value!=='concluido'; document.getElementById('resultadoExame').required=this.value==='concluido'; document.getElementById('observacoesExame').disabled=!['concluido','cancelado'].includes(this.value); atualizarCamposExameAdmissional(this.value);"
+                            required>
                         {% for valor, rotulo in status_exame_admissional.items() %}<option value="{{ valor }}" {% if pre_admissao.aso_status == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
                     </select>
                 </div>
