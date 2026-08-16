@@ -22,6 +22,7 @@ class InicioComunicadosTests(unittest.TestCase):
         self.assertIn('session.get("centro_custos_id")', source)
         self.assertIn("cv.corporativo = 1", source)
         self.assertIn("comunicados_visuais_centros", source)
+        self.assertIn("UploadService.existe", source)
 
     def test_visual_carousel_is_image_only_and_dismissible(self):
         template = (ROOT / "app" / "templates" / "inicio.html").read_text(
@@ -38,6 +39,20 @@ class InicioComunicadosTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn('"comunicados"', upload_source)
+
+    def test_admin_can_replace_a_visual_communication_image(self):
+        source = (ROOT / "app" / "views" / "inicio.py").read_text(
+            encoding="utf-8"
+        )
+        template = (
+            ROOT / "app" / "templates" / "comunicados_visuais.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            '"/admin/comunicados/<int:comunicado_id>/imagem"',
+            source,
+        )
+        self.assertIn("substituir_imagem_comunicado_visual", template)
+        self.assertIn("Editar imagem", template)
 
     def test_login_and_permission_denials_return_to_home(self):
         authentication = (

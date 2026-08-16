@@ -37,7 +37,14 @@ def register_inicio_routes(blueprint):
                   AND ({escopo})
                 ORDER BY cv.ordem ASC, cv.criado_em DESC, cv.id DESC
             """, [date.today(), date.today()] + parametros)
-            comunicados = cursor.fetchall()
+            comunicados = [
+                comunicado
+                for comunicado in cursor.fetchall()
+                if UploadService.existe(
+                    comunicado.get("imagem"),
+                    DIRETORIO_COMUNICADOS,
+                )
+            ]
         finally:
             cursor.close()
             conn.close()
@@ -167,6 +174,63 @@ def register_inicio_routes(blueprint):
             centros_custos=centros_custos,
             comunicados=comunicados,
         )
+
+    @blueprint.route(
+        "/admin/comunicados/<int:comunicado_id>/imagem",
+        methods=["POST"],
+    )
+    @login_required
+    @admin_required
+    def substituir_imagem_comunicado_visual(comunicado_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        nova_imagem = None
+        try:
+            cursor.execute(
+                "SELECT imagem FROM comunicados_visuais WHERE id = %s",
+                (comunicado_id,),
+            )
+            comunicado = cursor.fetchone()
+            if not comunicado:
+                flash("Comunicado não encontrado.", "danger")
+                return redirect(url_for("main.comunicados_visuais"))
+
+            try:
+                nova_imagem = UploadService.salvar(
+                    request.files.get("imagem"),
+                    EXTENSOES_COMUNICADOS,
+                    "comunicado",
+                    DIRETORIO_COMUNICADOS,
+                )
+            except UploadValidationError as erro:
+                flash(str(erro), "danger")
+                return redirect(url_for("main.comunicados_visuais"))
+
+            if not nova_imagem:
+                flash("Selecione a nova imagem do comunicado.", "danger")
+                return redirect(url_for("main.comunicados_visuais"))
+
+            try:
+                cursor.execute(
+                    "UPDATE comunicados_visuais SET imagem = %s WHERE id = %s",
+                    (nova_imagem, comunicado_id),
+                )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                UploadService.excluir(nova_imagem, DIRETORIO_COMUNICADOS)
+                raise
+
+            UploadService.excluir(
+                comunicado.get("imagem"),
+                DIRETORIO_COMUNICADOS,
+            )
+            flash("Imagem do comunicado atualizada com sucesso.", "success")
+        finally:
+            cursor.close()
+            conn.close()
+
+        return redirect(url_for("main.comunicados_visuais"))
 
     @blueprint.route(
         "/admin/comunicados/<int:comunicado_id>/alternar",

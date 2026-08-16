@@ -94,11 +94,20 @@
                     <span class="badge bg-secondary">{{ 'Ativo' if comunicado.ativo else 'Inativo' }}</span>
                 </td>
                 <td class="text-center">
-                    <form method="post" action="{{ url_for('main.alternar_comunicado_visual', comunicado_id=comunicado.id) }}">
-                        <button class="btn-acao-icon" type="submit" title="{{ 'Inativar' if comunicado.ativo else 'Ativar' }}">
-                            <i class="bi {{ 'bi-eye-slash' if comunicado.ativo else 'bi-eye' }}"></i>
+                    <div class="d-flex justify-content-center gap-2">
+                        <button class="btn-acao-icon"
+                                type="button"
+                                title="Editar imagem"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modalEditarImagem{{ comunicado.id }}">
+                            <i class="bi bi-pencil-square"></i>
                         </button>
-                    </form>
+                        <form method="post" action="{{ url_for('main.alternar_comunicado_visual', comunicado_id=comunicado.id) }}">
+                            <button class="btn-acao-icon" type="submit" title="{{ 'Inativar' if comunicado.ativo else 'Ativar' }}">
+                                <i class="bi {{ 'bi-eye-slash' if comunicado.ativo else 'bi-eye' }}"></i>
+                            </button>
+                        </form>
+                    </div>
                 </td>
             </tr>
             {% else %}
@@ -107,6 +116,44 @@
         </tbody>
     </table>
 </div>
+
+{% for comunicado in comunicados %}
+<div class="modal fade"
+     id="modalEditarImagem{{ comunicado.id }}"
+     tabindex="-1"
+     aria-labelledby="tituloEditarImagem{{ comunicado.id }}"
+     aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header modal-header-trackplan">
+                <h5 class="modal-title" id="tituloEditarImagem{{ comunicado.id }}">
+                    <i class="bi bi-image me-2"></i>Editar imagem
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form method="post"
+                  enctype="multipart/form-data"
+                  action="{{ url_for('main.substituir_imagem_comunicado_visual', comunicado_id=comunicado.id) }}">
+                <div class="modal-body">
+                    <p class="text-muted mb-3">{{ comunicado.nome_interno }}</p>
+                    <label class="form-label" for="imagemComunicado{{ comunicado.id }}">Nova imagem</label>
+                    <input class="form-control"
+                           id="imagemComunicado{{ comunicado.id }}"
+                           name="imagem"
+                           type="file"
+                           accept=".png,.jpg,.jpeg"
+                           required>
+                    <div class="form-text">PNG ou JPG. As demais configurações serão preservadas.</div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
+                    <button class="btn btn-laranja" type="submit">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
 {% endblock %}
 
 {% block extra_js %}
