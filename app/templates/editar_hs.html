@@ -299,6 +299,18 @@
                 </table>
             </div>
 
+            <hr class="my-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div><h5 class="text-laranja mb-1">Outros itens identificados</h5><small class="text-muted">A criação de ação é opcional.</small></div>
+                <button type="button" class="btn btn-laranja" onclick="adicionarItemAdicionalHS()"><i class="bi bi-plus-lg me-1"></i>Adicionar</button>
+            </div>
+            <div id="itensAdicionaisHS"></div>
+            <input type="hidden" name="gerenciar_itens_adicionais" value="1">
+            <div class="mt-4">
+                <label for="observacoes_gerais" class="form-label text-laranja">Observações gerais</label>
+                <textarea name="observacoes_gerais" id="observacoes_gerais" class="form-control" rows="3" maxlength="5000">{{ registro.observacoes_gerais or '' }}</textarea>
+            </div>
+
             <div class="d-flex justify-content-between mt-3">
                 <button type="submit" class="btn btn-laranja">Salvar</button>
                 <a href="{{ request.args.get('next') or url_for('main.listar_hs') }}" class="btn btn-cinza">Voltar</a>
@@ -308,6 +320,44 @@
 </form>
 
 <script>
+let indiceAdicionalHS = 0;
+function adicionarItemAdicionalHS(dados = {}) {
+    const container = document.getElementById('itensAdicionaisHS');
+    const bloco = document.createElement('div');
+    bloco.className = 'border rounded p-3 mb-3 item-adicional-hs';
+    bloco.innerHTML = `
+      <input type="hidden" name="adicional_id[]" value="${dados.id || ''}">
+      <div class="d-flex justify-content-between mb-3"><strong class="text-laranja">Item adicional</strong><button type="button" class="btn btn-sm btn-cinza" onclick="this.closest('.item-adicional-hs').remove()"><i class="bi bi-trash"></i></button></div>
+      <div class="row g-3">
+       <div class="col-md-3"><label class="form-label">Tipo *</label><select name="adicional_tipo[]" class="form-select" required><option value="">Selecione</option><option value="desvio">Desvio</option><option value="melhoria">Melhoria</option><option value="oportunidade">Oportunidade</option><option value="outro">Outro</option></select></div>
+       <div class="col-md-9"><label class="form-label">Item de verificação identificado *</label><input name="adicional_item[]" class="form-control" maxlength="500" required></div>
+       <div class="col-12"><label class="form-label">Descrição da situação *</label><textarea name="adicional_situacao[]" class="form-control" rows="2" required></textarea></div>
+       <div class="col-12 form-check ms-2"><input type="hidden" name="adicional_gerar_acao[]" value="0"><input class="form-check-input gerar-acao-adicional" type="checkbox" id="gerar_edit_${indiceAdicionalHS}"><label class="form-check-label" for="gerar_edit_${indiceAdicionalHS}">Criar ação</label></div>
+       <div class="col-12 campos-acao-adicional d-none"><div class="row g-3"><div class="col-md-9"><label class="form-label">Ação *</label><input name="adicional_acao[]" class="form-control"></div><div class="col-md-3"><label class="form-label">Prazo *</label><input type="date" name="adicional_prazo[]" class="form-control"></div></div></div>
+      </div>`;
+    bloco.querySelector('[name="adicional_tipo[]"]').value = dados.tipo || '';
+    bloco.querySelector('[name="adicional_item[]"]').value = dados.item_verificacao || '';
+    bloco.querySelector('[name="adicional_situacao[]"]').value = dados.descricao_situacao || '';
+    bloco.querySelector('[name="adicional_acao[]"]').value = dados.descricao_acao || '';
+    bloco.querySelector('[name="adicional_prazo[]"]').value = dados.prazo || '';
+    const checkbox = bloco.querySelector('.gerar-acao-adicional');
+    checkbox.checked = Boolean(dados.id_acao_gerada);
+    const atualizar = () => {
+        const ativo = checkbox.checked;
+        bloco.querySelector('[name="adicional_gerar_acao[]"]').value = ativo ? '1' : '0';
+        bloco.querySelector('.campos-acao-adicional').classList.toggle('d-none', !ativo);
+        bloco.querySelector('[name="adicional_acao[]"]').required = ativo;
+        bloco.querySelector('[name="adicional_prazo[]"]').required = ativo;
+    };
+    checkbox.addEventListener('change', atualizar); atualizar();
+    container.appendChild(bloco); indiceAdicionalHS += 1;
+}
+const itensAdicionaisIniciais = {{ itens_adicionais | tojson }};
+itensAdicionaisIniciais.forEach(item => {
+    if (item.prazo) item.prazo = String(item.prazo).substring(0, 10);
+    adicionarItemAdicionalHS(item);
+});
+
 function normalizarTextoHS(texto) {
     return String(texto || "")
         .toLowerCase()

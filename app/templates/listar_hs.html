@@ -355,6 +355,7 @@
                                             data-tema-id="{{ hs.id_tema }}"
                                             data-auditor-id="{{ hs.id_auditor }}"
                                             data-participantes="{{ hs.participantes|default('', true)|e }}"
+                                            data-observacoes="{{ hs.observacoes_gerais|default('', true)|e }}"
                                             data-next="{{ request.full_path }}">
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
@@ -482,6 +483,30 @@
                                         </tbody>
                                     </table>
                                 </div>
+
+                                {% if hs.observacoes_gerais %}
+                                <div class="detail-panel mt-3">
+                                    <h6 class="detail-title"><i class="bi bi-chat-left-text me-2"></i>Observações gerais</h6>
+                                    <div>{{ hs.observacoes_gerais }}</div>
+                                </div>
+                                {% endif %}
+
+                                {% set adicionais = adicionais_por_registro.get(hs.id|string, []) %}
+                                {% if adicionais %}
+                                <h6 class="detail-title mt-3 mb-2"><i class="bi bi-plus-square me-2"></i>Outros itens identificados</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered align-middle mb-0 detalhe-itens-hs">
+                                        <thead><tr><th>Tipo</th><th>Item</th><th>Situação observada</th><th>Ação</th><th>Prazo</th></tr></thead>
+                                        <tbody>{% for adicional in adicionais %}<tr>
+                                            <td>{{ adicional.tipo|title }}</td>
+                                            <td>{{ adicional.item_verificacao }}</td>
+                                            <td>{{ adicional.descricao_situacao }}</td>
+                                            <td>{{ adicional.descricao_acao or 'Sem ação gerada' }}{% if adicional.id_acao_gerada %}<div class="small text-muted">Ação #{{ adicional.id_acao_gerada }}</div>{% endif %}</td>
+                                            <td class="text-center">{% if adicional.prazo %}{{ adicional.prazo[8:10] }}/{{ adicional.prazo[5:7] }}/{{ adicional.prazo[0:4] }}{% else %}-{% endif %}</td>
+                                        </tr>{% endfor %}</tbody>
+                                    </table>
+                                </div>
+                                {% endif %}
 
                                 <div class="d-flex justify-content-end mt-3">
                                     <a class="btn btn-laranja btn-sm"
@@ -770,9 +795,15 @@
                         </div>
                     </div>
 
+                    <div class="mt-3">
+                        <label for="modal_observacoes_gerais_hs" class="form-label text-laranja">Observações gerais</label>
+                        <textarea name="observacoes_gerais" id="modal_observacoes_gerais_hs" class="form-control" rows="3" maxlength="5000"></textarea>
+                    </div>
+
                 </div>
 
                 <div class="modal-footer">
+                    <a id="modal_edicao_completa_hs" class="btn btn-cinza me-auto" href="#">Gerenciar outros itens</a>
                     <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button>
                     <button type="submit" class="btn btn-laranja">Salvar</button>
                 </div>
@@ -1006,6 +1037,8 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('modal_data_hs').value = button.getAttribute('data-data') || '';
             document.getElementById('modal_hora_hs').value = (button.getAttribute('data-hora') || '').substring(0, 5);
             document.getElementById('modal_local_hs').value = button.getAttribute('data-local') || '';
+            document.getElementById('modal_observacoes_gerais_hs').value = button.getAttribute('data-observacoes') || '';
+            document.getElementById('modal_edicao_completa_hs').href = `/editar_hs/${id}?next=${encodeURIComponent(button.getAttribute('data-next') || '')}`;
 
             document.getElementById('modal_id_tema_hs').value = temaId || '';
             document.getElementById('modal_id_tema_hidden').value = temaId || '';

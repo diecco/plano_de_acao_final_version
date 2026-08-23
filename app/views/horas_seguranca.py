@@ -72,7 +72,60 @@ def _buscar_detalhes_hora_seguranca(cursor, registro_id):
         WHERE resp.id_registro = %s
         ORDER BY COALESCE(i.ordem, 999999), i.id
     """, (registro_id,))
-    return registro, cursor.fetchall()
+    itens = cursor.fetchall()
+    cursor.execute("""
+        SELECT ad.*, a.status AS status_acao
+        FROM hs_registros_adicionais ad
+        LEFT JOIN acoes a ON a.id = ad.id_acao_gerada
+        WHERE ad.id_registro = %s
+        ORDER BY ad.id
+    """, (registro_id,))
+    registro["itens_adicionais"] = cursor.fetchall()
+    return registro, itens
+
+
+def _ler_itens_adicionais_formulario():
+    ids = request.form.getlist("adicional_id[]")
+    tipos = request.form.getlist("adicional_tipo[]")
+    itens = request.form.getlist("adicional_item[]")
+    situacoes = request.form.getlist("adicional_situacao[]")
+    gerar_acoes = request.form.getlist("adicional_gerar_acao[]")
+    acoes = request.form.getlist("adicional_acao[]")
+    prazos = request.form.getlist("adicional_prazo[]")
+    total = len(itens)
+    campos = (ids, tipos, situacoes, gerar_acoes, acoes, prazos)
+    if any(len(campo) != total for campo in campos):
+        raise ValueError("Os registros adicionais foram enviados de forma incompleta.")
+
+    permitidos = {"desvio", "melhoria", "oportunidade", "outro"}
+    adicionais = []
+    for indice in range(total):
+        item = (itens[indice] or "").strip()
+        situacao = (situacoes[indice] or "").strip()
+        tipo = (tipos[indice] or "").strip().lower()
+        gerar_acao = gerar_acoes[indice] == "1"
+        acao = (acoes[indice] or "").strip()
+        prazo = (prazos[indice] or "").strip() or None
+        if not item and not situacao and not acao:
+            continue
+        if tipo not in permitidos or not item or not situacao:
+            raise ValueError(
+                "Em cada item adicional, informe o tipo, o item identificado e a descrição da situação."
+            )
+        if gerar_acao and (not acao or not prazo):
+            raise ValueError(
+                "Para gerar uma ação em um item adicional, informe a ação e o prazo."
+            )
+        adicionais.append({
+            "id": int(ids[indice]) if ids[indice].isdigit() else None,
+            "tipo": tipo,
+            "item": item,
+            "situacao": situacao,
+            "gerar_acao": gerar_acao,
+            "acao": acao if gerar_acao else None,
+            "prazo": prazo if gerar_acao else None,
+        })
+    return adicionais
 
 
 def register_horas_seguranca_routes(blueprint):
@@ -453,6 +506,22 @@ def register_horas_seguranca_routes(blueprint):
                 if str(participante_id).strip()
             ]
 
+            observacoes_gerais = (
+                request.form.get("observacoes_gerais") or ""
+            ).strip()
+            try:
+                itens_adicionais = _ler_itens_adicionais_formulario()
+            except ValueError as exc:
+                flash(str(exc), "danger")
+                fechar_conexao()
+                return redirect(
+                    montar_url_retorno_formulario(
+                        agendamento_id=agendamento_id,
+                        id_tema=id_tema,
+                        next_url=next_url,
+                    )
+                )
+
             justificativa_alteracao = (
                 request.form.get(
                     "justificativa_alteracao"
@@ -689,9 +758,11 @@ def register_horas_seguranca_routes(blueprint):
                         local,
                         id_tema,
                         id_auditor,
-                        participantes
+                        participantes,
+                        observacoes_gerais
                     )
                     VALUES (
+                        %s,
                         %s,
                         %s,
                         %s,
@@ -707,7 +778,8 @@ def register_horas_seguranca_routes(blueprint):
                     local,
                     id_tema,
                     id_auditor,
-                    ",".join(participantes_validos)
+                    ",".join(participantes_validos),
+                    observacoes_gerais
                 ))
 
                 id_registro = cursor.lastrowid
@@ -855,6 +927,32 @@ def register_horas_seguranca_routes(blueprint):
                         desvio,
                         acao,
                         id_acao_gerada
+                    ))
+
+                for adicional in itens_adicionais:
+                    id_acao_adicional = None
+                    if adicional["gerar_acao"]:
+                        cursor.execute("""
+                            INSERT INTO acoes (
+                                origem_id, responsavel_id, descricao, prazo,
+                                status, criado_por
+                            ) VALUES (%s, %s, %s, %s, %s, %s)
+                        """, (
+                            origem_hs, id_auditor, adicional["acao"],
+                            adicional["prazo"], "Não iniciada", id_auditor,
+                        ))
+                        id_acao_adicional = cursor.lastrowid
+
+                    cursor.execute("""
+                        INSERT INTO hs_registros_adicionais (
+                            id_registro, tipo, item_verificacao,
+                            descricao_situacao, descricao_acao, prazo,
+                            id_acao_gerada
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        id_registro, adicional["tipo"], adicional["item"],
+                        adicional["situacao"], adicional["acao"],
+                        adicional["prazo"], id_acao_adicional,
                     ))
 
                 # ---------------------------------------------
@@ -1263,6 +1361,20 @@ def register_horas_seguranca_routes(blueprint):
             id_tema = request.form.get("id_tema")
             id_auditor = request.form.get("id_auditor")
             participantes = request.form.getlist("participantes")
+            observacoes_gerais = (
+                (request.form.get("observacoes_gerais") or "").strip()
+                if "observacoes_gerais" in request.form
+                else (registro.get("observacoes_gerais") or "")
+            )
+            gerenciar_adicionais = request.form.get("gerenciar_itens_adicionais") == "1"
+            itens_adicionais = []
+            if gerenciar_adicionais:
+                try:
+                    itens_adicionais = _ler_itens_adicionais_formulario()
+                except ValueError as exc:
+                    flash(str(exc), "danger")
+                    conn.close()
+                    return redirect(next_url)
 
             if not (data and hora and id_tema and id_auditor and turno):
                 flash("Preencha todos os campos obrigatórios.", "danger")
@@ -1281,7 +1393,8 @@ def register_horas_seguranca_routes(blueprint):
                         local=%s,
                         id_tema=%s,
                         id_auditor=%s,
-                        participantes=%s
+                        participantes=%s,
+                        observacoes_gerais=%s
                     WHERE id=%s
                 """, (
                     data,
@@ -1291,6 +1404,7 @@ def register_horas_seguranca_routes(blueprint):
                     id_tema,
                     id_auditor,
                     ",".join(participantes),
+                    observacoes_gerais,
                     id
                 ))
 
@@ -1435,6 +1549,96 @@ def register_horas_seguranca_routes(blueprint):
                             id_acao_gerada
                         ))
 
+                cursor.execute("""
+                    SELECT id
+                    FROM origens
+                    WHERE descricao=%s AND centro_custos_id=%s
+                """, ("Hora de Segurança", centro_custos_id))
+                origem = cursor.fetchone()
+                if origem:
+                    origem_hs = origem["id"]
+                else:
+                    cursor.execute("""
+                        INSERT INTO origens (nome, descricao, centro_custos_id, ativo)
+                        VALUES (%s, %s, %s, 1)
+                    """, ("Hora de Segurança", "Hora de Segurança", centro_custos_id))
+                    origem_hs = cursor.lastrowid
+
+                if gerenciar_adicionais:
+                    ids_recebidos = {ad["id"] for ad in itens_adicionais if ad["id"]}
+                else:
+                    ids_recebidos = set()
+                cursor.execute("""
+                    SELECT id, id_acao_gerada FROM hs_registros_adicionais
+                    WHERE id_registro=%s
+                """, (id,))
+                existentes = {item["id"]: item for item in cursor.fetchall()}
+
+                for adicional_id, existente in existentes.items():
+                    if not gerenciar_adicionais:
+                        break
+                    if adicional_id not in ids_recebidos:
+                        cursor.execute(
+                            "DELETE FROM hs_registros_adicionais WHERE id=%s", (adicional_id,)
+                        )
+                        if existente["id_acao_gerada"]:
+                            cursor.execute(
+                                "DELETE FROM acoes WHERE id=%s", (existente["id_acao_gerada"],)
+                            )
+
+                for adicional in itens_adicionais:
+                    existente = existentes.get(adicional["id"])
+                    id_acao_adicional = existente["id_acao_gerada"] if existente else None
+                    if adicional["gerar_acao"]:
+                        if id_acao_adicional:
+                            cursor.execute("""
+                                UPDATE acoes SET descricao=%s, prazo=%s, responsavel_id=%s
+                                WHERE id=%s
+                            """, (
+                                adicional["acao"], adicional["prazo"], id_auditor,
+                                id_acao_adicional,
+                            ))
+                        else:
+                            cursor.execute("""
+                                INSERT INTO acoes (
+                                    origem_id, responsavel_id, descricao, prazo,
+                                    status, criado_por
+                                ) VALUES (%s, %s, %s, %s, %s, %s)
+                            """, (
+                                origem_hs, id_auditor, adicional["acao"],
+                                adicional["prazo"], "Não iniciada", id_auditor,
+                            ))
+                            id_acao_adicional = cursor.lastrowid
+                    elif id_acao_adicional:
+                        cursor.execute(
+                            "UPDATE hs_registros_adicionais SET id_acao_gerada=NULL WHERE id=%s",
+                            (adicional["id"],),
+                        )
+                        cursor.execute("DELETE FROM acoes WHERE id=%s", (id_acao_adicional,))
+                        id_acao_adicional = None
+
+                    if existente:
+                        cursor.execute("""
+                            UPDATE hs_registros_adicionais
+                            SET tipo=%s, item_verificacao=%s, descricao_situacao=%s,
+                                descricao_acao=%s, prazo=%s, id_acao_gerada=%s
+                            WHERE id=%s AND id_registro=%s
+                        """, (
+                            adicional["tipo"], adicional["item"], adicional["situacao"],
+                            adicional["acao"], adicional["prazo"], id_acao_adicional,
+                            adicional["id"], id,
+                        ))
+                    else:
+                        cursor.execute("""
+                            INSERT INTO hs_registros_adicionais (
+                                id_registro, tipo, item_verificacao, descricao_situacao,
+                                descricao_acao, prazo, id_acao_gerada
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """, (
+                            id, adicional["tipo"], adicional["item"], adicional["situacao"],
+                            adicional["acao"], adicional["prazo"], id_acao_adicional,
+                        ))
+
                 conn.commit()
                 flash("Hora de Segurança atualizada com sucesso!", "success")
 
@@ -1472,6 +1676,15 @@ def register_horas_seguranca_routes(blueprint):
         """, (id, registro["id_tema"]))
         itens = cursor.fetchall()
 
+        cursor.execute("""
+            SELECT * FROM hs_registros_adicionais
+            WHERE id_registro=%s ORDER BY id
+        """, (id,))
+        itens_adicionais = cursor.fetchall()
+        for adicional in itens_adicionais:
+            if adicional.get("prazo") and hasattr(adicional["prazo"], "strftime"):
+                adicional["prazo"] = adicional["prazo"].strftime("%Y-%m-%d")
+
         conn.close()
 
         return render_template(
@@ -1479,7 +1692,8 @@ def register_horas_seguranca_routes(blueprint):
             registro=registro,
             temas=temas,
             usuarios=usuarios,
-            itens=itens
+            itens=itens,
+            itens_adicionais=itens_adicionais
         )
 
     @blueprint.route("/excluir_hs/<int:id>", methods=["POST"])
@@ -1510,9 +1724,21 @@ def register_horas_seguranca_routes(blueprint):
         """, (id,))
         acoes = cursor.fetchall()
 
+        cursor.execute("""
+            SELECT id_acao_gerada
+            FROM hs_registros_adicionais
+            WHERE id_registro=%s AND id_acao_gerada IS NOT NULL
+        """, (id,))
+        acoes_adicionais = cursor.fetchall()
+
+        cursor.execute("DELETE FROM hs_registros_adicionais WHERE id_registro=%s", (id,))
+
         cursor.execute("DELETE FROM hs_respostas WHERE id_registro = %s", (id,))
 
         for ac in acoes:
+            cursor.execute("DELETE FROM acoes WHERE id = %s", (ac["id_acao_gerada"],))
+
+        for ac in acoes_adicionais:
             cursor.execute("DELETE FROM acoes WHERE id = %s", (ac["id_acao_gerada"],))
 
         cursor.execute("DELETE FROM hs_registros WHERE id = %s", (id,))
@@ -1756,6 +1982,7 @@ def register_horas_seguranca_routes(blueprint):
 
         ids_registros = [r["id"] for r in registros]
         itens_por_registro = {}
+        adicionais_por_registro = {}
 
         if ids_registros:
             placeholders = ", ".join(["%s"] * len(ids_registros))
@@ -1792,6 +2019,18 @@ def register_horas_seguranca_routes(blueprint):
 
                 itens_por_registro.setdefault(registro_id, []).append(item)
 
+            cursor.execute(f"""
+                SELECT ad.* FROM hs_registros_adicionais ad
+                WHERE ad.id_registro IN ({placeholders})
+                ORDER BY ad.id_registro, ad.id
+            """, ids_registros)
+            for adicional in cursor.fetchall():
+                if adicional.get("prazo") and hasattr(adicional["prazo"], "strftime"):
+                    adicional["prazo"] = adicional["prazo"].strftime("%Y-%m-%d")
+                adicionais_por_registro.setdefault(
+                    str(adicional["id_registro"]), []
+                ).append(adicional)
+
         conn.close()
 
         filtros = {
@@ -1813,6 +2052,7 @@ def register_horas_seguranca_routes(blueprint):
             temas=temas,
             filtros=filtros,
             itens_por_registro=itens_por_registro,
+            adicionais_por_registro=adicionais_por_registro,
             page=page,
             per_page=per_page,
             total_registros=total_registros,
