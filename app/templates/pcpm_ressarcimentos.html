@@ -1,36 +1,43 @@
 {% extends "layout.html" %}
-{% block title %}Ressarcimentos{% endblock %}
+{% block titulo %}Ressarcimentos{% endblock %}
+{% macro ordenar(campo) -%}
+<span class="btn-group btn-group-sm">
+    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente" href="{{ url_for('main.pcpm_ressarcimentos', busca=filtros.busca, status=filtros.status, faturamento=filtros.faturamento, data_inicio=filtros.data_inicio, data_fim=filtros.data_fim, sort=campo, order='asc') }}"><i class="bi bi-caret-up-fill"></i></a>
+    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente" href="{{ url_for('main.pcpm_ressarcimentos', busca=filtros.busca, status=filtros.status, faturamento=filtros.faturamento, data_inicio=filtros.data_inicio, data_fim=filtros.data_fim, sort=campo, order='desc') }}"><i class="bi bi-caret-down-fill"></i></a>
+</span>
+{%- endmacro %}
 {% block conteudo %}
-<div class="container-fluid py-4">
-    <div class="card border-warning shadow-sm">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="m-0 text-center flex-grow-1"><i class="bi bi-receipt"></i> RESSARCIMENTOS</h2>
-                <a class="btn btn-warning text-white" href="{{ url_for('main.novo_pcpm_ressarcimento') }}">
-                    <i class="bi bi-plus-circle"></i> Novo
-                </a>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-bordered align-middle mb-0">
-                    <thead class="table-warning">
-                        <tr><th>Processo</th><th>Ocorrência</th><th>Equipamento</th><th>Empresa</th><th>Funcionário</th><th>Situação</th><th>Faturamento</th><th class="text-center">Ações</th></tr>
-                    </thead>
-                    <tbody>
-                    {% for item in processos %}
-                        <tr>
-                            <td><strong>{{ item.numero }}</strong></td>
-                            <td>{{ item.ocorrencia_em.strftime('%d/%m/%Y %H:%M') if item.ocorrencia_em else '-' }}</td>
-                            <td>{{ item.codigo_frota }}</td><td>{{ item.empresa_nome }}</td><td>{{ item.funcionario_nome }}</td>
-                            <td>{{ item.status_processo }}</td><td>{{ item.status_faturamento }}</td>
-                            <td class="text-center"><a class="btn btn-sm btn-outline-warning" title="Visualizar" href="{{ url_for('main.detalhar_pcpm_ressarcimento', ressarcimento_id=item.id) }}"><i class="bi bi-eye"></i></a></td>
-                        </tr>
-                    {% else %}
-                        <tr><td colspan="8" class="text-center text-muted py-4">Nenhum processo encontrado neste centro de custos.</td></tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+<div class="page-header"><h2 class="page-title text-center mb-0"><i class="bi bi-receipt me-2"></i>Ressarcimentos</h2></div>
+<hr>
+<div class="card border-0 shadow-sm mb-4"><div class="card-body">
+    <form method="get" action="{{ url_for('main.pcpm_ressarcimentos') }}">
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-xl-4"><label class="form-label" for="busca">Busca</label><input class="form-control" id="busca" name="busca" value="{{ filtros.busca }}" placeholder="Processo, equipamento, empresa ou funcionário"></div>
+            <div class="col-6 col-xl-2"><label class="form-label" for="status">Situação</label><select class="form-select" id="status" name="status"><option value="">Todas</option>{% for valor in ('Em andamento', 'Concluído', 'Cancelado') %}<option value="{{ valor }}" {% if filtros.status == valor %}selected{% endif %}>{{ valor }}</option>{% endfor %}</select></div>
+            <div class="col-6 col-xl-2"><label class="form-label" for="faturamento">Faturamento</label><select class="form-select" id="faturamento" name="faturamento"><option value="">Todos</option>{% for valor in ('Pendente', 'Realizado', 'Cancelado') %}<option value="{{ valor }}" {% if filtros.faturamento == valor %}selected{% endif %}>{{ valor }}</option>{% endfor %}</select></div>
+            <div class="col-6 col-xl-2"><label class="form-label" for="data_inicio">Data inicial</label><input class="form-control" type="date" id="data_inicio" name="data_inicio" value="{{ filtros.data_inicio }}"></div>
+            <div class="col-6 col-xl-2"><label class="form-label" for="data_fim">Data final</label><input class="form-control" type="date" id="data_fim" name="data_fim" value="{{ filtros.data_fim }}"></div>
         </div>
-    </div>
-</div>
+        <div class="d-flex justify-content-end gap-2 mt-3"><button class="btn btn-laranja" type="submit" title="Filtrar"><i class="bi bi-funnel"></i></button><a class="btn btn-cinza" href="{{ url_for('main.pcpm_ressarcimentos', limpar=1) }}" title="Limpar filtros"><i class="bi bi-arrow-clockwise"></i></a><a class="btn btn-laranja" href="{{ url_for('main.novo_pcpm_ressarcimento') }}" title="Novo ressarcimento"><i class="bi bi-plus-circle"></i></a></div>
+    </form>
+</div></div>
+<div class="card border-0 shadow-sm"><div class="card-body"><div class="table-responsive">
+    <table class="table table-bordered table-hover align-middle mb-0"><thead><tr>
+        <th><div class="d-flex justify-content-between align-items-center"><span>Processo</span>{{ ordenar('numero') }}</div></th>
+        <th><div class="d-flex justify-content-between align-items-center"><span>Ocorrência</span>{{ ordenar('ocorrencia') }}</div></th>
+        <th><div class="d-flex justify-content-between align-items-center"><span>Equipamento</span>{{ ordenar('equipamento') }}</div></th>
+        <th><div class="d-flex justify-content-between align-items-center"><span>Empresa</span>{{ ordenar('empresa') }}</div></th>
+        <th><div class="d-flex justify-content-between align-items-center"><span>Funcionário</span>{{ ordenar('funcionario') }}</div></th>
+        <th class="text-center"><div class="d-flex justify-content-between align-items-center"><span>Situação</span>{{ ordenar('situacao') }}</div></th>
+        <th class="text-center"><div class="d-flex justify-content-between align-items-center"><span>Faturamento</span>{{ ordenar('faturamento') }}</div></th><th class="text-center">Ações</th>
+    </tr></thead><tbody>{% for item in processos %}<tr>
+        <td><strong>{{ item.numero }}</strong></td><td class="text-nowrap">{{ item.ocorrencia_em.strftime('%d/%m/%Y %H:%M') if item.ocorrencia_em else '-' }}</td><td>{{ item.codigo_frota }}</td><td>{{ item.empresa_nome }}</td><td>{{ item.funcionario_nome }}</td>
+        <td class="text-center"><span class="badge bg-secondary">{{ item.status_processo }}</span></td><td class="text-center"><span class="badge bg-secondary">{{ item.status_faturamento }}</span></td><td class="text-center"><a class="btn-acao-icon" title="Visualizar" href="{{ url_for('main.detalhar_pcpm_ressarcimento', ressarcimento_id=item.id) }}"><i class="bi bi-eye"></i></a></td>
+    </tr>{% else %}<tr><td colspan="8" class="text-center text-muted py-4">Nenhum processo encontrado.</td></tr>{% endfor %}</tbody></table>
+</div></div></div>
+{% if total_paginas > 1 %}<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2"><div class="text-muted small">Exibindo página {{ page }} de {{ total_paginas }} — {{ total_registros }} registro(s)</div><nav><ul class="pagination pagination-sm mb-0">
+    <li class="page-item {% if page <= 1 %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.pcpm_ressarcimentos', busca=filtros.busca, status=filtros.status, faturamento=filtros.faturamento, data_inicio=filtros.data_inicio, data_fim=filtros.data_fim, sort=sort, order=order, page=page-1) }}">Anterior</a></li>
+    {% for p in range(1, total_paginas + 1) %}{% if p == 1 or p == total_paginas or (p >= page - 2 and p <= page + 2) %}<li class="page-item {% if p == page %}active{% endif %}"><a class="page-link" href="{{ url_for('main.pcpm_ressarcimentos', busca=filtros.busca, status=filtros.status, faturamento=filtros.faturamento, data_inicio=filtros.data_inicio, data_fim=filtros.data_fim, sort=sort, order=order, page=p) }}">{{ p }}</a></li>{% elif p == page - 3 or p == page + 3 %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}{% endfor %}
+    <li class="page-item {% if page >= total_paginas %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.pcpm_ressarcimentos', busca=filtros.busca, status=filtros.status, faturamento=filtros.faturamento, data_inicio=filtros.data_inicio, data_fim=filtros.data_fim, sort=sort, order=order, page=page+1) }}">Próxima</a></li>
+</ul></nav></div>{% endif %}
 {% endblock %}

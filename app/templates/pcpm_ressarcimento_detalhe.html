@@ -1,11 +1,12 @@
 {% extends "layout.html" %}
-{% block title %}{{ processo.numero }}{% endblock %}
+{% block titulo %}{{ processo.numero }}{% endblock %}
 {% block conteudo %}
-<div class="container-fluid py-4">
-    <div class="card border-warning shadow-sm mb-3">
+<div class="page-header"><h2 class="page-title text-center mb-0"><i class="bi bi-receipt me-2"></i>{{ processo.numero }}</h2></div>
+<hr>
+    <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-start gap-3">
-                <div><h2 class="mb-1">{{ processo.numero }}</h2><div class="text-muted">{{ processo.centro_codigo }} — {{ processo.centro_descricao }}</div></div>
+                <div><h3 class="fs-6 fw-bold text-laranja mb-1">Dados da ocorrência</h3><div class="text-muted">{{ processo.centro_codigo }} — {{ processo.centro_descricao }}</div></div>
                 <div class="text-end"><span class="badge bg-secondary">{{ processo.status_processo }}</span> <span class="badge bg-secondary">Faturamento: {{ processo.status_faturamento }}</span></div>
             </div>
             <hr>
@@ -18,16 +19,15 @@
                 <div class="col-12"><strong>Descrição</strong><div class="border rounded p-3 mt-1">{{ processo.descricao_ocorrencia }}</div></div>
             </div>
             <div class="d-flex justify-content-between mt-4">
-                <a class="btn btn-secondary" href="{{ url_for('main.pcpm_ressarcimentos') }}">Voltar</a>
+                <a class="btn btn-cinza" href="{{ url_for('main.pcpm_ressarcimentos') }}">Voltar</a>
                 {% if processo.status_processo == 'Cancelado' %}
-                <form method="post" action="{{ url_for('main.reabrir_pcpm_ressarcimento', ressarcimento_id=processo.id) }}" class="d-flex gap-2"><input class="form-control" name="motivo" placeholder="Justificativa da reabertura" required><button class="btn btn-warning text-white">Reabrir</button></form>
+                <form method="post" action="{{ url_for('main.reabrir_pcpm_ressarcimento', ressarcimento_id=processo.id) }}" class="d-flex gap-2"><input class="form-control" name="motivo" placeholder="Justificativa da reabertura" required><button class="btn btn-laranja">Reabrir</button></form>
                 {% elif processo.status_faturamento != 'Realizado' %}
-                <form method="post" action="{{ url_for('main.cancelar_pcpm_ressarcimento', ressarcimento_id=processo.id) }}" class="d-flex gap-2"><input class="form-control" name="motivo" placeholder="Justificativa do cancelamento" required><button class="btn btn-secondary">Cancelar</button></form>
+                <form method="post" action="{{ url_for('main.cancelar_pcpm_ressarcimento', ressarcimento_id=processo.id) }}" class="d-flex gap-2"><input class="form-control" name="motivo" placeholder="Justificativa do cancelamento" required><button class="btn btn-cinza">Cancelar</button></form>
                 {% endif %}
             </div>
         </div>
     </div>
-    <div class="card shadow-sm mb-3"><div class="card-body"><h4>Anexos da avaria</h4><div class="row g-2">{% for item in anexos %}<div class="col-md-6"><a class="btn btn-outline-secondary w-100 text-start" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}"><i class="bi bi-paperclip"></i> {{ item.nome_original }}</a></div>{% else %}<div class="text-muted">Nenhum anexo incluído.</div>{% endfor %}</div></div></div>
-    <div class="card shadow-sm"><div class="card-body"><h4>Histórico</h4>{% for item in historico %}<div class="border-bottom py-2"><strong>{{ item.evento }}</strong> — {{ item.descricao }}<div class="small text-muted">{{ item.usuario_nome }} · {{ item.criado_em.strftime('%d/%m/%Y %H:%M') }}</div></div>{% else %}<p class="text-muted mb-0">Nenhum evento registrado.</p>{% endfor %}</div></div>
-</div>
+    <div class="card border-0 shadow-sm mb-4"><div class="card-body"><h3 class="fs-6 fw-bold text-laranja mb-3">Anexos da avaria</h3><div class="row g-2">{% for item in anexos %}<div class="col-md-6"><a class="btn btn-cinza w-100 text-start" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}"><i class="bi bi-paperclip"></i> {{ item.nome_original }}</a></div>{% else %}<div class="text-muted">Nenhum anexo incluído.</div>{% endfor %}</div></div></div>
+    <div class="card border-0 shadow-sm"><div class="card-body"><h3 class="fs-6 fw-bold text-laranja mb-3">Histórico</h3>{% for item in historico %}<div class="border-bottom py-2"><strong>{{ item.evento }}</strong> — {{ item.descricao }}<div class="small text-muted">{{ item.usuario_nome }} · {{ item.criado_em.strftime('%d/%m/%Y %H:%M') }}</div></div>{% else %}<p class="text-muted mb-0">Nenhum evento registrado.</p>{% endfor %}</div></div>
 {% endblock %}

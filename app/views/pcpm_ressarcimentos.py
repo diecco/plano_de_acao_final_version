@@ -12,6 +12,16 @@ from app.utils.db import get_db_connection
 
 EXTENSOES_RESSARCIMENTO = {"pdf", "png", "jpg", "jpeg"}
 TAMANHO_MAXIMO_ARQUIVO = 10 * 1024 * 1024
+REGISTROS_POR_PAGINA = 30
+ORDENACOES_RESSARCIMENTOS = {
+    "numero": "(r.ano * 1000000 + r.sequencial)",
+    "ocorrencia": "r.ocorrencia_em",
+    "equipamento": "e.codigo_frota",
+    "empresa": "emp.nome",
+    "funcionario": "fun.nome",
+    "situacao": "r.status_processo",
+    "faturamento": "r.status_faturamento",
+}
 
 
 def _diretorio_ressarcimento(ressarcimento_id):
@@ -162,24 +172,73 @@ def register_pcpm_ressarcimentos_routes(blueprint):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         try:
-            query = """
-                SELECT r.id, r.numero, r.ocorrencia_em, r.status_processo,
-                       r.status_faturamento, e.codigo_frota,
-                       emp.nome AS empresa_nome, fun.nome AS funcionario_nome
+            if request.args.get("limpar"):
+                return redirect(url_for("main.pcpm_ressarcimentos"))
+            filtros = {
+                "busca": (request.args.get("busca") or "").strip(),
+                "status": (request.args.get("status") or "").strip(),
+                "faturamento": (request.args.get("faturamento") or "").strip(),
+                "data_inicio": (request.args.get("data_inicio") or "").strip(),
+                "data_fim": (request.args.get("data_fim") or "").strip(),
+            }
+            sort = (request.args.get("sort") or "ocorrencia").strip()
+            order = (request.args.get("order") or "desc").lower().strip()
+            if sort not in ORDENACOES_RESSARCIMENTOS:
+                sort = "ocorrencia"
+            if order not in {"asc", "desc"}:
+                order = "desc"
+            page = max(request.args.get("page", 1, type=int) or 1, 1)
+
+            base = """
                 FROM pcpm_ressarcimentos r
                 JOIN pcpm_equipamentos e ON e.id = r.equipamento_id
                 JOIN pcpm_empresas emp ON emp.id = r.empresa_ocorrencia_id
                 JOIN usuarios fun ON fun.id = r.funcionario_id
                 WHERE 1 = 1
             """
+            condicoes = []
             params = []
             if not _usuario_admin():
-                query += " AND r.centro_custos_id = %s"
+                condicoes.append("r.centro_custos_id = %s")
                 params.append(_centro_usuario_obrigatorio())
-            query += " ORDER BY r.ocorrencia_em DESC, r.id DESC"
-            cursor.execute(query, params)
+            if filtros["busca"]:
+                condicoes.append("(r.numero LIKE %s OR e.codigo_frota LIKE %s OR emp.nome LIKE %s OR fun.nome LIKE %s)")
+                termo = f"%{filtros['busca']}%"
+                params.extend([termo, termo, termo, termo])
+            if filtros["status"]:
+                condicoes.append("r.status_processo = %s")
+                params.append(filtros["status"])
+            if filtros["faturamento"]:
+                condicoes.append("r.status_faturamento = %s")
+                params.append(filtros["faturamento"])
+            if filtros["data_inicio"]:
+                condicoes.append("DATE(r.ocorrencia_em) >= %s")
+                params.append(filtros["data_inicio"])
+            if filtros["data_fim"]:
+                condicoes.append("DATE(r.ocorrencia_em) <= %s")
+                params.append(filtros["data_fim"])
+            if condicoes:
+                base += " AND " + " AND ".join(condicoes)
+
+            cursor.execute("SELECT COUNT(*) AS total " + base, params)
+            total_registros = cursor.fetchone()["total"]
+            total_paginas = max((total_registros + REGISTROS_POR_PAGINA - 1) // REGISTROS_POR_PAGINA, 1)
+            if page > total_paginas:
+                page = total_paginas
+            offset = (page - 1) * REGISTROS_POR_PAGINA
+            query = """
+                SELECT r.id, r.numero, r.ocorrencia_em, r.status_processo,
+                       r.status_faturamento, e.codigo_frota,
+                       emp.nome AS empresa_nome, fun.nome AS funcionario_nome
+            """ + base
+            query += f" ORDER BY {ORDENACOES_RESSARCIMENTOS[sort]} {order.upper()}, r.id DESC LIMIT %s OFFSET %s"
+            cursor.execute(query, params + [REGISTROS_POR_PAGINA, offset])
             processos = cursor.fetchall()
-            return render_template("pcpm_ressarcimentos.html", processos=processos)
+            return render_template(
+                "pcpm_ressarcimentos.html", processos=processos,
+                filtros=filtros, sort=sort, order=order, page=page,
+                total_paginas=total_paginas, total_registros=total_registros,
+            )
         finally:
             conn.close()
 
