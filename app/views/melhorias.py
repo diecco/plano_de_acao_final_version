@@ -14,7 +14,7 @@ def allowed_image_file(filename):
 
 def _escopo_visualizacao_melhorias(perfil, centro_custos_id):
     perfil_normalizado = (perfil or "").strip().lower()
-    if perfil_normalizado in {"administrador", "avancado"}:
+    if perfil_normalizado == "administrador":
         return None, []
     if not centro_custos_id:
         return "1 = 0", []
@@ -141,7 +141,7 @@ def register_melhorias_routes(blueprint):
         """, valores + [per_page, offset])
         melhorias = cursor.fetchall()
 
-        if perfil in ["administrador", "avancado"]:
+        if perfil == "administrador":
             cursor.execute("""
                 SELECT id, nome
                 FROM usuarios
@@ -377,19 +377,11 @@ def register_melhorias_routes(blueprint):
             flash("Melhoria não encontrada.", "danger")
             return redirect(url_for("main.listar_melhorias"))
 
-        # 🔒 PERMISSIONAMENTO CORRETO
-        if perfil not in ["administrador", "avancado"]:
-            if perfil == "intermediario":
-                if melhoria.get("centro_custo_id") != centro_custo_id:
-                    conn.close()
-                    flash("Você não tem permissão para editar esta melhoria.", "danger")
-                    return redirect(url_for("main.listar_melhorias"))
-
-            elif perfil == "basico":
-                if melhoria.get("criado_por") != usuario_id:
-                    conn.close()
-                    flash("Você não tem permissão para editar esta melhoria.", "danger")
-                    return redirect(url_for("main.listar_melhorias"))
+        # Somente o criador e o administrador podem alterar a melhoria.
+        if perfil != "administrador" and melhoria.get("criado_por") != usuario_id:
+            conn.close()
+            flash("Somente o criador da melhoria pode editá-la.", "danger")
+            return redirect(url_for("main.listar_melhorias"))
 
         # ======================================================
         # POST
@@ -561,14 +553,9 @@ def register_melhorias_routes(blueprint):
                 flash("Melhoria não encontrada.", "warning")
                 return redirect(url_for("main.listar_melhorias"))
 
-            if perfil not in ["administrador", "avancado"]:
-                if perfil == "intermediario" and melhoria.get("centro_custo_id") != centro_custos_id:
-                    flash("Você não tem permissão para excluir esta melhoria.", "danger")
-                    return redirect(url_for("main.listar_melhorias"))
-
-                if perfil == "basico" and melhoria.get("criado_por") != usuario_id:
-                    flash("Você não tem permissão para excluir esta melhoria.", "danger")
-                    return redirect(url_for("main.listar_melhorias"))
+            if perfil != "administrador" and melhoria.get("criado_por") != usuario_id:
+                flash("Somente o criador da melhoria pode excluí-la.", "danger")
+                return redirect(url_for("main.listar_melhorias"))
 
             cursor.execute("""
                 DELETE FROM melhorias
