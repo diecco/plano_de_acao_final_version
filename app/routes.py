@@ -24,6 +24,7 @@ from app.views.pcpm_cadastros import register_pcpm_cadastros_routes
 from app.views.pcpm_checklist import register_pcpm_checklist_routes
 from app.views.pcpm_equipamentos import register_pcpm_equipamentos_routes
 from app.views.pcpm_movimentacoes import register_pcpm_movimentacoes_routes
+from app.views.pcpm_ressarcimentos import register_pcpm_ressarcimentos_routes
 from app.views.plano_acao import register_plano_acao_routes
 from app.views.procedimentos import register_procedimentos_routes
 from app.views.recusa_tarefa import register_recusa_tarefa_routes
@@ -58,6 +59,7 @@ register_pcpm_cadastros_routes(main_routes)
 register_pcpm_checklist_routes(main_routes)
 register_pcpm_equipamentos_routes(main_routes)
 register_pcpm_movimentacoes_routes(main_routes)
+register_pcpm_ressarcimentos_routes(main_routes)
 register_plano_acao_routes(main_routes)
 register_procedimentos_routes(main_routes)
 register_recusa_tarefa_routes(main_routes)

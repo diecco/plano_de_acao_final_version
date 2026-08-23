@@ -116,6 +116,16 @@
                         </div>
 
                         <div class="form-check mt-3">
+                            <input class="form-check-input" type="checkbox"
+                                   name="acesso_pcpm_ressarcimentos"
+                                   id="acesso_pcpm_ressarcimentos"
+                                   {% if usuario.acesso_pcpm_ressarcimentos %}checked{% endif %}>
+                            <label class="form-check-label" for="acesso_pcpm_ressarcimentos">
+                                PCP-M — Ressarcimentos
+                            </label>
+                        </div>
+
+                        <div class="form-check mt-3">
                             <input class="form-check-input"
                                    type="checkbox"
                                    name="acesso_recrutamento"

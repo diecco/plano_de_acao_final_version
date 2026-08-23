@@ -441,6 +441,18 @@
 
                 <div class="col-md-3">
                     <div class="form-check">
+                        <input class="form-check-input" type="checkbox"
+                               id="acesso_pcpm_ressarcimentos"
+                               name="acesso_pcpm_ressarcimentos" value="1"
+                               {% if usuario.acesso_pcpm_ressarcimentos %}checked{% endif %}>
+                        <label class="form-check-label" for="acesso_pcpm_ressarcimentos">
+                            PCP-M — Ressarcimentos
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-check">
                         <input class="form-check-input"
                                type="checkbox"
                                id="acesso_detectores_gas"

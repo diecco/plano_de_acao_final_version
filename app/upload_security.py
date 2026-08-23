@@ -11,6 +11,7 @@ DIRETORIOS_PERSISTENTES = (
     "evidencias_treinamentos",
     "aprs",
     "pcpm_movimentacoes",
+    "pcpm_ressarcimentos",
     "recrutamento_curriculos",
     "comunicados",
 )

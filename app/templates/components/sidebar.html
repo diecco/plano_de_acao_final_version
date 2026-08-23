@@ -291,7 +291,10 @@
                 'main.listar_pcpm_movimentacoes',
                 'main.pcpm_movimentacao',
                 'main.visualizar_pcpm_movimentacao',
-                'main.editar_pcpm_movimentacao'
+                'main.editar_pcpm_movimentacao',
+                'main.pcpm_ressarcimentos',
+                'main.novo_pcpm_ressarcimento',
+                'main.detalhar_pcpm_ressarcimento'
             ] %}
             <section class="sidebar-module"
                      data-search-label="pcp-m painel histórico movimentações">
@@ -317,6 +320,12 @@
                        class="sidebar-link {% if request.endpoint == 'main.listar_pcpm_movimentacoes' %}active{% endif %}">
                         <i class="bi bi-clock-history"></i><span>Histórico de movimentações</span>
                     </a>
+                    {% if session.get('acesso_pcpm_ressarcimentos') or is_admin %}
+                    <a href="{{ url_for('main.pcpm_ressarcimentos') }}"
+                       class="sidebar-link {% if request.endpoint in ['main.pcpm_ressarcimentos', 'main.novo_pcpm_ressarcimento', 'main.detalhar_pcpm_ressarcimento'] %}active{% endif %}">
+                        <i class="bi bi-receipt"></i><span>Ressarcimentos</span>
+                    </a>
+                    {% endif %}
                 </div>
             </section>
         {% endif %}

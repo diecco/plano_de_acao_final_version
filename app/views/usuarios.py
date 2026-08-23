@@ -87,6 +87,11 @@ def register_usuarios_routes(blueprint):
             acesso_pcpm = (
                 1 if request.form.get('acesso_pcpm') else 0
             )
+            acesso_pcpm_ressarcimentos = (
+                1 if request.form.get('acesso_pcpm_ressarcimentos') else 0
+            )
+            if acesso_pcpm_ressarcimentos:
+                acesso_pcpm = 1
 
             acesso_detectores_gas = (
                 1 if request.form.get('acesso_detectores_gas') else 0
@@ -203,6 +208,7 @@ def register_usuarios_routes(blueprint):
                 acesso_treinamentos = 0
                 acesso_procedimentos = 0
                 acesso_pcpm = 0
+                acesso_pcpm_ressarcimentos = 0
                 acesso_detectores_gas = 0
                 acesso_acr = 0
                 acesso_recrutamento = 0
@@ -320,6 +326,7 @@ def register_usuarios_routes(blueprint):
                         acesso_treinamentos,
                         acesso_procedimentos,
                         acesso_pcpm,
+                        acesso_pcpm_ressarcimentos,
                         acesso_detectores_gas,
                         acesso_acr,
                         acesso_recrutamento
@@ -335,6 +342,7 @@ def register_usuarios_routes(blueprint):
                         %s,
                         %s,
                         1,
+                        %s,
                         %s,
                         %s,
                         %s,
@@ -375,6 +383,7 @@ def register_usuarios_routes(blueprint):
                     acesso_treinamentos,
                     acesso_procedimentos,
                     acesso_pcpm,
+                    acesso_pcpm_ressarcimentos,
                     acesso_detectores_gas,
                     acesso_acr,
                     acesso_recrutamento
@@ -755,6 +764,11 @@ def register_usuarios_routes(blueprint):
             acesso_pcpm = (
                 1 if request.form.get('acesso_pcpm') else 0
             )
+            acesso_pcpm_ressarcimentos = (
+                1 if request.form.get('acesso_pcpm_ressarcimentos') else 0
+            )
+            if acesso_pcpm_ressarcimentos:
+                acesso_pcpm = 1
 
             acesso_detectores_gas = (
                 1 if request.form.get('acesso_detectores_gas') else 0
@@ -931,6 +945,7 @@ def register_usuarios_routes(blueprint):
                 acesso_treinamentos = 0
                 acesso_procedimentos = 0
                 acesso_pcpm = 0
+                acesso_pcpm_ressarcimentos = 0
                 acesso_detectores_gas = 0
                 acesso_acr = 0
                 acesso_recrutamento = 0
@@ -1045,6 +1060,7 @@ def register_usuarios_routes(blueprint):
                             acesso_treinamentos = %s,
                             acesso_procedimentos = %s,
                             acesso_pcpm = %s,
+                            acesso_pcpm_ressarcimentos = %s,
                             acesso_detectores_gas = %s,
                             acesso_acr = %s,
                             acesso_recrutamento = %s,
@@ -1073,6 +1089,7 @@ def register_usuarios_routes(blueprint):
                         acesso_treinamentos,
                         acesso_procedimentos,
                         acesso_pcpm,
+                        acesso_pcpm_ressarcimentos,
                         acesso_detectores_gas,
                         acesso_acr,
                         acesso_recrutamento,
@@ -1105,6 +1122,7 @@ def register_usuarios_routes(blueprint):
                             acesso_treinamentos = %s,
                             acesso_procedimentos = %s,
                             acesso_pcpm = %s,
+                            acesso_pcpm_ressarcimentos = %s,
                             acesso_detectores_gas = %s,
                             acesso_acr = %s,
                             acesso_recrutamento = %s
@@ -1132,6 +1150,7 @@ def register_usuarios_routes(blueprint):
                         acesso_treinamentos,
                         acesso_procedimentos,
                         acesso_pcpm,
+                        acesso_pcpm_ressarcimentos,
                         acesso_detectores_gas,
                         acesso_acr,
                         acesso_recrutamento,
@@ -1447,6 +1466,11 @@ def register_usuarios_routes(blueprint):
             acesso_treinamentos = 1 if request.form.get('acesso_treinamentos') else 0
             acesso_procedimentos = 1 if request.form.get('acesso_procedimentos') else 0
             acesso_pcpm = 1 if request.form.get('acesso_pcpm') else 0
+            acesso_pcpm_ressarcimentos = (
+                1 if request.form.get('acesso_pcpm_ressarcimentos') else 0
+            )
+            if acesso_pcpm_ressarcimentos:
+                acesso_pcpm = 1
             acesso_detectores_gas = (
                 1 if request.form.get('acesso_detectores_gas') else 0
             )
@@ -1465,6 +1489,7 @@ def register_usuarios_routes(blueprint):
                     acesso_treinamentos = %s,
                     acesso_procedimentos = %s,
                     acesso_pcpm = %s,
+                    acesso_pcpm_ressarcimentos = %s,
                     acesso_detectores_gas = %s,
                     acesso_acr = %s,
                     acesso_recrutamento = %s
@@ -1478,6 +1503,7 @@ def register_usuarios_routes(blueprint):
                 acesso_treinamentos,
                 acesso_procedimentos,
                 acesso_pcpm,
+                acesso_pcpm_ressarcimentos,
                 acesso_detectores_gas,
                 acesso_acr,
                 acesso_recrutamento,
