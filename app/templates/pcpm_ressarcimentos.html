@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+{% block title %}Ressarcimentos{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="card border-warning shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="m-0 text-center flex-grow-1"><i class="bi bi-receipt"></i> RESSARCIMENTOS</h2>
+                <a class="btn btn-warning text-white" href="{{ url_for('main.novo_pcpm_ressarcimento') }}">
+                    <i class="bi bi-plus-circle"></i> Novo
+                </a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle mb-0">
+                    <thead class="table-warning">
+                        <tr><th>Processo</th><th>Ocorrência</th><th>Equipamento</th><th>Empresa</th><th>Funcionário</th><th>Situação</th><th>Faturamento</th><th class="text-center">Ações</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for item in processos %}
+                        <tr>
+                            <td><strong>{{ item.numero }}</strong></td>
+                            <td>{{ item.ocorrencia_em.strftime('%d/%m/%Y %H:%M') if item.ocorrencia_em else '-' }}</td>
+                            <td>{{ item.codigo_frota }}</td><td>{{ item.empresa_nome }}</td><td>{{ item.funcionario_nome }}</td>
+                            <td>{{ item.status_processo }}</td><td>{{ item.status_faturamento }}</td>
+                            <td class="text-center"><a class="btn btn-sm btn-outline-warning" title="Visualizar" href="{{ url_for('main.detalhar_pcpm_ressarcimento', ressarcimento_id=item.id) }}"><i class="bi bi-eye"></i></a></td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="8" class="text-center text-muted py-4">Nenhum processo encontrado neste centro de custos.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

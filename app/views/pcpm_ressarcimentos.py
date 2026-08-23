@@ -1,0 +1,418 @@
+import json
+import hashlib
+import os
+from datetime import datetime
+
+from flask import flash, redirect, render_template, request, send_from_directory, session, url_for
+
+from app.decorators import login_required, module_required
+from app.upload_security import UploadService, UploadValidationError
+from app.utils.db import get_db_connection
+
+
+EXTENSOES_RESSARCIMENTO = {"pdf", "png", "jpg", "jpeg"}
+TAMANHO_MAXIMO_ARQUIVO = 10 * 1024 * 1024
+
+
+def _diretorio_ressarcimento(ressarcimento_id):
+    return os.path.join("app", "static", "pcpm_ressarcimentos", str(ressarcimento_id))
+
+
+def _tamanho_upload(arquivo):
+    posicao = arquivo.stream.tell()
+    arquivo.stream.seek(0, os.SEEK_END)
+    tamanho = arquivo.stream.tell()
+    arquivo.stream.seek(posicao)
+    return tamanho
+
+
+def _hash_arquivo(caminho):
+    digest = hashlib.sha256()
+    with open(caminho, "rb") as arquivo:
+        for bloco in iter(lambda: arquivo.read(1024 * 1024), b""):
+            digest.update(bloco)
+    return digest.hexdigest()
+
+
+def _salvar_anexo(cursor, ressarcimento_id, arquivo, categoria, prefixo):
+    tamanho = _tamanho_upload(arquivo)
+    if tamanho <= 0:
+        raise ValueError("Um dos arquivos selecionados está vazio.")
+    if tamanho > TAMANHO_MAXIMO_ARQUIVO:
+        raise ValueError("Cada arquivo deve possuir no máximo 10 MB.")
+    nome_original = os.path.basename(arquivo.filename.replace("\\", "/"))[:255]
+    diretorio = _diretorio_ressarcimento(ressarcimento_id)
+    nome = UploadService.salvar(arquivo, EXTENSOES_RESSARCIMENTO, prefixo=prefixo, diretorio=diretorio)
+    caminho_absoluto = os.path.join(UploadService.resolver_diretorio(diretorio), nome)
+    cursor.execute(
+        """
+        INSERT INTO pcpm_ressarcimentos_anexos (
+            ressarcimento_id, categoria, nome_original, nome_armazenado,
+            caminho_arquivo, mime_type, tamanho_bytes, hash_sha256, criado_por
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        """,
+        (
+            ressarcimento_id, categoria, nome_original, nome,
+            f"pcpm_ressarcimentos/{ressarcimento_id}/{nome}",
+            (arquivo.mimetype or "application/octet-stream")[:120], tamanho,
+            _hash_arquivo(caminho_absoluto), session.get("usuario_id"),
+        ),
+    )
+    return nome, diretorio
+
+
+def _usuario_admin():
+    return session.get("perfil") == "administrador"
+
+
+def _centro_usuario_obrigatorio():
+    centro_id = session.get("centro_custos_id")
+    if not _usuario_admin() and not centro_id:
+        raise ValueError("O usuário não possui centro de custos configurado.")
+    return centro_id
+
+
+def _registrar_historico(cursor, ressarcimento_id, evento, descricao, anteriores=None, posteriores=None, etapa=None):
+    cursor.execute(
+        """
+        INSERT INTO pcpm_ressarcimentos_historico (
+            ressarcimento_id, etapa, evento, descricao,
+            dados_anteriores, dados_posteriores, usuario_id
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """,
+        (
+            ressarcimento_id,
+            etapa,
+            evento,
+            descricao,
+            json.dumps(anteriores, ensure_ascii=False, default=str) if anteriores else None,
+            json.dumps(posteriores, ensure_ascii=False, default=str) if posteriores else None,
+            session.get("usuario_id"),
+        ),
+    )
+
+
+def _buscar_processo_autorizado(cursor, ressarcimento_id, for_update=False):
+    query = """
+        SELECT r.*, cc.codigo AS centro_codigo, cc.descricao AS centro_descricao,
+               e.codigo_frota, e.marca, e.modelo,
+               emp.nome AS empresa_ocorrencia_nome,
+               op.nome AS operador_nome, op.matricula AS operador_matricula,
+               fun.nome AS funcionario_nome, fun.matricula AS funcionario_matricula
+        FROM pcpm_ressarcimentos r
+        JOIN centros_custos cc ON cc.id = r.centro_custos_id
+        JOIN pcpm_equipamentos e ON e.id = r.equipamento_id
+        JOIN pcpm_empresas emp ON emp.id = r.empresa_ocorrencia_id
+        LEFT JOIN pcpm_pessoas op ON op.id = r.operador_id
+        JOIN usuarios fun ON fun.id = r.funcionario_id
+        WHERE r.id = %s
+    """
+    params = [ressarcimento_id]
+    if not _usuario_admin():
+        query += " AND r.centro_custos_id = %s"
+        params.append(_centro_usuario_obrigatorio())
+    if for_update:
+        query += " FOR UPDATE"
+    cursor.execute(query, params)
+    return cursor.fetchone()
+
+
+def _buscar_dominios_cadastro(cursor, centro_id):
+    cursor.execute(
+        """
+        SELECT id, codigo_frota, marca, modelo
+        FROM pcpm_equipamentos
+        WHERE ativo = 1 AND centro_custo_id = %s
+        ORDER BY codigo_frota
+        """,
+        (centro_id,),
+    )
+    equipamentos = cursor.fetchall()
+    cursor.execute("SELECT id, nome FROM pcpm_empresas WHERE ativo = 1 ORDER BY nome")
+    empresas = cursor.fetchall()
+    cursor.execute(
+        """
+        SELECT p.id, p.nome, p.matricula, p.empresa_id, emp.nome AS empresa_nome
+        FROM pcpm_pessoas p
+        LEFT JOIN pcpm_empresas emp ON emp.id = p.empresa_id
+        WHERE p.ativo = 1
+        ORDER BY p.nome
+        """
+    )
+    operadores = cursor.fetchall()
+    cursor.execute(
+        """
+        SELECT id, nome, matricula
+        FROM usuarios
+        WHERE ativo = 1 AND centro_custos_id = %s
+        ORDER BY nome
+        """,
+        (centro_id,),
+    )
+    funcionarios = cursor.fetchall()
+    return equipamentos, empresas, operadores, funcionarios
+
+
+def register_pcpm_ressarcimentos_routes(blueprint):
+    @blueprint.route("/pcpm/ressarcimentos")
+    @login_required
+    @module_required("acesso_pcpm")
+    @module_required("acesso_pcpm_ressarcimentos")
+    def pcpm_ressarcimentos():
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            query = """
+                SELECT r.id, r.numero, r.ocorrencia_em, r.status_processo,
+                       r.status_faturamento, e.codigo_frota,
+                       emp.nome AS empresa_nome, fun.nome AS funcionario_nome
+                FROM pcpm_ressarcimentos r
+                JOIN pcpm_equipamentos e ON e.id = r.equipamento_id
+                JOIN pcpm_empresas emp ON emp.id = r.empresa_ocorrencia_id
+                JOIN usuarios fun ON fun.id = r.funcionario_id
+                WHERE 1 = 1
+            """
+            params = []
+            if not _usuario_admin():
+                query += " AND r.centro_custos_id = %s"
+                params.append(_centro_usuario_obrigatorio())
+            query += " ORDER BY r.ocorrencia_em DESC, r.id DESC"
+            cursor.execute(query, params)
+            processos = cursor.fetchall()
+            return render_template("pcpm_ressarcimentos.html", processos=processos)
+        finally:
+            conn.close()
+
+    @blueprint.route("/pcpm/ressarcimentos/novo", methods=["GET", "POST"])
+    @login_required
+    @module_required("acesso_pcpm")
+    @module_required("acesso_pcpm_ressarcimentos")
+    def novo_pcpm_ressarcimento():
+        centro_id = _centro_usuario_obrigatorio()
+        if _usuario_admin() and not centro_id:
+            flash("Para cadastrar, o administrador deve possuir um centro de custos na sessão.", "warning")
+            return redirect(url_for("main.pcpm_ressarcimentos"))
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        arquivos_salvos = []
+        try:
+            if request.method == "GET":
+                dominios = _buscar_dominios_cadastro(cursor, centro_id)
+                return render_template(
+                    "novo_pcpm_ressarcimento.html",
+                    equipamentos=dominios[0], empresas=dominios[1],
+                    operadores=dominios[2], funcionarios=dominios[3],
+                )
+
+            equipamento_id = request.form.get("equipamento_id", type=int)
+            empresa_id = request.form.get("empresa_ocorrencia_id", type=int)
+            operador_id = request.form.get("operador_id", type=int)
+            funcionario_id = request.form.get("funcionario_id", type=int)
+            ocorrencia_raw = (request.form.get("ocorrencia_em") or "").strip()
+            descricao = (request.form.get("descricao_ocorrencia") or "").strip()
+            if not all((equipamento_id, empresa_id, funcionario_id, ocorrencia_raw, descricao)):
+                raise ValueError("Preencha todos os campos obrigatórios da ocorrência.")
+            ocorrencia_em = datetime.fromisoformat(ocorrencia_raw)
+
+            cursor.execute(
+                """
+                SELECT e.id, e.codigo_frota, e.marca, e.modelo
+                FROM pcpm_equipamentos e
+                WHERE e.id = %s AND e.ativo = 1 AND e.centro_custo_id = %s
+                """, (equipamento_id, centro_id),
+            )
+            equipamento = cursor.fetchone()
+            cursor.execute("SELECT id, nome FROM pcpm_empresas WHERE id = %s AND ativo = 1", (empresa_id,))
+            empresa = cursor.fetchone()
+            cursor.execute(
+                "SELECT id, nome, matricula FROM usuarios WHERE id = %s AND ativo = 1 AND centro_custos_id = %s",
+                (funcionario_id, centro_id),
+            )
+            funcionario = cursor.fetchone()
+            operador = None
+            if operador_id:
+                cursor.execute("SELECT id, nome, matricula FROM pcpm_pessoas WHERE id = %s AND ativo = 1", (operador_id,))
+                operador = cursor.fetchone()
+            if not equipamento or not empresa or not funcionario or (operador_id and not operador):
+                raise ValueError("Um dos cadastros selecionados é inválido ou está fora do centro de custos.")
+
+            ano = ocorrencia_em.year
+            cursor.execute("SELECT COALESCE(MAX(sequencial), 0) + 1 AS proximo FROM pcpm_ressarcimentos WHERE ano = %s FOR UPDATE", (ano,))
+            sequencial = cursor.fetchone()["proximo"]
+            numero = f"RES-{sequencial:03d}/{ano}"
+            equipamento_snapshot = f"{equipamento['codigo_frota']} - {equipamento['marca']} {equipamento['modelo']}"
+            cursor.execute(
+                """
+                INSERT INTO pcpm_ressarcimentos (
+                    ano, sequencial, numero, centro_custos_id, equipamento_id,
+                    empresa_ocorrencia_id, ocorrencia_em, descricao_ocorrencia,
+                    operador_id, operador_nome_snapshot, operador_matricula_snapshot,
+                    funcionario_id, funcionario_nome_snapshot, funcionario_matricula_snapshot,
+                    equipamento_snapshot, empresa_ocorrencia_snapshot,
+                    criado_por, atualizado_por
+                ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                """,
+                (
+                    ano, sequencial, numero, centro_id, equipamento_id, empresa_id,
+                    ocorrencia_em, descricao, operador_id,
+                    operador["nome"] if operador else None,
+                    operador["matricula"] if operador else None,
+                    funcionario_id, funcionario["nome"], funcionario["matricula"],
+                    equipamento_snapshot, empresa["nome"],
+                    session.get("usuario_id"), session.get("usuario_id"),
+                ),
+            )
+            ressarcimento_id = cursor.lastrowid
+            fotos = [item for item in request.files.getlist("fotos_avaria") if item and item.filename]
+            checklist = request.files.get("checklist_movimentacao")
+            for indice, arquivo in enumerate(fotos, start=1):
+                arquivos_salvos.append(_salvar_anexo(cursor, ressarcimento_id, arquivo, "foto_avaria", f"avaria_{indice}"))
+            if checklist and checklist.filename:
+                arquivos_salvos.append(_salvar_anexo(cursor, ressarcimento_id, checklist, "checklist", "checklist"))
+            _registrar_historico(cursor, ressarcimento_id, "Criação", f"Processo {numero} criado.", posteriores={"numero": numero, "etapa": 1}, etapa=1)
+            conn.commit()
+            flash(f"Processo {numero} criado com sucesso.", "success")
+            return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
+        except (ValueError, TypeError, UploadValidationError) as exc:
+            conn.rollback()
+            for nome, diretorio in arquivos_salvos:
+                UploadService.excluir(nome, diretorio)
+            flash(str(exc), "warning")
+            return redirect(url_for("main.novo_pcpm_ressarcimento"))
+        except Exception as exc:
+            conn.rollback()
+            for nome, diretorio in arquivos_salvos:
+                UploadService.excluir(nome, diretorio)
+            flash(f"Erro ao cadastrar o ressarcimento: {exc}", "danger")
+            return redirect(url_for("main.novo_pcpm_ressarcimento"))
+        finally:
+            conn.close()
+
+    @blueprint.route("/pcpm/ressarcimentos/<int:ressarcimento_id>")
+    @login_required
+    @module_required("acesso_pcpm")
+    @module_required("acesso_pcpm_ressarcimentos")
+    def detalhar_pcpm_ressarcimento(ressarcimento_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            processo = _buscar_processo_autorizado(cursor, ressarcimento_id)
+            if not processo:
+                flash("Processo não encontrado ou fora do seu centro de custos.", "warning")
+                return redirect(url_for("main.pcpm_ressarcimentos"))
+            cursor.execute(
+                """SELECT h.*, u.nome AS usuario_nome
+                   FROM pcpm_ressarcimentos_historico h
+                   JOIN usuarios u ON u.id = h.usuario_id
+                   WHERE h.ressarcimento_id = %s ORDER BY h.criado_em DESC, h.id DESC""",
+                (ressarcimento_id,),
+            )
+            historico = cursor.fetchall()
+            cursor.execute(
+                """SELECT id, categoria, nome_original, tamanho_bytes, criado_em
+                   FROM pcpm_ressarcimentos_anexos
+                   WHERE ressarcimento_id = %s AND ativo = 1
+                   ORDER BY criado_em, id""", (ressarcimento_id,),
+            )
+            return render_template("pcpm_ressarcimento_detalhe.html", processo=processo, historico=historico, anexos=cursor.fetchall())
+        finally:
+            conn.close()
+
+    @blueprint.route("/pcpm/ressarcimentos/<int:ressarcimento_id>/anexos/<int:anexo_id>")
+    @login_required
+    @module_required("acesso_pcpm")
+    @module_required("acesso_pcpm_ressarcimentos")
+    def baixar_anexo_pcpm_ressarcimento(ressarcimento_id, anexo_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            if not _buscar_processo_autorizado(cursor, ressarcimento_id):
+                flash("Anexo não encontrado ou fora do seu centro de custos.", "warning")
+                return redirect(url_for("main.pcpm_ressarcimentos"))
+            cursor.execute(
+                """SELECT nome_original, nome_armazenado
+                   FROM pcpm_ressarcimentos_anexos
+                   WHERE id = %s AND ressarcimento_id = %s AND ativo = 1""",
+                (anexo_id, ressarcimento_id),
+            )
+            anexo = cursor.fetchone()
+            if not anexo:
+                flash("Anexo não encontrado.", "warning")
+                return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
+            return send_from_directory(
+                UploadService.resolver_diretorio(_diretorio_ressarcimento(ressarcimento_id)),
+                anexo["nome_armazenado"], as_attachment=True,
+                download_name=anexo["nome_original"],
+            )
+        finally:
+            conn.close()
+
+    @blueprint.route("/pcpm/ressarcimentos/<int:ressarcimento_id>/cancelar", methods=["POST"])
+    @login_required
+    @module_required("acesso_pcpm")
+    @module_required("acesso_pcpm_ressarcimentos")
+    def cancelar_pcpm_ressarcimento(ressarcimento_id):
+        motivo = (request.form.get("motivo") or "").strip()
+        if not motivo:
+            flash("Informe a justificativa do cancelamento.", "warning")
+            return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            processo = _buscar_processo_autorizado(cursor, ressarcimento_id, for_update=True)
+            if not processo:
+                raise ValueError("Processo não encontrado ou fora do seu centro de custos.")
+            if processo["status_faturamento"] == "Realizado":
+                raise ValueError("Um processo com faturamento realizado não pode ser cancelado.")
+            if processo["status_processo"] == "Cancelado":
+                raise ValueError("O processo já está cancelado.")
+            cursor.execute(
+                """UPDATE pcpm_ressarcimentos
+                   SET status_processo='Cancelado', status_faturamento='Cancelado',
+                       cancelado_em=NOW(), cancelado_por=%s, motivo_cancelamento=%s,
+                       atualizado_por=%s WHERE id=%s""",
+                (session.get("usuario_id"), motivo, session.get("usuario_id"), ressarcimento_id),
+            )
+            _registrar_historico(cursor, ressarcimento_id, "Cancelamento", motivo, anteriores={"status": processo["status_processo"], "faturamento": processo["status_faturamento"]}, posteriores={"status": "Cancelado", "faturamento": "Cancelado"})
+            conn.commit()
+            flash("Processo cancelado.", "success")
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "warning")
+        finally:
+            conn.close()
+        return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
+
+    @blueprint.route("/pcpm/ressarcimentos/<int:ressarcimento_id>/reabrir", methods=["POST"])
+    @login_required
+    @module_required("acesso_pcpm")
+    @module_required("acesso_pcpm_ressarcimentos")
+    def reabrir_pcpm_ressarcimento(ressarcimento_id):
+        motivo = (request.form.get("motivo") or "").strip()
+        if not motivo:
+            flash("Informe a justificativa da reabertura.", "warning")
+            return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            processo = _buscar_processo_autorizado(cursor, ressarcimento_id, for_update=True)
+            if not processo:
+                raise ValueError("Processo não encontrado ou fora do seu centro de custos.")
+            if processo["status_processo"] != "Cancelado":
+                raise ValueError("Somente processos cancelados podem ser reabertos.")
+            cursor.execute(
+                """UPDATE pcpm_ressarcimentos
+                   SET status_processo='Em andamento', status_faturamento='Pendente',
+                       reaberto_em=NOW(), reaberto_por=%s, motivo_reabertura=%s,
+                       atualizado_por=%s WHERE id=%s""",
+                (session.get("usuario_id"), motivo, session.get("usuario_id"), ressarcimento_id),
+            )
+            _registrar_historico(cursor, ressarcimento_id, "Reabertura", motivo, anteriores={"status": "Cancelado", "faturamento": "Cancelado"}, posteriores={"status": "Em andamento", "faturamento": "Pendente"})
+            conn.commit()
+            flash("Processo reaberto.", "success")
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "warning")
+        finally:
+            conn.close()
+        return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))

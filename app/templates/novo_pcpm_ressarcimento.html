@@ -1,0 +1,22 @@
+{% extends "layout.html" %}
+{% block title %}Nova avaria{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="card border-warning shadow-sm">
+        <div class="card-header bg-white"><h2 class="text-center m-0"><i class="bi bi-exclamation-diamond"></i> CADASTRO DA AVARIA</h2></div>
+        <form method="post" enctype="multipart/form-data" class="card-body">
+            <div class="row g-3">
+                <div class="col-lg-4"><label class="form-label">Equipamento *</label><select class="form-select" name="equipamento_id" required><option value="">Selecione</option>{% for item in equipamentos %}<option value="{{ item.id }}">{{ item.codigo_frota }} — {{ item.marca }} {{ item.modelo }}</option>{% endfor %}</select></div>
+                <div class="col-lg-4"><label class="form-label">Empresa da ocorrência *</label><select class="form-select" name="empresa_ocorrencia_id" required><option value="">Selecione</option>{% for item in empresas %}<option value="{{ item.id }}">{{ item.nome }}</option>{% endfor %}</select></div>
+                <div class="col-lg-4"><label class="form-label">Data e hora da ocorrência *</label><input class="form-control" type="datetime-local" name="ocorrencia_em" required></div>
+                <div class="col-12"><label class="form-label">Descrição da ocorrência *</label><textarea class="form-control" name="descricao_ocorrencia" rows="4" maxlength="5000" required></textarea></div>
+                <div class="col-lg-6"><label class="form-label">Operador do equipamento</label><select class="form-select" name="operador_id"><option value="">Não informado</option>{% for item in operadores %}<option value="{{ item.id }}">{{ item.nome }} — {{ item.matricula }}{% if item.empresa_nome %} — {{ item.empresa_nome }}{% endif %}</option>{% endfor %}</select><div class="form-text">Pessoa que operava o equipamento no momento da avaria.</div></div>
+                <div class="col-lg-6"><label class="form-label">Funcionário Tradimaq *</label><select class="form-select" name="funcionario_id" required><option value="">Selecione</option>{% for item in funcionarios %}<option value="{{ item.id }}">{{ item.nome }}{% if item.matricula %} — {{ item.matricula }}{% endif %}</option>{% endfor %}</select><div class="form-text">Funcionário que identificou, acompanhou ou registrou a ocorrência.</div></div>
+                <div class="col-lg-6"><label class="form-label">Fotos da avaria</label><input class="form-control" type="file" name="fotos_avaria" accept=".jpg,.jpeg,.png" multiple><div class="form-text">É possível selecionar várias imagens.</div></div>
+                <div class="col-lg-6"><label class="form-label">Checklist de movimentação</label><input class="form-control" type="file" name="checklist_movimentacao" accept=".pdf,.jpg,.jpeg,.png"><div class="form-text">PDF, JPG ou PNG, com até 10 MB.</div></div>
+            </div>
+            <div class="d-flex justify-content-between mt-4"><a class="btn btn-secondary" href="{{ url_for('main.pcpm_ressarcimentos') }}">Voltar</a><button class="btn btn-warning text-white" type="submit">Salvar</button></div>
+        </form>
+    </div>
+</div>
+{% endblock %}
