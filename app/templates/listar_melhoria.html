@@ -253,7 +253,7 @@
                         </td>
 
                         <td class="text-center">
-                            {% if m.criado_por == session.get('usuario_id') %}
+                            {% if m.criado_por == session.get('usuario_id') or session.get('perfil') == 'administrador' %}
                                 <div class="d-flex justify-content-center gap-2">
                                     <a href="{{ url_for('main.editar_melhoria', id=m.id) }}"
                                        class="btn-acao-icon"

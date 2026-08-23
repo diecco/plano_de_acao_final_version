@@ -258,13 +258,13 @@
                         </div>
 
                         <div class="col-12 campo-colaborador d-none">
-                            <label for="colaborador_busca" class="form-label">Colaborador previsto</label>
+                            <label for="colaborador_busca" class="form-label">Colaborador previsto <span class="text-muted fw-normal">(opcional)</span></label>
                             <div class="autocomplete-wrapper">
                                 <input type="text" class="form-control" id="colaborador_busca" autocomplete="off" placeholder="Digite o nome ou a matrícula">
                                 <input type="hidden" id="colaborador_previsto_id" name="colaborador_previsto_id">
                                 <div id="colaborador_resultados" class="autocomplete-resultados"></div>
                             </div>
-                            <div class="form-text">O líder poderá alterar o colaborador no momento da execução, mediante justificativa.</div>
+                            <div class="form-text">Se informado, será sugerido ao líder no momento da execução. O campo poderá ser definido ou alterado durante a realização.</div>
                         </div>
 
                         <div class="col-12 campo-procedimento d-none">
@@ -469,18 +469,11 @@ document.addEventListener('DOMContentLoaded',()=>{
         formModal.addEventListener('submit',e=>{
             const pratica=document.getElementById('pratica_modal').value;
             const temaId=document.getElementById('tema_id').value;
-            const colaboradorId=document.getElementById('colaborador_previsto_id').value;
             const procedimentoId=document.getElementById('procedimento_id').value;
 
             if(pratica==='hora_seguranca'&&!temaId){
                 e.preventDefault();
                 alert('Selecione o tema da Hora de Segurança.');
-                return;
-            }
-
-            if((pratica==='hora_seguranca'||pratica==='auditoria_padrao')&&!colaboradorId){
-                e.preventDefault();
-                alert('Selecione o colaborador na lista de resultados.');
                 return;
             }
 

@@ -11,6 +11,7 @@ DIRETORIOS_PERSISTENTES = (
     "evidencias_treinamentos",
     "aprs",
     "pcpm_movimentacoes",
+    "comunicados",
 )
 
 
@@ -149,3 +150,15 @@ class UploadService:
 
         os.remove(caminho)
         return True
+
+    @classmethod
+    def existe(cls, nome, diretorio=None):
+        """Confirma que um arquivo de upload seguro ainda existe no armazenamento."""
+        if not nome or os.path.basename(nome) != nome:
+            return False
+
+        destino = cls.resolver_diretorio(diretorio)
+        caminho = os.path.abspath(os.path.join(destino, nome))
+        if os.path.commonpath((destino, caminho)) != destino:
+            return False
+        return os.path.isfile(caminho)

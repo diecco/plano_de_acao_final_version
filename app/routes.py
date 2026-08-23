@@ -12,6 +12,7 @@ from app.views.detectores_gas import register_detectores_gas_routes
 from app.views.funcoes import register_funcoes_routes
 from app.views.horas_seguranca import register_horas_seguranca_routes
 from app.views.ifs import register_ifs_routes
+from app.views.inicio import register_inicio_routes
 from app.views.investigacao_causa_raiz import (
     register_investigacao_causa_raiz_routes,
 )
@@ -45,6 +46,7 @@ register_setores_routes(main_routes)
 register_funcoes_routes(main_routes)
 register_horas_seguranca_routes(main_routes)
 register_ifs_routes(main_routes)
+register_inicio_routes(main_routes)
 register_investigacao_causa_raiz_routes(main_routes)
 register_cargos_routes(main_routes)
 register_tipos_documento_routes(main_routes)

@@ -1,8 +1,21 @@
 from datetime import datetime
 
-from flask import flash, redirect, render_template, request, session, url_for
+from flask import (
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 
-from app.decorators import admin_required, login_required, module_required
+from app.decorators import (
+    admin_required,
+    login_required,
+    module_required,
+    pode_acessar_ssma,
+)
 from app.utils.db import get_db_connection
 
 
@@ -415,21 +428,38 @@ def register_recusa_tarefa_routes(blueprint):
     @login_required
     @module_required('acesso_ssma')
     def excluir_recusa(id):
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        conn = None
+        cursor = None
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor(dictionary=True)
 
-        recusa = pode_acessar_ssma(cursor, 'recusa', id)
+            recusa = pode_acessar_ssma(cursor, 'recusa', id)
 
-        if not recusa:
-            conn.close()
-            flash("Recusa não encontrada ou você não possui permissão para excluí-la.", "warning")
-            return redirect(url_for("main.listar_recusa"))
+            if not recusa:
+                flash(
+                    "Recusa não encontrada ou você não possui permissão para excluí-la.",
+                    "warning",
+                )
+                return redirect(url_for("main.listar_recusa"))
 
-        cursor.execute("DELETE FROM recusa_tarefa WHERE id = %s", (id,))
-        conn.commit()
-        conn.close()
+            cursor.execute("DELETE FROM recusa_tarefa WHERE id = %s", (id,))
+            conn.commit()
+            flash("Recusa excluída com sucesso!", "success")
+        except Exception:
+            if conn:
+                conn.rollback()
+            current_app.logger.exception(
+                "Erro ao excluir Recusa à Tarefa ID %s",
+                id,
+            )
+            flash("Não foi possível excluir a Recusa à Tarefa.", "danger")
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
 
-        flash("Recusa excluída com sucesso!", "success")
         return redirect(url_for("main.listar_recusa"))
 
     @blueprint.route("/listar_recusa", methods=["GET"])
@@ -619,4 +649,3 @@ def register_recusa_tarefa_routes(blueprint):
             total_registros=total_registros,
             total_paginas=total_paginas
         )
-

@@ -44,7 +44,7 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         if session.get('perfil') != 'administrador':
             flash('Acesso restrito ao administrador.', 'danger')
-            return redirect('/')
+            return redirect(url_for('main.inicio'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -58,7 +58,7 @@ def module_required(module_key):
 
             if not session.get(module_key):
                 flash('Você não possui permissão para acessar este módulo.', 'danger')
-                return redirect('/')
+                return redirect(url_for('main.inicio'))
 
             return f(*args, **kwargs)
         return decorated_function
@@ -76,7 +76,7 @@ def perfil_required(*perfis_permitidos):
 
             if perfil not in perfis_permitidos:
                 flash('Você não possui permissão para executar esta ação.', 'danger')
-                return redirect('/')
+                return redirect(url_for('main.inicio'))
 
             return f(*args, **kwargs)
         return decorated_function
@@ -114,7 +114,7 @@ def gerenciar_agendamentos_ssma_required(func):
             'Você não possui permissão para gerenciar os agendamentos de SSMA.',
             'danger'
         )
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('main.inicio'))
 
     return decorated_function
 
@@ -129,7 +129,7 @@ def lider_ssma_required(func):
             'Seu usuário não está habilitado como líder de SSMA.',
             'warning'
         )
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('main.inicio'))
 
     return decorated_function
 

@@ -518,6 +518,50 @@ html.sidebar-collapsed .sidebar-module-toggle.active {
     background: #fff;
 }
 
+/* Mantém as ações do modal de edição sempre acessíveis em telas baixas. */
+#modalEditarAcao .modal-content {
+    max-height: calc(100dvh - 2rem);
+    overflow: hidden;
+}
+
+#modalEditarAcao #formEditarAcaoModal {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: inherit;
+}
+
+#modalEditarAcao .modal-header,
+#modalEditarAcao .modal-footer {
+    flex-shrink: 0;
+}
+
+#modalEditarAcao .modal-body {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+@media (max-height: 700px) {
+    #modalEditarAcao .modal-dialog {
+        margin-top: .5rem;
+        margin-bottom: .5rem;
+    }
+
+    #modalEditarAcao .modal-content {
+        max-height: calc(100dvh - 1rem);
+    }
+
+    #modalEditarAcao .modal-body {
+        padding-top: .75rem;
+        padding-bottom: .75rem;
+    }
+
+    #modalEditarAcao .modal-body .mb-3 {
+        margin-bottom: .75rem !important;
+    }
+}
+
 .card {
     border-radius: 10px;
 }

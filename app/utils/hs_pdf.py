@@ -208,9 +208,15 @@ def gerar_pdf_hora_seguranca(registro, itens):
         [
             tabela_identificacao,
             Spacer(1, 0.15 * cm),
-            Paragraph("2. Itens de verificação", estilos["secao"]),
         ]
     )
+    if registro.get("observacoes_gerais"):
+        elementos.extend([
+            Paragraph("Observações gerais", estilos["secao"]),
+            paragrafo(registro.get("observacoes_gerais"), estilos["normal"]),
+            Spacer(1, 0.15 * cm),
+        ])
+    elementos.append(Paragraph("2. Itens de verificação", estilos["secao"]))
 
     linhas = [[
         Paragraph("#", estilos["cabecalho"]),
@@ -266,6 +272,41 @@ def gerar_pdf_hora_seguranca(registro, itens):
             ),
         ]
     )
+
+    adicionais = registro.get("itens_adicionais") or []
+    if adicionais:
+        elementos.append(Paragraph("3. Outros itens identificados", estilos["secao"]))
+        linhas_adicionais = [[
+            Paragraph("Tipo", estilos["cabecalho"]),
+            Paragraph("Item", estilos["cabecalho"]),
+            Paragraph("Situação observada", estilos["cabecalho"]),
+            Paragraph("Ação / prazo", estilos["cabecalho"]),
+        ]]
+        for adicional in adicionais:
+            acao = adicional.get("descricao_acao") or "Sem ação gerada"
+            if adicional.get("prazo"):
+                acao += f"\nPrazo: {_data(adicional.get('prazo'))}"
+            linhas_adicionais.append([
+                paragrafo(_texto(adicional.get("tipo")).title(), estilos["normal"]),
+                paragrafo(adicional.get("item_verificacao"), estilos["normal"]),
+                paragrafo(adicional.get("descricao_situacao"), estilos["normal"]),
+                paragrafo(acao, estilos["normal"]),
+            ])
+        tabela_adicionais = Table(
+            linhas_adicionais,
+            colWidths=[2.3 * cm, 4.8 * cm, 5.5 * cm, 4.4 * cm],
+            repeatRows=1,
+        )
+        tabela_adicionais.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#D8DADD")),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(LARANJA)),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ]))
+        elementos.append(tabela_adicionais)
 
     doc.build(
         elementos,

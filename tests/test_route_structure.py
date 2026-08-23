@@ -13,7 +13,26 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 203)
+        self.assertEqual(len(self.routes), 207)
+
+    def test_home_and_visual_communications_routes_are_registered(self):
+        expected = {
+            ("/inicio", ("GET",)): "main.inicio",
+            (
+                "/admin/comunicados",
+                ("GET", "POST"),
+            ): "main.comunicados_visuais",
+            (
+                "/admin/comunicados/<int:comunicado_id>/alternar",
+                ("POST",),
+            ): "main.alternar_comunicado_visual",
+            (
+                "/admin/comunicados/<int:comunicado_id>/imagem",
+                ("POST",),
+            ): "main.substituir_imagem_comunicado_visual",
+        }
+        for route_contract, endpoint in expected.items():
+            self.assertEqual(self.routes.get(route_contract), endpoint)
 
     def test_acr_routes_are_registered(self):
         expected = {

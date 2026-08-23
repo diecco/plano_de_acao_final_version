@@ -12,6 +12,15 @@ def allowed_image_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
 
 
+def _escopo_visualizacao_melhorias(perfil, centro_custos_id):
+    perfil_normalizado = (perfil or "").strip().lower()
+    if perfil_normalizado == "administrador":
+        return None, []
+    if not centro_custos_id:
+        return "1 = 0", []
+    return "m.centro_custo_id = %s", [centro_custos_id]
+
+
 def register_melhorias_routes(blueprint):
     def _save_image_if_present(field_name: str, prefix: str):
         file = request.files.get(field_name)
@@ -65,16 +74,15 @@ def register_melhorias_routes(blueprint):
         filtros_sql = []
         valores = []
 
-        # CONTROLE DE ESCOPO
-        if perfil == "basico":
-            filtros_sql.append("m.criado_por = %s")
-            valores.append(usuario_id)
-
-        elif perfil == "intermediario":
-            filtros_sql.append("m.centro_custo_id = %s")
-            valores.append(centro_custos_id)
-
-        # avançado e administrador veem tudo
+        # A visualização é compartilhada no centro de custos. As permissões
+        # de editar e excluir continuam sendo verificadas separadamente.
+        filtro_escopo, valores_escopo = _escopo_visualizacao_melhorias(
+            perfil,
+            centro_custos_id,
+        )
+        if filtro_escopo:
+            filtros_sql.append(filtro_escopo)
+            valores.extend(valores_escopo)
 
         if executante_id:
             filtros_sql.append("m.executante_id = %s")
@@ -133,7 +141,7 @@ def register_melhorias_routes(blueprint):
         """, valores + [per_page, offset])
         melhorias = cursor.fetchall()
 
-        if perfil in ["administrador", "avancado"]:
+        if perfil == "administrador":
             cursor.execute("""
                 SELECT id, nome
                 FROM usuarios
@@ -369,19 +377,11 @@ def register_melhorias_routes(blueprint):
             flash("Melhoria não encontrada.", "danger")
             return redirect(url_for("main.listar_melhorias"))
 
-        # 🔒 PERMISSIONAMENTO CORRETO
-        if perfil not in ["administrador", "avancado"]:
-            if perfil == "intermediario":
-                if melhoria.get("centro_custo_id") != centro_custo_id:
-                    conn.close()
-                    flash("Você não tem permissão para editar esta melhoria.", "danger")
-                    return redirect(url_for("main.listar_melhorias"))
-
-            elif perfil == "basico":
-                if melhoria.get("criado_por") != usuario_id:
-                    conn.close()
-                    flash("Você não tem permissão para editar esta melhoria.", "danger")
-                    return redirect(url_for("main.listar_melhorias"))
+        # Somente o criador e o administrador podem alterar a melhoria.
+        if perfil != "administrador" and melhoria.get("criado_por") != usuario_id:
+            conn.close()
+            flash("Somente o criador da melhoria pode editá-la.", "danger")
+            return redirect(url_for("main.listar_melhorias"))
 
         # ======================================================
         # POST
@@ -553,14 +553,9 @@ def register_melhorias_routes(blueprint):
                 flash("Melhoria não encontrada.", "warning")
                 return redirect(url_for("main.listar_melhorias"))
 
-            if perfil not in ["administrador", "avancado"]:
-                if perfil == "intermediario" and melhoria.get("centro_custo_id") != centro_custos_id:
-                    flash("Você não tem permissão para excluir esta melhoria.", "danger")
-                    return redirect(url_for("main.listar_melhorias"))
-
-                if perfil == "basico" and melhoria.get("criado_por") != usuario_id:
-                    flash("Você não tem permissão para excluir esta melhoria.", "danger")
-                    return redirect(url_for("main.listar_melhorias"))
+            if perfil != "administrador" and melhoria.get("criado_por") != usuario_id:
+                flash("Somente o criador da melhoria pode excluí-la.", "danger")
+                return redirect(url_for("main.listar_melhorias"))
 
             cursor.execute("""
                 DELETE FROM melhorias
@@ -579,4 +574,3 @@ def register_melhorias_routes(blueprint):
             conn.close()
 
         return redirect(url_for("main.listar_melhorias"))
-

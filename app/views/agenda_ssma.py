@@ -627,28 +627,10 @@ def register_agenda_ssma_routes(blueprint):
                         "Selecione o tema da Hora de Segurança."
                     )
 
-                if not colaborador_id:
-                    return (
-                        None,
-                        None,
-                        None,
-                        "Selecione o colaborador previsto para "
-                        "a Hora de Segurança."
-                    )
-
                 procedimento_id = None
 
             elif pratica == "auditoria_padrao":
                 tema_id = None
-
-                if not colaborador_id:
-                    return (
-                        None,
-                        None,
-                        None,
-                        "Selecione o colaborador previsto para "
-                        "a Auditoria de Padrão."
-                    )
 
                 if not procedimento_id:
                     return (
@@ -3190,4 +3172,3 @@ def register_agenda_ssma_routes(blueprint):
                     conn.close()
                 except Exception:
                     pass
-

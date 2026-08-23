@@ -2,7 +2,7 @@
 
 <aside class="app-sidebar" id="appSidebar" aria-label="Navegação principal">
     <div class="sidebar-brand">
-        <a href="{{ url_for('main.dashboard') }}" class="sidebar-brand-link">
+        <a href="{{ url_for('main.inicio') }}" class="sidebar-brand-link">
             <img class="sidebar-logo-full"
                  src="{{ url_for('static', filename='imagens/logo_trackplan.png') }}"
                  alt="TrackPlan">
@@ -30,6 +30,12 @@
     </div>
 
     <nav class="sidebar-navigation" id="sidebarMenuAccordion">
+        <a href="{{ url_for('main.inicio') }}"
+           class="sidebar-link mb-2 {% if request.endpoint == 'main.inicio' %}active{% endif %}"
+           data-search-label="início página inicial central trackplan">
+            <i class="bi bi-house"></i><span>Início</span>
+        </a>
+
         {% if session.get('acesso_plano_acao') or is_admin %}
             {% set endpoints_planos = [
                 'main.dashboard',
@@ -416,10 +422,11 @@
                 'main.equipamentos',
                 'main.tipos_equipamento',
                 'main.tipos_documento',
-                'main.pcpm_checklist_modelos'
+                'main.pcpm_checklist_modelos',
+                'main.comunicados_visuais'
             ] %}
             <section class="sidebar-module"
-                     data-search-label="administração estrutura superintendências centros custos usuários origens causas recusa temas hs tipos documentos cargos funções setores instrutores matriz empresas equipamentos checklist">
+                     data-search-label="administração estrutura superintendências centros custos usuários comunicados origens causas recusa temas hs tipos documentos cargos funções setores instrutores matriz empresas equipamentos checklist">
                 <button class="sidebar-module-toggle {% if request.endpoint in endpoints_admin %}active{% endif %}"
                         type="button"
                         data-bs-toggle="collapse"
@@ -446,6 +453,10 @@
                     <a href="{{ url_for('main.listar_usuarios') }}"
                        class="sidebar-link {% if request.endpoint == 'main.listar_usuarios' %}active{% endif %}">
                         <i class="bi bi-people"></i><span>Usuários / Funcionários</span>
+                    </a>
+                    <a href="{{ url_for('main.comunicados_visuais') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.comunicados_visuais' %}active{% endif %}">
+                        <i class="bi bi-images"></i><span>Comunicados visuais</span>
                     </a>
                     <a href="{{ url_for('main.origens') }}"
                        class="sidebar-link {% if request.endpoint == 'main.origens' %}active{% endif %}">
