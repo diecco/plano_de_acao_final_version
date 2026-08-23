@@ -55,6 +55,15 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
         self.assertIn("dados_anteriores JSON", self.migration)
         self.assertIn("dados_posteriores JSON", self.migration)
 
+    def test_occurrence_can_be_edited_with_audit_trail(self):
+        template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")
+        self.assertIn("atualizar_ocorrencia_pcpm_ressarcimento", self.view)
+        self.assertIn('"Atualização da ocorrência"', self.view)
+        self.assertIn("dados da avaria atualizados", self.view.lower())
+        self.assertIn("modalEditarOcorrencia", template)
+        self.assertIn('name="fotos_avaria"', template)
+        self.assertIn('name="checklist_movimentacao"', template)
+
 
 if __name__ == "__main__":
     unittest.main()

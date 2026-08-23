@@ -373,9 +373,126 @@ def register_pcpm_ressarcimentos_routes(blueprint):
                    WHERE ressarcimento_id = %s AND ativo = 1
                    ORDER BY criado_em, id""", (ressarcimento_id,),
             )
-            return render_template("pcpm_ressarcimento_detalhe.html", processo=processo, historico=historico, anexos=cursor.fetchall())
+            anexos = cursor.fetchall()
+            dominios = _buscar_dominios_cadastro(cursor, processo["centro_custos_id"])
+            return render_template(
+                "pcpm_ressarcimento_detalhe.html", processo=processo,
+                historico=historico, anexos=anexos,
+                equipamentos=dominios[0], empresas=dominios[1],
+                operadores=dominios[2], funcionarios=dominios[3],
+            )
         finally:
             conn.close()
+
+    @blueprint.route("/pcpm/ressarcimentos/<int:ressarcimento_id>/ocorrencia", methods=["POST"])
+    @login_required
+    @module_required("acesso_pcpm")
+    @module_required("acesso_pcpm_ressarcimentos")
+    def atualizar_ocorrencia_pcpm_ressarcimento(ressarcimento_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        arquivos_salvos = []
+        try:
+            processo = _buscar_processo_autorizado(cursor, ressarcimento_id, for_update=True)
+            if not processo:
+                raise ValueError("Processo não encontrado ou fora do seu centro de custos.")
+            if processo["status_processo"] == "Cancelado":
+                raise ValueError("Reabra o processo antes de alterar a ocorrência.")
+
+            equipamento_id = request.form.get("equipamento_id", type=int)
+            empresa_id = request.form.get("empresa_ocorrencia_id", type=int)
+            operador_id = request.form.get("operador_id", type=int)
+            funcionario_id = request.form.get("funcionario_id", type=int)
+            ocorrencia_raw = (request.form.get("ocorrencia_em") or "").strip()
+            descricao = (request.form.get("descricao_ocorrencia") or "").strip()
+            if not all((equipamento_id, empresa_id, funcionario_id, ocorrencia_raw, descricao)):
+                raise ValueError("Preencha todos os campos obrigatórios da ocorrência.")
+            ocorrencia_em = datetime.fromisoformat(ocorrencia_raw)
+
+            centro_id = processo["centro_custos_id"]
+            cursor.execute(
+                """SELECT id, codigo_frota, marca, modelo FROM pcpm_equipamentos
+                   WHERE id=%s AND ativo=1 AND centro_custo_id=%s""",
+                (equipamento_id, centro_id),
+            )
+            equipamento = cursor.fetchone()
+            cursor.execute("SELECT id, nome FROM pcpm_empresas WHERE id=%s AND ativo=1", (empresa_id,))
+            empresa = cursor.fetchone()
+            cursor.execute(
+                """SELECT id, nome, matricula FROM usuarios
+                   WHERE id=%s AND ativo=1 AND centro_custos_id=%s""",
+                (funcionario_id, centro_id),
+            )
+            funcionario = cursor.fetchone()
+            operador = None
+            if operador_id:
+                cursor.execute(
+                    "SELECT id, nome, matricula FROM pcpm_pessoas WHERE id=%s AND ativo=1",
+                    (operador_id,),
+                )
+                operador = cursor.fetchone()
+            if not equipamento or not empresa or not funcionario or (operador_id and not operador):
+                raise ValueError("Um dos cadastros selecionados é inválido ou está fora do centro de custos.")
+
+            anteriores = {
+                "equipamento": processo["equipamento_snapshot"],
+                "empresa": processo["empresa_ocorrencia_snapshot"],
+                "ocorrencia_em": processo["ocorrencia_em"],
+                "descricao": processo["descricao_ocorrencia"],
+                "operador": processo["operador_nome_snapshot"],
+                "funcionario": processo["funcionario_nome_snapshot"],
+            }
+            equipamento_snapshot = f"{equipamento['codigo_frota']} - {equipamento['marca']} {equipamento['modelo']}"
+            posteriores = {
+                "equipamento": equipamento_snapshot,
+                "empresa": empresa["nome"], "ocorrencia_em": ocorrencia_em,
+                "descricao": descricao,
+                "operador": operador["nome"] if operador else None,
+                "funcionario": funcionario["nome"],
+            }
+            cursor.execute(
+                """UPDATE pcpm_ressarcimentos SET
+                       equipamento_id=%s, empresa_ocorrencia_id=%s, ocorrencia_em=%s,
+                       descricao_ocorrencia=%s, operador_id=%s,
+                       operador_nome_snapshot=%s, operador_matricula_snapshot=%s,
+                       funcionario_id=%s, funcionario_nome_snapshot=%s,
+                       funcionario_matricula_snapshot=%s, equipamento_snapshot=%s,
+                       empresa_ocorrencia_snapshot=%s, atualizado_por=%s
+                   WHERE id=%s""",
+                (
+                    equipamento_id, empresa_id, ocorrencia_em, descricao, operador_id,
+                    operador["nome"] if operador else None,
+                    operador["matricula"] if operador else None,
+                    funcionario_id, funcionario["nome"], funcionario["matricula"],
+                    equipamento_snapshot, empresa["nome"], session.get("usuario_id"),
+                    ressarcimento_id,
+                ),
+            )
+            fotos = [item for item in request.files.getlist("fotos_avaria") if item and item.filename]
+            checklist = request.files.get("checklist_movimentacao")
+            for indice, arquivo in enumerate(fotos, start=1):
+                arquivos_salvos.append(_salvar_anexo(cursor, ressarcimento_id, arquivo, "foto_avaria", f"avaria_adicional_{indice}"))
+            if checklist and checklist.filename:
+                arquivos_salvos.append(_salvar_anexo(cursor, ressarcimento_id, checklist, "checklist", "checklist_adicional"))
+            _registrar_historico(
+                cursor, ressarcimento_id, "Atualização da ocorrência",
+                "Dados da avaria atualizados.", anteriores, posteriores, etapa=1,
+            )
+            conn.commit()
+            flash("Dados da ocorrência atualizados com sucesso.", "success")
+        except (ValueError, TypeError, UploadValidationError) as exc:
+            conn.rollback()
+            for nome, diretorio in arquivos_salvos:
+                UploadService.excluir(nome, diretorio)
+            flash(str(exc), "warning")
+        except Exception as exc:
+            conn.rollback()
+            for nome, diretorio in arquivos_salvos:
+                UploadService.excluir(nome, diretorio)
+            flash(f"Erro ao atualizar a ocorrência: {exc}", "danger")
+        finally:
+            conn.close()
+        return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
 
     @blueprint.route("/pcpm/ressarcimentos/<int:ressarcimento_id>/anexos/<int:anexo_id>")
     @login_required
