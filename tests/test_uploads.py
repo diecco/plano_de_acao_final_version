@@ -118,7 +118,10 @@ class UploadRegressionTests(unittest.TestCase):
                 (destino / "existente.pdf").read_bytes(), b"versao-disco"
             )
             self.assertFalse(origem.exists())
-            self.assertEqual(criar_link.call_count, 4)
+            self.assertEqual(
+                criar_link.call_count,
+                len(upload_security.DIRETORIOS_PERSISTENTES),
+            )
             self.assertEqual(app.config["UPLOAD_FOLDER"], str(destino.resolve()))
 
     def test_upload_root_relativo_e_rejeitado(self):
