@@ -28,6 +28,23 @@
             </div>
         </div>
     </div>
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+          <div><h3 class="fs-6 fw-bold text-laranja mb-1">Dados do cliente e aprovador</h3><div class="small text-muted">Informações necessárias para encaminhamento e aprovação do ressarcimento.</div></div>
+          {% if processo.status_processo != 'Cancelado' %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalDadosCliente" title="{% if processo.empresa_cliente_id %}Editar{% else %}Cadastrar{% endif %} dados do cliente"><i class="bi bi-{% if processo.empresa_cliente_id %}pencil-square{% else %}plus-circle{% endif %}"></i></button>{% endif %}
+        </div>
+        {% if processo.empresa_cliente_id %}
+        <div class="row g-3">
+          <div class="col-md-4"><strong>Empresa do cliente</strong><br>{{ processo.empresa_cliente_snapshot }}</div>
+          <div class="col-md-4"><strong>Centro de custos do cliente</strong><br>{{ processo.cliente_centro_custos }}</div>
+          <div class="col-md-4"><strong>Área do cliente</strong><br>{{ processo.cliente_area }}</div>
+          <div class="col-md-6"><strong>E-mail do aprovador</strong><br>{{ processo.aprovador_email }}</div>
+          <div class="col-md-6"><strong>Telefone do aprovador</strong><br>{{ processo.aprovador_telefone }}</div>
+        </div>
+        {% else %}<p class="text-muted mb-0">Dados ainda não informados.</p>{% endif %}
+      </div>
+    </div>
     <div class="card border-0 shadow-sm mb-4"><div class="card-body"><h3 class="fs-6 fw-bold text-laranja mb-3">Anexos da avaria</h3><div class="row g-2">{% for item in anexos %}<div class="col-md-6"><a class="btn btn-cinza w-100 text-start" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}"><i class="bi bi-paperclip"></i> {{ item.nome_original }}</a></div>{% else %}<div class="text-muted">Nenhum anexo incluído.</div>{% endfor %}</div></div></div>
     <div class="card border-0 shadow-sm"><div class="card-body"><h3 class="fs-6 fw-bold text-laranja mb-3">Histórico</h3>{% for item in historico %}<div class="border-bottom py-2"><strong>{{ item.evento }}</strong> — {{ item.descricao }}<div class="small text-muted">{{ item.usuario_nome }} · {{ item.criado_em.strftime('%d/%m/%Y %H:%M') }}</div></div>{% else %}<p class="text-muted mb-0">Nenhum evento registrado.</p>{% endfor %}</div></div>
 
@@ -49,4 +66,29 @@
     </form>
   </div></div>
 </div>
+
+<div class="modal fade" id="modalDadosCliente" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+    <form method="post" action="{{ url_for('main.atualizar_cliente_pcpm_ressarcimento', ressarcimento_id=processo.id) }}">
+      <div class="modal-header bg-laranja text-white"><h5 class="modal-title"><i class="bi bi-building me-2"></i>Dados do cliente e aprovador</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body"><div class="row g-3">
+        <div class="col-12"><label class="form-label">Empresa do cliente *</label><select class="form-select" name="empresa_cliente_id" required><option value="">Selecione</option>{% for item in empresas %}<option value="{{ item.id }}" {% if item.id == processo.empresa_cliente_id %}selected{% endif %}>{{ item.nome }}</option>{% endfor %}</select></div>
+        <div class="col-md-6"><label class="form-label">Centro de custos do cliente *</label><input class="form-control" name="cliente_centro_custos" maxlength="150" value="{{ processo.cliente_centro_custos or '' }}" required></div>
+        <div class="col-md-6"><label class="form-label">Área do cliente *</label><input class="form-control" name="cliente_area" maxlength="150" value="{{ processo.cliente_area or '' }}" required></div>
+        <div class="col-md-6"><label class="form-label">E-mail do aprovador *</label><input class="form-control" type="email" name="aprovador_email" maxlength="150" value="{{ processo.aprovador_email or '' }}" required></div>
+        <div class="col-md-6"><label class="form-label">Telefone do aprovador *</label><input class="form-control" type="tel" name="aprovador_telefone" id="aprovadorTelefone" maxlength="15" value="{{ processo.aprovador_telefone or '' }}" placeholder="(31) 99999-9999" required></div>
+      </div></div>
+      <div class="modal-footer"><button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button><button type="submit" class="btn btn-laranja">Salvar</button></div>
+    </form>
+  </div></div>
+</div>
+<script>
+document.getElementById('aprovadorTelefone')?.addEventListener('input', function () {
+  const valor = this.value.replace(/\D/g, '').slice(0, 11);
+  if (valor.length > 10) this.value = valor.replace(/^(\d{2})(\d{5})(\d{0,4}).*/, '($1) $2-$3');
+  else if (valor.length > 6) this.value = valor.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
+  else if (valor.length > 2) this.value = valor.replace(/^(\d{2})(\d*)/, '($1) $2');
+  else this.value = valor.replace(/^(\d*)/, '($1');
+});
+</script>
 {% endblock %}

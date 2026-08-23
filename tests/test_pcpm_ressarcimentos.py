@@ -64,6 +64,17 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
         self.assertIn('name="fotos_avaria"', template)
         self.assertIn('name="checklist_movimentacao"', template)
 
+    def test_customer_and_approver_stage_is_validated_and_audited(self):
+        template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")
+        self.assertIn("atualizar_cliente_pcpm_ressarcimento", self.view)
+        self.assertIn("PADRAO_EMAIL", self.view)
+        self.assertIn("_normalizar_telefone", self.view)
+        self.assertIn("GREATEST(etapa_atual, 2)", self.view)
+        self.assertIn('id="modalDadosCliente"', template)
+        self.assertIn('name="empresa_cliente_id"', template)
+        self.assertIn('name="aprovador_email"', template)
+        self.assertIn('name="aprovador_telefone"', template)
+
 
 if __name__ == "__main__":
     unittest.main()
