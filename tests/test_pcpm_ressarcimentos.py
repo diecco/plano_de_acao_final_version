@@ -35,6 +35,18 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
         self.assertIn('processo["status_faturamento"] == "Realizado"', self.view)
         self.assertIn("Um processo com faturamento realizado não pode ser cancelado", self.view)
 
+    def test_listing_follows_standard_filters_sorting_and_pagination(self):
+        template = (ROOT / "app" / "templates" / "pcpm_ressarcimentos.html").read_text(encoding="utf-8")
+        self.assertIn("ORDENACOES_RESSARCIMENTOS", self.view)
+        self.assertIn("LIMIT %s OFFSET %s", self.view)
+        self.assertIn("DATE(r.ocorrencia_em) >= %s", self.view)
+        self.assertIn('name="data_inicio"', template)
+        self.assertIn('name="data_fim"', template)
+        self.assertIn("btn btn-laranja", template)
+        self.assertIn("btn btn-cinza", template)
+        self.assertIn("bi-caret-up-fill", template)
+        self.assertIn("pagination pagination-sm", template)
+
     def test_schema_preserves_budget_versions_and_history(self):
         self.assertIn("CREATE TABLE pcpm_ressarcimentos_orcamentos", self.migration)
         self.assertIn("UNIQUE KEY uq_ressarcimento_orcamento_versao", self.migration)
