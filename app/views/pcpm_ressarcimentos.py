@@ -1,6 +1,7 @@
 import json
 import hashlib
 import os
+import re
 from datetime import datetime
 
 from flask import flash, redirect, render_template, request, send_from_directory, session, url_for
@@ -22,6 +23,7 @@ ORDENACOES_RESSARCIMENTOS = {
     "situacao": "r.status_processo",
     "faturamento": "r.status_faturamento",
 }
+PADRAO_EMAIL = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
 def _diretorio_ressarcimento(ressarcimento_id):
@@ -42,6 +44,15 @@ def _hash_arquivo(caminho):
         for bloco in iter(lambda: arquivo.read(1024 * 1024), b""):
             digest.update(bloco)
     return digest.hexdigest()
+
+
+def _normalizar_telefone(valor):
+    digitos = re.sub(r"\D", "", valor or "")
+    if len(digitos) not in {10, 11}:
+        raise ValueError("Informe um telefone válido com DDD.")
+    if len(digitos) == 11:
+        return f"({digitos[:2]}) {digitos[2:7]}-{digitos[7:]}"
+    return f"({digitos[:2]}) {digitos[2:6]}-{digitos[6:]}"
 
 
 def _salvar_anexo(cursor, ressarcimento_id, arquivo, categoria, prefixo):
@@ -490,6 +501,86 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             for nome, diretorio in arquivos_salvos:
                 UploadService.excluir(nome, diretorio)
             flash(f"Erro ao atualizar a ocorrência: {exc}", "danger")
+        finally:
+            conn.close()
+        return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
+
+    @blueprint.route("/pcpm/ressarcimentos/<int:ressarcimento_id>/cliente", methods=["POST"])
+    @login_required
+    @module_required("acesso_pcpm")
+    @module_required("acesso_pcpm_ressarcimentos")
+    def atualizar_cliente_pcpm_ressarcimento(ressarcimento_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            processo = _buscar_processo_autorizado(cursor, ressarcimento_id, for_update=True)
+            if not processo:
+                raise ValueError("Processo não encontrado ou fora do seu centro de custos.")
+            if processo["status_processo"] == "Cancelado":
+                raise ValueError("Reabra o processo antes de alterar os dados do cliente.")
+
+            empresa_cliente_id = request.form.get("empresa_cliente_id", type=int)
+            cliente_centro_custos = (request.form.get("cliente_centro_custos") or "").strip()
+            cliente_area = (request.form.get("cliente_area") or "").strip()
+            aprovador_email = (request.form.get("aprovador_email") or "").strip().lower()
+            aprovador_telefone_raw = (request.form.get("aprovador_telefone") or "").strip()
+            if not all((empresa_cliente_id, cliente_centro_custos, cliente_area, aprovador_email, aprovador_telefone_raw)):
+                raise ValueError("Preencha todos os dados do cliente e do aprovador.")
+            if len(cliente_centro_custos) > 150 or len(cliente_area) > 150:
+                raise ValueError("Centro de custos e área devem possuir no máximo 150 caracteres.")
+            if len(aprovador_email) > 150 or not PADRAO_EMAIL.fullmatch(aprovador_email):
+                raise ValueError("Informe um e-mail válido para o aprovador.")
+            aprovador_telefone = _normalizar_telefone(aprovador_telefone_raw)
+            cursor.execute(
+                "SELECT id, nome FROM pcpm_empresas WHERE id=%s AND ativo=1",
+                (empresa_cliente_id,),
+            )
+            empresa = cursor.fetchone()
+            if not empresa:
+                raise ValueError("A empresa do cliente selecionada é inválida ou está inativa.")
+
+            anteriores = {
+                "empresa_cliente": processo["empresa_cliente_snapshot"],
+                "centro_custos_cliente": processo["cliente_centro_custos"],
+                "area_cliente": processo["cliente_area"],
+                "email_aprovador": processo["aprovador_email"],
+                "telefone_aprovador": processo["aprovador_telefone"],
+            }
+            posteriores = {
+                "empresa_cliente": empresa["nome"],
+                "centro_custos_cliente": cliente_centro_custos,
+                "area_cliente": cliente_area,
+                "email_aprovador": aprovador_email,
+                "telefone_aprovador": aprovador_telefone,
+            }
+            cursor.execute(
+                """UPDATE pcpm_ressarcimentos SET
+                       empresa_cliente_id=%s, empresa_cliente_snapshot=%s,
+                       cliente_centro_custos=%s, cliente_area=%s,
+                       aprovador_email=%s, aprovador_telefone=%s,
+                       etapa_atual=GREATEST(etapa_atual, 2), atualizado_por=%s
+                   WHERE id=%s""",
+                (
+                    empresa_cliente_id, empresa["nome"], cliente_centro_custos,
+                    cliente_area, aprovador_email, aprovador_telefone,
+                    session.get("usuario_id"), ressarcimento_id,
+                ),
+            )
+            evento = "Atualização dos dados do cliente" if processo["empresa_cliente_id"] else "Cadastro dos dados do cliente"
+            _registrar_historico(
+                cursor, ressarcimento_id, evento,
+                "Dados do cliente e do aprovador registrados.",
+                anteriores if processo["empresa_cliente_id"] else None,
+                posteriores, etapa=2,
+            )
+            conn.commit()
+            flash("Dados do cliente atualizados com sucesso.", "success")
+        except (ValueError, TypeError) as exc:
+            conn.rollback()
+            flash(str(exc), "warning")
+        except Exception as exc:
+            conn.rollback()
+            flash(f"Erro ao atualizar os dados do cliente: {exc}", "danger")
         finally:
             conn.close()
         return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
