@@ -1,0 +1,146 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-eye me-2"></i>
+        Detalhes da Melhoria
+    </h2>
+</div>
+<hr>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-4">
+        <div class="row g-4 mb-4">
+            <div class="col-md-2">
+                <div class="text-muted small">Data</div>
+                <div class="fw-semibold">
+                    {{ melhoria.data.strftime('%d/%m/%Y') if melhoria.data and melhoria.data.strftime else melhoria.data or '-' }}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-muted small">Executante</div>
+                <div class="fw-semibold">{{ melhoria.nome_executante or '-' }}</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-muted small">Centro de custos</div>
+                <div class="fw-semibold">
+                    {{ melhoria.codigo_cc }} - {{ melhoria.descricao_cc }}
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="text-muted small">Cadastrado por</div>
+                <div class="fw-semibold">{{ melhoria.nome_criador or '-' }}</div>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <div class="text-muted small">Título</div>
+            <div class="fs-5 fw-semibold">{{ melhoria.titulo or '-' }}</div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-md-8">
+                <div class="text-muted small mb-2">Tipos de ganho</div>
+                {% if melhoria.ganhos_list %}
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for ganho in melhoria.ganhos_list %}
+                            <span class="badge bg-secondary">{{ ganho }}</span>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div>-</div>
+                {% endif %}
+            </div>
+            <div class="col-md-4">
+                <div class="text-muted small">Economia estimada</div>
+                <div class="fw-semibold">
+                    {% if melhoria.economia_estimada is not none %}
+                        R$ {{ melhoria.economia_estimada }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="text-muted small mb-1">Descrição antes</div>
+                <div class="border rounded p-3 bg-light h-100 text-break">
+                    {{ melhoria.descricao_antes or '-' }}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="text-muted small mb-1">Ação realizada</div>
+                <div class="border rounded p-3 bg-light h-100 text-break">
+                    {{ melhoria.acao_realizada or '-' }}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="text-muted small mb-1">Descrição depois</div>
+                <div class="border rounded p-3 bg-light h-100 text-break">
+                    {{ melhoria.descricao_depois or '-' }}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="text-muted small mb-1">Resultados alcançados</div>
+                <div class="border rounded p-3 bg-light h-100 text-break">
+                    {{ melhoria.resultados_alcancados or '-' }}
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="text-muted small mb-2">Foto antes</div>
+                {% if melhoria.foto_antes %}
+                    <a href="{{ url_for('static', filename='evidencias/' ~ melhoria.foto_antes) }}"
+                       target="_blank" rel="noopener">
+                        <img src="{{ url_for('static', filename='evidencias/' ~ melhoria.foto_antes) }}"
+                             class="img-fluid rounded border"
+                             style="max-height: 360px;"
+                             alt="Foto antes da melhoria">
+                    </a>
+                {% else %}
+                    <div class="text-muted">Nenhuma foto anexada.</div>
+                {% endif %}
+            </div>
+            <div class="col-md-6">
+                <div class="text-muted small mb-2">Foto depois</div>
+                {% if melhoria.foto_depois %}
+                    <a href="{{ url_for('static', filename='evidencias/' ~ melhoria.foto_depois) }}"
+                       target="_blank" rel="noopener">
+                        <img src="{{ url_for('static', filename='evidencias/' ~ melhoria.foto_depois) }}"
+                             class="img-fluid rounded border"
+                             style="max-height: 360px;"
+                             alt="Foto depois da melhoria">
+                    </a>
+                {% else %}
+                    <div class="text-muted">Nenhuma foto anexada.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <div class="text-muted small mb-1">Observações</div>
+            <div class="border rounded p-3 bg-light text-break">
+                {{ melhoria.observacoes or '-' }}
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center">
+            <a href="{{ url_for('main.listar_melhorias') }}" class="btn btn-cinza">
+                Voltar
+            </a>
+
+            {% if melhoria.criado_por == session.get('usuario_id') or session.get('perfil') == 'administrador' %}
+                <a href="{{ url_for('main.editar_melhoria', id=melhoria.id) }}"
+                   class="btn btn-laranja">
+                    Editar
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -21,6 +21,15 @@ def _escopo_visualizacao_melhorias(perfil, centro_custos_id):
     return "m.centro_custo_id = %s", [centro_custos_id]
 
 
+def _pode_visualizar_melhoria(perfil, centro_custos_id, melhoria_centro_id):
+    perfil_normalizado = (perfil or "").strip().lower()
+    if perfil_normalizado == "administrador":
+        return True
+    if not centro_custos_id or not melhoria_centro_id:
+        return False
+    return centro_custos_id == melhoria_centro_id
+
+
 def register_melhorias_routes(blueprint):
     def _save_image_if_present(field_name: str, prefix: str):
         file = request.files.get(field_name)
@@ -198,6 +207,65 @@ def register_melhorias_routes(blueprint):
             total_registros=total_registros,
             total_paginas=total_paginas
         )
+
+
+    @blueprint.route("/visualizar_melhoria/<int:id>", methods=["GET"])
+    @login_required
+    @module_required('acesso_melhoria')
+    def visualizar_melhoria(id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        try:
+            cursor.execute("""
+                SELECT
+                    m.*,
+                    u.nome AS nome_executante,
+                    cc.codigo AS codigo_cc,
+                    cc.descricao AS descricao_cc,
+                    criador.nome AS nome_criador
+                FROM melhorias m
+                JOIN usuarios u ON u.id = m.executante_id
+                JOIN centros_custos cc ON cc.id = m.centro_custo_id
+                LEFT JOIN usuarios criador ON criador.id = m.criado_por
+                WHERE m.id = %s
+            """, (id,))
+            melhoria = cursor.fetchone()
+
+            if not melhoria:
+                flash("Melhoria não encontrada.", "warning")
+                return redirect(url_for("main.listar_melhorias"))
+
+            if not _pode_visualizar_melhoria(
+                session.get("perfil"),
+                session.get("centro_custos_id"),
+                melhoria.get("centro_custo_id"),
+            ):
+                flash(
+                    "Você não possui permissão para visualizar esta melhoria.",
+                    "danger",
+                )
+                return redirect(url_for("main.listar_melhorias"))
+
+            ganhos = melhoria.get("tipo_ganho")
+            if isinstance(ganhos, str):
+                melhoria["ganhos_list"] = [
+                    ganho.strip()
+                    for ganho in ganhos.split(",")
+                    if ganho.strip()
+                ]
+            elif isinstance(ganhos, (set, list, tuple)):
+                melhoria["ganhos_list"] = list(ganhos)
+            else:
+                melhoria["ganhos_list"] = []
+
+            return render_template(
+                "visualizar_melhoria.html",
+                melhoria=melhoria,
+            )
+        finally:
+            cursor.close()
+            conn.close()
 
 
     @blueprint.route("/lancar_melhoria", methods=["GET", "POST"])

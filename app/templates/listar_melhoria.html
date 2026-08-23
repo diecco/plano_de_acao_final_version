@@ -253,8 +253,14 @@
                         </td>
 
                         <td class="text-center">
-                            {% if m.criado_por == session.get('usuario_id') or session.get('perfil') == 'administrador' %}
-                                <div class="d-flex justify-content-center gap-2">
+                            <div class="d-flex justify-content-center gap-2">
+                                <a href="{{ url_for('main.visualizar_melhoria', id=m.id) }}"
+                                   class="btn-acao-icon"
+                                   title="Visualizar">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+
+                                {% if m.criado_por == session.get('usuario_id') or session.get('perfil') == 'administrador' %}
                                     <a href="{{ url_for('main.editar_melhoria', id=m.id) }}"
                                        class="btn-acao-icon"
                                        title="Editar">
@@ -267,10 +273,8 @@
                                        onclick="return confirm('Tem certeza que deseja excluir esta melhoria?');">
                                         <i class="bi bi-trash"></i>
                                     </a>
-                                </div>
-                            {% else %}
-                                <span class="text-muted">Sem permissão</span>
-                            {% endif %}
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% else %}

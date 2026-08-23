@@ -13,7 +13,13 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 207)
+        self.assertEqual(len(self.routes), 208)
+
+    def test_visualizacao_de_melhoria_esta_registrada(self):
+        self.assertEqual(
+            self.routes.get(("/visualizar_melhoria/<int:id>", ("GET",))),
+            "main.visualizar_melhoria",
+        )
 
     def test_home_and_visual_communications_routes_are_registered(self):
         expected = {
