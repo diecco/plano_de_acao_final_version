@@ -12,6 +12,15 @@ def allowed_image_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
 
 
+def _escopo_visualizacao_melhorias(perfil, centro_custos_id):
+    perfil_normalizado = (perfil or "").strip().lower()
+    if perfil_normalizado in {"administrador", "avancado"}:
+        return None, []
+    if not centro_custos_id:
+        return "1 = 0", []
+    return "m.centro_custo_id = %s", [centro_custos_id]
+
+
 def register_melhorias_routes(blueprint):
     def _save_image_if_present(field_name: str, prefix: str):
         file = request.files.get(field_name)
@@ -65,16 +74,15 @@ def register_melhorias_routes(blueprint):
         filtros_sql = []
         valores = []
 
-        # CONTROLE DE ESCOPO
-        if perfil == "basico":
-            filtros_sql.append("m.criado_por = %s")
-            valores.append(usuario_id)
-
-        elif perfil == "intermediario":
-            filtros_sql.append("m.centro_custo_id = %s")
-            valores.append(centro_custos_id)
-
-        # avançado e administrador veem tudo
+        # A visualização é compartilhada no centro de custos. As permissões
+        # de editar e excluir continuam sendo verificadas separadamente.
+        filtro_escopo, valores_escopo = _escopo_visualizacao_melhorias(
+            perfil,
+            centro_custos_id,
+        )
+        if filtro_escopo:
+            filtros_sql.append(filtro_escopo)
+            valores.extend(valores_escopo)
 
         if executante_id:
             filtros_sql.append("m.executante_id = %s")
@@ -579,4 +587,3 @@ def register_melhorias_routes(blueprint):
             conn.close()
 
         return redirect(url_for("main.listar_melhorias"))
-
