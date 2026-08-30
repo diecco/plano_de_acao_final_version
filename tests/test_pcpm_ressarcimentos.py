@@ -75,6 +75,17 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
         self.assertIn('name="aprovador_email"', template)
         self.assertIn('name="aprovador_telefone"', template)
 
+    def test_budget_stage_preserves_versions_and_validates_approval(self):
+        template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")
+        self.assertIn("adicionar_orcamento_pcpm_ressarcimento", self.view)
+        self.assertIn("atualizar_status_orcamento_pcpm_ressarcimento", self.view)
+        self.assertIn("COALESCE(MAX(versao), 0) + 1", self.view)
+        self.assertIn("SET vigente=0", self.view)
+        self.assertIn("Anexe o e-mail de aprovação do cliente", self.view)
+        self.assertIn('id="modalNovoOrcamento"', template)
+        self.assertIn('name="arquivo_orcamento"', template)
+        self.assertIn('name="arquivo_aprovacao"', template)
+
 
 if __name__ == "__main__":
     unittest.main()
