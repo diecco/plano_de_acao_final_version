@@ -1,0 +1,46 @@
+{% extends 'layout.html' %}
+{% block titulo %}Análise Crítica — Hora de Segurança{% endblock %}
+{% block conteudo %}
+<style>
+.hs-kpi{border:1px solid #e2e4e7;border-left:4px solid #f36b21;border-radius:10px;background:#fff;padding:14px;height:100%}
+.hs-kpi strong{display:block;font-size:1.55rem;color:#343a40}.hs-kpi span{color:#6c757d;font-size:.84rem}
+.hs-score{font-weight:700;color:#f36b21}.hs-barra{height:7px;background:#e6e6e6;border-radius:8px;overflow:hidden}.hs-barra span{display:block;height:100%;background:#f36b21}
+</style>
+<div class="container-fluid py-3">
+  <div class="card border-laranja shadow-sm mb-4"><div class="card-body">
+    <h2 class="titulo-pagina text-center mb-4"><i class="bi bi-graph-up-arrow me-2"></i>ANÁLISE CRÍTICA — HORA DE SEGURANÇA</h2>
+    <form method="get" class="row g-3 align-items-end">
+      <div class="col-md-2"><label class="form-label">Data inicial</label><input type="date" class="form-control" name="data_inicio" value="{{ filtros.data_inicio }}"></div>
+      <div class="col-md-2"><label class="form-label">Data final</label><input type="date" class="form-control" name="data_fim" value="{{ filtros.data_fim }}"></div>
+      <div class="col-md-2"><label class="form-label">Participante</label><select class="form-select" name="participante_id"><option value="">Todos</option>{% for u in usuarios %}<option value="{{ u.id }}" {% if filtros.participante_id == u.id %}selected{% endif %}>{{ u.nome }}</option>{% endfor %}</select></div>
+      <div class="col-md-2"><label class="form-label">Auditor</label><select class="form-select" name="auditor_id"><option value="">Todos</option>{% for u in usuarios %}<option value="{{ u.id }}" {% if filtros.auditor_id == u.id %}selected{% endif %}>{{ u.nome }}</option>{% endfor %}</select></div>
+      <div class="col-md-2"><label class="form-label">Tema</label><select class="form-select" name="tema_id"><option value="">Todos</option>{% for t in temas %}<option value="{{ t.id }}" {% if filtros.tema_id == t.id %}selected{% endif %}>{{ t.nome }}</option>{% endfor %}</select></div>
+      {% if session.get('perfil') in ['administrador', 'avancado'] %}<div class="col-md-3"><label class="form-label">Centro de custos</label><select class="form-select" name="centro_custos_id"><option value="">Todos</option>{% for cc in centros_custos %}<option value="{{ cc.id }}" {% if filtros.centro_custos_id == cc.id %}selected{% endif %}>{{ cc.codigo }} — {{ cc.descricao }}</option>{% endfor %}</select></div>{% endif %}
+      <div class="col-md-2"><label class="form-label">Turno</label><select class="form-select" name="turno"><option value="">Todos</option>{% for valor in ['Manhã','Tarde','Noite'] %}<option {% if filtros.turno == valor %}selected{% endif %}>{{ valor }}</option>{% endfor %}</select></div>
+      <div class="col-md-3"><label class="form-label">Local</label><input class="form-control" name="local" value="{{ filtros.local }}" placeholder="Digite parte do local"></div>
+      <div class="col-md-2"><label class="form-label">Condição</label><select class="form-select" name="resultado_nc"><option value="">Todas</option><option value="sim" {% if filtros.resultado_nc=='sim' %}selected{% endif %}>Com desvios</option><option value="nao" {% if filtros.resultado_nc=='nao' %}selected{% endif %}>Sem desvios</option></select></div>
+      <div class="col-md-2"><label class="form-label">Score mínimo</label><input type="number" min="0" max="100" step="0.01" class="form-control" name="score_minimo" value="{{ filtros.score_minimo if filtros.score_minimo is not none else '' }}"></div>
+      <div class="col-md-2"><label class="form-label">Score máximo</label><input type="number" min="0" max="100" step="0.01" class="form-control" name="score_maximo" value="{{ filtros.score_maximo if filtros.score_maximo is not none else '' }}"></div>
+      <div class="col-md-3 d-flex justify-content-end gap-2"><button class="btn btn-laranja" title="Filtrar"><i class="bi bi-funnel"></i></button><a class="btn btn-cinza" href="{{ url_for('main.analise_critica_hs') }}" title="Limpar"><i class="bi bi-arrow-clockwise"></i></a></div>
+    </form>
+  </div></div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-2"><div class="hs-kpi"><strong>{{ indicadores.total_hs }}</strong><span>Horas de Segurança</span></div></div>
+    <div class="col-6 col-lg-2"><div class="hs-kpi"><strong class="hs-score">{{ '%.2f'|format(indicadores.score_medio)|replace('.', ',') }}%</strong><span>Score médio</span></div></div>
+    <div class="col-6 col-lg-2"><div class="hs-kpi"><strong>{{ indicadores.pessoas_distintas }}</strong><span>Pessoas alcançadas</span></div></div>
+    <div class="col-6 col-lg-2"><div class="hs-kpi"><strong>{{ indicadores.participacoes }}</strong><span>Participações</span></div></div>
+    <div class="col-6 col-lg-2"><div class="hs-kpi"><strong>{{ indicadores.total_nc + indicadores.desvios_adicionais }}</strong><span>Desvios encontrados</span></div></div>
+    <div class="col-6 col-lg-2"><div class="hs-kpi"><strong>{{ indicadores.acoes_vencidas }}</strong><span>Ações vencidas</span></div></div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-xl-6"><div class="card shadow-sm border-0 h-100"><div class="card-body"><h5 class="text-laranja mb-3">Análise por tema</h5><div class="table-responsive"><table class="table table-bordered align-middle"><thead><tr><th>Tema</th><th class="text-center">HS</th><th class="text-center">Desvios</th><th style="width:28%">Score médio</th></tr></thead><tbody>{% for item in por_tema %}<tr><td>{{ item.nome }}</td><td class="text-center">{{ item.total }}</td><td class="text-center">{{ item.desvios }}</td><td><div class="d-flex justify-content-between"><span class="hs-score">{{ '%.2f'|format(item.score)|replace('.', ',') }}%</span></div><div class="hs-barra"><span style="width:{{ item.score }}%"></span></div></td></tr>{% else %}<tr><td colspan="4" class="text-center text-muted">Sem dados no período.</td></tr>{% endfor %}</tbody></table></div></div></div></div>
+    <div class="col-xl-6"><div class="card shadow-sm border-0 h-100"><div class="card-body"><h5 class="text-laranja mb-3">Análise por auditor</h5><div class="table-responsive"><table class="table table-bordered align-middle"><thead><tr><th>Auditor</th><th class="text-center">HS</th><th class="text-center">Desvios</th><th class="text-center">Score</th></tr></thead><tbody>{% for item in por_auditor %}<tr><td>{{ item.nome }}</td><td class="text-center">{{ item.total }}</td><td class="text-center">{{ item.desvios }}</td><td class="text-center hs-score">{{ '%.2f'|format(item.score)|replace('.', ',') }}%</td></tr>{% else %}<tr><td colspan="4" class="text-center text-muted">Sem dados no período.</td></tr>{% endfor %}</tbody></table></div></div></div></div>
+  </div>
+
+  <div class="card shadow-sm border-0 mb-4"><div class="card-body"><h5 class="text-laranja mb-3">Desvios recorrentes</h5><div class="table-responsive"><table class="table table-bordered align-middle"><thead><tr><th>Item ou situação identificada</th><th class="text-center" style="width:150px">Ocorrências</th></tr></thead><tbody>{% for item in desvios_recorrentes %}<tr><td>{{ item.descricao }}</td><td class="text-center"><strong>{{ item.ocorrencias }}</strong></td></tr>{% else %}<tr><td colspan="2" class="text-center text-muted">Nenhum desvio encontrado nos filtros aplicados.</td></tr>{% endfor %}</tbody></table></div></div></div>
+
+  <div class="card shadow-sm border-0"><div class="card-body"><h5 class="text-laranja mb-3">Registros considerados</h5><div class="table-responsive"><table class="table table-bordered align-middle"><thead><tr><th>Data</th><th>Tema</th><th>Auditor</th><th class="text-center">Participantes</th><th class="text-center">C</th><th class="text-center">NC</th><th class="text-center">Desvios extras</th><th class="text-center">Score</th><th class="text-center">Ações</th></tr></thead><tbody>{% for r in registros|sort(attribute='data', reverse=true) %}<tr><td>{{ r.data.strftime('%d/%m/%Y') }}</td><td>{{ r.tema }}</td><td>{{ r.auditor }}</td><td class="text-center">{{ r.total_participantes }}</td><td class="text-center">{{ r.total_c }}</td><td class="text-center">{{ r.total_nc }}</td><td class="text-center">{{ r.desvios_adicionais }}</td><td class="text-center hs-score">{{ '%.2f'|format(r.score)|replace('.', ',') }}%</td><td class="text-center">{{ r.total_acoes }}</td></tr>{% else %}<tr><td colspan="9" class="text-center text-muted py-4">Nenhum registro encontrado.</td></tr>{% endfor %}</tbody></table></div></div></div>
+</div>
+{% endblock %}

@@ -1,5 +1,6 @@
 import json
 import os
+from collections import defaultdict
 from datetime import date, datetime, timedelta
 
 from flask import flash, redirect, render_template, request, send_file, session, url_for
@@ -11,6 +12,31 @@ from app.decorators import (
     pode_acessar_ssma,
 )
 from app.utils.db import get_db_connection
+
+
+def _sincronizar_participantes_hs(cursor, registro_id, participante_ids):
+    """Mantém a relação normalizada sem remover o campo legado durante a transição."""
+    cursor.execute(
+        "DELETE FROM hs_registros_participantes WHERE id_registro = %s",
+        (registro_id,),
+    )
+    valores = []
+    vistos = set()
+    for participante_id in participante_ids:
+        try:
+            participante_id = int(participante_id)
+        except (TypeError, ValueError):
+            continue
+        if participante_id in vistos:
+            continue
+        vistos.add(participante_id)
+        valores.append((registro_id, participante_id))
+    if valores:
+        cursor.executemany(
+            """INSERT INTO hs_registros_participantes (id_registro, usuario_id)
+               VALUES (%s, %s)""",
+            valores,
+        )
 
 
 def _buscar_detalhes_hora_seguranca(cursor, registro_id):
@@ -29,18 +55,28 @@ def _buscar_detalhes_hora_seguranca(cursor, registro_id):
         FROM hs_registros r
         JOIN hs_temas t ON t.id = r.id_tema
         JOIN usuarios u ON u.id = r.id_auditor
-        LEFT JOIN centros_custos cc ON cc.id = u.centro_custos_id
+        LEFT JOIN centros_custos cc
+               ON cc.id = COALESCE(r.centro_custos_id, u.centro_custos_id)
         WHERE r.id = %s
     """, (registro_id,))
     registro = cursor.fetchone()
     if not registro:
         return None, []
 
-    participante_ids = [
-        int(valor.strip())
-        for valor in (registro.get("participantes") or "").split(",")
-        if valor.strip().isdigit()
-    ]
+    cursor.execute(
+        """SELECT usuario_id
+           FROM hs_registros_participantes
+           WHERE id_registro = %s
+           ORDER BY id""",
+        (registro_id,),
+    )
+    participante_ids = [item["usuario_id"] for item in cursor.fetchall()]
+    if not participante_ids:
+        participante_ids = [
+            int(valor.strip())
+            for valor in (registro.get("participantes") or "").split(",")
+            if valor.strip().isdigit()
+        ]
     nomes_por_id = {}
     if participante_ids:
         placeholders = ", ".join(["%s"] * len(participante_ids))
@@ -758,10 +794,12 @@ def register_horas_seguranca_routes(blueprint):
                         local,
                         id_tema,
                         id_auditor,
+                        centro_custos_id,
                         participantes,
                         observacoes_gerais
                     )
                     VALUES (
+                        %s,
                         %s,
                         %s,
                         %s,
@@ -778,11 +816,15 @@ def register_horas_seguranca_routes(blueprint):
                     local,
                     id_tema,
                     id_auditor,
+                    centro_custos_id,
                     ",".join(participantes_validos),
                     observacoes_gerais
                 ))
 
                 id_registro = cursor.lastrowid
+                _sincronizar_participantes_hs(
+                    cursor, id_registro, participantes_validos
+                )
 
                 # ---------------------------------------------
                 # ITENS DE VERIFICAÇÃO
@@ -1407,6 +1449,7 @@ def register_horas_seguranca_routes(blueprint):
                     observacoes_gerais,
                     id
                 ))
+                _sincronizar_participantes_hs(cursor, id, participantes)
 
                 cursor.execute("""
                     SELECT *
@@ -1777,6 +1820,248 @@ def register_horas_seguranca_routes(blueprint):
         finally:
             cursor.close()
             conn.close()
+
+    @blueprint.route('/analise_critica_hs', methods=['GET'])
+    @login_required
+    @module_required('acesso_ssma')
+    def analise_critica_hs():
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        usuario_id = session.get('usuario_id')
+        perfil = (session.get('perfil') or '').strip().lower()
+        centro_custos_id = session.get('centro_custos_id')
+
+        hoje = date.today()
+        data_inicio = request.args.get('data_inicio') or hoje.replace(day=1).isoformat()
+        data_fim = request.args.get('data_fim') or hoje.isoformat()
+        auditor_id = request.args.get('auditor_id', type=int)
+        participante_id = request.args.get('participante_id', type=int)
+        tema_id = request.args.get('tema_id', type=int)
+        centro_filtro_id = request.args.get('centro_custos_id', type=int)
+        turno = (request.args.get('turno') or '').strip()
+        local = (request.args.get('local') or '').strip()
+        resultado_nc = (request.args.get('resultado_nc') or '').strip()
+        score_minimo = request.args.get('score_minimo', type=float)
+        score_maximo = request.args.get('score_maximo', type=float)
+
+        where = ['r.data BETWEEN %s AND %s']
+        params = [data_inicio, data_fim]
+        if perfil == 'basico':
+            where.append('r.id_auditor = %s')
+            params.append(usuario_id)
+        elif perfil == 'intermediario':
+            where.append('COALESCE(r.centro_custos_id, u.centro_custos_id) = %s')
+            params.append(centro_custos_id)
+        if auditor_id:
+            where.append('r.id_auditor = %s')
+            params.append(auditor_id)
+        if centro_filtro_id and perfil in {'administrador', 'avancado'}:
+            where.append('COALESCE(r.centro_custos_id, u.centro_custos_id) = %s')
+            params.append(centro_filtro_id)
+        if participante_id:
+            where.append(
+                '''EXISTS (
+                       SELECT 1 FROM hs_registros_participantes hp_filtro
+                       WHERE hp_filtro.id_registro = r.id
+                         AND hp_filtro.usuario_id = %s
+                   )'''
+            )
+            params.append(participante_id)
+        if tema_id:
+            where.append('r.id_tema = %s')
+            params.append(tema_id)
+        if turno:
+            where.append('r.turno = %s')
+            params.append(turno)
+        if local:
+            where.append('r.local LIKE %s')
+            params.append(f'%{local}%')
+
+        cursor.execute(f"""
+            SELECT
+                r.id, r.data, r.hora, r.turno, r.local,
+                t.nome AS tema, u.nome AS auditor,
+                cc.codigo AS centro_codigo,
+                COALESCE(resp.total_c, 0) AS total_c,
+                COALESCE(resp.total_nc, 0) AS total_nc,
+                COALESCE(resp.total_na, 0) AS total_na,
+                COALESCE(ad.desvios_adicionais, 0) AS desvios_adicionais,
+                COALESCE(part.total_participantes, 0) AS total_participantes,
+                COALESCE(ac.total_acoes, 0) AS total_acoes,
+                COALESCE(ac.acoes_pendentes, 0) AS acoes_pendentes,
+                COALESCE(ac.acoes_vencidas, 0) AS acoes_vencidas,
+                COALESCE(ac.acoes_concluidas, 0) AS acoes_concluidas
+            FROM hs_registros r
+            JOIN hs_temas t ON t.id = r.id_tema
+            JOIN usuarios u ON u.id = r.id_auditor
+            LEFT JOIN centros_custos cc
+                   ON cc.id = COALESCE(r.centro_custos_id, u.centro_custos_id)
+            LEFT JOIN (
+                SELECT id_registro,
+                       SUM(resultado = 'C') AS total_c,
+                       SUM(resultado = 'NC') AS total_nc,
+                       SUM(resultado = 'NA') AS total_na
+                FROM hs_respostas GROUP BY id_registro
+            ) resp ON resp.id_registro = r.id
+            LEFT JOIN (
+                SELECT id_registro,
+                       SUM(tipo = 'desvio') AS desvios_adicionais
+                FROM hs_registros_adicionais GROUP BY id_registro
+            ) ad ON ad.id_registro = r.id
+            LEFT JOIN (
+                SELECT id_registro, COUNT(*) AS total_participantes
+                FROM hs_registros_participantes GROUP BY id_registro
+            ) part ON part.id_registro = r.id
+            LEFT JOIN (
+                SELECT id_registro,
+                       COUNT(*) AS total_acoes,
+                       SUM(status NOT IN ('Concluída', 'Cancelada')) AS acoes_pendentes,
+                       SUM(status NOT IN ('Concluída', 'Cancelada') AND prazo < CURDATE()) AS acoes_vencidas,
+                       SUM(status = 'Concluída') AS acoes_concluidas
+                FROM (
+                    SELECT resp.id_registro, a.status, a.prazo
+                    FROM hs_respostas resp
+                    JOIN acoes a ON a.id = resp.id_acao_gerada
+                    WHERE a.ativo = 1
+                    UNION ALL
+                    SELECT ad.id_registro, a.status, a.prazo
+                    FROM hs_registros_adicionais ad
+                    JOIN acoes a ON a.id = ad.id_acao_gerada
+                    WHERE a.ativo = 1
+                ) acoes_hs
+                GROUP BY id_registro
+            ) ac ON ac.id_registro = r.id
+            WHERE {' AND '.join(where)}
+            ORDER BY r.data, r.hora, r.id
+        """, params)
+        registros = cursor.fetchall()
+
+        registros_filtrados = []
+        for registro in registros:
+            total_aplicavel = (
+                int(registro['total_c']) + int(registro['total_nc'])
+                + int(registro['desvios_adicionais'])
+            )
+            registro['score'] = round(
+                (int(registro['total_c']) / total_aplicavel * 100), 2
+            ) if total_aplicavel else 100.0
+            possui_desvio = (
+                int(registro['total_nc']) + int(registro['desvios_adicionais'])
+            ) > 0
+            if resultado_nc == 'sim' and not possui_desvio:
+                continue
+            if resultado_nc == 'nao' and possui_desvio:
+                continue
+            if score_minimo is not None and registro['score'] < score_minimo:
+                continue
+            if score_maximo is not None and registro['score'] > score_maximo:
+                continue
+            registros_filtrados.append(registro)
+
+        indicadores = {
+            'total_hs': len(registros_filtrados),
+            'total_c': sum(int(r['total_c']) for r in registros_filtrados),
+            'total_nc': sum(int(r['total_nc']) for r in registros_filtrados),
+            'total_na': sum(int(r['total_na']) for r in registros_filtrados),
+            'desvios_adicionais': sum(int(r['desvios_adicionais']) for r in registros_filtrados),
+            'participacoes': sum(int(r['total_participantes']) for r in registros_filtrados),
+            'total_acoes': sum(int(r['total_acoes']) for r in registros_filtrados),
+            'acoes_pendentes': sum(int(r['acoes_pendentes']) for r in registros_filtrados),
+            'acoes_vencidas': sum(int(r['acoes_vencidas']) for r in registros_filtrados),
+            'acoes_concluidas': sum(int(r['acoes_concluidas']) for r in registros_filtrados),
+        }
+        indicadores['score_medio'] = round(
+            sum(r['score'] for r in registros_filtrados) / len(registros_filtrados), 2
+        ) if registros_filtrados else 0
+
+        ids_registros = [r['id'] for r in registros_filtrados]
+        indicadores['pessoas_distintas'] = 0
+        desvios_recorrentes = []
+        if ids_registros:
+            placeholders = ','.join(['%s'] * len(ids_registros))
+            cursor.execute(f"""
+                SELECT COUNT(DISTINCT usuario_id) AS total
+                FROM hs_registros_participantes
+                WHERE id_registro IN ({placeholders})
+            """, ids_registros)
+            indicadores['pessoas_distintas'] = cursor.fetchone()['total']
+            cursor.execute(f"""
+                SELECT descricao, COUNT(*) AS ocorrencias
+                FROM (
+                    SELECT i.texto AS descricao
+                    FROM hs_respostas resp
+                    JOIN hs_itens_verificacao i ON i.id = resp.id_item
+                    WHERE resp.resultado = 'NC'
+                      AND resp.id_registro IN ({placeholders})
+                    UNION ALL
+                    SELECT ad.item_verificacao AS descricao
+                    FROM hs_registros_adicionais ad
+                    WHERE ad.tipo = 'desvio'
+                      AND ad.id_registro IN ({placeholders})
+                ) desvios
+                GROUP BY descricao
+                ORDER BY ocorrencias DESC, descricao
+                LIMIT 15
+            """, ids_registros + ids_registros)
+            desvios_recorrentes = cursor.fetchall()
+
+        por_tema = defaultdict(lambda: {'total': 0, 'score_total': 0, 'nc': 0})
+        por_auditor = defaultdict(lambda: {'total': 0, 'score_total': 0, 'nc': 0})
+        por_mes = defaultdict(lambda: {'total': 0, 'score_total': 0, 'nc': 0})
+        for registro in registros_filtrados:
+            for chave, valor in (
+                (por_tema, registro['tema']),
+                (por_auditor, registro['auditor']),
+                (por_mes, registro['data'].strftime('%m/%Y')),
+            ):
+                chave[valor]['total'] += 1
+                chave[valor]['score_total'] += registro['score']
+                chave[valor]['nc'] += int(registro['total_nc']) + int(registro['desvios_adicionais'])
+
+        def consolidar(grupo):
+            return [
+                {
+                    'nome': nome,
+                    'total': dados['total'],
+                    'score': round(dados['score_total'] / dados['total'], 2),
+                    'desvios': dados['nc'],
+                }
+                for nome, dados in grupo.items()
+            ]
+
+        cursor.execute("SELECT id, nome FROM hs_temas WHERE status = 1 ORDER BY nome")
+        temas = cursor.fetchall()
+        if perfil in {'administrador', 'avancado'}:
+            cursor.execute("SELECT id, nome FROM usuarios WHERE ativo=1 ORDER BY nome")
+        else:
+            cursor.execute(
+                """SELECT id, nome FROM usuarios
+                   WHERE ativo=1 AND centro_custos_id=%s ORDER BY nome""",
+                (centro_custos_id,),
+            )
+        usuarios = cursor.fetchall()
+        cursor.execute(
+            "SELECT id, codigo, descricao FROM centros_custos WHERE ativo=1 ORDER BY codigo"
+        )
+        centros_custos = cursor.fetchall()
+        conn.close()
+
+        filtros = {
+            'data_inicio': data_inicio, 'data_fim': data_fim,
+            'auditor_id': auditor_id, 'participante_id': participante_id,
+            'tema_id': tema_id, 'centro_custos_id': centro_filtro_id,
+            'turno': turno, 'local': local,
+            'resultado_nc': resultado_nc,
+            'score_minimo': score_minimo, 'score_maximo': score_maximo,
+        }
+        return render_template(
+            'analise_critica_hs.html', filtros=filtros, indicadores=indicadores,
+            registros=registros_filtrados, temas=temas, usuarios=usuarios,
+            centros_custos=centros_custos, desvios_recorrentes=desvios_recorrentes,
+            por_tema=sorted(consolidar(por_tema), key=lambda x: (-x['desvios'], x['nome'])),
+            por_auditor=sorted(consolidar(por_auditor), key=lambda x: (-x['total'], x['nome'])),
+            por_mes=consolidar(por_mes),
+        )
 
     @blueprint.route('/listar_hs', methods=['GET'])
     @login_required

@@ -13,7 +13,7 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 240)
+        self.assertEqual(len(self.routes), 241)
 
     def test_pcpm_ressarcimentos_routes_are_registered(self):
         expected = {
@@ -297,6 +297,7 @@ class RouteStructureTests(unittest.TestCase):
             ("/editar_hs/<int:id>", ("GET", "POST")): "main.editar_hs",
             ("/excluir_hs/<int:id>", ("POST",)): "main.excluir_hs",
             ("/hora_seguranca/<int:id>/pdf", ("GET",)): "main.relatorio_pdf_hs",
+            ("/analise_critica_hs", ("GET",)): "main.analise_critica_hs",
             ("/listar_hs", ("GET",)): "main.listar_hs",
             ("/causas_recusa", ("GET", "POST")): "main.causas_recusa",
             ("/editar_causa/<int:id>", ("GET", "POST")): "main.editar_causa",

@@ -82,6 +82,7 @@
         {% if session.get('acesso_ssma') or session.get('pode_ser_lider_ssma') or is_admin %}
             {% set endpoints_ssma = [
                 'main.listar_hs',
+                'main.analise_critica_hs',
                 'main.editar_hs',
                 'main.listar_recusa',
                 'main.editar_recusa',
@@ -117,6 +118,10 @@
                         <a href="{{ url_for('main.listar_hs') }}"
                            class="sidebar-link {% if request.endpoint in ['main.listar_hs', 'main.editar_hs'] %}active{% endif %}">
                             <i class="bi bi-clock-history"></i><span>Horas de segurança</span>
+                        </a>
+                        <a href="{{ url_for('main.analise_critica_hs') }}"
+                           class="sidebar-link {% if request.endpoint == 'main.analise_critica_hs' %}active{% endif %}">
+                            <i class="bi bi-graph-up-arrow"></i><span>Análise crítica HS</span>
                         </a>
                         <a href="{{ url_for('main.listar_recusa') }}"
                            class="sidebar-link {% if request.endpoint in ['main.listar_recusa', 'main.editar_recusa'] %}active{% endif %}">
