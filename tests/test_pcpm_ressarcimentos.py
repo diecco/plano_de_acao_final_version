@@ -107,6 +107,16 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
         self.assertIn("pode_gerar_book", template)
         self.assertIn("Geração do book", self.view)
 
+    def test_billing_concludes_and_locks_the_process(self):
+        template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")
+        self.assertIn("atualizar_faturamento_pcpm_ressarcimento", self.view)
+        self.assertIn("O faturamento já foi realizado e não pode ser revertido", self.view)
+        self.assertIn('status_processo = "Concluído"', self.view)
+        self.assertIn("A data do faturamento não pode ser futura", self.view)
+        self.assertIn('id="modalFaturamento"', template)
+        self.assertIn('name="status_faturamento"', template)
+        self.assertIn('name="data_faturamento"', template)
+
 
 if __name__ == "__main__":
     unittest.main()
