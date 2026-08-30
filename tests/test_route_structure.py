@@ -13,7 +13,7 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 234)
+        self.assertEqual(len(self.routes), 236)
 
     def test_pcpm_ressarcimentos_routes_are_registered(self):
         expected = {
@@ -22,6 +22,8 @@ class RouteStructureTests(unittest.TestCase):
             ("/pcpm/ressarcimentos/<int:ressarcimento_id>", ("GET",)): "main.detalhar_pcpm_ressarcimento",
             ("/pcpm/ressarcimentos/<int:ressarcimento_id>/ocorrencia", ("POST",)): "main.atualizar_ocorrencia_pcpm_ressarcimento",
             ("/pcpm/ressarcimentos/<int:ressarcimento_id>/cliente", ("POST",)): "main.atualizar_cliente_pcpm_ressarcimento",
+            ("/pcpm/ressarcimentos/<int:ressarcimento_id>/orcamentos", ("POST",)): "main.adicionar_orcamento_pcpm_ressarcimento",
+            ("/pcpm/ressarcimentos/<int:ressarcimento_id>/orcamentos/<int:orcamento_id>/status", ("POST",)): "main.atualizar_status_orcamento_pcpm_ressarcimento",
             ("/pcpm/ressarcimentos/<int:ressarcimento_id>/anexos/<int:anexo_id>", ("GET",)): "main.baixar_anexo_pcpm_ressarcimento",
             ("/pcpm/ressarcimentos/<int:ressarcimento_id>/cancelar", ("POST",)): "main.cancelar_pcpm_ressarcimento",
             ("/pcpm/ressarcimentos/<int:ressarcimento_id>/reabrir", ("POST",)): "main.reabrir_pcpm_ressarcimento",

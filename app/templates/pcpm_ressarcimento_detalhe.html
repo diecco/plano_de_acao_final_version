@@ -45,7 +45,26 @@
         {% else %}<p class="text-muted mb-0">Dados ainda não informados.</p>{% endif %}
       </div>
     </div>
-    <div class="card border-0 shadow-sm mb-4"><div class="card-body"><h3 class="fs-6 fw-bold text-laranja mb-3">Anexos da avaria</h3><div class="row g-2">{% for item in anexos %}<div class="col-md-6"><a class="btn btn-cinza w-100 text-start" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}"><i class="bi bi-paperclip"></i> {{ item.nome_original }}</a></div>{% else %}<div class="text-muted">Nenhum anexo incluído.</div>{% endfor %}</div></div></div>
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+          <div><h3 class="fs-6 fw-bold text-laranja mb-1">Orçamento TOTVS</h3><div class="small text-muted">Versões, envio e retorno da aprovação do cliente.</div></div>
+          {% if processo.status_processo != 'Cancelado' %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalNovoOrcamento" title="Nova versão do orçamento" {% if not processo.empresa_cliente_id %}disabled{% endif %}><i class="bi bi-plus-circle"></i></button>{% endif %}
+        </div>
+        {% if not processo.empresa_cliente_id %}<div class="alert alert-secondary py-2">Cadastre os dados do cliente antes de incluir um orçamento.</div>{% endif %}
+        <div class="table-responsive"><table class="table table-bordered align-middle mb-0">
+          <thead><tr><th>Versão</th><th>Nº TOTVS</th><th>Valor</th><th>Data de envio</th><th>Status</th><th>Documentos</th><th class="text-center">Ações</th></tr></thead>
+          <tbody>{% for item in orcamentos %}<tr>
+            <td>V{{ item.versao }} {% if item.vigente %}<span class="badge bg-secondary">Vigente</span>{% endif %}</td>
+            <td>{{ item.numero_orcamento_totvs }}</td><td>R$ {{ '%.2f'|format(item.valor_orcamento)|replace('.', ',') }}</td>
+            <td>{{ item.data_envio.strftime('%d/%m/%Y') if item.data_envio else '—' }}</td><td><span class="badge bg-secondary">{{ item.status }}</span></td>
+            <td>{% for anexo in anexos if anexo.orcamento_id == item.id %}<a class="btn-acao-icon me-1" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=anexo.id) }}" title="{{ anexo.nome_original }}"><i class="bi bi-{% if anexo.categoria == 'aprovacao_cliente' %}envelope-check{% else %}file-earmark-arrow-down{% endif %}"></i></a>{% else %}<span class="text-muted">—</span>{% endfor %}</td>
+            <td class="text-center">{% if item.vigente and processo.status_processo != 'Cancelado' %}<button class="btn-acao-icon" type="button" data-bs-toggle="modal" data-bs-target="#modalStatusOrcamento{{ item.id }}" title="Atualizar status"><i class="bi bi-pencil-square"></i></button>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          </tr>{% else %}<tr><td colspan="7" class="text-center text-muted py-4">Nenhum orçamento incluído.</td></tr>{% endfor %}</tbody>
+        </table></div>
+      </div>
+    </div>
+    <div class="card border-0 shadow-sm mb-4"><div class="card-body"><h3 class="fs-6 fw-bold text-laranja mb-3">Anexos da avaria</h3><div class="row g-2">{% for item in anexos if not item.orcamento_id %}<div class="col-md-6"><a class="btn btn-cinza w-100 text-start" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}"><i class="bi bi-paperclip"></i> {{ item.nome_original }}</a></div>{% else %}<div class="text-muted">Nenhum anexo incluído.</div>{% endfor %}</div></div></div>
     <div class="card border-0 shadow-sm"><div class="card-body"><h3 class="fs-6 fw-bold text-laranja mb-3">Histórico</h3>{% for item in historico %}<div class="border-bottom py-2"><strong>{{ item.evento }}</strong> — {{ item.descricao }}<div class="small text-muted">{{ item.usuario_nome }} · {{ item.criado_em.strftime('%d/%m/%Y %H:%M') }}</div></div>{% else %}<p class="text-muted mb-0">Nenhum evento registrado.</p>{% endfor %}</div></div>
 
 <div class="modal fade" id="modalEditarOcorrencia" tabindex="-1" aria-hidden="true">
@@ -82,6 +101,36 @@
     </form>
   </div></div>
 </div>
+
+<div class="modal fade" id="modalNovoOrcamento" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <form method="post" enctype="multipart/form-data" action="{{ url_for('main.adicionar_orcamento_pcpm_ressarcimento', ressarcimento_id=processo.id) }}">
+      <div class="modal-header bg-laranja text-white"><h5 class="modal-title"><i class="bi bi-receipt me-2"></i>Nova versão do orçamento</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body"><div class="row g-3">
+        <div class="col-md-6"><label class="form-label">Número do orçamento TOTVS *</label><input class="form-control" name="numero_orcamento_totvs" maxlength="80" required></div>
+        <div class="col-md-6"><label class="form-label">Valor do orçamento *</label><div class="input-group"><span class="input-group-text">R$</span><input class="form-control" name="valor_orcamento" inputmode="decimal" placeholder="0,00" required></div></div>
+        <div class="col-12"><label class="form-label">Orçamento gerado no TOTVS *</label><input class="form-control" type="file" name="arquivo_orcamento" accept=".pdf,.jpg,.jpeg,.png" required><div class="form-text">PDF, JPG ou PNG, com até 10 MB.</div></div>
+      </div></div>
+      <div class="modal-footer"><button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button><button type="submit" class="btn btn-laranja">Salvar</button></div>
+    </form>
+  </div></div>
+</div>
+
+{% for item in orcamentos %}{% if item.vigente %}
+<div class="modal fade" id="modalStatusOrcamento{{ item.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <form method="post" enctype="multipart/form-data" action="{{ url_for('main.atualizar_status_orcamento_pcpm_ressarcimento', ressarcimento_id=processo.id, orcamento_id=item.id) }}" class="form-status-orcamento">
+      <div class="modal-header bg-laranja text-white"><h5 class="modal-title">Atualizar orçamento V{{ item.versao }}</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body"><div class="row g-3">
+        <div class="col-md-6"><label class="form-label">Status *</label><select class="form-select status-orcamento" name="status" required><option value="Não enviado" {% if item.status == 'Não enviado' %}selected{% endif %}>Não enviado</option><option value="Aguardando aprovação" {% if item.status == 'Aguardando aprovação' %}selected{% endif %}>Aguardando aprovação</option><option value="Aprovado" {% if item.status == 'Aprovado' %}selected{% endif %}>Aprovado</option><option value="Reprovado" {% if item.status == 'Reprovado' %}selected{% endif %}>Reprovado</option></select></div>
+        <div class="col-md-6"><label class="form-label">Data de envio</label><input class="form-control data-envio-orcamento" type="date" name="data_envio" value="{{ item.data_envio.strftime('%Y-%m-%d') if item.data_envio else '' }}"></div>
+        <div class="col-12 aprovacao-orcamento"><label class="form-label">E-mail de aprovação do cliente{% if not item.possui_aprovacao %} *{% endif %}</label><input class="form-control arquivo-aprovacao" type="file" name="arquivo_aprovacao" accept=".pdf,.jpg,.jpeg,.png"><div class="form-text">Obrigatório quando o status for Aprovado e ainda não houver comprovação anexada.</div></div>
+      </div></div>
+      <div class="modal-footer"><button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button><button type="submit" class="btn btn-laranja">Salvar</button></div>
+    </form>
+  </div></div>
+</div>
+{% endif %}{% endfor %}
 <script>
 document.getElementById('aprovadorTelefone')?.addEventListener('input', function () {
   const valor = this.value.replace(/\D/g, '').slice(0, 11);
@@ -89,6 +138,19 @@ document.getElementById('aprovadorTelefone')?.addEventListener('input', function
   else if (valor.length > 6) this.value = valor.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
   else if (valor.length > 2) this.value = valor.replace(/^(\d{2})(\d*)/, '($1) $2');
   else this.value = valor.replace(/^(\d*)/, '($1');
+});
+document.querySelectorAll('.form-status-orcamento').forEach(function (form) {
+  const status = form.querySelector('.status-orcamento');
+  const data = form.querySelector('.data-envio-orcamento');
+  const aprovacao = form.querySelector('.aprovacao-orcamento');
+  const atualizar = function () {
+    const enviado = status.value !== 'Não enviado';
+    data.disabled = !enviado;
+    data.required = enviado;
+    aprovacao.classList.toggle('d-none', status.value !== 'Aprovado');
+  };
+  status.addEventListener('change', atualizar);
+  atualizar();
 });
 </script>
 {% endblock %}

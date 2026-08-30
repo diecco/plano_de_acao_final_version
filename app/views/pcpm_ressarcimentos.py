@@ -3,6 +3,7 @@ import hashlib
 import os
 import re
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 
 from flask import flash, redirect, render_template, request, send_from_directory, session, url_for
 
@@ -55,7 +56,7 @@ def _normalizar_telefone(valor):
     return f"({digitos[:2]}) {digitos[2:6]}-{digitos[6:]}"
 
 
-def _salvar_anexo(cursor, ressarcimento_id, arquivo, categoria, prefixo):
+def _salvar_anexo(cursor, ressarcimento_id, arquivo, categoria, prefixo, orcamento_id=None):
     tamanho = _tamanho_upload(arquivo)
     if tamanho <= 0:
         raise ValueError("Um dos arquivos selecionados está vazio.")
@@ -68,12 +69,12 @@ def _salvar_anexo(cursor, ressarcimento_id, arquivo, categoria, prefixo):
     cursor.execute(
         """
         INSERT INTO pcpm_ressarcimentos_anexos (
-            ressarcimento_id, categoria, nome_original, nome_armazenado,
+            ressarcimento_id, orcamento_id, categoria, nome_original, nome_armazenado,
             caminho_arquivo, mime_type, tamanho_bytes, hash_sha256, criado_por
-        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """,
         (
-            ressarcimento_id, categoria, nome_original, nome,
+            ressarcimento_id, orcamento_id, categoria, nome_original, nome,
             f"pcpm_ressarcimentos/{ressarcimento_id}/{nome}",
             (arquivo.mimetype or "application/octet-stream")[:120], tamanho,
             _hash_arquivo(caminho_absoluto), session.get("usuario_id"),
@@ -379,16 +380,29 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             )
             historico = cursor.fetchall()
             cursor.execute(
-                """SELECT id, categoria, nome_original, tamanho_bytes, criado_em
+                """SELECT id, orcamento_id, categoria, nome_original, tamanho_bytes, criado_em
                    FROM pcpm_ressarcimentos_anexos
                    WHERE ressarcimento_id = %s AND ativo = 1
                    ORDER BY criado_em, id""", (ressarcimento_id,),
             )
             anexos = cursor.fetchall()
+            cursor.execute(
+                """SELECT o.*, u.nome AS criado_por_nome,
+                          (SELECT COUNT(*) FROM pcpm_ressarcimentos_anexos a
+                           WHERE a.orcamento_id=o.id AND a.categoria='orcamento' AND a.ativo=1) AS possui_orcamento,
+                          (SELECT COUNT(*) FROM pcpm_ressarcimentos_anexos a
+                           WHERE a.orcamento_id=o.id AND a.categoria='aprovacao_cliente' AND a.ativo=1) AS possui_aprovacao
+                   FROM pcpm_ressarcimentos_orcamentos o
+                   JOIN usuarios u ON u.id=o.criado_por
+                   WHERE o.ressarcimento_id=%s
+                   ORDER BY o.versao DESC""",
+                (ressarcimento_id,),
+            )
+            orcamentos = cursor.fetchall()
             dominios = _buscar_dominios_cadastro(cursor, processo["centro_custos_id"])
             return render_template(
                 "pcpm_ressarcimento_detalhe.html", processo=processo,
-                historico=historico, anexos=anexos,
+                historico=historico, anexos=anexos, orcamentos=orcamentos,
                 equipamentos=dominios[0], empresas=dominios[1],
                 operadores=dominios[2], funcionarios=dominios[3],
             )
@@ -501,6 +515,161 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             for nome, diretorio in arquivos_salvos:
                 UploadService.excluir(nome, diretorio)
             flash(f"Erro ao atualizar a ocorrência: {exc}", "danger")
+        finally:
+            conn.close()
+        return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
+
+    @blueprint.route("/pcpm/ressarcimentos/<int:ressarcimento_id>/orcamentos", methods=["POST"])
+    @login_required
+    @module_required("acesso_pcpm")
+    @module_required("acesso_pcpm_ressarcimentos")
+    def adicionar_orcamento_pcpm_ressarcimento(ressarcimento_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        arquivos_salvos = []
+        try:
+            processo = _buscar_processo_autorizado(cursor, ressarcimento_id, for_update=True)
+            if not processo:
+                raise ValueError("Processo não encontrado ou fora do seu centro de custos.")
+            if processo["status_processo"] == "Cancelado":
+                raise ValueError("Reabra o processo antes de incluir um orçamento.")
+            if not processo["empresa_cliente_id"]:
+                raise ValueError("Conclua os dados do cliente antes de incluir o orçamento.")
+
+            numero = (request.form.get("numero_orcamento_totvs") or "").strip()
+            valor_raw = (request.form.get("valor_orcamento") or "").strip()
+            if "," in valor_raw:
+                valor_raw = valor_raw.replace(".", "").replace(",", ".")
+            arquivo = request.files.get("arquivo_orcamento")
+            if not numero or not valor_raw or not arquivo or not arquivo.filename:
+                raise ValueError("Informe o número, o valor e anexe o orçamento do TOTVS.")
+            if len(numero) > 80:
+                raise ValueError("O número do orçamento deve possuir no máximo 80 caracteres.")
+            try:
+                valor = Decimal(valor_raw).quantize(Decimal("0.01"))
+            except (InvalidOperation, ValueError):
+                raise ValueError("Informe um valor de orçamento válido.")
+            if valor <= 0:
+                raise ValueError("O valor do orçamento deve ser maior que zero.")
+
+            cursor.execute(
+                "SELECT COALESCE(MAX(versao), 0) + 1 AS proxima FROM pcpm_ressarcimentos_orcamentos WHERE ressarcimento_id=%s FOR UPDATE",
+                (ressarcimento_id,),
+            )
+            versao = cursor.fetchone()["proxima"]
+            cursor.execute(
+                "UPDATE pcpm_ressarcimentos_orcamentos SET vigente=0 WHERE ressarcimento_id=%s AND vigente=1",
+                (ressarcimento_id,),
+            )
+            cursor.execute(
+                """INSERT INTO pcpm_ressarcimentos_orcamentos
+                       (ressarcimento_id, versao, numero_orcamento_totvs, valor_orcamento, criado_por)
+                   VALUES (%s,%s,%s,%s,%s)""",
+                (ressarcimento_id, versao, numero, valor, session.get("usuario_id")),
+            )
+            orcamento_id = cursor.lastrowid
+            arquivos_salvos.append(
+                _salvar_anexo(cursor, ressarcimento_id, arquivo, "orcamento", f"orcamento_v{versao}", orcamento_id)
+            )
+            cursor.execute(
+                """UPDATE pcpm_ressarcimentos
+                   SET etapa_atual=GREATEST(etapa_atual, 3), atualizado_por=%s WHERE id=%s""",
+                (session.get("usuario_id"), ressarcimento_id),
+            )
+            _registrar_historico(
+                cursor, ressarcimento_id, "Nova versão do orçamento",
+                f"Versão {versao} do orçamento {numero} incluída.",
+                posteriores={"versao": versao, "numero": numero, "valor": str(valor), "status": "Não enviado"}, etapa=3,
+            )
+            conn.commit()
+            flash(f"Versão {versao} do orçamento incluída com sucesso.", "success")
+        except (ValueError, TypeError, UploadValidationError) as exc:
+            conn.rollback()
+            for nome, diretorio in arquivos_salvos:
+                UploadService.excluir(nome, diretorio)
+            flash(str(exc), "warning")
+        except Exception as exc:
+            conn.rollback()
+            for nome, diretorio in arquivos_salvos:
+                UploadService.excluir(nome, diretorio)
+            flash(f"Erro ao incluir o orçamento: {exc}", "danger")
+        finally:
+            conn.close()
+        return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
+
+    @blueprint.route("/pcpm/ressarcimentos/<int:ressarcimento_id>/orcamentos/<int:orcamento_id>/status", methods=["POST"])
+    @login_required
+    @module_required("acesso_pcpm")
+    @module_required("acesso_pcpm_ressarcimentos")
+    def atualizar_status_orcamento_pcpm_ressarcimento(ressarcimento_id, orcamento_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        arquivos_salvos = []
+        try:
+            processo = _buscar_processo_autorizado(cursor, ressarcimento_id, for_update=True)
+            if not processo:
+                raise ValueError("Processo não encontrado ou fora do seu centro de custos.")
+            if processo["status_processo"] == "Cancelado":
+                raise ValueError("Reabra o processo antes de alterar o orçamento.")
+            cursor.execute(
+                """SELECT * FROM pcpm_ressarcimentos_orcamentos
+                   WHERE id=%s AND ressarcimento_id=%s AND vigente=1 FOR UPDATE""",
+                (orcamento_id, ressarcimento_id),
+            )
+            orcamento = cursor.fetchone()
+            if not orcamento:
+                raise ValueError("Somente a versão vigente do orçamento pode ser alterada.")
+            status = (request.form.get("status") or "").strip()
+            permitidos = {"Não enviado", "Aguardando aprovação", "Aprovado", "Reprovado"}
+            if status not in permitidos:
+                raise ValueError("Selecione um status válido para o orçamento.")
+            data_raw = (request.form.get("data_envio") or "").strip()
+            data_envio = None
+            if status != "Não enviado":
+                if not data_raw:
+                    raise ValueError("Informe a data de envio do orçamento.")
+                data_envio = datetime.strptime(data_raw, "%Y-%m-%d").date()
+            aprovacao = request.files.get("arquivo_aprovacao")
+            if status == "Aprovado":
+                cursor.execute(
+                    """SELECT COUNT(*) AS total FROM pcpm_ressarcimentos_anexos
+                       WHERE orcamento_id=%s AND categoria='aprovacao_cliente' AND ativo=1""",
+                    (orcamento_id,),
+                )
+                possui_aprovacao = cursor.fetchone()["total"] > 0
+                if not possui_aprovacao and (not aprovacao or not aprovacao.filename):
+                    raise ValueError("Anexe o e-mail de aprovação do cliente para aprovar o orçamento.")
+            if aprovacao and aprovacao.filename:
+                arquivos_salvos.append(
+                    _salvar_anexo(cursor, ressarcimento_id, aprovacao, "aprovacao_cliente", f"aprovacao_v{orcamento['versao']}", orcamento_id)
+                )
+            cursor.execute(
+                """UPDATE pcpm_ressarcimentos_orcamentos
+                   SET status=%s, data_envio=%s WHERE id=%s""",
+                (status, data_envio, orcamento_id),
+            )
+            cursor.execute(
+                "UPDATE pcpm_ressarcimentos SET atualizado_por=%s WHERE id=%s",
+                (session.get("usuario_id"), ressarcimento_id),
+            )
+            _registrar_historico(
+                cursor, ressarcimento_id, "Status do orçamento",
+                f"Orçamento versão {orcamento['versao']} alterado para {status}.",
+                anteriores={"status": orcamento["status"], "data_envio": orcamento["data_envio"]},
+                posteriores={"status": status, "data_envio": data_envio}, etapa=3,
+            )
+            conn.commit()
+            flash("Status do orçamento atualizado com sucesso.", "success")
+        except (ValueError, TypeError, UploadValidationError) as exc:
+            conn.rollback()
+            for nome, diretorio in arquivos_salvos:
+                UploadService.excluir(nome, diretorio)
+            flash(str(exc), "warning")
+        except Exception as exc:
+            conn.rollback()
+            for nome, diretorio in arquivos_salvos:
+                UploadService.excluir(nome, diretorio)
+            flash(f"Erro ao atualizar o orçamento: {exc}", "danger")
         finally:
             conn.close()
         return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
