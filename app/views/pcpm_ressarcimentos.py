@@ -5,7 +5,7 @@ import re
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
-from flask import flash, redirect, render_template, request, send_from_directory, session, url_for
+from flask import flash, redirect, render_template, request, send_file, send_from_directory, session, url_for
 
 from app.decorators import login_required, module_required
 from app.upload_security import UploadService, UploadValidationError
@@ -399,10 +399,15 @@ def register_pcpm_ressarcimentos_routes(blueprint):
                 (ressarcimento_id,),
             )
             orcamentos = cursor.fetchall()
+            pode_gerar_book = (
+                any(item["vigente"] and item["status"] == "Aprovado" for item in orcamentos)
+                and any(item["categoria"] == "documentacao" for item in anexos)
+            )
             dominios = _buscar_dominios_cadastro(cursor, processo["centro_custos_id"])
             return render_template(
                 "pcpm_ressarcimento_detalhe.html", processo=processo,
                 historico=historico, anexos=anexos, orcamentos=orcamentos,
+                pode_gerar_book=pode_gerar_book,
                 equipamentos=dominios[0], empresas=dominios[1],
                 operadores=dominios[2], funcionarios=dominios[3],
             )
@@ -850,6 +855,71 @@ def register_pcpm_ressarcimentos_routes(blueprint):
         except Exception as exc:
             conn.rollback()
             flash(f"Erro ao remover o documento: {exc}", "danger")
+        finally:
+            conn.close()
+        return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
+
+    @blueprint.route("/pcpm/ressarcimentos/<int:ressarcimento_id>/book.pdf")
+    @login_required
+    @module_required("acesso_pcpm")
+    @module_required("acesso_pcpm_ressarcimentos")
+    def gerar_book_pcpm_ressarcimento(ressarcimento_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            processo = _buscar_processo_autorizado(cursor, ressarcimento_id)
+            if not processo:
+                flash("Processo não encontrado ou fora do seu centro de custos.", "warning")
+                return redirect(url_for("main.pcpm_ressarcimentos"))
+            cursor.execute(
+                """SELECT o.*, u.nome AS criado_por_nome
+                   FROM pcpm_ressarcimentos_orcamentos o
+                   JOIN usuarios u ON u.id=o.criado_por
+                   WHERE o.ressarcimento_id=%s ORDER BY o.versao DESC""",
+                (ressarcimento_id,),
+            )
+            orcamentos = cursor.fetchall()
+            if not any(item["vigente"] and item["status"] == "Aprovado" for item in orcamentos):
+                raise ValueError("É necessário possuir um orçamento vigente aprovado para gerar o book.")
+            cursor.execute(
+                """SELECT id, orcamento_id, categoria, nome_original, nome_armazenado,
+                          tamanho_bytes, criado_em
+                   FROM pcpm_ressarcimentos_anexos
+                   WHERE ressarcimento_id=%s AND ativo=1 ORDER BY criado_em, id""",
+                (ressarcimento_id,),
+            )
+            anexos = cursor.fetchall()
+            if not any(item["categoria"] == "documentacao" for item in anexos):
+                raise ValueError("Inclua ao menos um documento comprobatório antes de gerar o book.")
+            diretorio = UploadService.resolver_diretorio(_diretorio_ressarcimento(ressarcimento_id))
+            for item in anexos:
+                item["caminho_absoluto"] = os.path.join(diretorio, item["nome_armazenado"])
+            cursor.execute(
+                """SELECT h.*, u.nome AS usuario_nome
+                   FROM pcpm_ressarcimentos_historico h
+                   JOIN usuarios u ON u.id=h.usuario_id
+                   WHERE h.ressarcimento_id=%s ORDER BY h.criado_em, h.id""",
+                (ressarcimento_id,),
+            )
+            historico = cursor.fetchall()
+            from app.utils.pcpm_ressarcimentos_pdf import gerar_book_ressarcimento
+            logo_path = os.path.join("app", "static", "imagens", "logo_trackplan.png")
+            pdf = gerar_book_ressarcimento(processo, orcamentos, anexos, historico, logo_path)
+            _registrar_historico(
+                cursor, ressarcimento_id, "Geração do book",
+                "Book consolidado do processo gerado em PDF.", etapa=4,
+            )
+            conn.commit()
+            return send_file(
+                pdf, mimetype="application/pdf", as_attachment=True,
+                download_name=f"book_ressarcimento_{processo['numero'].replace('/', '_')}.pdf",
+            )
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "warning")
+        except Exception as exc:
+            conn.rollback()
+            flash(f"Erro ao gerar o book de ressarcimento: {exc}", "danger")
         finally:
             conn.close()
         return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
