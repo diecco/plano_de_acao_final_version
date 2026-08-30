@@ -96,6 +96,17 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
         self.assertIn('name="documentos"', template)
         self.assertIn("Documentação comprobatória", template)
 
+    def test_book_pdf_requires_approved_budget_and_documents(self):
+        template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")
+        pdf_util = (ROOT / "app" / "utils" / "pcpm_ressarcimentos_pdf.py").read_text(encoding="utf-8")
+        self.assertIn("gerar_book_pcpm_ressarcimento", self.view)
+        self.assertIn("orçamento vigente aprovado", self.view)
+        self.assertIn("documento comprobatório", self.view)
+        self.assertIn("gerar_book_ressarcimento", pdf_util)
+        self.assertIn("PdfWriter", pdf_util)
+        self.assertIn("pode_gerar_book", template)
+        self.assertIn("Geração do book", self.view)
+
 
 if __name__ == "__main__":
     unittest.main()
