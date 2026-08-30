@@ -408,6 +408,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
                 "pcpm_ressarcimento_detalhe.html", processo=processo,
                 historico=historico, anexos=anexos, orcamentos=orcamentos,
                 pode_gerar_book=pode_gerar_book,
+                hoje_iso=datetime.now().date().isoformat(),
                 equipamentos=dominios[0], empresas=dominios[1],
                 operadores=dominios[2], funcionarios=dominios[3],
             )
@@ -920,6 +921,88 @@ def register_pcpm_ressarcimentos_routes(blueprint):
         except Exception as exc:
             conn.rollback()
             flash(f"Erro ao gerar o book de ressarcimento: {exc}", "danger")
+        finally:
+            conn.close()
+        return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
+
+    @blueprint.route("/pcpm/ressarcimentos/<int:ressarcimento_id>/faturamento", methods=["POST"])
+    @login_required
+    @module_required("acesso_pcpm")
+    @module_required("acesso_pcpm_ressarcimentos")
+    def atualizar_faturamento_pcpm_ressarcimento(ressarcimento_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            processo = _buscar_processo_autorizado(cursor, ressarcimento_id, for_update=True)
+            if not processo:
+                raise ValueError("Processo não encontrado ou fora do seu centro de custos.")
+            if processo["status_processo"] == "Cancelado":
+                raise ValueError("Reabra o processo antes de alterar o faturamento.")
+            if processo["status_faturamento"] == "Realizado":
+                raise ValueError("O faturamento já foi realizado e não pode ser revertido.")
+            status = (request.form.get("status_faturamento") or "").strip()
+            if status not in {"Pendente", "Realizado"}:
+                raise ValueError("Selecione um status de faturamento válido.")
+            data_raw = (request.form.get("data_faturamento") or "").strip()
+            data_faturamento = None
+            status_processo = processo["status_processo"]
+            if status == "Realizado":
+                if not data_raw:
+                    raise ValueError("Informe a data do faturamento.")
+                data_faturamento = datetime.strptime(data_raw, "%Y-%m-%d").date()
+                if data_faturamento > datetime.now().date():
+                    raise ValueError("A data do faturamento não pode ser futura.")
+                cursor.execute(
+                    """SELECT COUNT(*) AS total FROM pcpm_ressarcimentos_orcamentos
+                       WHERE ressarcimento_id=%s AND vigente=1 AND status='Aprovado'""",
+                    (ressarcimento_id,),
+                )
+                if cursor.fetchone()["total"] == 0:
+                    raise ValueError("É necessário possuir um orçamento vigente aprovado antes do faturamento.")
+                cursor.execute(
+                    """SELECT COUNT(*) AS total FROM pcpm_ressarcimentos_anexos
+                       WHERE ressarcimento_id=%s AND categoria='documentacao' AND ativo=1""",
+                    (ressarcimento_id,),
+                )
+                if cursor.fetchone()["total"] == 0:
+                    raise ValueError("Inclua a documentação comprobatória antes do faturamento.")
+                status_processo = "Concluído"
+            cursor.execute(
+                """UPDATE pcpm_ressarcimentos
+                   SET status_faturamento=%s, data_faturamento=%s,
+                       status_processo=%s, etapa_atual=GREATEST(etapa_atual, 5),
+                       atualizado_por=%s WHERE id=%s""",
+                (
+                    status, data_faturamento, status_processo,
+                    session.get("usuario_id"), ressarcimento_id,
+                ),
+            )
+            _registrar_historico(
+                cursor, ressarcimento_id, "Atualização do faturamento",
+                f"Faturamento alterado para {status}.",
+                anteriores={
+                    "status_faturamento": processo["status_faturamento"],
+                    "data_faturamento": processo["data_faturamento"],
+                    "status_processo": processo["status_processo"],
+                },
+                posteriores={
+                    "status_faturamento": status,
+                    "data_faturamento": data_faturamento,
+                    "status_processo": status_processo,
+                }, etapa=5,
+            )
+            conn.commit()
+            flash(
+                "Faturamento registrado e processo concluído."
+                if status == "Realizado" else "Status do faturamento atualizado.",
+                "success",
+            )
+        except (ValueError, TypeError) as exc:
+            conn.rollback()
+            flash(str(exc), "warning")
+        except Exception as exc:
+            conn.rollback()
+            flash(f"Erro ao atualizar o faturamento: {exc}", "danger")
         finally:
             conn.close()
         return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))

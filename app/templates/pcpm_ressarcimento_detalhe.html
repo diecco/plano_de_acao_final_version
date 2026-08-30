@@ -69,6 +69,11 @@
       <div class="d-flex justify-content-between align-items-center gap-3 mb-3"><div><h3 class="fs-6 fw-bold text-laranja mb-1">Documentação comprobatória</h3><div class="small text-muted">Notas fiscais, laudos, ordens de serviço e demais comprovantes.</div></div><div class="d-flex gap-2">{% if pode_gerar_book %}<a class="btn btn-cinza" href="{{ url_for('main.gerar_book_pcpm_ressarcimento', ressarcimento_id=processo.id) }}" title="Baixar book em PDF"><i class="bi bi-file-earmark-pdf"></i> Book</a>{% else %}<button class="btn btn-cinza" type="button" disabled title="Aprove o orçamento e inclua documentação para gerar o book"><i class="bi bi-file-earmark-pdf"></i> Book</button>{% endif %}{% if processo.status_processo != 'Cancelado' %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalDocumentacao" title="Adicionar documentos"><i class="bi bi-paperclip"></i></button>{% endif %}</div></div>
       <div class="row g-2">{% for item in anexos if item.categoria == 'documentacao' %}<div class="col-lg-6"><div class="border rounded d-flex align-items-center justify-content-between gap-2 p-2"><a class="text-decoration-none text-dark text-truncate" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}" title="Baixar {{ item.nome_original }}"><i class="bi bi-file-earmark-arrow-down text-laranja me-2"></i>{{ item.nome_original }}</a>{% if processo.status_processo != 'Cancelado' %}<form method="post" action="{{ url_for('main.remover_documento_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}" onsubmit="return confirm('Remover este documento da visualização?');"><button class="btn-acao-icon" type="submit" title="Remover"><i class="bi bi-trash"></i></button></form>{% endif %}</div></div>{% else %}<div class="text-muted">Nenhuma documentação comprobatória incluída.</div>{% endfor %}</div>
     </div></div>
+    <div class="card border-0 shadow-sm mb-4"><div class="card-body">
+      <div class="d-flex justify-content-between align-items-center gap-3 mb-3"><div><h3 class="fs-6 fw-bold text-laranja mb-1">Faturamento</h3><div class="small text-muted">Última etapa do processo de ressarcimento.</div></div>{% if processo.status_processo != 'Cancelado' and processo.status_faturamento != 'Realizado' %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalFaturamento" title="Atualizar faturamento"><i class="bi bi-pencil-square"></i></button>{% endif %}</div>
+      <div class="row g-3"><div class="col-md-6"><strong>Status</strong><br><span class="badge bg-secondary">{{ processo.status_faturamento }}</span></div><div class="col-md-6"><strong>Data do faturamento</strong><br>{{ processo.data_faturamento.strftime('%d/%m/%Y') if processo.data_faturamento else '—' }}</div></div>
+      {% if processo.status_faturamento == 'Realizado' %}<div class="alert alert-secondary py-2 mt-3 mb-0"><i class="bi bi-lock me-1"></i>Processo faturado e concluído. O faturamento não pode ser revertido.</div>{% endif %}
+    </div></div>
     <div class="card border-0 shadow-sm"><div class="card-body"><h3 class="fs-6 fw-bold text-laranja mb-3">Histórico</h3>{% for item in historico %}<div class="border-bottom py-2"><strong>{{ item.evento }}</strong> — {{ item.descricao }}<div class="small text-muted">{{ item.usuario_nome }} · {{ item.criado_em.strftime('%d/%m/%Y %H:%M') }}</div></div>{% else %}<p class="text-muted mb-0">Nenhum evento registrado.</p>{% endfor %}</div></div>
 
 <div class="modal fade" id="modalEditarOcorrencia" tabindex="-1" aria-hidden="true">
@@ -130,6 +135,19 @@
   </div></div>
 </div>
 
+<div class="modal fade" id="modalFaturamento" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <form method="post" action="{{ url_for('main.atualizar_faturamento_pcpm_ressarcimento', ressarcimento_id=processo.id) }}" id="formFaturamento">
+      <div class="modal-header bg-laranja text-white"><h5 class="modal-title"><i class="bi bi-cash-coin me-2"></i>Atualizar faturamento</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body"><div class="row g-3">
+        <div class="col-md-6"><label class="form-label">Status *</label><select class="form-select" name="status_faturamento" id="statusFaturamento" required><option value="Pendente" {% if processo.status_faturamento == 'Pendente' %}selected{% endif %}>Pendente</option><option value="Realizado">Realizado</option></select></div>
+        <div class="col-md-6"><label class="form-label">Data do faturamento</label><input class="form-control" type="date" name="data_faturamento" id="dataFaturamento" max="{{ hoje_iso }}"></div>
+      </div><div class="alert alert-secondary py-2 mt-3 mb-0"><i class="bi bi-info-circle me-1"></i>Ao registrar como realizado, o processo será concluído e não poderá ser cancelado.</div></div>
+      <div class="modal-footer"><button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button><button type="submit" class="btn btn-laranja">Salvar</button></div>
+    </form>
+  </div></div>
+</div>
+
 {% for item in orcamentos %}{% if item.vigente %}
 <div class="modal fade" id="modalStatusOrcamento{{ item.id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg"><div class="modal-content">
@@ -166,5 +184,16 @@ document.querySelectorAll('.form-status-orcamento').forEach(function (form) {
   status.addEventListener('change', atualizar);
   atualizar();
 });
+const statusFaturamento = document.getElementById('statusFaturamento');
+const dataFaturamento = document.getElementById('dataFaturamento');
+const atualizarFaturamento = function () {
+  if (!statusFaturamento || !dataFaturamento) return;
+  const realizado = statusFaturamento.value === 'Realizado';
+  dataFaturamento.disabled = !realizado;
+  dataFaturamento.required = realizado;
+  if (!realizado) dataFaturamento.value = '';
+};
+statusFaturamento?.addEventListener('change', atualizarFaturamento);
+atualizarFaturamento();
 </script>
 {% endblock %}
