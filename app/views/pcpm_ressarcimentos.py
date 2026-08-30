@@ -754,6 +754,106 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             conn.close()
         return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
 
+    @blueprint.route("/pcpm/ressarcimentos/<int:ressarcimento_id>/documentos", methods=["POST"])
+    @login_required
+    @module_required("acesso_pcpm")
+    @module_required("acesso_pcpm_ressarcimentos")
+    def adicionar_documentos_pcpm_ressarcimento(ressarcimento_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        arquivos_salvos = []
+        try:
+            processo = _buscar_processo_autorizado(cursor, ressarcimento_id, for_update=True)
+            if not processo:
+                raise ValueError("Processo não encontrado ou fora do seu centro de custos.")
+            if processo["status_processo"] == "Cancelado":
+                raise ValueError("Reabra o processo antes de incluir documentos.")
+            documentos = [item for item in request.files.getlist("documentos") if item and item.filename]
+            if not documentos:
+                raise ValueError("Selecione ao menos um documento comprobatório.")
+            nomes = []
+            for indice, arquivo in enumerate(documentos, start=1):
+                nomes.append(os.path.basename(arquivo.filename.replace("\\", "/"))[:255])
+                arquivos_salvos.append(
+                    _salvar_anexo(
+                        cursor, ressarcimento_id, arquivo, "documentacao",
+                        f"documentacao_{datetime.now().strftime('%Y%m%d%H%M%S')}_{indice}",
+                    )
+                )
+            cursor.execute(
+                """UPDATE pcpm_ressarcimentos
+                   SET etapa_atual=GREATEST(etapa_atual, 4), atualizado_por=%s WHERE id=%s""",
+                (session.get("usuario_id"), ressarcimento_id),
+            )
+            _registrar_historico(
+                cursor, ressarcimento_id, "Inclusão de documentação",
+                f"{len(nomes)} documento(s) comprobatório(s) incluído(s).",
+                posteriores={"arquivos": nomes}, etapa=4,
+            )
+            conn.commit()
+            flash(f"{len(nomes)} documento(s) incluído(s) com sucesso.", "success")
+        except (ValueError, TypeError, UploadValidationError) as exc:
+            conn.rollback()
+            for nome, diretorio in arquivos_salvos:
+                UploadService.excluir(nome, diretorio)
+            flash(str(exc), "warning")
+        except Exception as exc:
+            conn.rollback()
+            for nome, diretorio in arquivos_salvos:
+                UploadService.excluir(nome, diretorio)
+            flash(f"Erro ao incluir a documentação: {exc}", "danger")
+        finally:
+            conn.close()
+        return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
+
+    @blueprint.route("/pcpm/ressarcimentos/<int:ressarcimento_id>/documentos/<int:anexo_id>/remover", methods=["POST"])
+    @login_required
+    @module_required("acesso_pcpm")
+    @module_required("acesso_pcpm_ressarcimentos")
+    def remover_documento_pcpm_ressarcimento(ressarcimento_id, anexo_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            processo = _buscar_processo_autorizado(cursor, ressarcimento_id, for_update=True)
+            if not processo:
+                raise ValueError("Processo não encontrado ou fora do seu centro de custos.")
+            if processo["status_processo"] == "Cancelado":
+                raise ValueError("Reabra o processo antes de remover documentos.")
+            cursor.execute(
+                """SELECT id, nome_original FROM pcpm_ressarcimentos_anexos
+                   WHERE id=%s AND ressarcimento_id=%s
+                     AND categoria='documentacao' AND ativo=1 FOR UPDATE""",
+                (anexo_id, ressarcimento_id),
+            )
+            anexo = cursor.fetchone()
+            if not anexo:
+                raise ValueError("Documento não encontrado ou já removido.")
+            cursor.execute(
+                "UPDATE pcpm_ressarcimentos_anexos SET ativo=0 WHERE id=%s",
+                (anexo_id,),
+            )
+            cursor.execute(
+                "UPDATE pcpm_ressarcimentos SET atualizado_por=%s WHERE id=%s",
+                (session.get("usuario_id"), ressarcimento_id),
+            )
+            _registrar_historico(
+                cursor, ressarcimento_id, "Remoção de documentação",
+                f"Documento {anexo['nome_original']} removido da visualização.",
+                anteriores={"anexo_id": anexo_id, "arquivo": anexo["nome_original"], "ativo": True},
+                posteriores={"anexo_id": anexo_id, "arquivo": anexo["nome_original"], "ativo": False}, etapa=4,
+            )
+            conn.commit()
+            flash("Documento removido com sucesso.", "success")
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "warning")
+        except Exception as exc:
+            conn.rollback()
+            flash(f"Erro ao remover o documento: {exc}", "danger")
+        finally:
+            conn.close()
+        return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
+
     @blueprint.route("/pcpm/ressarcimentos/<int:ressarcimento_id>/anexos/<int:anexo_id>")
     @login_required
     @module_required("acesso_pcpm")

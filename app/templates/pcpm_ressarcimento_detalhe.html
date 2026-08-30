@@ -64,7 +64,11 @@
         </table></div>
       </div>
     </div>
-    <div class="card border-0 shadow-sm mb-4"><div class="card-body"><h3 class="fs-6 fw-bold text-laranja mb-3">Anexos da avaria</h3><div class="row g-2">{% for item in anexos if not item.orcamento_id %}<div class="col-md-6"><a class="btn btn-cinza w-100 text-start" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}"><i class="bi bi-paperclip"></i> {{ item.nome_original }}</a></div>{% else %}<div class="text-muted">Nenhum anexo incluído.</div>{% endfor %}</div></div></div>
+    <div class="card border-0 shadow-sm mb-4"><div class="card-body"><h3 class="fs-6 fw-bold text-laranja mb-3">Anexos da avaria</h3><div class="row g-2">{% for item in anexos if item.categoria in ['foto_avaria', 'checklist'] %}<div class="col-md-6"><a class="btn btn-cinza w-100 text-start" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}"><i class="bi bi-paperclip"></i> {{ item.nome_original }}</a></div>{% else %}<div class="text-muted">Nenhum anexo incluído.</div>{% endfor %}</div></div></div>
+    <div class="card border-0 shadow-sm mb-4"><div class="card-body">
+      <div class="d-flex justify-content-between align-items-center gap-3 mb-3"><div><h3 class="fs-6 fw-bold text-laranja mb-1">Documentação comprobatória</h3><div class="small text-muted">Notas fiscais, laudos, ordens de serviço e demais comprovantes.</div></div>{% if processo.status_processo != 'Cancelado' %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalDocumentacao" title="Adicionar documentos"><i class="bi bi-paperclip"></i></button>{% endif %}</div>
+      <div class="row g-2">{% for item in anexos if item.categoria == 'documentacao' %}<div class="col-lg-6"><div class="border rounded d-flex align-items-center justify-content-between gap-2 p-2"><a class="text-decoration-none text-dark text-truncate" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}" title="Baixar {{ item.nome_original }}"><i class="bi bi-file-earmark-arrow-down text-laranja me-2"></i>{{ item.nome_original }}</a>{% if processo.status_processo != 'Cancelado' %}<form method="post" action="{{ url_for('main.remover_documento_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}" onsubmit="return confirm('Remover este documento da visualização?');"><button class="btn-acao-icon" type="submit" title="Remover"><i class="bi bi-trash"></i></button></form>{% endif %}</div></div>{% else %}<div class="text-muted">Nenhuma documentação comprobatória incluída.</div>{% endfor %}</div>
+    </div></div>
     <div class="card border-0 shadow-sm"><div class="card-body"><h3 class="fs-6 fw-bold text-laranja mb-3">Histórico</h3>{% for item in historico %}<div class="border-bottom py-2"><strong>{{ item.evento }}</strong> — {{ item.descricao }}<div class="small text-muted">{{ item.usuario_nome }} · {{ item.criado_em.strftime('%d/%m/%Y %H:%M') }}</div></div>{% else %}<p class="text-muted mb-0">Nenhum evento registrado.</p>{% endfor %}</div></div>
 
 <div class="modal fade" id="modalEditarOcorrencia" tabindex="-1" aria-hidden="true">
@@ -111,6 +115,16 @@
         <div class="col-md-6"><label class="form-label">Valor do orçamento *</label><div class="input-group"><span class="input-group-text">R$</span><input class="form-control" name="valor_orcamento" inputmode="decimal" placeholder="0,00" required></div></div>
         <div class="col-12"><label class="form-label">Orçamento gerado no TOTVS *</label><input class="form-control" type="file" name="arquivo_orcamento" accept=".pdf,.jpg,.jpeg,.png" required><div class="form-text">PDF, JPG ou PNG, com até 10 MB.</div></div>
       </div></div>
+      <div class="modal-footer"><button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button><button type="submit" class="btn btn-laranja">Salvar</button></div>
+    </form>
+  </div></div>
+</div>
+
+<div class="modal fade" id="modalDocumentacao" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <form method="post" enctype="multipart/form-data" action="{{ url_for('main.adicionar_documentos_pcpm_ressarcimento', ressarcimento_id=processo.id) }}">
+      <div class="modal-header bg-laranja text-white"><h5 class="modal-title"><i class="bi bi-paperclip me-2"></i>Adicionar documentação</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body"><label class="form-label">Documentos comprobatórios *</label><input class="form-control" type="file" name="documentos" accept=".pdf,.jpg,.jpeg,.png" multiple required><div class="form-text">Selecione um ou mais arquivos PDF, JPG ou PNG. Limite de 10 MB por arquivo.</div></div>
       <div class="modal-footer"><button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button><button type="submit" class="btn btn-laranja">Salvar</button></div>
     </form>
   </div></div>

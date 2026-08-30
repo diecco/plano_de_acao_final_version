@@ -86,6 +86,16 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
         self.assertIn('name="arquivo_orcamento"', template)
         self.assertIn('name="arquivo_aprovacao"', template)
 
+    def test_supporting_documents_are_audited_and_logically_removed(self):
+        template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")
+        self.assertIn("adicionar_documentos_pcpm_ressarcimento", self.view)
+        self.assertIn("remover_documento_pcpm_ressarcimento", self.view)
+        self.assertIn("categoria='documentacao' AND ativo=1", self.view)
+        self.assertIn("SET ativo=0", self.view)
+        self.assertIn('id="modalDocumentacao"', template)
+        self.assertIn('name="documentos"', template)
+        self.assertIn("Documentação comprobatória", template)
+
 
 if __name__ == "__main__":
     unittest.main()
