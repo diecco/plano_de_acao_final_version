@@ -124,6 +124,8 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         self.assertIn('id="modalExcluirOc"', template)
         self.assertIn('id="formExcluirOc"', template)
         self.assertIn("seus dados e histórico permanecerão preservados", template)
+        self.assertIn('class="modal-footer justify-content-between"', template)
+        self.assertIn('type="submit" class="btn btn-laranja">Excluir', template)
         self.assertNotIn("return confirm(", template)
         self.assertIn("r.excluido_em IS NULL", source)
         self.assertIn("SET excluido_em = NOW(), excluido_por = %s", source)
@@ -150,6 +152,28 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         self.assertIn("marcacoes_por_registro.get(registro.id, [])", template)
         self.assertIn("WHERE resp.registro_id IN ({placeholders})", source)
         self.assertIn("marcacoes_por_registro=marcacoes_por_registro", source)
+
+    def test_listing_columns_follow_requested_order_without_markings_column(self):
+        template = (
+            ROOT / "app" / "templates" / "observacoes_comportamentais.html"
+        ).read_text(encoding="utf-8")
+        cabecalho = template.split("<thead class=\"table-light\">", 1)[1].split(
+            "</thead>", 1
+        )[0]
+        labels = [
+            ">ID<",
+            ">Data<",
+            ">Observador<",
+            ">Local / setor<",
+            ">Área<",
+            ">Pessoas<",
+            ">Situação<",
+            ">Ações<",
+        ]
+
+        posicoes = [cabecalho.index(label) for label in labels]
+        self.assertEqual(posicoes, sorted(posicoes))
+        self.assertNotIn(">Marcações<", cabecalho)
 
     def test_registration_form_uses_inherited_scope_and_guided_items(self):
         template = (

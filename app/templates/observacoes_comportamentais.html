@@ -124,12 +124,12 @@
             <table class="table table-bordered align-middle table-fixed">
                 <thead class="table-light">
                     <tr>
+                        <th style="width: 85px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">ID</span>{{ botoes_ordenacao('id') }}</div></th>
                         <th style="width: 125px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Data</span>{{ botoes_ordenacao('data') }}</div></th>
+                        <th style="width: 220px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Observador</span>{{ botoes_ordenacao('observador') }}</div></th>
                         <th style="width: 260px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Local / setor</span>{{ botoes_ordenacao('local') }}</div></th>
                         <th style="width: 190px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Área</span>{{ botoes_ordenacao('area') }}</div></th>
-                        <th style="width: 220px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Observador</span>{{ botoes_ordenacao('observador') }}</div></th>
                         <th style="width: 115px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Pessoas</span>{{ botoes_ordenacao('pessoas') }}</div></th>
-                        <th style="width: 125px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Marcações</span>{{ botoes_ordenacao('marcacoes') }}</div></th>
                         <th style="width: 125px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Situação</span>{{ botoes_ordenacao('status') }}</div></th>
                         <th class="text-center" style="width: 135px;">Ações</th>
                     </tr>
@@ -137,12 +137,12 @@
                 <tbody id="tabelaObservacoesOc">
                     {% for registro in registros %}
                         <tr>
+                            <td class="text-center">{{ registro.id }}</td>
                             <td>{{ registro.data_observacao.strftime('%d/%m/%Y') }}<br><small class="text-muted">{{ registro.hora_observacao }}</small></td>
+                            <td>{{ registro.observador_nome }}</td>
                             <td><strong>{{ registro.local_observado }}</strong><br><small class="text-muted">{{ registro.setor_observado }}</small></td>
                             <td>{{ registro.area }}<br><small class="text-muted">CC {{ registro.centro_custos_codigo }}</small></td>
-                            <td>{{ registro.observador_nome }}</td>
                             <td class="text-center">{{ registro.pessoas_observadas }}</td>
-                            <td class="text-center"><span class="badge rounded-pill text-bg-light">{{ registro.total_marcacoes }}</span></td>
                             <td class="text-center">
                                 {% if registro.status == 'concluida' %}<span class="badge text-bg-success">Concluída</span>
                                 {% elif registro.status == 'cancelada' %}<span class="badge text-bg-secondary">Cancelada</span>
@@ -331,10 +331,10 @@
                     Ela será removida da listagem, mas seus dados e histórico permanecerão preservados.
                 </p>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer justify-content-between">
                 <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Voltar</button>
                 <form method="post" id="formExcluirOc">
-                    <button type="submit" class="btn btn-danger">Excluir</button>
+                    <button type="submit" class="btn btn-laranja">Excluir</button>
                 </form>
             </div>
         </div>
