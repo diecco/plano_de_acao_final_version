@@ -1,0 +1,35 @@
+{% extends "layout.html" %}
+{% block titulo %}Observação Comportamental{% endblock %}
+{% block conteudo %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 page-header">
+    <h2 class="page-title mb-0"><i class="bi bi-eye me-2"></i>Observação #{{ registro.id }}</h2>
+    <div class="d-flex gap-2">
+        <a class="btn btn-cinza" href="{{ url_for('main.observacoes_comportamentais') }}"><i class="bi bi-arrow-left"></i></a>
+        {% if registro.status != 'cancelada' %}<a class="btn btn-laranja" href="{{ url_for('main.editar_observacao_comportamental', registro_id=registro.id) }}"><i class="bi bi-pencil-square me-1"></i>Editar</a>{% endif %}
+    </div>
+</div><hr>
+<div class="card shadow-sm border-0 mb-4"><div class="card-body"><div class="row g-3">
+    <div class="col-md-3"><small class="text-muted d-block">Data e hora</small><strong>{{ registro.data_observacao.strftime('%d/%m/%Y') }} às {{ registro.hora_observacao }}</strong></div>
+    <div class="col-md-3"><small class="text-muted d-block">Local / setor</small><strong>{{ registro.local_observado }}</strong><br>{{ registro.setor_observado }}</div>
+    <div class="col-md-3"><small class="text-muted d-block">Área</small><strong>{{ registro.area }}</strong><br>{{ registro.atividade or 'Atividade não informada' }}</div>
+    <div class="col-md-3"><small class="text-muted d-block">Centro de custos</small><strong>{{ registro.centro_custos_codigo }}</strong><br>{{ registro.centro_custos_descricao }}</div>
+    <div class="col-md-3"><small class="text-muted d-block">Observador</small><strong>{{ registro.observador_nome }}</strong></div>
+    <div class="col-md-3"><small class="text-muted d-block">Pessoas observadas</small><strong>{{ registro.pessoas_observadas }}</strong></div>
+    <div class="col-md-3"><small class="text-muted d-block">Marcações</small><strong>{{ total_marcacoes }}</strong></div>
+    <div class="col-md-3"><small class="text-muted d-block">Situação</small>{% if registro.status == 'concluida' %}<span class="badge text-bg-success">Concluída</span>{% elif registro.status == 'cancelada' %}<span class="badge text-bg-secondary">Cancelada</span>{% else %}<span class="badge text-bg-warning">Rascunho</span>{% endif %}</div>
+</div></div></div>
+
+<div class="row g-4 mb-4"><div class="col-lg-7"><div class="card shadow-sm border-0 h-100"><div class="card-header bg-white fw-semibold">Comportamentos registrados</div><div class="card-body p-0"><div class="table-responsive"><table class="table align-middle mb-0"><thead class="table-light"><tr><th>Categoria</th><th>Item</th><th class="text-center">Quantidade</th></tr></thead><tbody>
+{% for item in marcacoes %}<tr><td><span class="badge text-bg-light">{{ item.categoria_codigo }}</span> {{ item.categoria_nome }}</td><td>{{ item.item_descricao }}</td><td class="text-center fw-bold">{{ item.quantidade }}</td></tr>{% else %}<tr><td colspan="3" class="text-center text-muted py-4">Nenhuma marcação registrada.</td></tr>{% endfor %}
+</tbody></table></div></div></div></div>
+<div class="col-lg-5"><div class="card shadow-sm border-0 h-100"><div class="card-header bg-white fw-semibold">Abordagem</div><div class="card-body">
+    <p><strong>Houve abordagem:</strong> {{ 'Sim' if registro.houve_abordagem else 'Não' }}</p><p><strong>Correção imediata:</strong> {{ 'Sim' if registro.correcao_imediata else 'Não' }}</p>
+    <p><strong>Descrição:</strong><br>{{ registro.descricao_abordagem or 'Não informada.' }}</p><p><strong>Pontos positivos:</strong><br>{{ registro.pontos_positivos or 'Não informados.' }}</p><p class="mb-0"><strong>Observações gerais:</strong><br>{{ registro.observacoes_gerais or 'Não informadas.' }}</p>
+</div></div></div></div>
+
+<div class="card shadow-sm border-0 mb-4"><div class="card-header bg-white fw-semibold">Histórico</div><div class="card-body">
+{% for evento in historico %}<div class="d-flex gap-3 border-bottom py-2"><i class="bi bi-clock-history text-warning"></i><div><strong>{{ evento.evento|replace('_', ' ')|title }}</strong> por {{ evento.usuario_nome }}<br><small class="text-muted">{{ evento.criado_em.strftime('%d/%m/%Y %H:%M') }}{% if evento.detalhes %} — {{ evento.detalhes }}{% endif %}</small></div></div>{% endfor %}
+</div></div>
+{% if registro.status == 'cancelada' %}<form method="post" action="{{ url_for('main.reabrir_observacao_comportamental', registro_id=registro.id) }}" class="text-end mb-4"><button class="btn btn-laranja"><i class="bi bi-arrow-counterclockwise me-1"></i>Reabrir</button></form>
+{% else %}<form method="post" action="{{ url_for('main.cancelar_observacao_comportamental', registro_id=registro.id) }}" class="card card-body border-danger mb-4" onsubmit="return confirm('Confirma o cancelamento desta observação?');"><label class="form-label">Justificativa do cancelamento</label><div class="d-flex gap-2"><input class="form-control" name="justificativa" required maxlength="500"><button class="btn btn-outline-danger">Cancelar observação</button></div></form>{% endif %}
+{% endblock %}

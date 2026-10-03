@@ -1,0 +1,90 @@
+{% extends "layout.html" %}
+{% block titulo %}{{ 'Editar' if registro else 'Nova' }} Observação Comportamental{% endblock %}
+{% block conteudo %}
+<style>
+    .oc-category { border-left: 4px solid #f36c21; }
+    .oc-counter { display:flex; align-items:center; justify-content:flex-end; gap:.45rem; }
+    .oc-counter input { width:72px; text-align:center; font-weight:700; }
+    .oc-counter .btn { width:38px; height:38px; padding:0; }
+    .oc-total { min-width:2.2rem; }
+    .accordion-button:not(.collapsed) { color:#c94f0c; background:#fff5ef; }
+    @media (max-width: 575px) { .oc-item-label { margin-bottom:.65rem; } }
+</style>
+<div class="page-header">
+    <h2 class="page-title"><i class="bi bi-eye me-2"></i>{{ 'Editar' if registro else 'Nova' }} Observação Comportamental</h2>
+</div>
+<hr>
+<form method="post" id="formOc">
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white fw-semibold"><i class="bi bi-geo-alt me-2 text-warning"></i>Dados da observação</div>
+        <div class="card-body"><div class="row g-3">
+            {% if session.get('perfil') == 'administrador' %}
+            <div class="col-12 col-lg-4"><label class="form-label">Centro de custos</label>
+                <select class="form-select" name="centro_custos_id" required><option value="">Selecione</option>
+                {% for cc in centros_custos %}<option value="{{ cc.id }}" {% if registro and registro.centro_custos_id == cc.id %}selected{% endif %}>{{ cc.codigo }} — {{ cc.descricao }}</option>{% endfor %}
+                </select>
+            </div>{% endif %}
+            <div class="col-6 col-lg-2"><label class="form-label">Data</label><input type="date" class="form-control" name="data_observacao" required value="{{ registro.data_observacao.isoformat() if registro else '' }}"></div>
+            <div class="col-6 col-lg-2"><label class="form-label">Hora</label><input type="time" class="form-control" name="hora_observacao" required value="{{ registro.hora_observacao if registro else '' }}"></div>
+            <div class="col-12 col-lg-4"><label class="form-label">Local observado</label><input class="form-control" name="local_observado" maxlength="180" required value="{{ registro.local_observado if registro else '' }}"></div>
+            <div class="col-12 col-lg-4"><label class="form-label">Setor observado</label><input class="form-control" name="setor_observado" maxlength="180" required value="{{ registro.setor_observado if registro else '' }}"></div>
+            <div class="col-12 col-lg-4"><label class="form-label">Área da observação</label><select class="form-select" name="area" required><option value="">Selecione</option>{% for area in areas %}<option {% if registro and registro.area == area %}selected{% endif %}>{{ area }}</option>{% endfor %}</select></div>
+            <div class="col-6 col-lg-2"><label class="form-label">Pessoas observadas</label><input type="number" min="1" max="999" class="form-control" name="pessoas_observadas" required value="{{ registro.pessoas_observadas if registro else 1 }}"></div>
+            <div class="col-12 col-lg-6"><label class="form-label">Atividade observada <span class="text-muted">(opcional)</span></label><input class="form-control" name="atividade" maxlength="255" value="{{ registro.atividade if registro and registro.atividade else '' }}"></div>
+        </div></div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div><h5 class="mb-1">Comportamentos observados</h5><small class="text-muted">Registre quantas vezes cada situação foi observada.</small></div>
+        <span class="badge text-bg-dark fs-6">Total: <span id="totalGeral">0</span></span>
+    </div>
+    <div class="accordion mb-4" id="accordionOc">
+    {% for categoria in categorias %}
+        <div class="accordion-item oc-category mb-3 shadow-sm border-top-0 border-end-0 border-bottom-0">
+            <h2 class="accordion-header"><button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#cat{{ categoria.id }}">
+                <strong class="me-2">{{ categoria.codigo }}</strong>{{ categoria.nome }}
+                <span class="badge text-bg-secondary rounded-pill ms-auto me-3 oc-total" data-category="{{ categoria.id }}">0</span>
+            </button></h2>
+            <div id="cat{{ categoria.id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" data-bs-parent="#accordionOc"><div class="accordion-body p-0">
+            {% for item in categoria.itens %}
+                <div class="row align-items-center border-bottom p-3 g-2">
+                    <div class="col-sm-8 oc-item-label">{{ item.descricao }}</div>
+                    <div class="col-sm-4 oc-counter">
+                        <button type="button" class="btn btn-outline-secondary js-step" data-step="-1" aria-label="Diminuir"><i class="bi bi-dash-lg"></i></button>
+                        <input type="number" min="0" max="999" class="form-control js-oc-input" data-category="{{ categoria.id }}" name="item_{{ item.id }}" value="{{ respostas.get(item.id, 0) }}">
+                        <button type="button" class="btn btn-laranja js-step" data-step="1" aria-label="Aumentar"><i class="bi bi-plus-lg"></i></button>
+                    </div>
+                </div>
+            {% endfor %}
+            </div></div>
+        </div>
+    {% endfor %}
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4"><div class="card-header bg-white fw-semibold"><i class="bi bi-chat-square-text me-2 text-warning"></i>Abordagem e observações</div><div class="card-body"><div class="row g-3">
+        <div class="col-12 col-md-3"><div class="form-check form-switch mt-md-4"><input class="form-check-input" type="checkbox" name="houve_abordagem" id="houveAbordagem" {% if registro and registro.houve_abordagem %}checked{% endif %}><label class="form-check-label" for="houveAbordagem">Houve abordagem</label></div></div>
+        <div class="col-12 col-md-3"><div class="form-check form-switch mt-md-4"><input class="form-check-input" type="checkbox" name="correcao_imediata" id="correcaoImediata" {% if registro and registro.correcao_imediata %}checked{% endif %}><label class="form-check-label" for="correcaoImediata">Correção imediata</label></div></div>
+        <div class="col-12 col-md-6"><label class="form-label">Descrição da abordagem</label><textarea class="form-control" rows="2" name="descricao_abordagem">{{ registro.descricao_abordagem if registro and registro.descricao_abordagem else '' }}</textarea></div>
+        <div class="col-12 col-md-6"><label class="form-label">Pontos positivos observados</label><textarea class="form-control" rows="3" name="pontos_positivos">{{ registro.pontos_positivos if registro and registro.pontos_positivos else '' }}</textarea></div>
+        <div class="col-12 col-md-6"><label class="form-label">Observações gerais</label><textarea class="form-control" rows="3" name="observacoes_gerais">{{ registro.observacoes_gerais if registro and registro.observacoes_gerais else '' }}</textarea></div>
+    </div></div></div>
+
+    <div class="d-flex justify-content-between gap-2 mb-4">
+        <a class="btn btn-cinza" href="{{ url_for('main.observacoes_comportamentais') }}"><i class="bi bi-arrow-left me-1"></i>Voltar</a>
+        <div class="d-flex gap-2"><button class="btn btn-outline-secondary" name="status_destino" value="rascunho"><i class="bi bi-save me-1"></i>Salvar rascunho</button><button class="btn btn-laranja" name="status_destino" value="concluida"><i class="bi bi-check-circle me-1"></i>Concluir</button></div>
+    </div>
+</form>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const inputs = [...document.querySelectorAll('.js-oc-input')];
+    function atualizar() {
+        let geral = 0; const totais = {};
+        inputs.forEach(input => { const valor = Math.max(0, Number(input.value) || 0); geral += valor; totais[input.dataset.category] = (totais[input.dataset.category] || 0) + valor; });
+        document.getElementById('totalGeral').textContent = geral;
+        document.querySelectorAll('.oc-total').forEach(el => el.textContent = totais[el.dataset.category] || 0);
+    }
+    document.querySelectorAll('.js-step').forEach(btn => btn.addEventListener('click', () => { const input = btn.parentElement.querySelector('input'); input.value = Math.max(0, Math.min(999, (Number(input.value) || 0) + Number(btn.dataset.step))); atualizar(); }));
+    inputs.forEach(input => input.addEventListener('input', atualizar)); atualizar();
+});
+</script>
+{% endblock %}

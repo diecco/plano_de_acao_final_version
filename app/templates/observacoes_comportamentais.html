@@ -1,0 +1,98 @@
+{% extends "layout.html" %}
+{% block titulo %}Observação Comportamental{% endblock %}
+{% block conteudo %}
+<div class="page-header">
+    <h2 class="page-title"><i class="bi bi-eye me-2"></i>Observações Comportamentais</h2>
+</div>
+<hr>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-12 col-lg-4">
+                <label class="form-label">Busca</label>
+                <input type="search" name="busca" class="form-control" value="{{ filtros.busca }}"
+                       placeholder="Local, setor ou observador">
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="form-label">Data inicial</label>
+                <input type="date" name="data_inicio" class="form-control" value="{{ filtros.data_inicio }}">
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="form-label">Data final</label>
+                <input type="date" name="data_fim" class="form-control" value="{{ filtros.data_fim }}">
+            </div>
+            <div class="col-12 col-lg-2">
+                <label class="form-label">Situação</label>
+                <select name="status" class="form-select">
+                    <option value="">Todas</option>
+                    <option value="rascunho" {% if filtros.status == 'rascunho' %}selected{% endif %}>Rascunho</option>
+                    <option value="concluida" {% if filtros.status == 'concluida' %}selected{% endif %}>Concluída</option>
+                    <option value="cancelada" {% if filtros.status == 'cancelada' %}selected{% endif %}>Cancelada</option>
+                </select>
+            </div>
+            <div class="col-12 col-lg-2">
+                <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-laranja" title="Filtrar"><i class="bi bi-funnel"></i></button>
+                    <a class="btn btn-cinza" href="{{ url_for('main.observacoes_comportamentais') }}" title="Limpar">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </a>
+                    <a class="btn btn-laranja" href="{{ url_for('main.nova_observacao_comportamental') }}">
+                        <i class="bi bi-plus-circle me-1"></i>Nova
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light"><tr>
+                    <th>Data</th><th>Local / setor</th><th>Área</th><th>Observador</th>
+                    <th class="text-center">Pessoas</th><th class="text-center">Marcações</th>
+                    <th class="text-center">Situação</th><th class="text-center">Ações</th>
+                </tr></thead>
+                <tbody>
+                {% for registro in registros %}
+                    <tr>
+                        <td>{{ registro.data_observacao.strftime('%d/%m/%Y') }}<br><small class="text-muted">{{ registro.hora_observacao }}</small></td>
+                        <td><strong>{{ registro.local_observado }}</strong><br><small class="text-muted">{{ registro.setor_observado }}</small></td>
+                        <td>{{ registro.area }}<br><small class="text-muted">CC {{ registro.centro_custos_codigo }}</small></td>
+                        <td>{{ registro.observador_nome }}</td>
+                        <td class="text-center">{{ registro.pessoas_observadas }}</td>
+                        <td class="text-center"><span class="badge rounded-pill text-bg-light">{{ registro.total_marcacoes }}</span></td>
+                        <td class="text-center">
+                            {% if registro.status == 'concluida' %}<span class="badge text-bg-success">Concluída</span>
+                            {% elif registro.status == 'cancelada' %}<span class="badge text-bg-secondary">Cancelada</span>
+                            {% else %}<span class="badge text-bg-warning">Rascunho</span>{% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a class="btn-acao-icon" title="Visualizar"
+                               href="{{ url_for('main.detalhar_observacao_comportamental', registro_id=registro.id) }}">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="8" class="text-center text-muted py-4">Nenhuma observação encontrada.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mt-3">
+    <span class="text-muted">{{ total }} registro(s) — página {{ pagina }} de {{ total_paginas }}</span>
+    <div class="btn-group">
+        <a class="btn btn-outline-secondary {% if pagina <= 1 %}disabled{% endif %}"
+           href="{{ url_for('main.observacoes_comportamentais', pagina=pagina-1, **filtros) }}">Anterior</a>
+        <span class="btn btn-laranja disabled">{{ pagina }}</span>
+        <a class="btn btn-outline-secondary {% if pagina >= total_paginas %}disabled{% endif %}"
+           href="{{ url_for('main.observacoes_comportamentais', pagina=pagina+1, **filtros) }}">Próxima</a>
+    </div>
+</div>
+{% endblock %}

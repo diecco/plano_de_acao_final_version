@@ -79,7 +79,7 @@
             </section>
         {% endif %}
 
-        {% if session.get('acesso_ssma') or session.get('pode_ser_lider_ssma') or is_admin %}
+        {% if session.get('acesso_ssma') or session.get('acesso_observacao_comportamental') or session.get('pode_ser_lider_ssma') or is_admin %}
             {% set endpoints_ssma = [
                 'main.listar_hs',
                 'main.analise_critica_hs',
@@ -89,6 +89,10 @@
                 'main.listar_apr',
                 'main.listar_ap',
                 'main.listar_ifs',
+                'main.observacoes_comportamentais',
+                'main.nova_observacao_comportamental',
+                'main.detalhar_observacao_comportamental',
+                'main.editar_observacao_comportamental',
                 'main.meu_calendario_ssma',
                 'main.executar_agendamento_ssma'
             ] %}
@@ -112,6 +116,12 @@
                         <a href="{{ url_for('main.meu_calendario_ssma') }}"
                            class="sidebar-link {% if request.endpoint in ['main.meu_calendario_ssma', 'main.executar_agendamento_ssma'] %}active{% endif %}">
                             <i class="bi bi-calendar-check"></i><span>Meu calendário</span>
+                        </a>
+                    {% endif %}
+                    {% if session.get('acesso_observacao_comportamental') or is_admin %}
+                        <a href="{{ url_for('main.observacoes_comportamentais') }}"
+                           class="sidebar-link {% if request.endpoint in ['main.observacoes_comportamentais', 'main.nova_observacao_comportamental', 'main.detalhar_observacao_comportamental', 'main.editar_observacao_comportamental'] %}active{% endif %}">
+                            <i class="bi bi-eye"></i><span>Observação Comportamental</span>
                         </a>
                     {% endif %}
                     {% if session.get('acesso_ssma') or is_admin %}

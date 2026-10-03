@@ -20,6 +20,9 @@ from app.views.instrutores import register_instrutores_routes
 from app.views.matriz_capacitacao import register_matriz_capacitacao_routes
 from app.views.melhorias import register_melhorias_routes
 from app.views.origens import register_origens_routes
+from app.views.observacao_comportamental import (
+    register_observacao_comportamental_routes,
+)
 from app.views.pcpm_cadastros import register_pcpm_cadastros_routes
 from app.views.pcpm_checklist import register_pcpm_checklist_routes
 from app.views.pcpm_equipamentos import register_pcpm_equipamentos_routes
@@ -44,6 +47,7 @@ register_centros_custos_routes(main_routes)
 register_detectores_gas_routes(main_routes)
 register_superintendencias_routes(main_routes)
 register_origens_routes(main_routes)
+register_observacao_comportamental_routes(main_routes)
 register_setores_routes(main_routes)
 register_funcoes_routes(main_routes)
 register_horas_seguranca_routes(main_routes)
