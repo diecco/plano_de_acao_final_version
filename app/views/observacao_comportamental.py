@@ -387,7 +387,7 @@ def register_observacao_comportamental_routes(blueprint):
                     )
                     conn.commit()
                     flash("Observação comportamental salva com sucesso.", "success")
-                    return redirect(url_for("main.detalhar_observacao_comportamental", registro_id=registro_id))
+                    return redirect(url_for("main.observacoes_comportamentais"))
                 except ValueError as exc:
                     conn.rollback()
                     flash(str(exc), "warning")

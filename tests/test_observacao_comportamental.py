@@ -39,6 +39,25 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         self.assertEqual(dados["data_observacao"], "2026-10-03")
         self.assertEqual(dados["status"], "concluida")
 
+    def test_new_observation_redirects_to_listing_after_save(self):
+        source = (
+            ROOT / "app" / "views" / "observacao_comportamental.py"
+        ).read_text(encoding="utf-8")
+        trecho_nova = source.split(
+            'def nova_observacao_comportamental():', 1
+        )[1].split(
+            '@blueprint.route("/observacoes_comportamentais/<int:registro_id>")', 1
+        )[0]
+
+        self.assertIn(
+            'return redirect(url_for("main.observacoes_comportamentais"))',
+            trecho_nova,
+        )
+        self.assertNotIn(
+            'return redirect(url_for("main.detalhar_observacao_comportamental"',
+            trecho_nova,
+        )
+
     def test_templates_compile(self):
         from app import create_app
 
