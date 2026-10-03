@@ -122,7 +122,7 @@ def _carregar_formulario(cursor, centro_custos_id=None):
 
     data_observacao = (request.form.get("data_observacao") or "").strip()
     try:
-        data.fromisoformat(data_observacao)
+        date.fromisoformat(data_observacao)
     except ValueError as exc:
         raise ValueError("Informe uma data de observação válida.") from exc
 

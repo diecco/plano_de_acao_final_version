@@ -6,6 +6,39 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ObservacaoComportamentalTests(unittest.TestCase):
+    def test_valid_date_is_parsed_when_saving_observation(self):
+        from flask import session
+
+        from app import create_app
+        from app.views.observacao_comportamental import _carregar_formulario
+
+        class CursorStub:
+            def execute(self, query, params=None):
+                self.query = query
+
+            def fetchone(self):
+                return {"id": 1}
+
+            def fetchall(self):
+                return []
+
+        app = create_app()
+        dados_formulario = {
+            "data_observacao": "2026-10-03",
+            "hora_observacao": "12:00",
+            "local_observado": "Oficina",
+            "setor_observado": "Manutenção",
+            "area": "Operação",
+            "pessoas_observadas": "1",
+        }
+
+        with app.test_request_context(method="POST", data=dados_formulario):
+            session["centro_custos_id"] = 1
+            dados = _carregar_formulario(CursorStub())
+
+        self.assertEqual(dados["data_observacao"], "2026-10-03")
+        self.assertEqual(dados["status"], "concluida")
+
     def test_templates_compile(self):
         from app import create_app
 
