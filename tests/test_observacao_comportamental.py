@@ -146,7 +146,7 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         self.assertIn("Realização", template)
         self.assertIn("Comportamentos registrados", template)
         self.assertIn("Abordagem e observações", template)
-        self.assertIn("Abrir registro completo", template)
+        self.assertNotIn("Abrir registro completo", template)
         self.assertIn("marcacoes_por_registro.get(registro.id, [])", template)
         self.assertIn("WHERE resp.registro_id IN ({placeholders})", source)
         self.assertIn("marcacoes_por_registro=marcacoes_por_registro", source)
