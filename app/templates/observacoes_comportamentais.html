@@ -2,6 +2,21 @@
 {% block titulo %}Observação Comportamental{% endblock %}
 {% block conteudo %}
 
+<style>
+    .oc-delete-modal .modal-header { border-bottom: 2px solid #f36c21; }
+    .oc-delete-modal .oc-delete-icon {
+        align-items: center;
+        background: rgba(243, 108, 33, .12);
+        border-radius: 50%;
+        color: #f36c21;
+        display: inline-flex;
+        font-size: 1.25rem;
+        height: 2.5rem;
+        justify-content: center;
+        width: 2.5rem;
+    }
+</style>
+
 {% macro botoes_ordenacao(campo) %}
 <span class="btn-group btn-group-sm">
     <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
@@ -124,14 +139,12 @@
                                        href="{{ url_for('main.editar_observacao_comportamental', registro_id=registro.id) }}">
                                         <i class="bi bi-pencil-square"></i>
                                     </a>
-                                    <form method="post"
-                                          action="{{ url_for('main.excluir_observacao_comportamental', registro_id=registro.id) }}"
-                                          onsubmit="return confirm('Tem certeza que deseja excluir esta Observação Comportamental?');"
-                                          style="display:inline;">
-                                        <button type="submit" class="btn-acao-icon" title="Excluir">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
+                                    <button type="button" class="btn-acao-icon" title="Excluir"
+                                            data-bs-toggle="modal" data-bs-target="#modalExcluirOc"
+                                            data-registro-id="{{ registro.id }}"
+                                            data-delete-url="{{ url_for('main.excluir_observacao_comportamental', registro_id=registro.id) }}">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -171,6 +184,38 @@
 </div>
 {% endif %}
 
+<div class="modal fade oc-delete-modal" id="modalExcluirOc" tabindex="-1"
+     aria-labelledby="modalExcluirOcTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <div class="d-flex align-items-center gap-3">
+                    <span class="oc-delete-icon"><i class="bi bi-trash"></i></span>
+                    <div>
+                        <h5 class="modal-title text-laranja mb-0" id="modalExcluirOcTitulo">
+                            Excluir Observação Comportamental
+                        </h5>
+                        <small class="text-muted">Observação #<span id="modalExcluirOcId"></span></small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p class="mb-2">Tem certeza de que deseja excluir esta observação?</p>
+                <p class="text-muted small mb-0">
+                    Ela será removida da listagem, mas seus dados e histórico permanecerão preservados.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Voltar</button>
+                <form method="post" id="formExcluirOc">
+                    <button type="submit" class="btn btn-danger">Excluir</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const busca = document.getElementById('observador_busca');
@@ -184,6 +229,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     busca.addEventListener('input', sincronizarObservador);
     busca.addEventListener('change', sincronizarObservador);
+
+    const modalExcluir = document.getElementById('modalExcluirOc');
+    modalExcluir.addEventListener('show.bs.modal', function (event) {
+        const botao = event.relatedTarget;
+        document.getElementById('modalExcluirOcId').textContent = botao.dataset.registroId;
+        document.getElementById('formExcluirOc').action = botao.dataset.deleteUrl;
+    });
 });
 </script>
 {% endblock %}
