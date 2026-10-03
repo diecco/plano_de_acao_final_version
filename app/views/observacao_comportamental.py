@@ -15,6 +15,58 @@ AREAS = (
 )
 POR_PAGINA = 30
 
+EXPLICACOES_ITENS = {
+    "A01": (
+        "Quando o observador chega à frente de trabalho, os colaboradores "
+        "fizeram algum ajuste em seu posicionamento para dar a conotação "
+        "de que estão mais seguros?"
+    ),
+    "A02": (
+        "A atividade foi interrompida assim que os colaboradores perceberam "
+        "a presença do observador?"
+    ),
+    "A03": (
+        "Algum colaborador colocou, reposicionou ou ajustou o EPI após "
+        "perceber a observação?"
+    ),
+    "A04": (
+        "A forma de executar a tarefa foi modificada após a chegada do "
+        "observador?"
+    ),
+    "A05": "Havia pessoas correndo ou se deslocando com pressa de forma insegura?",
+    "A06": "Alguma pessoa deixou de utilizar o caminho ou acesso seguro definido?",
+    "B01": "A posição adotada criava risco de bater contra algo ou ser atingido?",
+    "B02": "Havia risco de aprisionamento, prensamento ou esmagamento?",
+    "B03": "A pessoa estava exposta a queda entre níveis diferentes?",
+    "B04": "A pessoa estava exposta a tropeço, escorregamento ou queda no mesmo nível?",
+    "B05": "A posição ou atividade expunha a pessoa a queimadura térmica ou química?",
+    "B06": "Havia exposição a partes energizadas ou possibilidade de choque elétrico?",
+    "B07": "Havia possibilidade de inalar ou absorver poeira, vapor, gás ou outro contaminante?",
+    "B08": "A tarefa era executada com postura corporal inadequada ou não ergonômica?",
+    "B09": "A tarefa exigia força, carga ou esforço físico acima do adequado?",
+    "C01": "A cabeça estava desprotegida ou posicionada em uma linha de perigo?",
+    "C02": "O sistema respiratório estava exposto a contaminantes sem proteção adequada?",
+    "C03": "Os olhos estavam expostos a partículas, produtos ou radiação sem proteção adequada?",
+    "C04": "A face estava exposta a impacto, projeção, calor ou produto químico?",
+    "C05": "Os ouvidos estavam expostos a ruído sem a proteção necessária?",
+    "C06": "As mãos estavam próximas de pontos de corte, impacto, calor ou prensamento?",
+    "C07": "Os braços estavam expostos a contato, impacto, corte ou aprisionamento?",
+    "C08": "O tronco estava exposto a impacto, produto, calor ou outra fonte de perigo?",
+    "C09": "As pernas estavam expostas a impacto, corte, contato ou aprisionamento?",
+    "C10": "Os pés estavam expostos a queda de materiais, perfuração ou esmagamento?",
+    "C11": "A condição observada colocava todo o corpo na zona de perigo?",
+    "D01": "A ferramenta ou o equipamento escolhido era inadequado para a tarefa?",
+    "D02": "A ferramenta ou o equipamento estava sendo utilizado de forma incorreta?",
+    "E01": "Não existia procedimento ou orientação definida para executar a tarefa?",
+    "E02": "O procedimento existente não era adequado à atividade ou à condição real?",
+    "E03": "O colaborador desconhecia o procedimento aplicável à tarefa?",
+    "E04": "O procedimento era conhecido, mas não foi corretamente compreendido?",
+    "E05": "O procedimento aplicável era conhecido, mas não estava sendo seguido?",
+    "F01": "O local apresentava sujeira, resíduos ou materiais que comprometiam a segurança?",
+    "F02": "Materiais, ferramentas ou equipamentos estavam dispostos de forma desorganizada?",
+    "F03": "A organização ou limpeza do local estava diferente do padrão definido?",
+}
+
 
 def _pode_acessar(registro):
     if not registro:
@@ -58,15 +110,13 @@ def _categorias_com_itens(cursor):
             "id": linha["item_id"],
             "codigo": linha["item_codigo"],
             "descricao": linha["item_descricao"],
+            "ajuda": EXPLICACOES_ITENS.get(linha["item_codigo"], ""),
         })
     return categorias
 
 
-def _carregar_formulario(cursor):
-    centro_custos_id = session.get("centro_custos_id")
-    if session.get("perfil") == "administrador":
-        centro_custos_id = request.form.get("centro_custos_id", type=int)
-
+def _carregar_formulario(cursor, centro_custos_id=None):
+    centro_custos_id = centro_custos_id or session.get("centro_custos_id")
     if not centro_custos_id:
         raise ValueError("Informe o centro de custos da observação.")
 
@@ -89,6 +139,12 @@ def _carregar_formulario(cursor):
         raise ValueError("Informe o local observado.")
     if not setor_observado:
         raise ValueError("Informe o setor observado.")
+    cursor.execute(
+        "SELECT id FROM setores WHERE nome = %s LIMIT 1",
+        (setor_observado,),
+    )
+    if not cursor.fetchone():
+        raise ValueError("Selecione um setor cadastrado.")
     if area not in AREAS:
         raise ValueError("Selecione uma área de observação válida.")
     if not pessoas_observadas or pessoas_observadas < 1:
@@ -111,10 +167,6 @@ def _carregar_formulario(cursor):
         if quantidade:
             respostas.append((item_id, quantidade))
 
-    status = (request.form.get("status_destino") or "rascunho").strip()
-    if status not in {"rascunho", "concluida"}:
-        status = "rascunho"
-
     return {
         "centro_custos_id": centro_custos_id,
         "data_observacao": data_observacao,
@@ -135,7 +187,7 @@ def _carregar_formulario(cursor):
         "observacoes_gerais": (
             request.form.get("observacoes_gerais") or ""
         ).strip() or None,
-        "status": status,
+        "status": "concluida",
         "respostas": respostas,
     }
 
@@ -281,8 +333,20 @@ def register_observacao_comportamental_routes(blueprint):
         cursor = conn.cursor(dictionary=True)
         try:
             categorias = _categorias_com_itens(cursor)
-            cursor.execute("SELECT id, codigo, descricao FROM centros_custos WHERE ativo = 1 ORDER BY codigo")
-            centros_custos = cursor.fetchall()
+            cursor.execute("""
+                SELECT id, codigo, descricao
+                FROM centros_custos
+                WHERE id = %s
+                LIMIT 1
+            """, (session.get("centro_custos_id") or 0,))
+            centro_custo = cursor.fetchone()
+            cursor.execute("""
+                SELECT id, nome
+                FROM setores
+                WHERE ativo = 1
+                ORDER BY nome
+            """)
+            setores = cursor.fetchall()
 
             if request.method == "POST":
                 try:
@@ -318,7 +382,7 @@ def register_observacao_comportamental_routes(blueprint):
                     _registrar_historico(
                         cursor,
                         registro_id,
-                        "criada" if dados["status"] == "rascunho" else "criada_e_concluida",
+                        "criada_e_concluida",
                         "Observação comportamental registrada.",
                     )
                     conn.commit()
@@ -334,7 +398,8 @@ def register_observacao_comportamental_routes(blueprint):
             return render_template(
                 "form_observacao_comportamental.html",
                 categorias=categorias,
-                centros_custos=centros_custos,
+                centro_custo=centro_custo,
+                setores=setores,
                 areas=AREAS,
                 registro=None,
                 respostas={},
@@ -411,12 +476,27 @@ def register_observacao_comportamental_routes(blueprint):
             categorias = _categorias_com_itens(cursor)
             cursor.execute("SELECT item_id, quantidade FROM oc_respostas WHERE registro_id = %s", (registro_id,))
             respostas = {linha["item_id"]: linha["quantidade"] for linha in cursor.fetchall()}
-            cursor.execute("SELECT id, codigo, descricao FROM centros_custos WHERE ativo = 1 ORDER BY codigo")
-            centros_custos = cursor.fetchall()
+            cursor.execute("""
+                SELECT id, codigo, descricao
+                FROM centros_custos
+                WHERE id = %s
+                LIMIT 1
+            """, (registro["centro_custos_id"],))
+            centro_custo = cursor.fetchone()
+            cursor.execute("""
+                SELECT id, nome
+                FROM setores
+                WHERE ativo = 1 OR nome = %s
+                ORDER BY nome
+            """, (registro["setor_observado"],))
+            setores = cursor.fetchall()
 
             if request.method == "POST":
                 try:
-                    dados = _carregar_formulario(cursor)
+                    dados = _carregar_formulario(
+                        cursor,
+                        registro["centro_custos_id"],
+                    )
                     cursor.execute("""
                         UPDATE oc_registros SET
                             centro_custos_id=%s, data_observacao=%s, hora_observacao=%s,
@@ -452,7 +532,8 @@ def register_observacao_comportamental_routes(blueprint):
 
             return render_template(
                 "form_observacao_comportamental.html",
-                categorias=categorias, centros_custos=centros_custos,
+                categorias=categorias, centro_custo=centro_custo,
+                setores=setores,
                 areas=AREAS, registro=registro, respostas=respostas,
             )
         finally:
@@ -500,12 +581,12 @@ def register_observacao_comportamental_routes(blueprint):
                 flash("Observação não encontrada ou fora do seu centro de custos.", "danger")
                 return redirect(url_for("main.observacoes_comportamentais"))
             cursor.execute("""
-                UPDATE oc_registros SET status='rascunho', cancelado_em=NULL,
+                UPDATE oc_registros SET status='concluida', cancelado_em=NULL,
                     cancelado_por=NULL, justificativa_cancelamento=NULL WHERE id=%s
             """, (registro_id,))
-            _registrar_historico(cursor, registro_id, "reaberta", "Observação reaberta como rascunho.")
+            _registrar_historico(cursor, registro_id, "reaberta", "Observação reaberta.")
             conn.commit()
-            flash("Observação reaberta como rascunho.", "success")
+            flash("Observação reaberta com sucesso.", "success")
         finally:
             cursor.close()
             conn.close()

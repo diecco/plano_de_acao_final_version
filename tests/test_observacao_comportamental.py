@@ -54,6 +54,29 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         self.assertIn('request.args.get("observador_id", type=int)', source)
         self.assertIn('"marcacoes": "total_marcacoes"', source)
 
+    def test_registration_form_uses_inherited_scope_and_guided_items(self):
+        template = (
+            ROOT / "app" / "templates" / "form_observacao_comportamental.html"
+        ).read_text(encoding="utf-8")
+        source = (
+            ROOT / "app" / "views" / "observacao_comportamental.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("Registrar Observação Comportamental", template)
+        self.assertIn("Centro de custos não vinculado", template)
+        self.assertIn('name="setor_observado"', template)
+        self.assertIn("{% for setor in setores %}", template)
+        self.assertIn("item.ajuda", template)
+        self.assertIn("position:absolute; right:3.5rem", template)
+        self.assertIn("background-color:#f36c21", template)
+        self.assertIn('class="btn btn-laranja" type="submit">Salvar</button>', template)
+        self.assertNotIn("Salvar rascunho", template)
+        self.assertNotIn("Concluir</button>", template)
+        self.assertIn("EXPLICACOES_ITENS", source)
+        self.assertIn("FROM setores", source)
+        self.assertIn('session.get("centro_custos_id")', source)
+        self.assertIn('"status": "concluida"', source)
+
     def test_schema_contains_original_six_categories_and_history(self):
         migration = (
             ROOT / "docs" / "criar_modulo_observacao_comportamental.sql"
