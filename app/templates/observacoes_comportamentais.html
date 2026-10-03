@@ -1,45 +1,83 @@
 {% extends "layout.html" %}
 {% block titulo %}Observação Comportamental{% endblock %}
 {% block conteudo %}
+
+{% macro botoes_ordenacao(campo) %}
+<span class="btn-group btn-group-sm">
+    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+       href="{{ url_for('main.observacoes_comportamentais',
+           observador_id=filtros.get('observador_id', ''),
+           observador_busca=filtros.get('observador_busca', ''),
+           data_inicio=filtros.get('data_inicio', ''),
+           data_fim=filtros.get('data_fim', ''),
+           sort=campo, order='asc') }}">
+        <i class="bi bi-caret-up-fill"></i>
+    </a>
+    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+       href="{{ url_for('main.observacoes_comportamentais',
+           observador_id=filtros.get('observador_id', ''),
+           observador_busca=filtros.get('observador_busca', ''),
+           data_inicio=filtros.get('data_inicio', ''),
+           data_fim=filtros.get('data_fim', ''),
+           sort=campo, order='desc') }}">
+        <i class="bi bi-caret-down-fill"></i>
+    </a>
+</span>
+{% endmacro %}
+
 <div class="page-header">
-    <h2 class="page-title"><i class="bi bi-eye me-2"></i>Observações Comportamentais</h2>
+    <h2 class="page-title">
+        <i class="bi bi-eye me-2"></i>
+        Observações Comportamentais
+    </h2>
 </div>
 <hr>
 
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-body">
-        <form method="get" class="row g-3 align-items-end">
-            <div class="col-12 col-lg-4">
-                <label class="form-label">Busca</label>
-                <input type="search" name="busca" class="form-control" value="{{ filtros.busca }}"
-                       placeholder="Local, setor ou observador">
-            </div>
-            <div class="col-6 col-lg-2">
-                <label class="form-label">Data inicial</label>
-                <input type="date" name="data_inicio" class="form-control" value="{{ filtros.data_inicio }}">
-            </div>
-            <div class="col-6 col-lg-2">
-                <label class="form-label">Data final</label>
-                <input type="date" name="data_fim" class="form-control" value="{{ filtros.data_fim }}">
-            </div>
-            <div class="col-12 col-lg-2">
-                <label class="form-label">Situação</label>
-                <select name="status" class="form-select">
-                    <option value="">Todas</option>
-                    <option value="rascunho" {% if filtros.status == 'rascunho' %}selected{% endif %}>Rascunho</option>
-                    <option value="concluida" {% if filtros.status == 'concluida' %}selected{% endif %}>Concluída</option>
-                    <option value="cancelada" {% if filtros.status == 'cancelada' %}selected{% endif %}>Cancelada</option>
-                </select>
-            </div>
-            <div class="col-12 col-lg-2">
-                <div class="d-flex justify-content-end gap-2">
-                    <button class="btn btn-laranja" title="Filtrar"><i class="bi bi-funnel"></i></button>
-                    <a class="btn btn-cinza" href="{{ url_for('main.observacoes_comportamentais') }}" title="Limpar">
-                        <i class="bi bi-arrow-clockwise"></i>
-                    </a>
-                    <a class="btn btn-laranja" href="{{ url_for('main.nova_observacao_comportamental') }}">
-                        <i class="bi bi-plus-circle me-1"></i>Nova
-                    </a>
+        <form method="get" action="{{ url_for('main.observacoes_comportamentais') }}" id="formFiltrosOc">
+            <div class="bloco-filtros">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label for="observador_busca" class="form-label">Observador</label>
+                        <input type="text" class="form-control" id="observador_busca"
+                               name="observador_busca" list="listaObservadoresOc"
+                               autocomplete="off" value="{{ filtros.get('observador_busca', '') }}"
+                               placeholder="Digite o nome ou a matrícula">
+                        <input type="hidden" id="observador_id" name="observador_id"
+                               value="{{ filtros.get('observador_id', '') }}">
+                        <datalist id="listaObservadoresOc">
+                            {% for usuario in observadores %}
+                                <option value="{{ usuario.nome }}{% if usuario.matricula %} — {{ usuario.matricula }}{% endif %}"
+                                        data-id="{{ usuario.id }}"></option>
+                            {% endfor %}
+                        </datalist>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="data_inicio" class="form-label">Data inicial</label>
+                        <input type="date" name="data_inicio" id="data_inicio" class="form-control"
+                               value="{{ filtros.get('data_inicio', '') }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="data_fim" class="form-label">Data final</label>
+                        <input type="date" name="data_fim" id="data_fim" class="form-control"
+                               value="{{ filtros.get('data_fim', '') }}">
+                    </div>
+                    <div class="col-md-2">
+                        <div class="d-flex gap-2 justify-content-end flex-wrap">
+                            <button type="submit" class="btn btn-laranja" title="Filtrar">
+                                <i class="bi bi-funnel"></i>
+                            </button>
+                            <a href="{{ url_for('main.observacoes_comportamentais') }}"
+                               class="btn btn-cinza" title="Limpar">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </a>
+                            <a href="{{ url_for('main.nova_observacao_comportamental') }}"
+                               class="btn btn-laranja" title="Nova Observação Comportamental">
+                                <i class="bi bi-plus-circle"></i>
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </form>
@@ -49,50 +87,89 @@
 <div class="card shadow-sm border-0">
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead class="table-light"><tr>
-                    <th>Data</th><th>Local / setor</th><th>Área</th><th>Observador</th>
-                    <th class="text-center">Pessoas</th><th class="text-center">Marcações</th>
-                    <th class="text-center">Situação</th><th class="text-center">Ações</th>
-                </tr></thead>
-                <tbody>
-                {% for registro in registros %}
+            <table class="table table-bordered align-middle table-fixed">
+                <thead class="table-light">
                     <tr>
-                        <td>{{ registro.data_observacao.strftime('%d/%m/%Y') }}<br><small class="text-muted">{{ registro.hora_observacao }}</small></td>
-                        <td><strong>{{ registro.local_observado }}</strong><br><small class="text-muted">{{ registro.setor_observado }}</small></td>
-                        <td>{{ registro.area }}<br><small class="text-muted">CC {{ registro.centro_custos_codigo }}</small></td>
-                        <td>{{ registro.observador_nome }}</td>
-                        <td class="text-center">{{ registro.pessoas_observadas }}</td>
-                        <td class="text-center"><span class="badge rounded-pill text-bg-light">{{ registro.total_marcacoes }}</span></td>
-                        <td class="text-center">
-                            {% if registro.status == 'concluida' %}<span class="badge text-bg-success">Concluída</span>
-                            {% elif registro.status == 'cancelada' %}<span class="badge text-bg-secondary">Cancelada</span>
-                            {% else %}<span class="badge text-bg-warning">Rascunho</span>{% endif %}
-                        </td>
-                        <td class="text-center">
-                            <a class="btn-acao-icon" title="Visualizar"
-                               href="{{ url_for('main.detalhar_observacao_comportamental', registro_id=registro.id) }}">
-                                <i class="bi bi-eye"></i>
-                            </a>
-                        </td>
+                        <th style="width: 125px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Data</span>{{ botoes_ordenacao('data') }}</div></th>
+                        <th style="width: 260px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Local / setor</span>{{ botoes_ordenacao('local') }}</div></th>
+                        <th style="width: 190px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Área</span>{{ botoes_ordenacao('area') }}</div></th>
+                        <th style="width: 220px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Observador</span>{{ botoes_ordenacao('observador') }}</div></th>
+                        <th style="width: 115px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Pessoas</span>{{ botoes_ordenacao('pessoas') }}</div></th>
+                        <th style="width: 125px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Marcações</span>{{ botoes_ordenacao('marcacoes') }}</div></th>
+                        <th style="width: 125px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Situação</span>{{ botoes_ordenacao('status') }}</div></th>
+                        <th class="text-center" style="width: 85px;">Ações</th>
                     </tr>
-                {% else %}
-                    <tr><td colspan="8" class="text-center text-muted py-4">Nenhuma observação encontrada.</td></tr>
-                {% endfor %}
+                </thead>
+                <tbody>
+                    {% for registro in registros %}
+                        <tr>
+                            <td>{{ registro.data_observacao.strftime('%d/%m/%Y') }}<br><small class="text-muted">{{ registro.hora_observacao }}</small></td>
+                            <td><strong>{{ registro.local_observado }}</strong><br><small class="text-muted">{{ registro.setor_observado }}</small></td>
+                            <td>{{ registro.area }}<br><small class="text-muted">CC {{ registro.centro_custos_codigo }}</small></td>
+                            <td>{{ registro.observador_nome }}</td>
+                            <td class="text-center">{{ registro.pessoas_observadas }}</td>
+                            <td class="text-center"><span class="badge rounded-pill text-bg-light">{{ registro.total_marcacoes }}</span></td>
+                            <td class="text-center">
+                                {% if registro.status == 'concluida' %}<span class="badge text-bg-success">Concluída</span>
+                                {% elif registro.status == 'cancelada' %}<span class="badge text-bg-secondary">Cancelada</span>
+                                {% else %}<span class="badge text-bg-warning">Rascunho</span>{% endif %}
+                            </td>
+                            <td class="text-center">
+                                <a class="btn-acao-icon" title="Visualizar"
+                                   href="{{ url_for('main.detalhar_observacao_comportamental', registro_id=registro.id) }}">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="8" class="text-center text-muted py-4">Nenhuma observação encontrada.</td></tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
 
-<div class="d-flex justify-content-between align-items-center mt-3">
-    <span class="text-muted">{{ total }} registro(s) — página {{ pagina }} de {{ total_paginas }}</span>
-    <div class="btn-group">
-        <a class="btn btn-outline-secondary {% if pagina <= 1 %}disabled{% endif %}"
-           href="{{ url_for('main.observacoes_comportamentais', pagina=pagina-1, **filtros) }}">Anterior</a>
-        <span class="btn btn-laranja disabled">{{ pagina }}</span>
-        <a class="btn btn-outline-secondary {% if pagina >= total_paginas %}disabled{% endif %}"
-           href="{{ url_for('main.observacoes_comportamentais', pagina=pagina+1, **filtros) }}">Próxima</a>
+{% if total_paginas %}
+<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+    <div class="text-muted small">
+        Exibindo página {{ page }} de {{ total_paginas }} — {{ total_registros }} registro(s)
     </div>
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('main.observacoes_comportamentais', observador_id=filtros.get('observador_id', ''), observador_busca=filtros.get('observador_busca', ''), data_inicio=filtros.get('data_inicio', ''), data_fim=filtros.get('data_fim', ''), sort=filtros.get('sort', 'data'), order=filtros.get('order', 'desc'), page=page-1) }}">Anterior</a>
+            </li>
+            {% for p in range(1, total_paginas + 1) %}
+                {% if p == 1 or p == total_paginas or (p >= page - 2 and p <= page + 2) %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.observacoes_comportamentais', observador_id=filtros.get('observador_id', ''), observador_busca=filtros.get('observador_busca', ''), data_inicio=filtros.get('data_inicio', ''), data_fim=filtros.get('data_fim', ''), sort=filtros.get('sort', 'data'), order=filtros.get('order', 'desc'), page=p) }}">{{ p }}</a>
+                    </li>
+                {% elif p == page - 3 or p == page + 3 %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+            <li class="page-item {% if page >= total_paginas %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('main.observacoes_comportamentais', observador_id=filtros.get('observador_id', ''), observador_busca=filtros.get('observador_busca', ''), data_inicio=filtros.get('data_inicio', ''), data_fim=filtros.get('data_fim', ''), sort=filtros.get('sort', 'data'), order=filtros.get('order', 'desc'), page=page+1) }}">Próxima</a>
+            </li>
+        </ul>
+    </nav>
 </div>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const busca = document.getElementById('observador_busca');
+    const id = document.getElementById('observador_id');
+    const opcoes = Array.from(document.querySelectorAll('#listaObservadoresOc option'));
+
+    function sincronizarObservador() {
+        const selecionado = opcoes.find(opcao => opcao.value === busca.value);
+        id.value = selecionado ? selecionado.dataset.id : '';
+    }
+
+    busca.addEventListener('input', sincronizarObservador);
+    busca.addEventListener('change', sincronizarObservador);
+});
+</script>
 {% endblock %}

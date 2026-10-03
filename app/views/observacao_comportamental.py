@@ -13,7 +13,6 @@ AREAS = (
     "Oficina/Manutenção",
     "Operação",
 )
-STATUS_VALIDOS = {"rascunho", "concluida", "cancelada"}
 POR_PAGINA = 30
 
 
@@ -153,26 +152,45 @@ def register_observacao_comportamental_routes(blueprint):
     @login_required
     @module_required("acesso_observacao_comportamental")
     def observacoes_comportamentais():
-        busca = (request.args.get("busca") or "").strip()
-        status = (request.args.get("status") or "").strip()
+        observador_id = request.args.get("observador_id", type=int)
+        observador_busca = (
+            request.args.get("observador_busca") or ""
+        ).strip()
         data_inicio = (request.args.get("data_inicio") or "").strip()
         data_fim = (request.args.get("data_fim") or "").strip()
-        pagina = max(request.args.get("pagina", 1, type=int), 1)
+        sort = (request.args.get("sort") or "data").strip()
+        order = (request.args.get("order") or "desc").strip()
+        page = max(request.args.get("page", 1, type=int), 1)
+
+        colunas_validas = {
+            "id": "r.id",
+            "data": "r.data_observacao",
+            "local": "r.local_observado",
+            "area": "r.area",
+            "observador": "u.nome",
+            "pessoas": "r.pessoas_observadas",
+            "marcacoes": "total_marcacoes",
+            "status": "r.status",
+        }
+        if sort not in colunas_validas:
+            sort = "data"
+        if order not in {"asc", "desc"}:
+            order = "desc"
+        coluna_sort = colunas_validas[sort]
+        direcao = order.upper()
 
         condicoes = ["1 = 1"]
         parametros = []
         if session.get("perfil") != "administrador":
             condicoes.append("r.centro_custos_id = %s")
             parametros.append(session.get("centro_custos_id") or 0)
-        if busca:
-            termo = f"%{busca}%"
-            condicoes.append("(r.local_observado LIKE %s OR r.setor_observado LIKE %s OR u.nome LIKE %s)")
-            parametros.extend([termo, termo, termo])
-        if status in STATUS_VALIDOS:
-            condicoes.append("r.status = %s")
-            parametros.append(status)
-        else:
-            status = ""
+        if observador_id:
+            condicoes.append("r.observador_id = %s")
+            parametros.append(observador_id)
+        elif observador_busca:
+            termo = f"%{observador_busca}%"
+            condicoes.append("(u.nome LIKE %s OR u.matricula LIKE %s)")
+            parametros.extend([termo, termo])
         if data_inicio:
             condicoes.append("r.data_observacao >= %s")
             parametros.append(data_inicio)
@@ -191,6 +209,10 @@ def register_observacao_comportamental_routes(blueprint):
                 WHERE {onde}
             """, tuple(parametros))
             total = cursor.fetchone()["total"]
+            total_paginas = ceil(total / POR_PAGINA) if total else 0
+            if total_paginas and page > total_paginas:
+                page = total_paginas
+            offset = (page - 1) * POR_PAGINA
 
             cursor.execute(f"""
                 SELECT
@@ -208,10 +230,27 @@ def register_observacao_comportamental_routes(blueprint):
                 GROUP BY r.id, r.data_observacao, r.hora_observacao,
                          r.local_observado, r.setor_observado, r.area,
                          r.pessoas_observadas, r.status, u.nome, cc.codigo
-                ORDER BY r.data_observacao DESC, r.hora_observacao DESC, r.id DESC
+                ORDER BY {coluna_sort} {direcao}, r.id DESC
                 LIMIT %s OFFSET %s
-            """, tuple(parametros + [POR_PAGINA, (pagina - 1) * POR_PAGINA]))
+            """, tuple(parametros + [POR_PAGINA, offset]))
             registros = cursor.fetchall()
+
+            parametros_observadores = []
+            escopo_observadores = ""
+            if session.get("perfil") != "administrador":
+                escopo_observadores = "AND centro_custos_id = %s"
+                parametros_observadores.append(
+                    session.get("centro_custos_id") or 0
+                )
+            cursor.execute(f"""
+                SELECT id, nome, matricula
+                FROM usuarios
+                WHERE ativo = 1
+                  AND tem_acesso_sistema = 1
+                  {escopo_observadores}
+                ORDER BY nome
+            """, tuple(parametros_observadores))
+            observadores = cursor.fetchall()
         finally:
             cursor.close()
             conn.close()
@@ -219,10 +258,19 @@ def register_observacao_comportamental_routes(blueprint):
         return render_template(
             "observacoes_comportamentais.html",
             registros=registros,
-            filtros={"busca": busca, "status": status, "data_inicio": data_inicio, "data_fim": data_fim},
-            pagina=pagina,
-            total_paginas=max(ceil(total / POR_PAGINA), 1),
-            total=total,
+            observadores=observadores,
+            filtros={
+                "observador_id": observador_id or "",
+                "observador_busca": observador_busca,
+                "data_inicio": data_inicio,
+                "data_fim": data_fim,
+                "sort": sort,
+                "order": order,
+            },
+            page=page,
+            per_page=POR_PAGINA,
+            total_paginas=total_paginas,
+            total_registros=total,
         )
 
     @blueprint.route("/observacoes_comportamentais/nova", methods=["GET", "POST"])
