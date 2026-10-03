@@ -131,6 +131,26 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         self.assertIn("excluido_em DATETIME NULL", migration)
         self.assertIn("excluido_por INT NULL", migration)
 
+    def test_listing_expands_details_like_hs_without_n_plus_one_queries(self):
+        template = (
+            ROOT / "app" / "templates" / "observacoes_comportamentais.html"
+        ).read_text(encoding="utf-8")
+        source = (
+            ROOT / "app" / "views" / "observacao_comportamental.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('data-bs-target="#detalhes-oc-', template)
+        self.assertIn('class="collapse detalhe-oc-row"', template)
+        self.assertIn('data-bs-parent="#tabelaObservacoesOc"', template)
+        self.assertIn("Identificação", template)
+        self.assertIn("Realização", template)
+        self.assertIn("Comportamentos registrados", template)
+        self.assertIn("Abordagem e observações", template)
+        self.assertIn("Abrir registro completo", template)
+        self.assertIn("marcacoes_por_registro.get(registro.id, [])", template)
+        self.assertIn("WHERE resp.registro_id IN ({placeholders})", source)
+        self.assertIn("marcacoes_por_registro=marcacoes_por_registro", source)
+
     def test_registration_form_uses_inherited_scope_and_guided_items(self):
         template = (
             ROOT / "app" / "templates" / "form_observacao_comportamental.html"

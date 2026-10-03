@@ -15,6 +15,25 @@
         justify-content: center;
         width: 2.5rem;
     }
+    .detalhe-oc-row > td { padding: 0; }
+    .oc-detail-panel {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-left: 3px solid var(--cor-laranja, #f36c21);
+        border-radius: .5rem;
+        padding: 1rem;
+    }
+    .oc-detail-title {
+        color: var(--cor-laranja, #f36c21);
+        font-weight: 600;
+    }
+    .oc-detail-panel dt,
+    .oc-detail-panel dd { margin-bottom: .45rem; }
+    .oc-detail-table thead th {
+        background: var(--cor-laranja, #f36c21);
+        color: #fff;
+        vertical-align: middle;
+    }
 </style>
 
 {% macro botoes_ordenacao(campo) %}
@@ -115,7 +134,7 @@
                         <th class="text-center" style="width: 135px;">Ações</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="tabelaObservacoesOc">
                     {% for registro in registros %}
                         <tr>
                             <td>{{ registro.data_observacao.strftime('%d/%m/%Y') }}<br><small class="text-muted">{{ registro.hora_observacao }}</small></td>
@@ -131,10 +150,13 @@
                             </td>
                             <td class="text-center">
                                 <div class="d-flex justify-content-center gap-2">
-                                    <a class="btn-acao-icon" title="Ver detalhes"
-                                       href="{{ url_for('main.detalhar_observacao_comportamental', registro_id=registro.id) }}">
+                                    <button type="button" class="btn-acao-icon" title="Ver detalhes"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#detalhes-oc-{{ registro.id }}"
+                                            aria-expanded="false"
+                                            aria-controls="detalhes-oc-{{ registro.id }}">
                                         <i class="bi bi-eye"></i>
-                                    </a>
+                                    </button>
                                     <a class="btn-acao-icon" title="Editar"
                                        href="{{ url_for('main.editar_observacao_comportamental', registro_id=registro.id) }}">
                                         <i class="bi bi-pencil-square"></i>
@@ -145,6 +167,121 @@
                                             data-delete-url="{{ url_for('main.excluir_observacao_comportamental', registro_id=registro.id) }}">
                                         <i class="bi bi-trash"></i>
                                     </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="collapse detalhe-oc-row" id="detalhes-oc-{{ registro.id }}"
+                            data-bs-parent="#tabelaObservacoesOc">
+                            <td colspan="8" class="bg-light">
+                                <div class="p-3">
+                                    <div class="row g-3 mb-3">
+                                        <div class="col-12 col-lg-4">
+                                            <div class="oc-detail-panel h-100">
+                                                <h6 class="oc-detail-title">
+                                                    <i class="bi bi-info-circle me-2"></i>Identificação
+                                                </h6>
+                                                <dl class="row mb-0">
+                                                    <dt class="col-5">Data</dt>
+                                                    <dd class="col-7">{{ registro.data_observacao.strftime('%d/%m/%Y') }}</dd>
+                                                    <dt class="col-5">Hora</dt>
+                                                    <dd class="col-7">{{ registro.hora_observacao or '-' }}</dd>
+                                                    <dt class="col-5">Local</dt>
+                                                    <dd class="col-7">{{ registro.local_observado or '-' }}</dd>
+                                                    <dt class="col-5">Setor</dt>
+                                                    <dd class="col-7">{{ registro.setor_observado or '-' }}</dd>
+                                                    <dt class="col-5">Área</dt>
+                                                    <dd class="col-7">{{ registro.area or '-' }}</dd>
+                                                    <dt class="col-5">Atividade</dt>
+                                                    <dd class="col-7">{{ registro.atividade or '-' }}</dd>
+                                                </dl>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 col-lg-4">
+                                            <div class="oc-detail-panel h-100">
+                                                <h6 class="oc-detail-title">
+                                                    <i class="bi bi-person-check me-2"></i>Realização
+                                                </h6>
+                                                <dl class="row mb-0">
+                                                    <dt class="col-5">Observador</dt>
+                                                    <dd class="col-7">{{ registro.observador_nome or '-' }}</dd>
+                                                    <dt class="col-5">Matrícula</dt>
+                                                    <dd class="col-7">{{ registro.observador_matricula or '-' }}</dd>
+                                                    <dt class="col-5">Centro</dt>
+                                                    <dd class="col-7">
+                                                        {{ registro.centro_custos_codigo or '-' }}
+                                                        {% if registro.centro_custos_descricao %}<br><span class="text-muted small">{{ registro.centro_custos_descricao }}</span>{% endif %}
+                                                    </dd>
+                                                    <dt class="col-5">Pessoas</dt>
+                                                    <dd class="col-7">{{ registro.pessoas_observadas }}</dd>
+                                                </dl>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 col-lg-4">
+                                            <div class="oc-detail-panel h-100">
+                                                <h6 class="oc-detail-title">
+                                                    <i class="bi bi-clipboard-check me-2"></i>Resultado
+                                                </h6>
+                                                <dl class="row mb-0">
+                                                    <dt class="col-6">Marcações</dt>
+                                                    <dd class="col-6">{{ registro.total_marcacoes }}</dd>
+                                                    <dt class="col-6">Abordagem</dt>
+                                                    <dd class="col-6">{{ 'Sim' if registro.houve_abordagem else 'Não' }}</dd>
+                                                    <dt class="col-6">Correção imediata</dt>
+                                                    <dd class="col-6">{{ 'Sim' if registro.correcao_imediata else 'Não' }}</dd>
+                                                    <dt class="col-6">Situação</dt>
+                                                    <dd class="col-6">
+                                                        {% if registro.status == 'concluida' %}<span class="badge text-bg-success">Concluída</span>
+                                                        {% elif registro.status == 'cancelada' %}<span class="badge text-bg-secondary">Cancelada</span>
+                                                        {% else %}<span class="badge text-bg-warning">Rascunho</span>{% endif %}
+                                                    </dd>
+                                                </dl>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <h6 class="oc-detail-title mb-2">
+                                        <i class="bi bi-list-check me-2"></i>Comportamentos registrados
+                                    </h6>
+                                    <div class="table-responsive mb-3">
+                                        <table class="table table-sm table-bordered align-middle mb-0 oc-detail-table">
+                                            <thead><tr><th style="width:32%">Categoria</th><th>Item</th><th class="text-center" style="width:110px">Quantidade</th></tr></thead>
+                                            <tbody>
+                                                {% for item in marcacoes_por_registro.get(registro.id, []) %}
+                                                <tr>
+                                                    <td><span class="badge text-bg-light">{{ item.categoria_codigo }}</span> {{ item.categoria_nome }}</td>
+                                                    <td>{{ item.item_descricao }}</td>
+                                                    <td class="text-center fw-semibold">{{ item.quantidade }}</td>
+                                                </tr>
+                                                {% else %}
+                                                <tr><td colspan="3" class="text-center text-muted py-3">Nenhuma marcação registrada.</td></tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <div class="oc-detail-panel">
+                                        <h6 class="oc-detail-title">
+                                            <i class="bi bi-chat-left-text me-2"></i>Abordagem e observações
+                                        </h6>
+                                        <div class="row g-3">
+                                            <div class="col-12 col-lg-4"><strong class="d-block mb-1">Descrição da abordagem</strong>{{ registro.descricao_abordagem or 'Não informada.' }}</div>
+                                            <div class="col-12 col-lg-4"><strong class="d-block mb-1">Pontos positivos</strong>{{ registro.pontos_positivos or 'Não informados.' }}</div>
+                                            <div class="col-12 col-lg-4"><strong class="d-block mb-1">Observações gerais</strong>{{ registro.observacoes_gerais or 'Não informadas.' }}</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex justify-content-end gap-2 mt-3">
+                                        <a class="btn btn-cinza btn-sm"
+                                           href="{{ url_for('main.detalhar_observacao_comportamental', registro_id=registro.id) }}">
+                                            <i class="bi bi-box-arrow-up-right me-1"></i>Abrir registro completo
+                                        </a>
+                                        {% if registro.status != 'cancelada' %}
+                                        <a class="btn btn-laranja btn-sm"
+                                           href="{{ url_for('main.editar_observacao_comportamental', registro_id=registro.id) }}">
+                                            <i class="bi bi-pencil-square me-1"></i>Editar
+                                        </a>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </td>
                         </tr>

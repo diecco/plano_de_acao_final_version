@@ -272,22 +272,54 @@ def register_observacao_comportamental_routes(blueprint):
                 SELECT
                     r.id, r.data_observacao, r.hora_observacao,
                     r.local_observado, r.setor_observado, r.area,
-                    r.pessoas_observadas, r.status,
+                    r.atividade, r.pessoas_observadas, r.status,
+                    r.houve_abordagem, r.correcao_imediata,
+                    r.descricao_abordagem, r.pontos_positivos,
+                    r.observacoes_gerais,
                     u.nome AS observador_nome,
+                    u.matricula AS observador_matricula,
                     cc.codigo AS centro_custos_codigo,
-                    COALESCE(SUM(resp.quantidade), 0) AS total_marcacoes
+                    cc.descricao AS centro_custos_descricao,
+                    COALESCE(resp.total_marcacoes, 0) AS total_marcacoes
                 FROM oc_registros r
                 JOIN usuarios u ON u.id = r.observador_id
                 JOIN centros_custos cc ON cc.id = r.centro_custos_id
-                LEFT JOIN oc_respostas resp ON resp.registro_id = r.id
+                LEFT JOIN (
+                    SELECT registro_id, SUM(quantidade) AS total_marcacoes
+                    FROM oc_respostas
+                    GROUP BY registro_id
+                ) resp ON resp.registro_id = r.id
                 WHERE {onde}
-                GROUP BY r.id, r.data_observacao, r.hora_observacao,
-                         r.local_observado, r.setor_observado, r.area,
-                         r.pessoas_observadas, r.status, u.nome, cc.codigo
                 ORDER BY {coluna_sort} {direcao}, r.id DESC
                 LIMIT %s OFFSET %s
             """, tuple(parametros + [POR_PAGINA, offset]))
             registros = cursor.fetchall()
+
+            marcacoes_por_registro = {
+                registro["id"]: [] for registro in registros
+            }
+            if registros:
+                ids_registros = [registro["id"] for registro in registros]
+                placeholders = ", ".join(["%s"] * len(ids_registros))
+                cursor.execute(f"""
+                    SELECT
+                        resp.registro_id,
+                        c.codigo AS categoria_codigo,
+                        c.nome AS categoria_nome,
+                        i.codigo AS item_codigo,
+                        i.descricao AS item_descricao,
+                        resp.quantidade
+                    FROM oc_respostas resp
+                    JOIN oc_itens i ON i.id = resp.item_id
+                    JOIN oc_categorias c ON c.id = i.categoria_id
+                    WHERE resp.registro_id IN ({placeholders})
+                      AND resp.quantidade > 0
+                    ORDER BY resp.registro_id, c.ordem, i.ordem, i.id
+                """, tuple(ids_registros))
+                for marcacao in cursor.fetchall():
+                    marcacoes_por_registro[marcacao["registro_id"]].append(
+                        marcacao
+                    )
 
             parametros_observadores = []
             escopo_observadores = ""
@@ -312,6 +344,7 @@ def register_observacao_comportamental_routes(blueprint):
         return render_template(
             "observacoes_comportamentais.html",
             registros=registros,
+            marcacoes_por_registro=marcacoes_por_registro,
             observadores=observadores,
             filtros={
                 "observador_id": observador_id or "",
