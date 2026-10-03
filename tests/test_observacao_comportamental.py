@@ -106,6 +106,27 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         self.assertIn('request.args.get("observador_id", type=int)', source)
         self.assertIn('"marcacoes": "total_marcacoes"', source)
 
+    def test_listing_has_view_edit_and_logical_delete_actions(self):
+        template = (
+            ROOT / "app" / "templates" / "observacoes_comportamentais.html"
+        ).read_text(encoding="utf-8")
+        source = (
+            ROOT / "app" / "views" / "observacao_comportamental.py"
+        ).read_text(encoding="utf-8")
+        migration = (
+            ROOT / "docs" / "criar_modulo_observacao_comportamental.sql"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('title="Ver detalhes"', template)
+        self.assertIn('title="Editar"', template)
+        self.assertIn('title="Excluir"', template)
+        self.assertIn("main.excluir_observacao_comportamental", template)
+        self.assertIn("r.excluido_em IS NULL", source)
+        self.assertIn("SET excluido_em = NOW(), excluido_por = %s", source)
+        self.assertIn('"excluida"', source)
+        self.assertIn("excluido_em DATETIME NULL", migration)
+        self.assertIn("excluido_por INT NULL", migration)
+
     def test_registration_form_uses_inherited_scope_and_guided_items(self):
         template = (
             ROOT / "app" / "templates" / "form_observacao_comportamental.html"

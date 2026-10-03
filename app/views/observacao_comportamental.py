@@ -71,6 +71,8 @@ EXPLICACOES_ITENS = {
 def _pode_acessar(registro):
     if not registro:
         return False
+    if registro.get("excluido_em"):
+        return False
     if session.get("perfil") == "administrador":
         return True
     return (
@@ -231,7 +233,7 @@ def register_observacao_comportamental_routes(blueprint):
         coluna_sort = colunas_validas[sort]
         direcao = order.upper()
 
-        condicoes = ["1 = 1"]
+        condicoes = ["r.excluido_em IS NULL"]
         parametros = []
         if session.get("perfil") != "administrador":
             condicoes.append("r.centro_custos_id = %s")
@@ -539,6 +541,47 @@ def register_observacao_comportamental_routes(blueprint):
         finally:
             cursor.close()
             conn.close()
+
+    @blueprint.route("/observacoes_comportamentais/<int:registro_id>/excluir", methods=["POST"])
+    @login_required
+    @module_required("acesso_observacao_comportamental")
+    def excluir_observacao_comportamental(registro_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute(
+                "SELECT * FROM oc_registros WHERE id = %s",
+                (registro_id,),
+            )
+            registro = cursor.fetchone()
+            if not _pode_acessar(registro):
+                flash(
+                    "Observação não encontrada ou fora do seu centro de custos.",
+                    "danger",
+                )
+                return redirect(url_for("main.observacoes_comportamentais"))
+
+            cursor.execute("""
+                UPDATE oc_registros
+                SET excluido_em = NOW(), excluido_por = %s
+                WHERE id = %s AND excluido_em IS NULL
+            """, (session["usuario_id"], registro_id))
+            _registrar_historico(
+                cursor,
+                registro_id,
+                "excluida",
+                "Observação removida da listagem por exclusão lógica.",
+            )
+            conn.commit()
+            flash("Observação excluída com sucesso.", "success")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+
+        return redirect(url_for("main.observacoes_comportamentais"))
 
     @blueprint.route("/observacoes_comportamentais/<int:registro_id>/cancelar", methods=["POST"])
     @login_required

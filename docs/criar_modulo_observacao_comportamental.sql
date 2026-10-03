@@ -65,14 +65,19 @@ CREATE TABLE IF NOT EXISTS oc_registros (
     cancelado_em DATETIME NULL,
     cancelado_por INT NULL,
     justificativa_cancelamento VARCHAR(500) NULL,
+    excluido_em DATETIME NULL,
+    excluido_por INT NULL,
     KEY idx_oc_registros_escopo_data (centro_custos_id, data_observacao),
     KEY idx_oc_registros_observador (observador_id),
     KEY idx_oc_registros_status (status),
+    KEY idx_oc_registros_exclusao (excluido_em),
     CONSTRAINT fk_oc_registro_centro FOREIGN KEY (centro_custos_id)
         REFERENCES centros_custos (id),
     CONSTRAINT fk_oc_registro_observador FOREIGN KEY (observador_id)
         REFERENCES usuarios (id),
     CONSTRAINT fk_oc_registro_cancelado_por FOREIGN KEY (cancelado_por)
+        REFERENCES usuarios (id),
+    CONSTRAINT fk_oc_registro_excluido_por FOREIGN KEY (excluido_por)
         REFERENCES usuarios (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

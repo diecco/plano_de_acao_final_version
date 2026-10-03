@@ -97,7 +97,7 @@
                         <th style="width: 115px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Pessoas</span>{{ botoes_ordenacao('pessoas') }}</div></th>
                         <th style="width: 125px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Marcações</span>{{ botoes_ordenacao('marcacoes') }}</div></th>
                         <th style="width: 125px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Situação</span>{{ botoes_ordenacao('status') }}</div></th>
-                        <th class="text-center" style="width: 85px;">Ações</th>
+                        <th class="text-center" style="width: 135px;">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -115,10 +115,24 @@
                                 {% else %}<span class="badge text-bg-warning">Rascunho</span>{% endif %}
                             </td>
                             <td class="text-center">
-                                <a class="btn-acao-icon" title="Visualizar"
-                                   href="{{ url_for('main.detalhar_observacao_comportamental', registro_id=registro.id) }}">
-                                    <i class="bi bi-eye"></i>
-                                </a>
+                                <div class="d-flex justify-content-center gap-2">
+                                    <a class="btn-acao-icon" title="Ver detalhes"
+                                       href="{{ url_for('main.detalhar_observacao_comportamental', registro_id=registro.id) }}">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a class="btn-acao-icon" title="Editar"
+                                       href="{{ url_for('main.editar_observacao_comportamental', registro_id=registro.id) }}">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
+                                    <form method="post"
+                                          action="{{ url_for('main.excluir_observacao_comportamental', registro_id=registro.id) }}"
+                                          onsubmit="return confirm('Tem certeza que deseja excluir esta Observação Comportamental?');"
+                                          style="display:inline;">
+                                        <button type="submit" class="btn-acao-icon" title="Excluir">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     {% else %}
