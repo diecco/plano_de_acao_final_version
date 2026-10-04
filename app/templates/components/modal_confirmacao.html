@@ -1,0 +1,31 @@
+<div class="modal fade modal-confirmacao-sistema" id="modalConfirmacaoSistema" tabindex="-1"
+     aria-labelledby="modalConfirmacaoSistemaTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <div class="d-flex align-items-center gap-3">
+                    <span class="modal-confirmacao-icone" id="modalConfirmacaoSistemaIcone">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </span>
+                    <div>
+                        <h5 class="modal-title text-laranja mb-0" id="modalConfirmacaoSistemaTitulo">
+                            Confirmar ação
+                        </h5>
+                        <small class="text-muted d-none" id="modalConfirmacaoSistemaContexto"></small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p class="mb-2" id="modalConfirmacaoSistemaMensagem"></p>
+                <p class="text-muted small mb-0 d-none" id="modalConfirmacaoSistemaObservacao"></p>
+            </div>
+            <div class="modal-footer justify-content-between">
+                <button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Voltar</button>
+                <button type="button" class="btn btn-laranja" id="modalConfirmacaoSistemaConfirmar">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

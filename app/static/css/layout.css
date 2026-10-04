@@ -797,3 +797,20 @@ html.sidebar-collapsed .sidebar-module-toggle.active {
         font-size: 1.25rem;
     }
 }
+
+.modal-confirmacao-sistema .modal-header {
+    border-bottom: 2px solid var(--cor-laranja, #f36c21);
+}
+
+.modal-confirmacao-sistema .modal-confirmacao-icone {
+    align-items: center;
+    background: rgba(243, 108, 33, 0.12);
+    border-radius: 50%;
+    color: var(--cor-laranja, #f36c21);
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 1.25rem;
+    height: 2.5rem;
+    justify-content: center;
+    width: 2.5rem;
+}
