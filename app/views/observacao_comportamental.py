@@ -367,6 +367,48 @@ def register_observacao_comportamental_routes(blueprint):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         try:
+            next_recebido = (request.values.get("next") or "").strip()
+            next_url = (
+                next_recebido
+                if next_recebido.startswith("/")
+                and not next_recebido.startswith("//")
+                else url_for("main.observacoes_comportamentais")
+            )
+            agendamento_id = request.values.get("agendamento_id", type=int)
+            agendamento = None
+
+            if agendamento_id:
+                cursor.execute("""
+                    SELECT id, data_programada, status,
+                           registro_executado_id
+                    FROM agendamentos_ssma
+                    WHERE id = %s
+                      AND lider_id = %s
+                      AND pratica = 'observacao_comportamental'
+                    LIMIT 1
+                """, (agendamento_id, session.get("usuario_id")))
+                agendamento = cursor.fetchone()
+
+                if not agendamento:
+                    flash(
+                        "Agendamento de Observação Comportamental não "
+                        "encontrado ou fora do seu acesso.",
+                        "warning",
+                    )
+                    return redirect(next_url)
+                if agendamento.get("registro_executado_id"):
+                    flash(
+                        "Esta Observação Comportamental agendada já foi executada.",
+                        "warning",
+                    )
+                    return redirect(next_url)
+                if agendamento.get("status") == "cancelada":
+                    flash(
+                        "Não é possível executar um agendamento cancelado.",
+                        "warning",
+                    )
+                    return redirect(next_url)
+
             categorias = _categorias_com_itens(cursor)
             cursor.execute("""
                 SELECT id, codigo, descricao
@@ -420,8 +462,52 @@ def register_observacao_comportamental_routes(blueprint):
                         "criada_e_concluida",
                         "Observação comportamental registrada.",
                     )
+
+                    if agendamento:
+                        data_programada = agendamento.get("data_programada")
+                        if (
+                            data_programada
+                            and hasattr(data_programada, "date")
+                            and not isinstance(data_programada, date)
+                        ):
+                            data_programada = data_programada.date()
+
+                        data_execucao = date.fromisoformat(
+                            dados["data_observacao"]
+                        )
+                        status_agendamento = (
+                            "concluida_com_atraso"
+                            if data_programada
+                            and data_execucao > data_programada
+                            else "concluida"
+                        )
+                        cursor.execute("""
+                            UPDATE agendamentos_ssma
+                            SET registro_executado_id = %s,
+                                status = %s,
+                                houve_alteracao = 0,
+                                justificativa_alteracao = NULL,
+                                atualizado_em = NOW()
+                            WHERE id = %s
+                              AND lider_id = %s
+                              AND pratica = 'observacao_comportamental'
+                              AND registro_executado_id IS NULL
+                              AND status <> 'cancelada'
+                        """, (
+                            registro_id,
+                            status_agendamento,
+                            agendamento_id,
+                            session.get("usuario_id"),
+                        ))
+                        if cursor.rowcount != 1:
+                            raise ValueError(
+                                "O agendamento não pôde ser vinculado à execução."
+                            )
+
                     conn.commit()
                     flash("Observação comportamental salva com sucesso.", "success")
+                    if agendamento:
+                        return redirect(next_url)
                     return redirect(url_for("main.observacoes_comportamentais"))
                 except ValueError as exc:
                     conn.rollback()
@@ -438,6 +524,13 @@ def register_observacao_comportamental_routes(blueprint):
                 areas=AREAS,
                 registro=None,
                 respostas={},
+                agendamento_id=agendamento_id,
+                next_url=next_url,
+                data_observacao_padrao=(
+                    agendamento.get("data_programada")
+                    if agendamento
+                    else None
+                ),
             )
         finally:
             cursor.close()

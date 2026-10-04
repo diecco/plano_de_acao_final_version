@@ -196,6 +196,28 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         self.assertIn('session.get("centro_custos_id")', source)
         self.assertIn('"status": "concluida"', source)
 
+    def test_ssma_schedule_supports_behavioral_observation(self):
+        agenda = (
+            ROOT / "app" / "views" / "agenda_ssma.py"
+        ).read_text(encoding="utf-8")
+        observation = (
+            ROOT / "app" / "views" / "observacao_comportamental.py"
+        ).read_text(encoding="utf-8")
+        schedule_form = (
+            ROOT / "app" / "templates" / "novo_agendamento_ssma.html"
+        ).read_text(encoding="utf-8")
+        calendar = (
+            ROOT / "app" / "templates" / "meu_calendario_ssma.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('"observacao_comportamental"', agenda)
+        self.assertIn('"main.nova_observacao_comportamental"', agenda)
+        self.assertIn('value="observacao_comportamental"', schedule_form)
+        self.assertIn("Observação Comportamental", calendar)
+        self.assertIn("agendamento_id = request.values.get", observation)
+        self.assertIn("SET registro_executado_id = %s", observation)
+        self.assertIn("status_agendamento", observation)
+
     def test_schema_contains_original_six_categories_and_history(self):
         migration = (
             ROOT / "docs" / "criar_modulo_observacao_comportamental.sql"

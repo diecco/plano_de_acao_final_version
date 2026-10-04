@@ -25,13 +25,17 @@
 </div>
 <hr>
 <form method="post" id="formOc">
+    {% if agendamento_id|default(None) %}
+        <input type="hidden" name="agendamento_id" value="{{ agendamento_id }}">
+        <input type="hidden" name="next" value="{{ next_url }}">
+    {% endif %}
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-header bg-white fw-semibold"><i class="bi bi-geo-alt me-2 text-warning"></i>Dados da observação</div>
         <div class="card-body"><div class="row g-3">
             <div class="col-12 col-lg-4"><label class="form-label">Centro de custos</label>
                 <input class="form-control" value="{% if centro_custo %}{{ centro_custo.codigo }} — {{ centro_custo.descricao }}{% else %}Centro de custos não vinculado{% endif %}" disabled>
             </div>
-            <div class="col-6 col-lg-2"><label class="form-label">Data</label><input type="date" class="form-control" name="data_observacao" required value="{{ registro.data_observacao.isoformat() if registro else '' }}"></div>
+            <div class="col-6 col-lg-2"><label class="form-label">Data</label><input type="date" class="form-control" name="data_observacao" required value="{% if registro %}{{ registro.data_observacao.isoformat() }}{% elif data_observacao_padrao|default(None) %}{{ data_observacao_padrao.strftime('%Y-%m-%d') }}{% endif %}"></div>
             <div class="col-6 col-lg-2"><label class="form-label">Hora</label><input type="time" class="form-control" name="hora_observacao" required value="{{ registro.hora_observacao if registro else '' }}"></div>
             <div class="col-12 col-lg-4"><label class="form-label">Local observado</label><input class="form-control" name="local_observado" maxlength="180" required value="{{ registro.local_observado if registro else '' }}"></div>
             <div class="col-12 col-lg-4"><label class="form-label">Setor observado</label><select class="form-select" name="setor_observado" required><option value="">Selecione</option>{% for setor in setores %}<option value="{{ setor.nome }}" {% if registro and registro.setor_observado == setor.nome %}selected{% endif %}>{{ setor.nome }}</option>{% endfor %}</select></div>
@@ -80,7 +84,7 @@
     </div></div></div>
 
     <div class="d-flex justify-content-between gap-2 mb-4">
-        <a class="btn btn-cinza" href="{{ url_for('main.observacoes_comportamentais') }}">Voltar</a>
+        <a class="btn btn-cinza" href="{{ next_url|default(url_for('main.observacoes_comportamentais'), true) }}">Voltar</a>
         <button class="btn btn-laranja" type="submit">Salvar</button>
     </div>
 </form>

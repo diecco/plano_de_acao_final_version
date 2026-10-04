@@ -138,11 +138,12 @@
                                         {% if dia.no_mes %}
                                             <div class="lista-agendamentos-dia">
                                                 {% for item in dia.agendamentos %}
-                                                    <div class="card-agendamento-dia {% if item.pratica == 'hora_seguranca' %}card-agendamento-hs{% elif item.pratica == 'auditoria_padrao' %}card-agendamento-ap{% elif item.pratica == 'ifs' %}card-agendamento-ifs{% endif %}">
+                                                    <div class="card-agendamento-dia {% if item.pratica == 'hora_seguranca' %}card-agendamento-hs{% elif item.pratica == 'auditoria_padrao' %}card-agendamento-ap{% elif item.pratica in ['ifs', 'observacao_comportamental'] %}card-agendamento-ifs{% endif %}">
                                                         <div class="card-agendamento-titulo">
                                                             {% if item.pratica == 'hora_seguranca' %}Hora de Segurança
                                                             {% elif item.pratica == 'auditoria_padrao' %}Auditoria de Padrão
                                                             {% elif item.pratica == 'ifs' %}IFS
+                                                            {% elif item.pratica == 'observacao_comportamental' %}Observação Comportamental
                                                             {% else %}{{ item.pratica }}{% endif %}
                                                         </div>
 
@@ -244,6 +245,7 @@
                                 <option value="hora_seguranca">Hora de Segurança</option>
                                 <option value="auditoria_padrao">Auditoria de Padrão</option>
                                 <option value="ifs">IFS — Inspeção de Frente de Serviço</option>
+                                <option value="observacao_comportamental">Observação Comportamental</option>
                             </select>
                         </div>
 
