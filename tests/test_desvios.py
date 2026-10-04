@@ -29,6 +29,7 @@ class DesviosTests(unittest.TestCase):
             "main.buffer_desvios",
             "main.detalhar_desvio",
             "main.direcionar_desvio",
+            "main.analisar_desvio_ia",
         ):
             self.assertIn(endpoint, endpoints)
 
@@ -39,10 +40,20 @@ class DesviosTests(unittest.TestCase):
         template = (ROOT / "app" / "templates" / "novo_desvio.html").read_text(
             encoding="utf-8"
         )
-        self.assertIn('potencial = "A" if critico == "1"', source)
-        self.assertIn("Potencial A — Crítico", template)
-        self.assertIn("Potencial B — Grave", template)
-        self.assertIn("Potencial C — Leve", template)
+        self.assertIn("def _calcular_probabilidade", source)
+        self.assertIn("def _calcular_risco", source)
+        self.assertIn("A — Crítica", template)
+        self.assertIn("B — Moderada", template)
+        self.assertIn("C — Leve", template)
+
+    def test_ai_analysis_is_optional_and_auditable(self):
+        source = (ROOT / "app" / "views" / "desvios.py").read_text(encoding="utf-8")
+        service = (ROOT / "app" / "services" / "groq_desvios.py").read_text(encoding="utf-8")
+        migration = (ROOT / "docs" / "evoluir_matriz_risco_desvios.sql").read_text(encoding="utf-8")
+        self.assertIn("GROQ_API_KEY", service)
+        self.assertIn("json_schema", service)
+        self.assertIn("ia_utilizada", source)
+        self.assertIn("ia_justificativa", migration)
 
     def test_buffer_only_contains_records_without_action(self):
         source = (ROOT / "app" / "views" / "desvios.py").read_text(

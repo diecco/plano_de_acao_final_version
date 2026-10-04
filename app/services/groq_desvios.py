@@ -1,0 +1,133 @@
+import json
+import os
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+
+
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+DEFAULT_MODEL = "openai/gpt-oss-20b"
+
+
+class AnaliseIAError(RuntimeError):
+    pass
+
+
+def _texto(valor, limite):
+    return " ".join(str(valor or "").split())[:limite]
+
+
+def _validar_resposta(resultado):
+    if not isinstance(resultado, dict):
+        raise AnaliseIAError("A IA devolveu uma resposta inválida.")
+
+    estado = resultado.get("estado")
+    if estado not in {"concluida", "precisa_complementacao"}:
+        raise AnaliseIAError("A IA não informou o estado da análise.")
+
+    perguntas = resultado.get("perguntas") or []
+    if not isinstance(perguntas, list):
+        perguntas = []
+    resultado["perguntas"] = [
+        _texto(pergunta, 300) for pergunta in perguntas[:4] if _texto(pergunta, 300)
+    ]
+
+    if estado == "concluida":
+        if resultado.get("severidade_sugerida") not in {"A", "B", "C"}:
+            raise AnaliseIAError("A IA não retornou uma severidade válida.")
+        if resultado.get("probabilidade_sugerida") not in {"baixa", "media", "alta"}:
+            raise AnaliseIAError("A IA não retornou uma probabilidade válida.")
+        for campo in ("exposicao_sugerida", "controles_sugeridos", "ocorrencia_sugerida"):
+            if resultado.get(campo) not in {"baixa", "media", "alta"}:
+                raise AnaliseIAError("A IA não retornou os fatores da probabilidade.")
+        resultado["redacao_sugerida"] = _texto(resultado.get("redacao_sugerida"), 4000)
+        resultado["justificativa"] = _texto(resultado.get("justificativa"), 1200)
+        if not resultado["redacao_sugerida"] or not resultado["justificativa"]:
+            raise AnaliseIAError("A sugestão da IA veio incompleta.")
+        try:
+            resultado["confianca"] = max(0, min(100, int(resultado.get("confianca", 0))))
+        except (TypeError, ValueError):
+            resultado["confianca"] = 0
+    return resultado
+
+
+def analisar_desvio(dados):
+    api_key = os.environ.get("GROQ_API_KEY", "").strip()
+    if not api_key:
+        raise AnaliseIAError("A análise por IA ainda não foi configurada.")
+
+    modelo = os.environ.get("GROQ_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
+    contexto = {
+        "tipo": _texto(dados.get("tipo"), 30),
+        "categoria": _texto(dados.get("categoria"), 120),
+        "setor": _texto(dados.get("setor"), 120),
+        "descricao": _texto(dados.get("descricao"), 4000),
+        "respostas_complementares": dados.get("respostas_complementares") or [],
+    }
+    sistema = """
+Você auxilia um profissional de SSMA a registrar relatos de desvios. Não tome a
+decisão final e não invente fatos. Melhore a redação em português do Brasil de
+forma objetiva, preservando integralmente o sentido do relato. Avalie a
+consequência máxima razoavelmente plausível: A para fatalidade, incapacidade
+permanente, múltiplas vítimas ou perda catastrófica; B para lesão com
+afastamento, fratura, internação, incapacidade temporária relevante ou dano
+significativo; C para primeiros socorros, sem afastamento ou dano leve.
+Considere exposição baixa/rara, média/ocasional ou alta/frequente; controles
+baixos significam adequados, médios significam parciais e altos significam
+ausentes; e possibilidade de ocorrência baixa/improvável, média/possível ou
+alta/provável. Calcule a probabilidade consolidada pela média dos três fatores:
+até 1,5 baixa, até 2,3 média, acima disso alta. Se faltarem fatos capazes de
+alterar a classificação, não classifique: retorne até quatro perguntas curtas,
+objetivas e diretamente relevantes. Nunca solicite nome, matrícula, e-mail ou
+outro dado pessoal. Retorne somente JSON válido.
+""".strip()
+    schema = {
+        "type": "object",
+        "properties": {
+            "estado": {"type": "string", "enum": ["concluida", "precisa_complementacao"]},
+            "redacao_sugerida": {"type": "string"},
+            "severidade_sugerida": {"type": "string", "enum": ["A", "B", "C"]},
+            "probabilidade_sugerida": {"type": "string", "enum": ["baixa", "media", "alta"]},
+            "exposicao_sugerida": {"type": "string", "enum": ["baixa", "media", "alta"]},
+            "controles_sugeridos": {"type": "string", "enum": ["baixa", "media", "alta"]},
+            "ocorrencia_sugerida": {"type": "string", "enum": ["baixa", "media", "alta"]},
+            "justificativa": {"type": "string"},
+            "confianca": {"type": "integer", "minimum": 0, "maximum": 100},
+            "perguntas": {"type": "array", "maxItems": 4, "items": {"type": "string"}},
+        },
+        "required": ["estado", "redacao_sugerida", "severidade_sugerida", "probabilidade_sugerida", "exposicao_sugerida", "controles_sugeridos", "ocorrencia_sugerida", "justificativa", "confianca", "perguntas"],
+        "additionalProperties": False,
+    }
+    payload = {
+        "model": modelo,
+        "temperature": 0.1,
+        "max_completion_tokens": 900,
+        "messages": [
+            {"role": "system", "content": sistema},
+            {"role": "user", "content": json.dumps(contexto, ensure_ascii=False)},
+        ],
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {"name": "analise_desvio", "strict": True, "schema": schema},
+        },
+    }
+    requisicao = Request(
+        GROQ_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urlopen(requisicao, timeout=20) as resposta:
+            bruto = json.loads(resposta.read().decode("utf-8"))
+        conteudo = bruto["choices"][0]["message"]["content"]
+        resultado = _validar_resposta(json.loads(conteudo))
+        resultado["modelo"] = bruto.get("model") or modelo
+        return resultado
+    except HTTPError as exc:
+        if exc.code == 429:
+            raise AnaliseIAError("O limite gratuito da IA foi atingido. Tente novamente mais tarde.") from exc
+        raise AnaliseIAError("Não foi possível concluir a análise por IA.") from exc
+    except (URLError, TimeoutError) as exc:
+        raise AnaliseIAError("O serviço de IA está temporariamente indisponível.") from exc
+    except (KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise AnaliseIAError("A IA devolveu uma resposta que não pôde ser validada.") from exc

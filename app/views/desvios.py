@@ -3,7 +3,9 @@ from datetime import date
 from math import ceil
 
 from flask import (
+    current_app,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -11,8 +13,10 @@ from flask import (
     session,
     url_for,
 )
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from app.decorators import login_required, module_required
+from app.services.groq_desvios import AnaliseIAError, analisar_desvio
 from app.upload_security import UploadService, UploadValidationError
 from app.utils.db import get_db_connection
 
@@ -88,7 +92,52 @@ def _diretorio(desvio_id):
     return os.path.join("app", "static", "desvios", str(desvio_id))
 
 
+VALORES_MATRIZ = {"baixa": 1, "media": 2, "alta": 3}
+
+
+def _calcular_probabilidade(exposicao, controles, ocorrencia):
+    valores = (exposicao, controles, ocorrencia)
+    if any(valor not in VALORES_MATRIZ for valor in valores):
+        raise ValueError("Preencha os três critérios de probabilidade.")
+    media = sum(VALORES_MATRIZ[valor] for valor in valores) / 3
+    if media <= 1.5:
+        return "baixa"
+    if media <= 2.3:
+        return "media"
+    return "alta"
+
+
+def _calcular_risco(severidade, probabilidade):
+    matriz = {
+        "A": {"baixa": "medio", "media": "alto", "alta": "alto"},
+        "B": {"baixa": "baixo", "media": "medio", "alta": "alto"},
+        "C": {"baixa": "baixo", "media": "medio", "alta": "medio"},
+    }
+    try:
+        return matriz[severidade][probabilidade]
+    except KeyError as exc:
+        raise ValueError("Classificação de risco inválida.") from exc
+
+
 def register_desvios_routes(blueprint):
+    @blueprint.route("/desvios/analisar-ia", methods=["POST"])
+    @login_required
+    @module_required("acesso_desvios")
+    def analisar_desvio_ia():
+        dados = request.get_json(silent=True) or {}
+        if len((dados.get("descricao") or "").strip()) < 10:
+            return jsonify({"erro": "Descreva o desvio com um pouco mais de detalhes."}), 400
+        try:
+            resultado = analisar_desvio(dados)
+            if resultado.get("estado") == "concluida":
+                resultado["descricao_original"] = (dados.get("descricao") or "")[:4000]
+                resultado["token"] = URLSafeTimedSerializer(
+                    current_app.secret_key, salt="analise-desvio-ia"
+                ).dumps(resultado)
+            return jsonify(resultado)
+        except AnaliseIAError as exc:
+            return jsonify({"erro": str(exc)}), 503
+
     @blueprint.route("/desvios")
     @login_required
     @module_required("acesso_desvios")
@@ -142,7 +191,8 @@ def register_desvios_routes(blueprint):
             cursor.execute(
                 f"""
                 SELECT d.id, d.data_ocorrencia, d.hora_ocorrencia, d.tipo,
-                       d.descricao, d.potencial, d.status, d.acao_id,
+                       d.descricao, d.potencial, d.probabilidade,
+                       d.nivel_risco, d.status, d.acao_id,
                        relator.nome AS relator_nome, s.nome AS setor_nome,
                        cat.nome AS categoria_nome
                 {base}
@@ -208,15 +258,17 @@ def register_desvios_routes(blueprint):
                 hora_ocorrencia = (request.form.get("hora_ocorrencia") or "").strip()
                 tipo = (request.form.get("tipo") or "").strip().lower()
                 descricao = (request.form.get("descricao") or "").strip()
-                critico = request.form.get("matriz_critico")
-                grave = request.form.get("matriz_grave")
+                severidade = (request.form.get("severidade") or "").strip().upper()
+                exposicao = (request.form.get("matriz_exposicao") or "").strip()
+                controles = (request.form.get("matriz_controles") or "").strip()
+                ocorrencia = (request.form.get("matriz_ocorrencia") or "").strip()
 
                 try:
                     date.fromisoformat(data_ocorrencia)
                     if tipo not in {"condicao", "comportamento"}:
                         raise ValueError("Selecione o tipo do desvio.")
-                    if critico not in {"0", "1"} or grave not in {"0", "1"}:
-                        raise ValueError("Responda às perguntas da matriz de severidade.")
+                    if severidade not in {"A", "B", "C"}:
+                        raise ValueError("Selecione a severidade da consequência.")
                     if not all((relator_id, setor_id, categoria_id, hora_ocorrencia, descricao)):
                         raise ValueError("Preencha todos os campos obrigatórios.")
                     cursor.execute(
@@ -236,21 +288,45 @@ def register_desvios_routes(blueprint):
                     if not cursor.fetchone():
                         raise ValueError("Selecione uma categoria válida.")
 
-                    potencial = "A" if critico == "1" else ("B" if grave == "1" else "C")
+                    probabilidade = _calcular_probabilidade(exposicao, controles, ocorrencia)
+                    nivel_risco = _calcular_risco(severidade, probabilidade)
+                    analise_ia = None
+                    token_ia = (request.form.get("ia_token") or "").strip()
+                    if token_ia:
+                        try:
+                            analise_ia = URLSafeTimedSerializer(
+                                current_app.secret_key, salt="analise-desvio-ia"
+                            ).loads(token_ia, max_age=7200)
+                        except (BadSignature, SignatureExpired) as exc:
+                            raise ValueError("A sugestão da IA expirou ou é inválida. Analise novamente.") from exc
+                    ia_utilizada = bool(analise_ia)
                     cursor.execute(
                         """
                         INSERT INTO desvios (
                             centro_custos_id, relator_id, registrado_por,
                             setor_id, categoria_id, data_ocorrencia,
                             hora_ocorrencia, tipo, descricao, matriz_critico,
-                            matriz_grave, potencial
-                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                            matriz_grave, matriz_exposicao, matriz_controles,
+                            matriz_ocorrencia, potencial, probabilidade, nivel_risco,
+                            ia_utilizada, ia_modelo, ia_descricao_original,
+                            ia_descricao_sugerida, ia_severidade_sugerida,
+                            ia_probabilidade_sugerida, ia_justificativa, ia_confianca
+                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         """,
                         (
                             centro_id, relator_id, session.get("usuario_id"),
                             setor_id, categoria_id, data_ocorrencia,
-                            hora_ocorrencia, tipo, descricao, int(critico),
-                            int(grave), potencial,
+                            hora_ocorrencia, tipo, descricao,
+                            int(severidade == "A"), int(severidade == "B"),
+                            exposicao, controles, ocorrencia, severidade,
+                            probabilidade, nivel_risco, int(ia_utilizada),
+                            (analise_ia or {}).get("modelo"),
+                            (analise_ia or {}).get("descricao_original"),
+                            (analise_ia or {}).get("redacao_sugerida"),
+                            (analise_ia or {}).get("severidade_sugerida"),
+                            (analise_ia or {}).get("probabilidade_sugerida"),
+                            (analise_ia or {}).get("justificativa"),
+                            (analise_ia or {}).get("confianca"),
                         ),
                     )
                     desvio_id = cursor.lastrowid
@@ -283,7 +359,8 @@ def register_desvios_routes(blueprint):
                         cursor,
                         desvio_id,
                         "cadastrado",
-                        f"Desvio cadastrado com potencial {potencial}.",
+                        f"Desvio cadastrado com severidade {severidade}, "
+                        f"probabilidade {probabilidade} e risco {nivel_risco}.",
                     )
                     conn.commit()
                     flash("Desvio cadastrado e enviado ao buffer.", "success")
@@ -316,7 +393,8 @@ def register_desvios_routes(blueprint):
             cursor.execute(
                 f"""
                 SELECT d.id, d.data_ocorrencia, d.hora_ocorrencia,
-                       d.descricao, d.potencial, d.tipo,
+                       d.descricao, d.potencial, d.probabilidade,
+                       d.nivel_risco, d.tipo,
                        r.nome AS relator_nome, s.nome AS setor_nome,
                        c.nome AS categoria_nome
                 FROM desvios d

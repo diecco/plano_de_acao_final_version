@@ -18,10 +18,10 @@
 </div></form></div></div>
 {% if pode_direcionar %}<div class="d-flex justify-content-end mb-3"><a class="btn btn-outline-warning" href="{{ url_for('main.buffer_desvios') }}"><i class="bi bi-inbox me-1"></i>Buffer de desvios</a></div>{% endif %}
 <div class="card shadow-sm border-0"><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr class="table-warning">
-  <th>ID {{ ordem('id') }}</th><th>Data {{ ordem('data') }}</th><th>Relator {{ ordem('relator') }}</th><th>Setor {{ ordem('setor') }}</th><th>Categoria {{ ordem('categoria') }}</th><th>Potencial {{ ordem('potencial') }}</th><th>Situação {{ ordem('status') }}</th><th class="text-center">Ações</th>
+  <th>ID {{ ordem('id') }}</th><th>Data {{ ordem('data') }}</th><th>Relator {{ ordem('relator') }}</th><th>Setor {{ ordem('setor') }}</th><th>Categoria {{ ordem('categoria') }}</th><th>Classificação {{ ordem('potencial') }}</th><th>Situação {{ ordem('status') }}</th><th class="text-center">Ações</th>
 </tr></thead><tbody>{% for item in registros %}<tr>
   <td>#{{ item.id }}</td><td>{{ item.data_ocorrencia.strftime('%d/%m/%Y') }}<br><small>{{ item.hora_ocorrencia }}</small></td><td>{{ item.relator_nome }}</td><td>{{ item.setor_nome }}</td><td>{{ item.categoria_nome }}</td>
-  <td><span class="badge {% if item.potencial == 'A' %}bg-danger{% elif item.potencial == 'B' %}bg-warning text-dark{% else %}bg-success{% endif %} fs-6">{{ item.potencial }}</span></td>
+  <td><span class="badge {% if item.potencial == 'A' %}bg-danger{% elif item.potencial == 'B' %}bg-warning text-dark{% else %}bg-success{% endif %}">Severidade {{ item.potencial }}</span>{% if item.nivel_risco %}<br><span class="badge mt-1 {% if item.nivel_risco == 'alto' %}bg-danger{% elif item.nivel_risco == 'medio' %}bg-warning text-dark{% else %}bg-success{% endif %}">Risco {{ item.nivel_risco|capitalize }}</span>{% endif %}</td>
   <td>{% if item.status == 'aguardando_direcionamento' %}<span class="badge bg-secondary">Aguardando direcionamento</span>{% else %}<span class="badge bg-primary">Em tratamento</span>{% endif %}</td>
   <td class="text-center"><a class="btn btn-sm btn-outline-secondary" title="Ver detalhes" href="{{ url_for('main.detalhar_desvio', desvio_id=item.id) }}"><i class="bi bi-eye"></i></a></td>
 </tr>{% else %}<tr><td colspan="8" class="text-center text-muted py-4">Nenhum desvio encontrado.</td></tr>{% endfor %}</tbody></table></div></div></div>
