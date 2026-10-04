@@ -105,6 +105,12 @@ def register_usuarios_routes(blueprint):
             acesso_observacao_comportamental = (
                 1 if request.form.get('acesso_observacao_comportamental') else 0
             )
+            acesso_desvios = 1 if request.form.get('acesso_desvios') else 0
+            pode_direcionar_desvios = (
+                1 if request.form.get('pode_direcionar_desvios') else 0
+            )
+            if pode_direcionar_desvios:
+                acesso_desvios = 1
 
             if not nome:
                 flash('Informe o nome do funcionário.', 'danger')
@@ -216,6 +222,8 @@ def register_usuarios_routes(blueprint):
                 acesso_acr = 0
                 acesso_recrutamento = 0
                 acesso_observacao_comportamental = 0
+                acesso_desvios = 0
+                pode_direcionar_desvios = 0
 
                 responsavel_revisao_padrao = 0
                 pode_criar_agendamento_ssma = 0
@@ -334,7 +342,9 @@ def register_usuarios_routes(blueprint):
                         acesso_detectores_gas,
                         acesso_acr,
                         acesso_recrutamento,
-                        acesso_observacao_comportamental
+                        acesso_observacao_comportamental,
+                        acesso_desvios,
+                        pode_direcionar_desvios
                     )
                     VALUES (
                         %s,
@@ -347,6 +357,8 @@ def register_usuarios_routes(blueprint):
                         %s,
                         %s,
                         1,
+                        %s,
+                        %s,
                         %s,
                         %s,
                         %s,
@@ -393,7 +405,9 @@ def register_usuarios_routes(blueprint):
                     acesso_detectores_gas,
                     acesso_acr,
                     acesso_recrutamento,
-                    acesso_observacao_comportamental
+                    acesso_observacao_comportamental,
+                    acesso_desvios,
+                    pode_direcionar_desvios
                 ))
 
                 usuario_id = cursor.lastrowid
@@ -789,6 +803,12 @@ def register_usuarios_routes(blueprint):
             acesso_observacao_comportamental = (
                 1 if request.form.get('acesso_observacao_comportamental') else 0
             )
+            acesso_desvios = 1 if request.form.get('acesso_desvios') else 0
+            pode_direcionar_desvios = (
+                1 if request.form.get('pode_direcionar_desvios') else 0
+            )
+            if pode_direcionar_desvios:
+                acesso_desvios = 1
 
             if not nome:
                 flash(
@@ -960,6 +980,8 @@ def register_usuarios_routes(blueprint):
                 acesso_acr = 0
                 acesso_recrutamento = 0
                 acesso_observacao_comportamental = 0
+                acesso_desvios = 0
+                pode_direcionar_desvios = 0
 
                 responsavel_revisao_padrao = 0
                 pode_criar_agendamento_ssma = 0
@@ -1076,6 +1098,8 @@ def register_usuarios_routes(blueprint):
                             acesso_acr = %s,
                             acesso_recrutamento = %s,
                             acesso_observacao_comportamental = %s,
+                            acesso_desvios = %s,
+                            pode_direcionar_desvios = %s,
                             senha_hash = %s
                         WHERE id = %s
                     """, (
@@ -1106,6 +1130,8 @@ def register_usuarios_routes(blueprint):
                         acesso_acr,
                         acesso_recrutamento,
                         acesso_observacao_comportamental,
+                        acesso_desvios,
+                        pode_direcionar_desvios,
                         hash_senha,
                         id
                     ))
@@ -1139,7 +1165,9 @@ def register_usuarios_routes(blueprint):
                             acesso_detectores_gas = %s,
                             acesso_acr = %s,
                             acesso_recrutamento = %s,
-                            acesso_observacao_comportamental = %s
+                            acesso_observacao_comportamental = %s,
+                            acesso_desvios = %s,
+                            pode_direcionar_desvios = %s
                         WHERE id = %s
                     """, (
                         nome,
@@ -1169,6 +1197,8 @@ def register_usuarios_routes(blueprint):
                         acesso_acr,
                         acesso_recrutamento,
                         acesso_observacao_comportamental,
+                        acesso_desvios,
+                        pode_direcionar_desvios,
                         id
                     ))
 
@@ -1498,6 +1528,12 @@ def register_usuarios_routes(blueprint):
             acesso_observacao_comportamental = (
                 1 if request.form.get('acesso_observacao_comportamental') else 0
             )
+            acesso_desvios = 1 if request.form.get('acesso_desvios') else 0
+            pode_direcionar_desvios = (
+                1 if request.form.get('pode_direcionar_desvios') else 0
+            )
+            if pode_direcionar_desvios:
+                acesso_desvios = 1
 
             cursor.execute("""
                 UPDATE usuarios
@@ -1513,7 +1549,9 @@ def register_usuarios_routes(blueprint):
                     acesso_detectores_gas = %s,
                     acesso_acr = %s,
                     acesso_recrutamento = %s,
-                    acesso_observacao_comportamental = %s
+                    acesso_observacao_comportamental = %s,
+                    acesso_desvios = %s,
+                    pode_direcionar_desvios = %s
                 WHERE id = %s
             """, (
                 perfil,
@@ -1529,6 +1567,8 @@ def register_usuarios_routes(blueprint):
                 acesso_acr,
                 acesso_recrutamento,
                 acesso_observacao_comportamental,
+                acesso_desvios,
+                pode_direcionar_desvios,
                 id
             ))
 

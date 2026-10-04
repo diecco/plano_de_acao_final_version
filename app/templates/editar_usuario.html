@@ -357,6 +357,29 @@
 
                 <div class="col-md-3">
                     <div class="form-check">
+                        <input class="form-check-input" type="checkbox"
+                               id="acesso_desvios" name="acesso_desvios" value="1"
+                               {% if usuario.acesso_desvios %}checked{% endif %}>
+                        <label class="form-check-label" for="acesso_desvios">
+                            Relatos de Desvio
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox"
+                               id="pode_direcionar_desvios"
+                               name="pode_direcionar_desvios" value="1"
+                               {% if usuario.pode_direcionar_desvios %}checked{% endif %}>
+                        <label class="form-check-label" for="pode_direcionar_desvios">
+                            Gerenciar buffer de desvios
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-check">
                         <input class="form-check-input"
                                type="checkbox"
                                id="acesso_ssma"

@@ -14,6 +14,7 @@ DIRETORIOS_PERSISTENTES = (
     "pcpm_ressarcimentos",
     "recrutamento_curriculos",
     "comunicados",
+    "desvios",
 )
 
 

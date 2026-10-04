@@ -9,6 +9,7 @@ from app.views.autenticacao import register_autenticacao_routes
 from app.views.centros_custos import register_centros_custos_routes
 from app.views.cargos import register_cargos_routes
 from app.views.detectores_gas import register_detectores_gas_routes
+from app.views.desvios import register_desvios_routes
 from app.views.funcoes import register_funcoes_routes
 from app.views.horas_seguranca import register_horas_seguranca_routes
 from app.views.ifs import register_ifs_routes
@@ -45,6 +46,7 @@ register_auditoria_padrao_routes(main_routes)
 register_autenticacao_routes(main_routes)
 register_centros_custos_routes(main_routes)
 register_detectores_gas_routes(main_routes)
+register_desvios_routes(main_routes)
 register_superintendencias_routes(main_routes)
 register_origens_routes(main_routes)
 register_observacao_comportamental_routes(main_routes)

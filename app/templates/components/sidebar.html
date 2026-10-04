@@ -79,7 +79,7 @@
             </section>
         {% endif %}
 
-        {% if session.get('acesso_ssma') or session.get('acesso_observacao_comportamental') or session.get('pode_ser_lider_ssma') or is_admin %}
+        {% if session.get('acesso_ssma') or session.get('acesso_observacao_comportamental') or session.get('acesso_desvios') or session.get('pode_ser_lider_ssma') or is_admin %}
             {% set endpoints_ssma = [
                 'main.listar_hs',
                 'main.analise_critica_hs',
@@ -93,6 +93,10 @@
                 'main.nova_observacao_comportamental',
                 'main.detalhar_observacao_comportamental',
                 'main.editar_observacao_comportamental',
+                'main.listar_desvios',
+                'main.novo_desvio',
+                'main.buffer_desvios',
+                'main.detalhar_desvio',
                 'main.meu_calendario_ssma',
                 'main.executar_agendamento_ssma'
             ] %}
@@ -122,6 +126,12 @@
                         <a href="{{ url_for('main.observacoes_comportamentais') }}"
                            class="sidebar-link {% if request.endpoint in ['main.observacoes_comportamentais', 'main.nova_observacao_comportamental', 'main.detalhar_observacao_comportamental', 'main.editar_observacao_comportamental'] %}active{% endif %}">
                             <i class="bi bi-eye"></i><span>Observação Comportamental</span>
+                        </a>
+                    {% endif %}
+                    {% if session.get('acesso_desvios') or is_admin %}
+                        <a href="{{ url_for('main.listar_desvios') }}"
+                           class="sidebar-link {% if request.endpoint in ['main.listar_desvios', 'main.novo_desvio', 'main.buffer_desvios', 'main.detalhar_desvio'] %}active{% endif %}">
+                            <i class="bi bi-exclamation-diamond"></i><span>Relatos de Desvio</span>
                         </a>
                     {% endif %}
                     {% if session.get('acesso_ssma') or is_admin %}
