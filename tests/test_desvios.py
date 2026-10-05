@@ -1,5 +1,9 @@
 import unittest
+import importlib.util
+from io import BytesIO
 from pathlib import Path
+from urllib.error import HTTPError
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,6 +58,38 @@ class DesviosTests(unittest.TestCase):
         self.assertIn("json_schema", service)
         self.assertIn("ia_utilizada", source)
         self.assertIn("ia_justificativa", migration)
+
+    def test_groq_authentication_error_is_identified_and_logged(self):
+        caminho = ROOT / "app" / "services" / "groq_desvios.py"
+        spec = importlib.util.spec_from_file_location("groq_desvios_teste", caminho)
+        modulo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(modulo)
+
+        resposta = BytesIO(
+            b'{"error":{"message":"Invalid API Key","type":"invalid_request_error","code":"invalid_api_key"}}'
+        )
+        erro = HTTPError(
+            "https://api.groq.com/openai/v1/chat/completions",
+            401,
+            "Unauthorized",
+            {"x-request-id": "req-teste"},
+            resposta,
+        )
+        with patch.dict("os.environ", {"GROQ_API_KEY": "segredo-teste"}), patch.object(
+            modulo, "urlopen", side_effect=erro
+        ), self.assertLogs(modulo.__name__, level="ERROR") as logs:
+            with self.assertRaisesRegex(
+                modulo.AnaliseIAError, "credencial da IA foi recusada"
+            ):
+                modulo.analisar_desvio(
+                    {"descricao": "Farol do equipamento queimado."}
+                )
+
+        registro = " ".join(logs.output)
+        self.assertIn("status=401", registro)
+        self.assertIn("codigo=invalid_api_key", registro)
+        self.assertIn("request_id=req-teste", registro)
+        self.assertNotIn("segredo-teste", registro)
 
     def test_buffer_only_contains_records_without_action(self):
         source = (ROOT / "app" / "views" / "desvios.py").read_text(
