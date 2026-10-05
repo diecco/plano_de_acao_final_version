@@ -121,6 +121,59 @@ class DesviosTests(unittest.TestCase):
                     {"descricao": "Farol do equipamento queimado."}
                 )
 
+    def test_groq_retries_with_json_object_when_strict_generation_fails(self):
+        caminho = ROOT / "app" / "services" / "groq_desvios.py"
+        spec = importlib.util.spec_from_file_location("groq_desvios_fallback_teste", caminho)
+        modulo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(modulo)
+
+        erro = HTTPError(
+            modulo.GROQ_URL,
+            400,
+            "Bad Request",
+            {},
+            BytesIO(b'{"error":{"code":"json_validate_failed","message":"invalid"}}'),
+        )
+        resultado_ia = {
+            "estado": "concluida",
+            "redacao_sugerida": "Farol dianteiro inoperante durante atividade noturna.",
+            "severidade_sugerida": "B",
+            "probabilidade_sugerida": "media",
+            "exposicao_sugerida": "media",
+            "controles_sugeridos": "media",
+            "ocorrencia_sugerida": "media",
+            "justificativa": "A visibilidade reduzida pode provocar acidente.",
+            "confianca": 80,
+            "perguntas": [],
+        }
+        resposta = BytesIO(
+            json.dumps(
+                {
+                    "model": modulo.DEFAULT_MODEL,
+                    "choices": [{"message": {"content": json.dumps(resultado_ia)}}],
+                }
+            ).encode("utf-8")
+        )
+        requisicoes = []
+
+        def responder(requisicao, timeout):
+            requisicoes.append(json.loads(requisicao.data.decode("utf-8")))
+            if len(requisicoes) == 1:
+                raise erro
+            return resposta
+
+        with patch.dict("os.environ", {"GROQ_API_KEY": "segredo-teste"}), patch.object(
+            modulo, "urlopen", side_effect=responder
+        ), self.assertLogs(modulo.__name__, level="WARNING"):
+            resultado = modulo.analisar_desvio(
+                {"descricao": "Farol do equipamento queimado."}
+            )
+
+        self.assertEqual(resultado["severidade_sugerida"], "B")
+        self.assertEqual(len(requisicoes), 2)
+        self.assertEqual(requisicoes[0]["response_format"]["type"], "json_schema")
+        self.assertEqual(requisicoes[1]["response_format"], {"type": "json_object"})
+
     def test_buffer_only_contains_records_without_action(self):
         source = (ROOT / "app" / "views" / "desvios.py").read_text(
             encoding="utf-8"

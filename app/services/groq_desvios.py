@@ -38,6 +38,30 @@ def _texto(valor, limite):
     return " ".join(str(valor or "").split())[:limite]
 
 
+def _montar_requisicao(api_key, payload):
+    return Request(
+        GROQ_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            # Evita que a camada de proteção da API trate a chamada como um
+            # cliente genérico do urllib antes de encaminhá-la ao Groq.
+            "User-Agent": "TrackPlan/1.0 (Groq API client)",
+        },
+        method="POST",
+    )
+
+
+def _ler_resultado(resposta, modelo):
+    bruto = json.loads(resposta.read().decode("utf-8"))
+    conteudo = bruto["choices"][0]["message"]["content"]
+    resultado = _validar_resposta(json.loads(conteudo))
+    resultado["modelo"] = bruto.get("model") or modelo
+    return resultado
+
+
 def _validar_resposta(resultado):
     if not isinstance(resultado, dict):
         raise AnaliseIAError("A IA devolveu uma resposta inválida.")
@@ -134,26 +158,10 @@ confiança com zero. Retorne somente JSON válido.
             "json_schema": {"name": "analise_desvio", "strict": True, "schema": schema},
         },
     }
-    requisicao = Request(
-        GROQ_URL,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            # Evita que a camada de proteção da API trate a chamada como um
-            # cliente genérico do urllib antes de encaminhá-la ao Groq.
-            "User-Agent": "TrackPlan/1.0 (Groq API client)",
-        },
-        method="POST",
-    )
+    requisicao = _montar_requisicao(api_key, payload)
     try:
         with urlopen(requisicao, timeout=20) as resposta:
-            bruto = json.loads(resposta.read().decode("utf-8"))
-        conteudo = bruto["choices"][0]["message"]["content"]
-        resultado = _validar_resposta(json.loads(conteudo))
-        resultado["modelo"] = bruto.get("model") or modelo
-        return resultado
+            return _ler_resultado(resposta, modelo)
     except HTTPError as exc:
         codigo, mensagem, request_id = _detalhes_erro_http(exc)
         LOGGER.error(
@@ -163,6 +171,31 @@ confiança com zero. Retorne somente JSON válido.
             request_id or "nao_informado",
             mensagem or "nao_informada",
         )
+        if exc.code == 400 and codigo == "json_validate_failed":
+            LOGGER.warning(
+                "Groq recusou a saída estruturada; repetindo com JSON simples e validação local."
+            )
+            payload_fallback = dict(payload)
+            payload_fallback["response_format"] = {"type": "json_object"}
+            try:
+                with urlopen(
+                    _montar_requisicao(api_key, payload_fallback), timeout=20
+                ) as resposta:
+                    return _ler_resultado(resposta, modelo)
+            except HTTPError as fallback_exc:
+                codigo, mensagem, request_id = _detalhes_erro_http(fallback_exc)
+                LOGGER.error(
+                    "Falha HTTP no fallback da API Groq: status=%s codigo=%s request_id=%s mensagem=%s",
+                    fallback_exc.code,
+                    codigo or "nao_informado",
+                    request_id or "nao_informado",
+                    mensagem or "nao_informada",
+                )
+                exc = fallback_exc
+            except (KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError) as fallback_exc:
+                raise AnaliseIAError(
+                    "A IA devolveu uma resposta que não pôde ser validada."
+                ) from fallback_exc
         if exc.code == 429:
             raise AnaliseIAError("O limite gratuito da IA foi atingido. Tente novamente mais tarde.") from exc
         if exc.code == 401:
