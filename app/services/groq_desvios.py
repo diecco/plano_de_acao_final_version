@@ -135,7 +135,14 @@ outro dado pessoal. Retorne somente JSON válido.
     requisicao = Request(
         GROQ_URL,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            # Evita que a camada de proteção da API trate a chamada como um
+            # cliente genérico do urllib antes de encaminhá-la ao Groq.
+            "User-Agent": "TrackPlan/1.0 (Groq API client)",
+        },
         method="POST",
     )
     try:
@@ -156,9 +163,13 @@ outro dado pessoal. Retorne somente JSON válido.
         )
         if exc.code == 429:
             raise AnaliseIAError("O limite gratuito da IA foi atingido. Tente novamente mais tarde.") from exc
-        if exc.code in {401, 403}:
+        if exc.code == 401:
             raise AnaliseIAError(
                 "A credencial da IA foi recusada. Verifique a configuração no Render."
+            ) from exc
+        if exc.code == 403:
+            raise AnaliseIAError(
+                "A chamada à IA foi bloqueada antes de chegar ao modelo. Tente novamente; se persistir, consulte o log técnico do Render."
             ) from exc
         if exc.code == 404:
             raise AnaliseIAError(

@@ -91,6 +91,31 @@ class DesviosTests(unittest.TestCase):
         self.assertIn("request_id=req-teste", registro)
         self.assertNotIn("segredo-teste", registro)
 
+    def test_groq_request_identifies_client_and_distinguishes_http_403(self):
+        caminho = ROOT / "app" / "services" / "groq_desvios.py"
+        spec = importlib.util.spec_from_file_location("groq_desvios_headers_teste", caminho)
+        modulo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(modulo)
+
+        def bloquear(requisicao, timeout):
+            self.assertEqual(requisicao.get_header("Accept"), "application/json")
+            self.assertEqual(
+                requisicao.get_header("User-agent"),
+                "TrackPlan/1.0 (Groq API client)",
+            )
+            self.assertEqual(timeout, 20)
+            raise HTTPError(requisicao.full_url, 403, "Forbidden", {}, BytesIO(b""))
+
+        with patch.dict("os.environ", {"GROQ_API_KEY": "segredo-teste"}), patch.object(
+            modulo, "urlopen", side_effect=bloquear
+        ), self.assertLogs(modulo.__name__, level="ERROR"):
+            with self.assertRaisesRegex(
+                modulo.AnaliseIAError, "bloqueada antes de chegar ao modelo"
+            ):
+                modulo.analisar_desvio(
+                    {"descricao": "Farol do equipamento queimado."}
+                )
+
     def test_buffer_only_contains_records_without_action(self):
         source = (ROOT / "app" / "views" / "desvios.py").read_text(
             encoding="utf-8"
