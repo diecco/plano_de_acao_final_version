@@ -100,18 +100,20 @@ alta/provável. Calcule a probabilidade consolidada pela média dos três fatore
 até 1,5 baixa, até 2,3 média, acima disso alta. Se faltarem fatos capazes de
 alterar a classificação, não classifique: retorne até quatro perguntas curtas,
 objetivas e diretamente relevantes. Nunca solicite nome, matrícula, e-mail ou
-outro dado pessoal. Retorne somente JSON válido.
+outro dado pessoal. Quando o estado for precisa_complementacao, preencha os
+campos de classificação e os textos ainda não definidos com string vazia e a
+confiança com zero. Retorne somente JSON válido.
 """.strip()
     schema = {
         "type": "object",
         "properties": {
             "estado": {"type": "string", "enum": ["concluida", "precisa_complementacao"]},
             "redacao_sugerida": {"type": "string"},
-            "severidade_sugerida": {"type": "string", "enum": ["A", "B", "C"]},
-            "probabilidade_sugerida": {"type": "string", "enum": ["baixa", "media", "alta"]},
-            "exposicao_sugerida": {"type": "string", "enum": ["baixa", "media", "alta"]},
-            "controles_sugeridos": {"type": "string", "enum": ["baixa", "media", "alta"]},
-            "ocorrencia_sugerida": {"type": "string", "enum": ["baixa", "media", "alta"]},
+            "severidade_sugerida": {"type": "string", "enum": ["", "A", "B", "C"]},
+            "probabilidade_sugerida": {"type": "string", "enum": ["", "baixa", "media", "alta"]},
+            "exposicao_sugerida": {"type": "string", "enum": ["", "baixa", "media", "alta"]},
+            "controles_sugeridos": {"type": "string", "enum": ["", "baixa", "media", "alta"]},
+            "ocorrencia_sugerida": {"type": "string", "enum": ["", "baixa", "media", "alta"]},
             "justificativa": {"type": "string"},
             "confianca": {"type": "integer", "minimum": 0, "maximum": 100},
             "perguntas": {"type": "array", "maxItems": 4, "items": {"type": "string"}},

@@ -1,5 +1,6 @@
 import unittest
 import importlib.util
+import json
 from io import BytesIO
 from pathlib import Path
 from urllib.error import HTTPError
@@ -103,6 +104,10 @@ class DesviosTests(unittest.TestCase):
                 requisicao.get_header("User-agent"),
                 "TrackPlan/1.0 (Groq API client)",
             )
+            payload = json.loads(requisicao.data.decode("utf-8"))
+            propriedades = payload["response_format"]["json_schema"]["schema"]["properties"]
+            self.assertIn("", propriedades["severidade_sugerida"]["enum"])
+            self.assertIn("", propriedades["probabilidade_sugerida"]["enum"])
             self.assertEqual(timeout, 20)
             raise HTTPError(requisicao.full_url, 403, "Forbidden", {}, BytesIO(b""))
 
