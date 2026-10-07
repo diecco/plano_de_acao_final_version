@@ -54,10 +54,39 @@ def _montar_requisicao(api_key, payload):
     )
 
 
+def _extrair_json(conteudo):
+    """Extrai o primeiro objeto JSON válido, mesmo quando vier cercado por texto."""
+    if not isinstance(conteudo, str):
+        raise AnaliseIAError("A IA devolveu uma resposta inválida.")
+
+    texto = conteudo.strip()
+    if texto.startswith("```"):
+        linhas = texto.splitlines()
+        if linhas and linhas[0].strip().lower() in {"```", "```json"}:
+            linhas = linhas[1:]
+        if linhas and linhas[-1].strip() == "```":
+            linhas = linhas[:-1]
+        texto = "\n".join(linhas).strip()
+
+    try:
+        return json.loads(texto)
+    except json.JSONDecodeError:
+        decodificador = json.JSONDecoder()
+        for indice, caractere in enumerate(texto):
+            if caractere != "{":
+                continue
+            try:
+                resultado, _ = decodificador.raw_decode(texto[indice:])
+                return resultado
+            except json.JSONDecodeError:
+                continue
+    raise AnaliseIAError("A IA devolveu uma resposta que não pôde ser validada.")
+
+
 def _ler_resultado(resposta, modelo):
     bruto = json.loads(resposta.read().decode("utf-8"))
     conteudo = bruto["choices"][0]["message"]["content"]
-    resultado = _validar_resposta(json.loads(conteudo))
+    resultado = _validar_resposta(_extrair_json(conteudo))
     resultado["modelo"] = bruto.get("model") or modelo
     return resultado
 
@@ -173,10 +202,22 @@ confiança com zero. Retorne somente JSON válido.
         )
         if exc.code == 400 and codigo == "json_validate_failed":
             LOGGER.warning(
-                "Groq recusou a saída estruturada; repetindo com JSON simples e validação local."
+                "Groq recusou a saída estruturada; repetindo sem response_format e com validação local."
             )
             payload_fallback = dict(payload)
-            payload_fallback["response_format"] = {"type": "json_object"}
+            payload_fallback.pop("response_format", None)
+            payload_fallback["messages"] = [
+                *payload["messages"],
+                {
+                    "role": "system",
+                    "content": (
+                        "A tentativa anterior falhou na serialização. Responda apenas com um "
+                        "único objeto JSON, sem markdown, comentários ou texto antes/depois. "
+                        "Use exatamente as chaves exigidas e valores compatíveis com as "
+                        "instruções anteriores."
+                    ),
+                },
+            ]
             try:
                 with urlopen(
                     _montar_requisicao(api_key, payload_fallback), timeout=20

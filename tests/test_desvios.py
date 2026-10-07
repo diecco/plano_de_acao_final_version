@@ -121,7 +121,7 @@ class DesviosTests(unittest.TestCase):
                     {"descricao": "Farol do equipamento queimado."}
                 )
 
-    def test_groq_retries_with_json_object_when_strict_generation_fails(self):
+    def test_groq_retries_without_response_format_when_strict_generation_fails(self):
         caminho = ROOT / "app" / "services" / "groq_desvios.py"
         spec = importlib.util.spec_from_file_location("groq_desvios_fallback_teste", caminho)
         modulo = importlib.util.module_from_spec(spec)
@@ -150,7 +150,15 @@ class DesviosTests(unittest.TestCase):
             json.dumps(
                 {
                     "model": modulo.DEFAULT_MODEL,
-                    "choices": [{"message": {"content": json.dumps(resultado_ia)}}],
+                    "choices": [
+                        {
+                            "message": {
+                                "content": "Resultado da análise:\n```json\n"
+                                + json.dumps(resultado_ia)
+                                + "\n```"
+                            }
+                        }
+                    ],
                 }
             ).encode("utf-8")
         )
@@ -172,7 +180,8 @@ class DesviosTests(unittest.TestCase):
         self.assertEqual(resultado["severidade_sugerida"], "B")
         self.assertEqual(len(requisicoes), 2)
         self.assertEqual(requisicoes[0]["response_format"]["type"], "json_schema")
-        self.assertEqual(requisicoes[1]["response_format"], {"type": "json_object"})
+        self.assertNotIn("response_format", requisicoes[1])
+        self.assertIn("sem markdown", requisicoes[1]["messages"][-1]["content"])
 
     def test_buffer_only_contains_records_without_action(self):
         source = (ROOT / "app" / "views" / "desvios.py").read_text(
