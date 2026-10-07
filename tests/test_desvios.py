@@ -31,6 +31,8 @@ class DesviosTests(unittest.TestCase):
         for endpoint in (
             "main.listar_desvios",
             "main.novo_desvio",
+            "main.editar_desvio",
+            "main.excluir_desvio",
             "main.buffer_desvios",
             "main.detalhar_desvio",
             "main.direcionar_desvio",
@@ -190,6 +192,25 @@ class DesviosTests(unittest.TestCase):
         self.assertIn("d.acao_id IS NULL", source)
         self.assertIn("INSERT INTO acoes", source)
         self.assertIn("status = 'em_tratamento'", source)
+
+    def test_listing_has_requested_columns_and_logical_delete(self):
+        source = (ROOT / "app" / "views" / "desvios.py").read_text(
+            encoding="utf-8"
+        )
+        template = (ROOT / "app" / "templates" / "desvios.html").read_text(
+            encoding="utf-8"
+        )
+        sidebar = (
+            ROOT / "app" / "templates" / "components" / "sidebar.html"
+        ).read_text(encoding="utf-8")
+        for coluna in ("ID", "Data", "Relator", "Classificação", "Categoria", "Descrição"):
+            self.assertIn(coluna, template)
+        self.assertIn('id="relatorFiltroBusca"', template)
+        self.assertIn("main.editar_desvio", template)
+        self.assertIn("main.excluir_desvio", template)
+        self.assertNotIn("Buffer de desvios</a></div>", template)
+        self.assertIn("SET excluido_em = NOW(), excluido_por = %s", source)
+        self.assertIn("session.get('pode_direcionar_desvios') or is_admin", sidebar)
 
     def test_migration_contains_permissions_and_audit(self):
         migration = (ROOT / "docs" / "criar_modulo_desvios.sql").read_text(

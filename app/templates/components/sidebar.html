@@ -79,7 +79,7 @@
             </section>
         {% endif %}
 
-        {% if session.get('acesso_ssma') or session.get('acesso_observacao_comportamental') or session.get('acesso_desvios') or session.get('pode_ser_lider_ssma') or is_admin %}
+        {% if session.get('acesso_ssma') or session.get('acesso_observacao_comportamental') or session.get('acesso_desvios') or session.get('pode_direcionar_desvios') or session.get('pode_ser_lider_ssma') or is_admin %}
             {% set endpoints_ssma = [
                 'main.listar_hs',
                 'main.analise_critica_hs',
@@ -95,6 +95,7 @@
                 'main.editar_observacao_comportamental',
                 'main.listar_desvios',
                 'main.novo_desvio',
+                'main.editar_desvio',
                 'main.buffer_desvios',
                 'main.detalhar_desvio',
                 'main.meu_calendario_ssma',
@@ -130,8 +131,14 @@
                     {% endif %}
                     {% if session.get('acesso_desvios') or is_admin %}
                         <a href="{{ url_for('main.listar_desvios') }}"
-                           class="sidebar-link {% if request.endpoint in ['main.listar_desvios', 'main.novo_desvio', 'main.buffer_desvios', 'main.detalhar_desvio'] %}active{% endif %}">
+                           class="sidebar-link {% if request.endpoint in ['main.listar_desvios', 'main.novo_desvio', 'main.editar_desvio', 'main.detalhar_desvio'] %}active{% endif %}">
                             <i class="bi bi-exclamation-diamond"></i><span>Relatos de Desvio</span>
+                        </a>
+                    {% endif %}
+                    {% if session.get('pode_direcionar_desvios') or is_admin %}
+                        <a href="{{ url_for('main.buffer_desvios') }}"
+                           class="sidebar-link {% if request.endpoint == 'main.buffer_desvios' %}active{% endif %}">
+                            <i class="bi bi-inbox"></i><span>Buffer de desvios</span>
                         </a>
                     {% endif %}
                     {% if session.get('acesso_ssma') or is_admin %}
