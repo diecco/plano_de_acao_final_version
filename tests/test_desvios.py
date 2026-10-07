@@ -105,9 +105,12 @@ class DesviosTests(unittest.TestCase):
                 "TrackPlan/1.0 (Groq API client)",
             )
             payload = json.loads(requisicao.data.decode("utf-8"))
-            propriedades = payload["response_format"]["json_schema"]["schema"]["properties"]
-            self.assertIn("", propriedades["severidade_sugerida"]["enum"])
-            self.assertIn("", propriedades["probabilidade_sugerida"]["enum"])
+            schema = payload["response_format"]["json_schema"]["schema"]
+            self.assertEqual(
+                set(schema["properties"]),
+                {"estado", "redacao_sugerida", "perguntas"},
+            )
+            self.assertEqual(schema["properties"]["perguntas"]["maxItems"], 3)
             self.assertEqual(timeout, 20)
             raise HTTPError(requisicao.full_url, 403, "Forbidden", {}, BytesIO(b""))
 
@@ -137,13 +140,6 @@ class DesviosTests(unittest.TestCase):
         resultado_ia = {
             "estado": "concluida",
             "redacao_sugerida": "Farol dianteiro inoperante durante atividade noturna.",
-            "severidade_sugerida": "B",
-            "probabilidade_sugerida": "media",
-            "exposicao_sugerida": "media",
-            "controles_sugeridos": "media",
-            "ocorrencia_sugerida": "media",
-            "justificativa": "A visibilidade reduzida pode provocar acidente.",
-            "confianca": 80,
             "perguntas": [],
         }
         resposta = BytesIO(
@@ -177,7 +173,10 @@ class DesviosTests(unittest.TestCase):
                 {"descricao": "Farol do equipamento queimado."}
             )
 
-        self.assertEqual(resultado["severidade_sugerida"], "B")
+        self.assertEqual(
+            resultado["redacao_sugerida"],
+            "Farol dianteiro inoperante durante atividade noturna.",
+        )
         self.assertEqual(len(requisicoes), 2)
         self.assertEqual(requisicoes[0]["response_format"]["type"], "json_schema")
         self.assertNotIn("response_format", requisicoes[1])
