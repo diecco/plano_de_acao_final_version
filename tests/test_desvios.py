@@ -207,6 +207,7 @@ class DesviosTests(unittest.TestCase):
             self.assertIn(coluna, template)
         self.assertIn('id="relatorFiltroBusca"', template)
         self.assertIn('id="listaRelatoresFiltro"', template)
+        self.assertIn("• Inativo", template)
         self.assertIn("list-group-item-action text-start", template)
         self.assertNotIn("<datalist", template)
         formulario = (
@@ -219,6 +220,7 @@ class DesviosTests(unittest.TestCase):
         self.assertIn("main.excluir_desvio", template)
         self.assertNotIn("Buffer de desvios</a></div>", template)
         self.assertIn("SET excluido_em = NOW(), excluido_por = %s", source)
+        self.assertIn("SELECT id, nome, matricula, ativo FROM usuarios", source)
         self.assertIn("session.get('pode_direcionar_desvios') or is_admin", sidebar)
 
     def test_migration_contains_permissions_and_audit(self):

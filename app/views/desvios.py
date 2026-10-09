@@ -208,13 +208,12 @@ def register_desvios_routes(blueprint):
             registros = cursor.fetchall()
             if _admin():
                 cursor.execute(
-                    "SELECT id, nome, matricula FROM usuarios "
-                    "WHERE ativo = 1 ORDER BY nome"
+                    "SELECT id, nome, matricula, ativo FROM usuarios ORDER BY nome"
                 )
             else:
                 cursor.execute(
-                    "SELECT id, nome, matricula FROM usuarios "
-                    "WHERE ativo = 1 AND centro_custos_id = %s ORDER BY nome",
+                    "SELECT id, nome, matricula, ativo FROM usuarios "
+                    "WHERE centro_custos_id = %s ORDER BY nome",
                     (session.get("centro_custos_id"),),
                 )
             relatores = cursor.fetchall()
