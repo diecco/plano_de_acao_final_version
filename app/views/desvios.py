@@ -15,6 +15,11 @@ from flask import (
 )
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
+from app.access_policy import (
+    filtro_escopo_visualizacao,
+    pode_alterar_registro,
+    pode_excluir_registro,
+)
 from app.decorators import login_required, module_required
 from app.services.groq_desvios import AnaliseIAError, analisar_desvio
 from app.upload_security import UploadService, UploadValidationError
@@ -40,12 +45,35 @@ def _admin():
 
 
 def _escopo(alias="d"):
-    if _admin():
-        return "1 = 1", []
-    centro_id = session.get("centro_custos_id")
-    if not centro_id:
-        return "1 = 0", []
-    return f"{alias}.centro_custos_id = %s", [centro_id]
+    return filtro_escopo_visualizacao(
+        session.get("perfil"),
+        session.get("centro_custos_id"),
+        alias,
+    )
+
+
+def _pode_alterar(registro):
+    if not registro:
+        return False
+    return pode_alterar_registro(
+        session.get("perfil"),
+        session.get("usuario_id"),
+        session.get("centro_custos_id"),
+        registro.get("registrado_por"),
+        registro.get("centro_custos_id"),
+    )
+
+
+def _pode_excluir(registro):
+    if not registro:
+        return False
+    return pode_excluir_registro(
+        session.get("perfil"),
+        session.get("usuario_id"),
+        session.get("centro_custos_id"),
+        registro.get("registrado_por"),
+        registro.get("centro_custos_id"),
+    )
 
 
 def _pode_direcionar():
@@ -197,6 +225,7 @@ def register_desvios_routes(blueprint):
                 SELECT d.id, d.data_ocorrencia, d.hora_ocorrencia, d.tipo,
                        d.descricao, d.potencial, d.probabilidade,
                        d.nivel_risco, d.status, d.acao_id,
+                       d.registrado_por, d.centro_custos_id,
                        relator.nome AS relator_nome, s.nome AS setor_nome,
                        cat.nome AS categoria_nome
                 {base}
@@ -206,7 +235,10 @@ def register_desvios_routes(blueprint):
                 [*params, POR_PAGINA, (pagina - 1) * POR_PAGINA],
             )
             registros = cursor.fetchall()
-            if _admin():
+            for registro in registros:
+                registro["pode_editar"] = _pode_alterar(registro)
+                registro["pode_excluir"] = _pode_excluir(registro)
+            if session.get("perfil") in {"administrador", "avancado"}:
                 cursor.execute(
                     "SELECT id, nome, matricula, ativo FROM usuarios ORDER BY nome"
                 )
@@ -411,6 +443,9 @@ def register_desvios_routes(blueprint):
             if not registro:
                 flash("Desvio não encontrado ou fora do seu acesso.", "warning")
                 return redirect(url_for("main.listar_desvios"))
+            if not _pode_alterar(registro):
+                flash("Você não possui permissão para editar este desvio.", "warning")
+                return redirect(url_for("main.listar_desvios"))
             centro_id = registro["centro_custos_id"]
             cursor.execute(
                 "SELECT id, nome, matricula FROM usuarios "
@@ -564,6 +599,9 @@ def register_desvios_routes(blueprint):
             registro = _buscar(cursor, desvio_id, for_update=True)
             if not registro:
                 flash("Desvio não encontrado ou fora do seu acesso.", "warning")
+                return redirect(url_for("main.listar_desvios"))
+            if not _pode_excluir(registro):
+                flash("Você não possui permissão para excluir este desvio.", "warning")
                 return redirect(url_for("main.listar_desvios"))
             _historico(
                 cursor,
