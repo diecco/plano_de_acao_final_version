@@ -623,6 +623,7 @@ def register_desvios_routes(blueprint):
     @login_required
     @module_required("acesso_desvios")
     def detalhar_desvio(desvio_id):
+        modo_buffer = request.args.get("origem") == "buffer" and _pode_direcionar()
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         try:
@@ -635,18 +636,8 @@ def register_desvios_routes(blueprint):
                 (desvio_id,),
             )
             anexos = cursor.fetchall()
-            cursor.execute(
-                """
-                SELECT h.*, u.nome AS usuario_nome
-                FROM desvios_historico h
-                JOIN usuarios u ON u.id = h.usuario_id
-                WHERE h.desvio_id = %s ORDER BY h.criado_em DESC, h.id DESC
-                """,
-                (desvio_id,),
-            )
-            historico = cursor.fetchall()
             responsaveis = []
-            if _pode_direcionar() and not desvio.get("acao_id"):
+            if modo_buffer and not desvio.get("acao_id"):
                 cursor.execute(
                     "SELECT id, nome, matricula FROM usuarios "
                     "WHERE ativo = 1 AND tem_acesso_sistema = 1 "
@@ -662,9 +653,9 @@ def register_desvios_routes(blueprint):
             "detalhe_desvio.html",
             desvio=desvio,
             anexos=anexos,
-            historico=historico,
             responsaveis=responsaveis,
             pode_direcionar=_pode_direcionar(),
+            modo_buffer=modo_buffer,
         )
 
     @blueprint.route("/desvios/<int:desvio_id>/direcionar", methods=["POST"])
@@ -749,7 +740,9 @@ def register_desvios_routes(blueprint):
         finally:
             cursor.close()
             conn.close()
-        return redirect(url_for("main.detalhar_desvio", desvio_id=desvio_id))
+        return redirect(
+            url_for("main.detalhar_desvio", desvio_id=desvio_id, origem="buffer")
+        )
 
     @blueprint.route("/desvios/<int:desvio_id>/anexos/<int:anexo_id>")
     @login_required

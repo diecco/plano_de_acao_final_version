@@ -223,6 +223,22 @@ class DesviosTests(unittest.TestCase):
         self.assertIn("SELECT id, nome, matricula, ativo FROM usuarios", source)
         self.assertIn("session.get('pode_direcionar_desvios') or is_admin", sidebar)
 
+    def test_detail_view_separates_buffer_actions(self):
+        detalhe = (
+            ROOT / "app" / "templates" / "detalhe_desvio.html"
+        ).read_text(encoding="utf-8")
+        buffer = (
+            ROOT / "app" / "templates" / "buffer_desvios.html"
+        ).read_text(encoding="utf-8")
+        source = (ROOT / "app" / "views" / "desvios.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('class="page-header text-center"', detalhe)
+        self.assertNotIn("Histórico", detalhe)
+        self.assertIn("modo_buffer and pode_direcionar", detalhe)
+        self.assertIn("origem='buffer'", buffer)
+        self.assertIn('request.args.get("origem") == "buffer"', source)
+
     def test_migration_contains_permissions_and_audit(self):
         migration = (ROOT / "docs" / "criar_modulo_desvios.sql").read_text(
             encoding="utf-8"
