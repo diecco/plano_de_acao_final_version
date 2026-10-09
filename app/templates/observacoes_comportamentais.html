@@ -145,11 +145,11 @@
                                             aria-controls="detalhes-oc-{{ registro.id }}">
                                         <i class="bi bi-eye"></i>
                                     </button>
-                                    <a class="btn-acao-icon" title="Editar"
+                                    {% if registro.pode_editar %}<a class="btn-acao-icon" title="Editar"
                                        href="{{ url_for('main.editar_observacao_comportamental', registro_id=registro.id) }}">
                                         <i class="bi bi-pencil-square"></i>
-                                    </a>
-                                    <form method="post" class="d-inline"
+                                    </a>{% endif %}
+                                    {% if registro.pode_excluir %}<form method="post" class="d-inline"
                                           action="{{ url_for('main.excluir_observacao_comportamental', registro_id=registro.id) }}"
                                           data-confirmacao="Tem certeza de que deseja excluir esta observação?"
                                           data-confirmacao-titulo="Excluir Observação Comportamental"
@@ -160,7 +160,7 @@
                                         <button type="submit" class="btn-acao-icon" title="Excluir">
                                             <i class="bi bi-trash"></i>
                                         </button>
-                                    </form>
+                                    </form>{% endif %}
                                 </div>
                             </td>
                         </tr>

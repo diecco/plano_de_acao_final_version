@@ -75,7 +75,9 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         )
         self.assertIn('@module_required("acesso_observacao_comportamental")', source)
         self.assertIn('session.get("centro_custos_id")', source)
-        self.assertIn('session.get("perfil") == "administrador"', source)
+        self.assertIn("filtro_escopo_visualizacao", source)
+        self.assertIn("pode_visualizar_registro", source)
+        self.assertIn('{"administrador", "avancado"}', source)
 
     def test_form_uses_markings_instead_of_deviation_total(self):
         template = (
@@ -121,6 +123,10 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         self.assertIn('title="Editar"', template)
         self.assertIn('title="Excluir"', template)
         self.assertIn("main.excluir_observacao_comportamental", template)
+        self.assertIn("registro.pode_editar", template)
+        self.assertIn("registro.pode_excluir", template)
+        self.assertIn("_pode_alterar(registro)", source)
+        self.assertIn("_pode_excluir(registro)", source)
         self.assertIn('data-confirmacao-titulo="Excluir Observação Comportamental"', template)
         self.assertIn('data-confirmacao-contexto="Observação #{{ registro.id }}"', template)
         self.assertIn("seus dados e histórico permanecerão preservados", template)

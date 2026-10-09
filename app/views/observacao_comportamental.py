@@ -3,6 +3,12 @@ from math import ceil
 
 from flask import flash, redirect, render_template, request, session, url_for
 
+from app.access_policy import (
+    filtro_escopo_visualizacao,
+    pode_alterar_registro,
+    pode_excluir_registro,
+    pode_visualizar_registro,
+)
 from app.decorators import login_required, module_required
 from app.utils.db import get_db_connection
 
@@ -73,11 +79,34 @@ def _pode_acessar(registro):
         return False
     if registro.get("excluido_em"):
         return False
-    if session.get("perfil") == "administrador":
-        return True
-    return (
-        session.get("centro_custos_id")
-        and registro.get("centro_custos_id") == session.get("centro_custos_id")
+    return pode_visualizar_registro(
+        session.get("perfil"),
+        session.get("centro_custos_id"),
+        registro.get("centro_custos_id"),
+    )
+
+
+def _pode_alterar(registro):
+    if not _pode_acessar(registro):
+        return False
+    return pode_alterar_registro(
+        session.get("perfil"),
+        session.get("usuario_id"),
+        session.get("centro_custos_id"),
+        registro.get("observador_id"),
+        registro.get("centro_custos_id"),
+    )
+
+
+def _pode_excluir(registro):
+    if not _pode_acessar(registro):
+        return False
+    return pode_excluir_registro(
+        session.get("perfil"),
+        session.get("usuario_id"),
+        session.get("centro_custos_id"),
+        registro.get("observador_id"),
+        registro.get("centro_custos_id"),
     )
 
 
@@ -235,9 +264,13 @@ def register_observacao_comportamental_routes(blueprint):
 
         condicoes = ["r.excluido_em IS NULL"]
         parametros = []
-        if session.get("perfil") != "administrador":
-            condicoes.append("r.centro_custos_id = %s")
-            parametros.append(session.get("centro_custos_id") or 0)
+        filtro_escopo, parametros_escopo = filtro_escopo_visualizacao(
+            session.get("perfil"),
+            session.get("centro_custos_id"),
+            "r",
+        )
+        condicoes.append(filtro_escopo)
+        parametros.extend(parametros_escopo)
         if observador_id:
             condicoes.append("r.observador_id = %s")
             parametros.append(observador_id)
@@ -276,6 +309,7 @@ def register_observacao_comportamental_routes(blueprint):
                     r.houve_abordagem, r.correcao_imediata,
                     r.descricao_abordagem, r.pontos_positivos,
                     r.observacoes_gerais,
+                    r.observador_id, r.centro_custos_id,
                     u.nome AS observador_nome,
                     u.matricula AS observador_matricula,
                     cc.codigo AS centro_custos_codigo,
@@ -294,6 +328,9 @@ def register_observacao_comportamental_routes(blueprint):
                 LIMIT %s OFFSET %s
             """, tuple(parametros + [POR_PAGINA, offset]))
             registros = cursor.fetchall()
+            for registro in registros:
+                registro["pode_editar"] = _pode_alterar(registro)
+                registro["pode_excluir"] = _pode_excluir(registro)
 
             marcacoes_por_registro = {
                 registro["id"]: [] for registro in registros
@@ -323,7 +360,7 @@ def register_observacao_comportamental_routes(blueprint):
 
             parametros_observadores = []
             escopo_observadores = ""
-            if session.get("perfil") != "administrador":
+            if session.get("perfil") not in {"administrador", "avancado"}:
                 escopo_observadores = "AND centro_custos_id = %s"
                 parametros_observadores.append(
                     session.get("centro_custos_id") or 0
@@ -583,6 +620,7 @@ def register_observacao_comportamental_routes(blueprint):
             marcacoes=marcacoes,
             historico=historico,
             total_marcacoes=sum(item["quantidade"] for item in marcacoes),
+            pode_alterar=_pode_alterar(registro),
         )
 
     @blueprint.route("/observacoes_comportamentais/<int:registro_id>/editar", methods=["GET", "POST"])
@@ -594,8 +632,8 @@ def register_observacao_comportamental_routes(blueprint):
         try:
             cursor.execute("SELECT * FROM oc_registros WHERE id = %s", (registro_id,))
             registro = cursor.fetchone()
-            if not _pode_acessar(registro):
-                flash("Observação não encontrada ou fora do seu centro de custos.", "danger")
+            if not _pode_alterar(registro):
+                flash("Você não possui permissão para editar esta observação.", "danger")
                 return redirect(url_for("main.observacoes_comportamentais"))
             if registro["status"] == "cancelada":
                 flash("Reabra a observação antes de editá-la.", "warning")
@@ -680,9 +718,9 @@ def register_observacao_comportamental_routes(blueprint):
                 (registro_id,),
             )
             registro = cursor.fetchone()
-            if not _pode_acessar(registro):
+            if not _pode_excluir(registro):
                 flash(
-                    "Observação não encontrada ou fora do seu centro de custos.",
+                    "Você não possui permissão para excluir esta observação.",
                     "danger",
                 )
                 return redirect(url_for("main.observacoes_comportamentais"))
@@ -722,8 +760,8 @@ def register_observacao_comportamental_routes(blueprint):
         try:
             cursor.execute("SELECT * FROM oc_registros WHERE id=%s", (registro_id,))
             registro = cursor.fetchone()
-            if not _pode_acessar(registro):
-                flash("Observação não encontrada ou fora do seu centro de custos.", "danger")
+            if not _pode_alterar(registro):
+                flash("Você não possui permissão para cancelar esta observação.", "danger")
                 return redirect(url_for("main.observacoes_comportamentais"))
             cursor.execute("""
                 UPDATE oc_registros SET status='cancelada', cancelado_em=NOW(),
@@ -746,8 +784,8 @@ def register_observacao_comportamental_routes(blueprint):
         try:
             cursor.execute("SELECT * FROM oc_registros WHERE id=%s", (registro_id,))
             registro = cursor.fetchone()
-            if not _pode_acessar(registro):
-                flash("Observação não encontrada ou fora do seu centro de custos.", "danger")
+            if not _pode_alterar(registro):
+                flash("Você não possui permissão para reabrir esta observação.", "danger")
                 return redirect(url_for("main.observacoes_comportamentais"))
             cursor.execute("""
                 UPDATE oc_registros SET status='concluida', cancelado_em=NULL,

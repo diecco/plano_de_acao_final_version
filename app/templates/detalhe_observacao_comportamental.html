@@ -5,7 +5,7 @@
     <h2 class="page-title mb-0"><i class="bi bi-eye me-2"></i>Observação #{{ registro.id }}</h2>
     <div class="d-flex gap-2">
         <a class="btn btn-cinza" href="{{ url_for('main.observacoes_comportamentais') }}"><i class="bi bi-arrow-left"></i></a>
-        {% if registro.status != 'cancelada' %}<a class="btn btn-laranja" href="{{ url_for('main.editar_observacao_comportamental', registro_id=registro.id) }}"><i class="bi bi-pencil-square me-1"></i>Editar</a>{% endif %}
+        {% if pode_alterar and registro.status != 'cancelada' %}<a class="btn btn-laranja" href="{{ url_for('main.editar_observacao_comportamental', registro_id=registro.id) }}"><i class="bi bi-pencil-square me-1"></i>Editar</a>{% endif %}
     </div>
 </div><hr>
 <div class="card shadow-sm border-0 mb-4"><div class="card-body"><div class="row g-3">
@@ -30,6 +30,6 @@
 <div class="card shadow-sm border-0 mb-4"><div class="card-header bg-white fw-semibold">Histórico</div><div class="card-body">
 {% for evento in historico %}<div class="d-flex gap-3 border-bottom py-2"><i class="bi bi-clock-history text-warning"></i><div><strong>{{ evento.evento|replace('_', ' ')|title }}</strong> por {{ evento.usuario_nome }}<br><small class="text-muted">{{ evento.criado_em.strftime('%d/%m/%Y %H:%M') }}{% if evento.detalhes %} — {{ evento.detalhes }}{% endif %}</small></div></div>{% endfor %}
 </div></div>
-{% if registro.status == 'cancelada' %}<form method="post" action="{{ url_for('main.reabrir_observacao_comportamental', registro_id=registro.id) }}" class="text-end mb-4"><button class="btn btn-laranja"><i class="bi bi-arrow-counterclockwise me-1"></i>Reabrir</button></form>
-{% else %}<form method="post" action="{{ url_for('main.cancelar_observacao_comportamental', registro_id=registro.id) }}" class="card card-body border-danger mb-4" onsubmit="return confirm('Confirma o cancelamento desta observação?');"><label class="form-label">Justificativa do cancelamento</label><div class="d-flex gap-2"><input class="form-control" name="justificativa" required maxlength="500"><button class="btn btn-outline-danger">Cancelar observação</button></div></form>{% endif %}
+{% if pode_alterar %}{% if registro.status == 'cancelada' %}<form method="post" action="{{ url_for('main.reabrir_observacao_comportamental', registro_id=registro.id) }}" class="text-end mb-4"><button class="btn btn-laranja"><i class="bi bi-arrow-counterclockwise me-1"></i>Reabrir</button></form>
+{% else %}<form method="post" action="{{ url_for('main.cancelar_observacao_comportamental', registro_id=registro.id) }}" class="card card-body border-danger mb-4" onsubmit="return confirm('Confirma o cancelamento desta observação?');"><label class="form-label">Justificativa do cancelamento</label><div class="d-flex gap-2"><input class="form-control" name="justificativa" required maxlength="500"><button class="btn btn-outline-danger">Cancelar observação</button></div></form>{% endif %}{% endif %}
 {% endblock %}
