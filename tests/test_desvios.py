@@ -206,6 +206,15 @@ class DesviosTests(unittest.TestCase):
         for coluna in ("ID", "Data", "Relator", "Classificação", "Categoria", "Descrição"):
             self.assertIn(coluna, template)
         self.assertIn('id="relatorFiltroBusca"', template)
+        self.assertIn('id="listaRelatoresFiltro"', template)
+        self.assertIn("list-group-item-action text-start", template)
+        self.assertNotIn("<datalist", template)
+        formulario = (
+            ROOT / "app" / "templates" / "novo_desvio.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn('id="listaRelatores"', formulario)
+        self.assertIn('id="relatores-data"', formulario)
+        self.assertNotIn("<datalist", formulario)
         self.assertIn("main.editar_desvio", template)
         self.assertIn("main.excluir_desvio", template)
         self.assertNotIn("Buffer de desvios</a></div>", template)
