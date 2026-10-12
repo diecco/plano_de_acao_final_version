@@ -233,7 +233,7 @@ def _registrar_historico(cursor, registro_id, evento, detalhes=None):
 def register_observacao_comportamental_routes(blueprint):
     @blueprint.route("/observacoes_comportamentais")
     @login_required
-    @module_required("acesso_observacao_comportamental")
+    @module_required("acesso_ssma")
     def observacoes_comportamentais():
         observador_id = request.args.get("observador_id", type=int)
         observador_busca = (
@@ -399,7 +399,7 @@ def register_observacao_comportamental_routes(blueprint):
 
     @blueprint.route("/observacoes_comportamentais/nova", methods=["GET", "POST"])
     @login_required
-    @module_required("acesso_observacao_comportamental")
+    @module_required("acesso_ssma")
     def nova_observacao_comportamental():
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
@@ -575,7 +575,7 @@ def register_observacao_comportamental_routes(blueprint):
 
     @blueprint.route("/observacoes_comportamentais/<int:registro_id>")
     @login_required
-    @module_required("acesso_observacao_comportamental")
+    @module_required("acesso_ssma")
     def detalhar_observacao_comportamental(registro_id):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
@@ -625,7 +625,7 @@ def register_observacao_comportamental_routes(blueprint):
 
     @blueprint.route("/observacoes_comportamentais/<int:registro_id>/editar", methods=["GET", "POST"])
     @login_required
-    @module_required("acesso_observacao_comportamental")
+    @module_required("acesso_ssma")
     def editar_observacao_comportamental(registro_id):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
@@ -708,7 +708,7 @@ def register_observacao_comportamental_routes(blueprint):
 
     @blueprint.route("/observacoes_comportamentais/<int:registro_id>/excluir", methods=["POST"])
     @login_required
-    @module_required("acesso_observacao_comportamental")
+    @module_required("acesso_ssma")
     def excluir_observacao_comportamental(registro_id):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
@@ -749,7 +749,7 @@ def register_observacao_comportamental_routes(blueprint):
 
     @blueprint.route("/observacoes_comportamentais/<int:registro_id>/cancelar", methods=["POST"])
     @login_required
-    @module_required("acesso_observacao_comportamental")
+    @module_required("acesso_ssma")
     def cancelar_observacao_comportamental(registro_id):
         justificativa = (request.form.get("justificativa") or "").strip()
         if not justificativa:
@@ -777,7 +777,7 @@ def register_observacao_comportamental_routes(blueprint):
 
     @blueprint.route("/observacoes_comportamentais/<int:registro_id>/reabrir", methods=["POST"])
     @login_required
-    @module_required("acesso_observacao_comportamental")
+    @module_required("acesso_ssma")
     def reabrir_observacao_comportamental(registro_id):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)

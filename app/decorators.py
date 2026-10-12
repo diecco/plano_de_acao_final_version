@@ -106,12 +106,63 @@ def gerenciar_agendamentos_ssma_required(func):
     def decorated_function(*args, **kwargs):
         if (
             session.get('perfil') == 'administrador'
-            or session.get('pode_criar_agendamento_ssma', False)
+            or (
+                session.get('acesso_ssma')
+                and (
+                    session.get('gestor_ssma', False)
+                    or session.get('pode_criar_agendamento_ssma', False)
+                )
+            )
         ):
             return func(*args, **kwargs)
 
         flash(
             'Você não possui permissão para gerenciar os agendamentos de SSMA.',
+            'danger'
+        )
+        return redirect(url_for('main.inicio'))
+
+    return decorated_function
+
+
+def gestor_ssma_required(func):
+    @wraps(func)
+    def decorated_function(*args, **kwargs):
+        if session.get('perfil') == 'administrador':
+            return func(*args, **kwargs)
+
+        if (
+            session.get('acesso_ssma')
+            and session.get('gestor_ssma', False)
+        ):
+            return func(*args, **kwargs)
+
+        flash(
+            'Você não possui permissão de Gestor SSMA.',
+            'danger'
+        )
+        return redirect(url_for('main.inicio'))
+
+    return decorated_function
+
+
+def tratar_buffer_desvios_required(func):
+    @wraps(func)
+    def decorated_function(*args, **kwargs):
+        if session.get('perfil') == 'administrador':
+            return func(*args, **kwargs)
+
+        if (
+            session.get('acesso_ssma')
+            and (
+                session.get('gestor_ssma', False)
+                or session.get('pode_direcionar_desvios', False)
+            )
+        ):
+            return func(*args, **kwargs)
+
+        flash(
+            'Você não possui permissão para tratar o buffer de desvios.',
             'danger'
         )
         return redirect(url_for('main.inicio'))

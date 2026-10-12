@@ -20,7 +20,11 @@ from app.access_policy import (
     pode_alterar_registro,
     pode_excluir_registro,
 )
-from app.decorators import login_required, module_required
+from app.decorators import (
+    login_required,
+    module_required,
+    tratar_buffer_desvios_required,
+)
 from app.services.groq_desvios import AnaliseIAError, analisar_desvio
 from app.upload_security import UploadService, UploadValidationError
 from app.utils.db import get_db_connection
@@ -77,7 +81,10 @@ def _pode_excluir(registro):
 
 
 def _pode_direcionar():
-    return _admin() or bool(session.get("pode_direcionar_desvios"))
+    return _admin() or bool(
+        session.get("gestor_ssma")
+        or session.get("pode_direcionar_desvios")
+    )
 
 
 def _historico(cursor, desvio_id, evento, descricao):
@@ -151,7 +158,7 @@ def _calcular_risco(severidade, probabilidade):
 def register_desvios_routes(blueprint):
     @blueprint.route("/desvios/analisar-ia", methods=["POST"])
     @login_required
-    @module_required("acesso_desvios")
+    @module_required("acesso_ssma")
     def analisar_desvio_ia():
         dados = request.get_json(silent=True) or {}
         if len((dados.get("descricao") or "").strip()) < 10:
@@ -169,7 +176,7 @@ def register_desvios_routes(blueprint):
 
     @blueprint.route("/desvios")
     @login_required
-    @module_required("acesso_desvios")
+    @module_required("acesso_ssma")
     def listar_desvios():
         pagina = max(request.args.get("page", 1, type=int), 1)
         data_inicio = (request.args.get("data_inicio") or "").strip()
@@ -278,7 +285,7 @@ def register_desvios_routes(blueprint):
 
     @blueprint.route("/desvios/novo", methods=["GET", "POST"])
     @login_required
-    @module_required("acesso_desvios")
+    @module_required("acesso_ssma")
     def novo_desvio():
         centro_id = session.get("centro_custos_id")
         if not centro_id:
@@ -434,7 +441,7 @@ def register_desvios_routes(blueprint):
 
     @blueprint.route("/desvios/<int:desvio_id>/editar", methods=["GET", "POST"])
     @login_required
-    @module_required("acesso_desvios")
+    @module_required("acesso_ssma")
     def editar_desvio(desvio_id):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
@@ -591,7 +598,7 @@ def register_desvios_routes(blueprint):
 
     @blueprint.route("/desvios/<int:desvio_id>/excluir", methods=["POST"])
     @login_required
-    @module_required("acesso_desvios")
+    @module_required("acesso_ssma")
     def excluir_desvio(desvio_id):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
@@ -623,7 +630,7 @@ def register_desvios_routes(blueprint):
 
     @blueprint.route("/desvios/buffer")
     @login_required
-    @module_required("acesso_desvios")
+    @tratar_buffer_desvios_required
     def buffer_desvios():
         if not _pode_direcionar():
             flash("Você não possui permissão para tratar o buffer de desvios.", "danger")
@@ -659,7 +666,7 @@ def register_desvios_routes(blueprint):
 
     @blueprint.route("/desvios/<int:desvio_id>")
     @login_required
-    @module_required("acesso_desvios")
+    @module_required("acesso_ssma")
     def detalhar_desvio(desvio_id):
         modo_buffer = request.args.get("origem") == "buffer" and _pode_direcionar()
         conn = get_db_connection()
@@ -698,7 +705,7 @@ def register_desvios_routes(blueprint):
 
     @blueprint.route("/desvios/<int:desvio_id>/direcionar", methods=["POST"])
     @login_required
-    @module_required("acesso_desvios")
+    @tratar_buffer_desvios_required
     def direcionar_desvio(desvio_id):
         if not _pode_direcionar():
             flash("Você não possui permissão para direcionar desvios.", "danger")
@@ -784,7 +791,7 @@ def register_desvios_routes(blueprint):
 
     @blueprint.route("/desvios/<int:desvio_id>/anexos/<int:anexo_id>")
     @login_required
-    @module_required("acesso_desvios")
+    @module_required("acesso_ssma")
     def baixar_anexo_desvio(desvio_id, anexo_id):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)

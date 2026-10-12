@@ -69,11 +69,11 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         ):
             app.jinja_env.get_template(template)
 
-    def test_module_has_exclusive_permission_and_cost_center_scope(self):
+    def test_module_uses_ssma_permission_and_cost_center_scope(self):
         source = (ROOT / "app" / "views" / "observacao_comportamental.py").read_text(
             encoding="utf-8"
         )
-        self.assertIn('@module_required("acesso_observacao_comportamental")', source)
+        self.assertIn('@module_required("acesso_ssma")', source)
         self.assertIn('session.get("centro_custos_id")', source)
         self.assertIn("filtro_escopo_visualizacao", source)
         self.assertIn("pode_visualizar_registro", source)

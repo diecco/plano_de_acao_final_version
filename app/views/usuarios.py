@@ -41,11 +41,12 @@ def register_usuarios_routes(blueprint):
                 else 0
             )
 
-            pode_criar_agendamento_ssma = (
+            gestor_ssma = (
                 1
-                if request.form.get('pode_criar_agendamento_ssma') == '1'
+                if request.form.get('gestor_ssma') == '1'
                 else 0
             )
+            pode_criar_agendamento_ssma = 0
 
             pode_ser_lider_ssma = (
                 1
@@ -67,6 +68,8 @@ def register_usuarios_routes(blueprint):
             acesso_ssma = (
                 1 if request.form.get('acesso_ssma') else 0
             )
+            if gestor_ssma:
+                acesso_ssma = 1
 
             acesso_melhoria = (
                 1 if request.form.get('acesso_melhoria') else 0
@@ -106,11 +109,7 @@ def register_usuarios_routes(blueprint):
                 1 if request.form.get('acesso_observacao_comportamental') else 0
             )
             acesso_desvios = 1 if request.form.get('acesso_desvios') else 0
-            pode_direcionar_desvios = (
-                1 if request.form.get('pode_direcionar_desvios') else 0
-            )
-            if pode_direcionar_desvios:
-                acesso_desvios = 1
+            pode_direcionar_desvios = 0
 
             if not nome:
                 flash('Informe o nome do funcionário.', 'danger')
@@ -226,6 +225,7 @@ def register_usuarios_routes(blueprint):
                 pode_direcionar_desvios = 0
 
                 responsavel_revisao_padrao = 0
+                gestor_ssma = 0
                 pode_criar_agendamento_ssma = 0
                 pode_ser_lider_ssma = 0
 
@@ -329,6 +329,7 @@ def register_usuarios_routes(blueprint):
                         tem_acesso_sistema,
                         pode_ser_instrutor,
                         responsavel_revisao_padrao,
+                        gestor_ssma,
                         pode_criar_agendamento_ssma,
                         pode_ser_lider_ssma,
                         acesso_plano_acao,
@@ -376,6 +377,7 @@ def register_usuarios_routes(blueprint):
                         %s,
                         %s,
                         %s,
+                        %s,
                         %s
                     )
                 """, (
@@ -392,6 +394,7 @@ def register_usuarios_routes(blueprint):
                     tem_acesso_sistema,
                     pode_ser_instrutor,
                     responsavel_revisao_padrao,
+                    gestor_ssma,
                     pode_criar_agendamento_ssma,
                     pode_ser_lider_ssma,
                     acesso_plano_acao,
@@ -715,13 +718,14 @@ def register_usuarios_routes(blueprint):
                 else 0
             )
 
-            pode_criar_agendamento_ssma = (
+            gestor_ssma = (
                 1
                 if request.form.get(
-                    'pode_criar_agendamento_ssma'
+                    'gestor_ssma'
                 ) == '1'
                 else 0
             )
+            pode_criar_agendamento_ssma = 0
 
             pode_ser_lider_ssma = (
                 1
@@ -759,6 +763,8 @@ def register_usuarios_routes(blueprint):
             acesso_ssma = (
                 1 if request.form.get('acesso_ssma') else 0
             )
+            if gestor_ssma:
+                acesso_ssma = 1
 
             acesso_melhoria = (
                 1 if request.form.get('acesso_melhoria') else 0
@@ -804,11 +810,7 @@ def register_usuarios_routes(blueprint):
                 1 if request.form.get('acesso_observacao_comportamental') else 0
             )
             acesso_desvios = 1 if request.form.get('acesso_desvios') else 0
-            pode_direcionar_desvios = (
-                1 if request.form.get('pode_direcionar_desvios') else 0
-            )
-            if pode_direcionar_desvios:
-                acesso_desvios = 1
+            pode_direcionar_desvios = 0
 
             if not nome:
                 flash(
@@ -984,6 +986,7 @@ def register_usuarios_routes(blueprint):
                 pode_direcionar_desvios = 0
 
                 responsavel_revisao_padrao = 0
+                gestor_ssma = 0
                 pode_criar_agendamento_ssma = 0
                 pode_ser_lider_ssma = 0
 
@@ -1084,6 +1087,7 @@ def register_usuarios_routes(blueprint):
                             tem_acesso_sistema = %s,
                             pode_ser_instrutor = %s,
                             responsavel_revisao_padrao = %s,
+                            gestor_ssma = %s,
                             pode_criar_agendamento_ssma = %s,
                             pode_ser_lider_ssma = %s,
                             acesso_plano_acao = %s,
@@ -1116,6 +1120,7 @@ def register_usuarios_routes(blueprint):
                         tem_acesso_sistema,
                         pode_ser_instrutor,
                         responsavel_revisao_padrao,
+                        gestor_ssma,
                         pode_criar_agendamento_ssma,
                         pode_ser_lider_ssma,
                         acesso_plano_acao,
@@ -1152,6 +1157,7 @@ def register_usuarios_routes(blueprint):
                             tem_acesso_sistema = %s,
                             pode_ser_instrutor = %s,
                             responsavel_revisao_padrao = %s,
+                            gestor_ssma = %s,
                             pode_criar_agendamento_ssma = %s,
                             pode_ser_lider_ssma = %s,
                             acesso_plano_acao = %s,
@@ -1183,6 +1189,7 @@ def register_usuarios_routes(blueprint):
                         tem_acesso_sistema,
                         pode_ser_instrutor,
                         responsavel_revisao_padrao,
+                        gestor_ssma,
                         pode_criar_agendamento_ssma,
                         pode_ser_lider_ssma,
                         acesso_plano_acao,
@@ -1505,9 +1512,12 @@ def register_usuarios_routes(blueprint):
 
         if request.method == 'POST':
             perfil = request.form.get('perfil')
+            gestor_ssma = 1 if request.form.get('gestor_ssma') else 0
 
             acesso_plano_acao = 1 if request.form.get('acesso_plano_acao') else 0
             acesso_ssma = 1 if request.form.get('acesso_ssma') else 0
+            if gestor_ssma:
+                acesso_ssma = 1
             acesso_melhoria = 1 if request.form.get('acesso_melhoria') else 0
             acesso_gestao_pessoas = 1 if request.form.get('acesso_gestao_pessoas') else 0
             acesso_treinamentos = 1 if request.form.get('acesso_treinamentos') else 0
@@ -1549,6 +1559,7 @@ def register_usuarios_routes(blueprint):
                     acesso_detectores_gas = %s,
                     acesso_acr = %s,
                     acesso_recrutamento = %s,
+                    gestor_ssma = %s,
                     acesso_observacao_comportamental = %s,
                     acesso_desvios = %s,
                     pode_direcionar_desvios = %s
@@ -1566,6 +1577,7 @@ def register_usuarios_routes(blueprint):
                 acesso_detectores_gas,
                 acesso_acr,
                 acesso_recrutamento,
+                gestor_ssma,
                 acesso_observacao_comportamental,
                 acesso_desvios,
                 pode_direcionar_desvios,

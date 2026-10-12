@@ -253,21 +253,24 @@
                 </div>
 
                 <div class="col-md-6 campo-acesso-sistema">
-                    <label for="pode_criar_agendamento_ssma" class="form-label">
-                        Pode criar e gerenciar agendamentos de SSMA?
+                    <label for="gestor_ssma" class="form-label">
+                        Gestor SSMA?
                     </label>
                     <select class="form-select"
-                            id="pode_criar_agendamento_ssma"
-                            name="pode_criar_agendamento_ssma">
+                            id="gestor_ssma"
+                            name="gestor_ssma">
                         <option value="0"
-                                {% if not usuario.pode_criar_agendamento_ssma %}selected{% endif %}>
+                                {% if not usuario.gestor_ssma %}selected{% endif %}>
                             Não
                         </option>
                         <option value="1"
-                                {% if usuario.pode_criar_agendamento_ssma %}selected{% endif %}>
+                                {% if usuario.gestor_ssma %}selected{% endif %}>
                             Sim
                         </option>
                     </select>
+                    <div class="form-text">
+                        Gerencia a agenda SSMA e o buffer de desvios.
+                    </div>
                 </div>
 
                 <div class="col-md-6 campo-acesso-sistema">
@@ -351,29 +354,6 @@
                                {% if usuario.acesso_plano_acao %}checked{% endif %}>
                         <label class="form-check-label" for="acesso_plano_acao">
                             Planos de Ação
-                        </label>
-                    </div>
-                </div>
-
-                <div class="col-md-3">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox"
-                               id="acesso_desvios" name="acesso_desvios" value="1"
-                               {% if usuario.acesso_desvios %}checked{% endif %}>
-                        <label class="form-check-label" for="acesso_desvios">
-                            Relatos de Desvio
-                        </label>
-                    </div>
-                </div>
-
-                <div class="col-md-3">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox"
-                               id="pode_direcionar_desvios"
-                               name="pode_direcionar_desvios" value="1"
-                               {% if usuario.pode_direcionar_desvios %}checked{% endif %}>
-                        <label class="form-check-label" for="pode_direcionar_desvios">
-                            Gerenciar buffer de desvios
                         </label>
                     </div>
                 </div>
@@ -515,15 +495,6 @@
                         </label>
                     </div>
 
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox"
-                               id="acesso_observacao_comportamental"
-                               name="acesso_observacao_comportamental" value="1"
-                               {% if usuario.acesso_observacao_comportamental %}checked{% endif %}>
-                        <label class="form-check-label" for="acesso_observacao_comportamental">
-                            Observação Comportamental
-                        </label>
-                    </div>
                 </div>
 
 

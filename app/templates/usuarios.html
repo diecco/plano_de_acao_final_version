@@ -217,15 +217,18 @@
                 </div>
 
                 <div class="col-md-6 campo-acesso-sistema">
-                    <label for="pode_criar_agendamento_ssma" class="form-label">
-                        Pode criar e gerenciar agendamentos de SSMA?
+                    <label for="gestor_ssma" class="form-label">
+                        Gestor SSMA?
                     </label>
                     <select class="form-select"
-                            id="pode_criar_agendamento_ssma"
-                            name="pode_criar_agendamento_ssma">
+                            id="gestor_ssma"
+                            name="gestor_ssma">
                         <option value="0" selected>Não</option>
                         <option value="1">Sim</option>
                     </select>
+                    <div class="form-text">
+                        Gerencia a agenda SSMA e o buffer de desvios.
+                    </div>
                 </div>
 
                 <div class="col-md-6 campo-acesso-sistema">
@@ -435,14 +438,6 @@
                         </label>
                     </div>
 
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox"
-                               id="acesso_observacao_comportamental"
-                               name="acesso_observacao_comportamental" value="1">
-                        <label class="form-check-label" for="acesso_observacao_comportamental">
-                            Observação Comportamental
-                        </label>
-                    </div>
                 </div>
 
             </div>

@@ -149,12 +149,15 @@
 
                         <div class="form-check mt-3">
                             <input class="form-check-input" type="checkbox"
-                                   name="acesso_observacao_comportamental"
-                                   id="acesso_observacao_comportamental"
-                                   {% if usuario.acesso_observacao_comportamental %}checked{% endif %}>
-                            <label class="form-check-label" for="acesso_observacao_comportamental">
-                                Observação Comportamental
+                                   name="gestor_ssma"
+                                   id="gestor_ssma"
+                                   {% if usuario.gestor_ssma %}checked{% endif %}>
+                            <label class="form-check-label" for="gestor_ssma">
+                                Gestor SSMA
                             </label>
+                            <div class="form-text">
+                                Gerencia a agenda SSMA e o buffer de desvios.
+                            </div>
                         </div>
 
                     </div>

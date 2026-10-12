@@ -93,6 +93,7 @@ def register_autenticacao_routes(blueprint):
                 session['responsavel_revisao_padrao'] = permissao(usuario.get('responsavel_revisao_padrao'))
                 session['pode_criar_agendamento_ssma'] = permissao(usuario.get('pode_criar_agendamento_ssma'))
                 session['pode_ser_lider_ssma'] = permissao(usuario.get('pode_ser_lider_ssma'))
+                session['gestor_ssma'] = permissao(usuario.get('gestor_ssma'))
                 session['pode_direcionar_desvios'] = permissao(
                     usuario.get('pode_direcionar_desvios')
                 )

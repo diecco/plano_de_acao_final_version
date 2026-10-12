@@ -55,6 +55,7 @@ else:
 gerenciar_agendamentos_ssma_required = (
     permission_decorators.gerenciar_agendamentos_ssma_required
 )
+gestor_ssma_required = permission_decorators.gestor_ssma_required
 lider_ssma_required = permission_decorators.lider_ssma_required
 api_module_required = permission_decorators.api_module_required
 login_required = permission_decorators.login_required
@@ -244,10 +245,31 @@ class DecoratorBehaviorTests(unittest.TestCase):
         self.assertEqual(
             self.call_with_session(
                 decorated,
-                {"pode_criar_agendamento_ssma": True},
+                {
+                    "acesso_ssma": True,
+                    "pode_criar_agendamento_ssma": True,
+                },
             ),
             "ok",
         )
+
+    def test_ssma_manager_permission_allows_persona(self):
+        decorated = gestor_ssma_required(lambda: "ok")
+        self.assertEqual(
+            self.call_with_session(
+                decorated,
+                {"acesso_ssma": True, "gestor_ssma": True},
+            ),
+            "ok",
+        )
+
+    def test_ssma_manager_requires_module_access(self):
+        decorated = gestor_ssma_required(lambda: "ok")
+        response = self.call_with_session(
+            decorated,
+            {"gestor_ssma": True},
+        )
+        self.assertEqual(response.status_code, 302)
 
     def test_schedule_manager_permission_allows_administrator(self):
         decorated = gerenciar_agendamentos_ssma_required(lambda: "ok")
