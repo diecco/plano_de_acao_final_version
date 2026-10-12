@@ -3,8 +3,45 @@ from datetime import date, datetime
 
 from flask import flash, redirect, render_template, request, session, url_for
 
+from app.access_policy import (
+    filtro_escopo_visualizacao,
+    pode_alterar_registro,
+    pode_excluir_registro,
+)
 from app.decorators import login_required, module_required
 from app.utils.db import get_db_connection
+
+
+def _buscar_ifs(cursor, registro_id):
+    cursor.execute("""
+        SELECT
+            ifs.*,
+            u.centro_custos_id AS centro_custos_registro_id
+        FROM ifs_inspecoes ifs
+        JOIN usuarios u ON u.id = ifs.profissional_sesmt_id
+        WHERE ifs.id = %s AND ifs.ativo = 1
+    """, (registro_id,))
+    return cursor.fetchone()
+
+
+def _pode_alterar_ifs(registro):
+    return bool(registro) and pode_alterar_registro(
+        session.get("perfil"),
+        session.get("usuario_id"),
+        session.get("centro_custos_id"),
+        registro.get("criado_por"),
+        registro.get("centro_custos_registro_id"),
+    )
+
+
+def _pode_excluir_ifs(registro):
+    return bool(registro) and pode_excluir_registro(
+        session.get("perfil"),
+        session.get("usuario_id"),
+        session.get("centro_custos_id"),
+        registro.get("criado_por"),
+        registro.get("centro_custos_registro_id"),
+    )
 
 
 def register_ifs_routes(blueprint):
@@ -701,7 +738,6 @@ def register_ifs_routes(blueprint):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
-        usuario_id = session.get('usuario_id')
         perfil = session.get('perfil')
         centro_custo_id = session.get('centro_custos_id')
 
@@ -729,16 +765,13 @@ def register_ifs_routes(blueprint):
         filtros_sql = ["ifs.ativo = 1"]
         params = []
 
-        # 🔒 CONTROLE DE ESCOPO
-        if perfil == 'basico':
-            filtros_sql.append("ifs.criado_por = %s")
-            params.append(usuario_id)
-
-        elif perfil == 'intermediario':
-            filtros_sql.append("u.centro_custos_id = %s")
-            params.append(centro_custo_id)
-
-        # avançado e administrador veem tudo
+        filtro_escopo, valores_escopo = filtro_escopo_visualizacao(
+            perfil,
+            centro_custo_id,
+            campo_centro="u.centro_custos_id",
+        )
+        filtros_sql.append(filtro_escopo)
+        params.extend(valores_escopo)
 
         if profissional_sesmt_id:
             filtros_sql.append("ifs.profissional_sesmt_id = %s")
@@ -791,7 +824,8 @@ def register_ifs_routes(blueprint):
                 ifs.total_nao_conformidades,
                 ifs.criado_por,
 
-                u.nome AS profissional_sesmt_nome
+                u.nome AS profissional_sesmt_nome,
+                u.centro_custos_id AS centro_custos_registro_id
 
             {base_from}
             ORDER BY ifs.data_inspecao DESC, ifs.id DESC
@@ -799,6 +833,10 @@ def register_ifs_routes(blueprint):
         """, params + [per_page, offset])
 
         inspecoes = cursor.fetchall()
+
+        for inspecao in inspecoes:
+            inspecao['pode_editar'] = _pode_alterar_ifs(inspecao)
+            inspecao['pode_excluir'] = _pode_excluir_ifs(inspecao)
 
         # 🔹 usuários (para filtro)
         if perfil in ['administrador', 'avancado']:
@@ -848,15 +886,14 @@ def register_ifs_routes(blueprint):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
-        inspecao = pode_acessar_ssma(cursor, 'ifs', id)
+        inspecao = _buscar_ifs(cursor, id)
 
         if not inspecao:
             conn.close()
             flash('IFS não encontrada ou você não possui permissão para excluí-la.', 'warning')
             return redirect(url_for('main.listar_ifs'))
 
-        # Regra adicional: somente administrador ou quem criou pode excluir
-        if inspecao['criado_por'] != session.get('usuario_id') and session.get('perfil') != 'administrador':
+        if not _pode_excluir_ifs(inspecao):
             conn.close()
             flash('Você não tem permissão para excluir esta IFS.', 'danger')
             return redirect(url_for('main.listar_ifs'))
@@ -883,22 +920,23 @@ def register_ifs_routes(blueprint):
 
         usuario_id = session.get('usuario_id')
         perfil = session.get('perfil')
-        centro_custo_id = session.get('centro_custos_id')
 
-        inspecao = pode_acessar_ssma(cursor, 'ifs', id)
+        inspecao = _buscar_ifs(cursor, id)
 
         if not inspecao:
             conn.close()
             flash('IFS não encontrada ou você não possui permissão para acessá-la.', 'warning')
             return redirect(url_for('main.listar_ifs'))
 
-        if inspecao['criado_por'] != usuario_id and perfil != 'administrador':
+        if not _pode_alterar_ifs(inspecao):
             conn.close()
             flash('Você não tem permissão para editar esta IFS.', 'danger')
             return redirect(url_for('main.listar_ifs'))
 
+        centro_custo_id = inspecao['centro_custos_registro_id']
+
         if request.method == 'POST':
-            profissional_sesmt_id = usuario_id
+            profissional_sesmt_id = inspecao['profissional_sesmt_id']
             participantes = request.form.get('participantes')
             descricao_atividade_os = request.form.get('descricao_atividade_os')
             local_inspecao = request.form.get('local_inspecao')
