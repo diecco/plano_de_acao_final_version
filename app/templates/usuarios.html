@@ -217,21 +217,6 @@
                 </div>
 
                 <div class="col-md-6 campo-acesso-sistema">
-                    <label for="gestor_ssma" class="form-label">
-                        Gestor SSMA?
-                    </label>
-                    <select class="form-select"
-                            id="gestor_ssma"
-                            name="gestor_ssma">
-                        <option value="0" selected>Não</option>
-                        <option value="1">Sim</option>
-                    </select>
-                    <div class="form-text">
-                        Gerencia a agenda SSMA e o buffer de desvios.
-                    </div>
-                </div>
-
-                <div class="col-md-6 campo-acesso-sistema">
                     <label for="pode_ser_lider_ssma" class="form-label">
                         Pode ser selecionado como líder no cronograma de SSMA?
                     </label>
@@ -320,6 +305,20 @@
                                value="1">
                         <label class="form-check-label" for="acesso_ssma">
                             SSMA
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="gestor_ssma"
+                               name="gestor_ssma"
+                               value="1">
+                        <label class="form-check-label" for="gestor_ssma"
+                               title="Gerencia a agenda SSMA e o buffer de desvios.">
+                            Gestor SSMA
                         </label>
                     </div>
                 </div>
