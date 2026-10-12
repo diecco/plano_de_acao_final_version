@@ -82,7 +82,6 @@
         {% if session.get('acesso_ssma') or session.get('pode_ser_lider_ssma') or is_admin %}
             {% set endpoints_ssma = [
                 'main.listar_hs',
-                'main.analise_critica_hs',
                 'main.editar_hs',
                 'main.listar_recusa',
                 'main.editar_recusa',
@@ -96,7 +95,6 @@
                 'main.listar_desvios',
                 'main.novo_desvio',
                 'main.editar_desvio',
-                'main.buffer_desvios',
                 'main.detalhar_desvio',
                 'main.meu_calendario_ssma',
                 'main.executar_agendamento_ssma'
@@ -135,20 +133,10 @@
                             <i class="bi bi-exclamation-diamond"></i><span>Relatos de Desvio</span>
                         </a>
                     {% endif %}
-                    {% if session.get('gestor_ssma') or session.get('pode_direcionar_desvios') or is_admin %}
-                        <a href="{{ url_for('main.buffer_desvios') }}"
-                           class="sidebar-link {% if request.endpoint == 'main.buffer_desvios' %}active{% endif %}">
-                            <i class="bi bi-inbox"></i><span>Buffer de desvios</span>
-                        </a>
-                    {% endif %}
                     {% if session.get('acesso_ssma') or is_admin %}
                         <a href="{{ url_for('main.listar_hs') }}"
                            class="sidebar-link {% if request.endpoint in ['main.listar_hs', 'main.editar_hs'] %}active{% endif %}">
                             <i class="bi bi-clock-history"></i><span>Horas de segurança</span>
-                        </a>
-                        <a href="{{ url_for('main.analise_critica_hs') }}"
-                           class="sidebar-link {% if request.endpoint == 'main.analise_critica_hs' %}active{% endif %}">
-                            <i class="bi bi-graph-up-arrow"></i><span>Análise crítica HS</span>
                         </a>
                         <a href="{{ url_for('main.listar_recusa') }}"
                            class="sidebar-link {% if request.endpoint in ['main.listar_recusa', 'main.editar_recusa'] %}active{% endif %}">
@@ -171,36 +159,50 @@
             </section>
         {% endif %}
 
-        {% if is_admin or session.get('gestor_ssma') or session.get('pode_criar_agendamento_ssma') %}
-            {% set endpoints_agenda = [
+        {% if is_admin or session.get('gestor_ssma') or session.get('pode_criar_agendamento_ssma') or session.get('pode_direcionar_desvios') %}
+            {% set endpoints_gestao_ssma = [
                 'main.listar_agendamentos_ssma',
                 'main.novo_agendamento_ssma',
-                'main.relatorio_aderencia_ssma'
+                'main.relatorio_aderencia_ssma',
+                'main.buffer_desvios',
+                'main.analise_critica_hs'
             ] %}
             <section class="sidebar-module"
-                     data-search-label="agenda ssma criar agendamentos relatório aderência">
-                <button class="sidebar-module-toggle {% if request.endpoint in endpoints_agenda %}active{% endif %}"
+                     data-search-label="gestão ssma buffer desvios criar agendamento relatório aderência análise crítica">
+                <button class="sidebar-module-toggle {% if request.endpoint in endpoints_gestao_ssma %}active{% endif %}"
                         type="button"
                         data-bs-toggle="collapse"
-                        data-bs-target="#menuAgendaSsma"
-                        aria-expanded="{{ 'true' if request.endpoint in endpoints_agenda else 'false' }}"
-                        aria-controls="menuAgendaSsma"
-                        title="Agenda SSMA">
-                    <i class="bi bi-calendar2-week"></i>
-                    <span class="sidebar-label">Agenda SSMA</span>
+                        data-bs-target="#menuGestaoSsma"
+                        aria-expanded="{{ 'true' if request.endpoint in endpoints_gestao_ssma else 'false' }}"
+                        aria-controls="menuGestaoSsma"
+                        title="Gestão SSMA">
+                    <i class="bi bi-gear"></i>
+                    <span class="sidebar-label">Gestão SSMA</span>
                     <i class="bi bi-chevron-down sidebar-chevron"></i>
                 </button>
-                <div class="collapse sidebar-submenu {% if request.endpoint in endpoints_agenda %}show{% endif %}"
-                     id="menuAgendaSsma"
+                <div class="collapse sidebar-submenu {% if request.endpoint in endpoints_gestao_ssma %}show{% endif %}"
+                     id="menuGestaoSsma"
                      data-bs-parent="#sidebarMenuAccordion">
-                    <a href="{{ url_for('main.novo_agendamento_ssma') }}"
-                       class="sidebar-link {% if request.endpoint in ['main.listar_agendamentos_ssma', 'main.novo_agendamento_ssma'] %}active{% endif %}">
-                        <i class="bi bi-calendar-plus"></i><span>Criar agendamentos</span>
-                    </a>
-                    <a href="{{ url_for('main.relatorio_aderencia_ssma') }}"
-                       class="sidebar-link {% if request.endpoint == 'main.relatorio_aderencia_ssma' %}active{% endif %}">
-                        <i class="bi bi-clipboard-data"></i><span>Relatório de aderência</span>
-                    </a>
+                    {% if is_admin or session.get('gestor_ssma') or session.get('pode_direcionar_desvios') %}
+                        <a href="{{ url_for('main.buffer_desvios') }}"
+                           class="sidebar-link {% if request.endpoint == 'main.buffer_desvios' %}active{% endif %}">
+                            <i class="bi bi-inbox"></i><span>Buffer de desvios</span>
+                        </a>
+                    {% endif %}
+                    {% if is_admin or session.get('gestor_ssma') or session.get('pode_criar_agendamento_ssma') %}
+                        <a href="{{ url_for('main.novo_agendamento_ssma') }}"
+                           class="sidebar-link {% if request.endpoint in ['main.listar_agendamentos_ssma', 'main.novo_agendamento_ssma'] %}active{% endif %}">
+                            <i class="bi bi-calendar-plus"></i><span>Criar agendamentos</span>
+                        </a>
+                        <a href="{{ url_for('main.relatorio_aderencia_ssma') }}"
+                           class="sidebar-link {% if request.endpoint == 'main.relatorio_aderencia_ssma' %}active{% endif %}">
+                            <i class="bi bi-clipboard-data"></i><span>Relatório de aderência</span>
+                        </a>
+                        <a href="{{ url_for('main.analise_critica_hs') }}"
+                           class="sidebar-link {% if request.endpoint == 'main.analise_critica_hs' %}active{% endif %}">
+                            <i class="bi bi-graph-up-arrow"></i><span>Análise crítica HS</span>
+                        </a>
+                    {% endif %}
                 </div>
             </section>
         {% endif %}

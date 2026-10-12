@@ -47,6 +47,13 @@ class HorasSegurancaAnaliseCriticaTests(unittest.TestCase):
         self.assertIn("Análise por auditor", self.template)
         self.assertIn("Desvios recorrentes", self.template)
 
+    def test_analise_critica_exige_gestao_ssma(self):
+        self.assertIn(
+            "@gerenciar_agendamentos_ssma_required\n"
+            "    def analise_critica_hs",
+            self.view,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

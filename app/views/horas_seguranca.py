@@ -13,6 +13,7 @@ from app.access_policy import (
 )
 from app.decorators import (
     admin_required,
+    gerenciar_agendamentos_ssma_required,
     login_required,
     module_required,
 )
@@ -1851,7 +1852,7 @@ def register_horas_seguranca_routes(blueprint):
 
     @blueprint.route('/analise_critica_hs', methods=['GET'])
     @login_required
-    @module_required('acesso_ssma')
+    @gerenciar_agendamentos_ssma_required
     def analise_critica_hs():
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
