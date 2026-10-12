@@ -388,8 +388,7 @@
                         <td class="text-center">
                             <div class="d-flex justify-content-center gap-2">
 
-                                {% if ap.criado_por == session.get('usuario_id') or session.get('perfil') == 'administrador' %}
-
+                                {% if ap.pode_editar %}
                                     <button type="button"
                                             class="btn-acao-icon"
                                             title="Editar"
@@ -404,7 +403,9 @@
                                             data-pontos="{{ ap.pontos_observados|default('', true)|e }}">
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
+                                {% endif %}
 
+                                {% if ap.pode_excluir %}
                                     <form method="POST"
                                           action="{{ url_for('main.excluir_ap', id=ap.id) }}"
                                           onsubmit="return confirm('Tem certeza que deseja excluir esta Auditoria de Padrão?');"
@@ -413,8 +414,9 @@
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
+                                {% endif %}
 
-                                {% else %}
+                                {% if not ap.pode_editar and not ap.pode_excluir %}
                                     <span class="text-muted small">Sem permissão</span>
                                 {% endif %}
 
