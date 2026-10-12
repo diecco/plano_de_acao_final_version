@@ -10,13 +10,47 @@ from flask import (
     url_for,
 )
 
+from app.access_policy import (
+    filtro_escopo_visualizacao,
+    pode_alterar_registro,
+    pode_excluir_registro,
+)
 from app.decorators import (
     admin_required,
     login_required,
     module_required,
-    pode_acessar_ssma,
 )
 from app.utils.db import get_db_connection
+
+
+def _buscar_recusa(cursor, registro_id):
+    cursor.execute("""
+        SELECT r.*, u.centro_custos_id AS centro_custos_registro_id
+        FROM recusa_tarefa r
+        JOIN usuarios u ON u.id = r.id_usuario
+        WHERE r.id = %s
+    """, (registro_id,))
+    return cursor.fetchone()
+
+
+def _pode_alterar_recusa(registro):
+    return bool(registro) and pode_alterar_registro(
+        session.get("perfil"),
+        session.get("usuario_id"),
+        session.get("centro_custos_id"),
+        registro.get("criado_por"),
+        registro.get("centro_custos_registro_id"),
+    )
+
+
+def _pode_excluir_recusa(registro):
+    return bool(registro) and pode_excluir_registro(
+        session.get("perfil"),
+        session.get("usuario_id"),
+        session.get("centro_custos_id"),
+        registro.get("criado_por"),
+        registro.get("centro_custos_registro_id"),
+    )
 
 
 def register_recusa_tarefa_routes(blueprint):
@@ -258,9 +292,9 @@ def register_recusa_tarefa_routes(blueprint):
         perfil = session.get("perfil")
         centro_custos_id = session.get("centro_custos_id")
 
-        recusa = pode_acessar_ssma(cursor, 'recusa', id)
+        recusa = _buscar_recusa(cursor, id)
 
-        if not recusa:
+        if not _pode_alterar_recusa(recusa):
             conn.close()
             flash(
                 "Recusa não encontrada ou você não possui permissão para editá-la.",
@@ -434,9 +468,9 @@ def register_recusa_tarefa_routes(blueprint):
             conn = get_db_connection()
             cursor = conn.cursor(dictionary=True)
 
-            recusa = pode_acessar_ssma(cursor, 'recusa', id)
+            recusa = _buscar_recusa(cursor, id)
 
-            if not recusa:
+            if not _pode_excluir_recusa(recusa):
                 flash(
                     "Recusa não encontrada ou você não possui permissão para excluí-la.",
                     "warning",
@@ -528,16 +562,13 @@ def register_recusa_tarefa_routes(blueprint):
         params = []
 
         perfil = usuario_logado["perfil"]
-
-        if perfil == "basico":
-            base_from += " AND r.criado_por = %s"
-            params.append(usuario_logado_id)
-
-        elif perfil == "intermediario":
-            base_from += " AND u.centro_custos_id = %s"
-            params.append(usuario_logado["centro_custos_id"])
-
-        # avançado e administrador veem tudo
+        filtro_escopo, valores_escopo = filtro_escopo_visualizacao(
+            perfil,
+            usuario_logado["centro_custos_id"],
+            campo_centro="u.centro_custos_id",
+        )
+        base_from += f" AND {filtro_escopo}"
+        params.extend(valores_escopo)
 
         if usuario_id:
             base_from += " AND r.id_usuario = %s"
@@ -590,14 +621,18 @@ def register_recusa_tarefa_routes(blueprint):
             SELECT
                 r.*,
                 u.nome AS usuario_nome,
+                u.centro_custos_id AS centro_custos_registro_id,
                 c.descricao AS causa_nome
             {base_from}
             ORDER BY {coluna_sort} {direcao}, r.hora_recusa DESC
             LIMIT %s OFFSET %s
         """, params + [per_page, offset])
         registros = cursor.fetchall()
+        for registro in registros:
+            registro["pode_editar"] = _pode_alterar_recusa(registro)
+            registro["pode_excluir"] = _pode_excluir_recusa(registro)
 
-        if usuario_logado["perfil"] == "administrador":
+        if usuario_logado["perfil"] in {"administrador", "avancado"}:
             cursor.execute("""
                 SELECT id, nome
                 FROM usuarios
