@@ -116,6 +116,12 @@
                                 {% endif %}>
                             IFS
                         </option>
+                        <option value="observacao_comportamental"
+                                {% if filtros.get('pratica', '') == 'observacao_comportamental' %}
+                                    selected
+                                {% endif %}>
+                            Observação Comportamental
+                        </option>
                     </select>
                 </div>
 
@@ -329,6 +335,8 @@
                                     Auditoria de Padrão
                                 {% elif item.pratica == 'ifs' %}
                                     IFS
+                                {% elif item.pratica == 'observacao_comportamental' %}
+                                    Observação Comportamental
                                 {% else %}
                                     {{ item.pratica or '-' }}
                                 {% endif %}

@@ -314,9 +314,8 @@
                         </td>
 
                         <td class="text-center">
-                            {% if recusa.criado_por == session.get('usuario_id') %}
-                                <div class="d-flex justify-content-center gap-2">
-
+                            <div class="d-flex justify-content-center gap-2">
+                                {% if recusa.pode_editar %}
                                     <button type="button"
                                             class="btn-acao-icon"
                                             title="Editar"
@@ -333,7 +332,9 @@
                                             data-descricao="{{ recusa.descricao|default('', true)|e }}">
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
+                                {% endif %}
 
+                                {% if recusa.pode_excluir %}
                                     <form method="POST"
                                           action="{{ url_for('main.excluir_recusa', id=recusa.id) }}"
                                           onsubmit="return confirm('Tem certeza que deseja excluir esta Recusa à Tarefa?');"
@@ -342,11 +343,11 @@
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
-
-                                </div>
-                            {% else %}
+                                {% endif %}
+                                {% if not recusa.pode_editar and not recusa.pode_excluir %}
                                 <span class="text-muted">Sem permissão</span>
-                            {% endif %}
+                                {% endif %}
+                            </div>
                         </td>
 
                     </tr>

@@ -1,0 +1,322 @@
+{% extends "layout.html" %}
+{% block titulo %}Observação Comportamental{% endblock %}
+{% block conteudo %}
+
+<style>
+    .detalhe-oc-row > td { padding: 0; }
+    .oc-detail-panel {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-left: 3px solid var(--cor-laranja, #f36c21);
+        border-radius: .5rem;
+        padding: 1rem;
+    }
+    .oc-detail-title {
+        color: var(--cor-laranja, #f36c21);
+        font-weight: 600;
+    }
+    .oc-detail-panel dt,
+    .oc-detail-panel dd { margin-bottom: .45rem; }
+    .oc-detail-table thead th {
+        background: var(--cor-laranja, #f36c21);
+        color: #fff;
+        vertical-align: middle;
+    }
+</style>
+
+{% macro botoes_ordenacao(campo) %}
+<span class="btn-group btn-group-sm">
+    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+       href="{{ url_for('main.observacoes_comportamentais',
+           observador_id=filtros.get('observador_id', ''),
+           observador_busca=filtros.get('observador_busca', ''),
+           data_inicio=filtros.get('data_inicio', ''),
+           data_fim=filtros.get('data_fim', ''),
+           sort=campo, order='asc') }}">
+        <i class="bi bi-caret-up-fill"></i>
+    </a>
+    <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+       href="{{ url_for('main.observacoes_comportamentais',
+           observador_id=filtros.get('observador_id', ''),
+           observador_busca=filtros.get('observador_busca', ''),
+           data_inicio=filtros.get('data_inicio', ''),
+           data_fim=filtros.get('data_fim', ''),
+           sort=campo, order='desc') }}">
+        <i class="bi bi-caret-down-fill"></i>
+    </a>
+</span>
+{% endmacro %}
+
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-eye me-2"></i>
+        Observações Comportamentais
+    </h2>
+</div>
+<hr>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="get" action="{{ url_for('main.observacoes_comportamentais') }}" id="formFiltrosOc">
+            <div class="bloco-filtros">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label for="observador_busca" class="form-label">Observador</label>
+                        <input type="text" class="form-control" id="observador_busca"
+                               name="observador_busca" list="listaObservadoresOc"
+                               autocomplete="off" value="{{ filtros.get('observador_busca', '') }}"
+                               placeholder="Digite o nome ou a matrícula">
+                        <input type="hidden" id="observador_id" name="observador_id"
+                               value="{{ filtros.get('observador_id', '') }}">
+                        <datalist id="listaObservadoresOc">
+                            {% for usuario in observadores %}
+                                <option value="{{ usuario.nome }}{% if usuario.matricula %} — {{ usuario.matricula }}{% endif %}"
+                                        data-id="{{ usuario.id }}"></option>
+                            {% endfor %}
+                        </datalist>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="data_inicio" class="form-label">Data inicial</label>
+                        <input type="date" name="data_inicio" id="data_inicio" class="form-control"
+                               value="{{ filtros.get('data_inicio', '') }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="data_fim" class="form-label">Data final</label>
+                        <input type="date" name="data_fim" id="data_fim" class="form-control"
+                               value="{{ filtros.get('data_fim', '') }}">
+                    </div>
+                    <div class="col-md-2">
+                        <div class="d-flex gap-2 justify-content-end flex-wrap">
+                            <button type="submit" class="btn btn-laranja" title="Filtrar">
+                                <i class="bi bi-funnel"></i>
+                            </button>
+                            <a href="{{ url_for('main.observacoes_comportamentais') }}"
+                               class="btn btn-cinza" title="Limpar">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </a>
+                            <a href="{{ url_for('main.nova_observacao_comportamental') }}"
+                               class="btn btn-laranja" title="Nova Observação Comportamental">
+                                <i class="bi bi-plus-circle"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle table-fixed">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 85px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">ID</span>{{ botoes_ordenacao('id') }}</div></th>
+                        <th style="width: 125px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Data</span>{{ botoes_ordenacao('data') }}</div></th>
+                        <th style="width: 220px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Observador</span>{{ botoes_ordenacao('observador') }}</div></th>
+                        <th style="width: 260px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Local / setor</span>{{ botoes_ordenacao('local') }}</div></th>
+                        <th style="width: 190px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Área</span>{{ botoes_ordenacao('area') }}</div></th>
+                        <th style="width: 115px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Pessoas</span>{{ botoes_ordenacao('pessoas') }}</div></th>
+                        <th style="width: 125px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Situação</span>{{ botoes_ordenacao('status') }}</div></th>
+                        <th class="text-center" style="width: 135px;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelaObservacoesOc">
+                    {% for registro in registros %}
+                        <tr>
+                            <td class="text-center">{{ registro.id }}</td>
+                            <td>{{ registro.data_observacao.strftime('%d/%m/%Y') }}<br><small class="text-muted">{{ registro.hora_observacao }}</small></td>
+                            <td>{{ registro.observador_nome }}</td>
+                            <td><strong>{{ registro.local_observado }}</strong><br><small class="text-muted">{{ registro.setor_observado }}</small></td>
+                            <td>{{ registro.area }}<br><small class="text-muted">CC {{ registro.centro_custos_codigo }}</small></td>
+                            <td class="text-center">{{ registro.pessoas_observadas }}</td>
+                            <td class="text-center">
+                                {% if registro.status == 'concluida' %}<span class="badge text-bg-success">Concluída</span>
+                                {% elif registro.status == 'cancelada' %}<span class="badge text-bg-secondary">Cancelada</span>
+                                {% else %}<span class="badge text-bg-warning">Rascunho</span>{% endif %}
+                            </td>
+                            <td class="text-center">
+                                <div class="d-flex justify-content-center gap-2">
+                                    <button type="button" class="btn-acao-icon" title="Ver detalhes"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#detalhes-oc-{{ registro.id }}"
+                                            aria-expanded="false"
+                                            aria-controls="detalhes-oc-{{ registro.id }}">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    {% if registro.pode_editar %}<a class="btn-acao-icon" title="Editar"
+                                       href="{{ url_for('main.editar_observacao_comportamental', registro_id=registro.id) }}">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>{% endif %}
+                                    {% if registro.pode_excluir %}<form method="post" class="d-inline"
+                                          action="{{ url_for('main.excluir_observacao_comportamental', registro_id=registro.id) }}"
+                                          data-confirmacao="Tem certeza de que deseja excluir esta observação?"
+                                          data-confirmacao-titulo="Excluir Observação Comportamental"
+                                          data-confirmacao-contexto="Observação #{{ registro.id }}"
+                                          data-confirmacao-observacao="Ela será removida da listagem, mas seus dados e histórico permanecerão preservados."
+                                          data-confirmacao-botao="Excluir"
+                                          data-confirmacao-icone="bi-trash">
+                                        <button type="submit" class="btn-acao-icon" title="Excluir">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>{% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="collapse detalhe-oc-row" id="detalhes-oc-{{ registro.id }}"
+                            data-bs-parent="#tabelaObservacoesOc">
+                            <td colspan="8" class="bg-light">
+                                <div class="p-3">
+                                    <div class="row g-3 mb-3">
+                                        <div class="col-12 col-lg-4">
+                                            <div class="oc-detail-panel h-100">
+                                                <h6 class="oc-detail-title">
+                                                    <i class="bi bi-info-circle me-2"></i>Identificação
+                                                </h6>
+                                                <dl class="row mb-0">
+                                                    <dt class="col-5">Data</dt>
+                                                    <dd class="col-7">{{ registro.data_observacao.strftime('%d/%m/%Y') }}</dd>
+                                                    <dt class="col-5">Hora</dt>
+                                                    <dd class="col-7">{{ registro.hora_observacao or '-' }}</dd>
+                                                    <dt class="col-5">Local</dt>
+                                                    <dd class="col-7">{{ registro.local_observado or '-' }}</dd>
+                                                    <dt class="col-5">Setor</dt>
+                                                    <dd class="col-7">{{ registro.setor_observado or '-' }}</dd>
+                                                    <dt class="col-5">Área</dt>
+                                                    <dd class="col-7">{{ registro.area or '-' }}</dd>
+                                                    <dt class="col-5">Atividade</dt>
+                                                    <dd class="col-7">{{ registro.atividade or '-' }}</dd>
+                                                </dl>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 col-lg-4">
+                                            <div class="oc-detail-panel h-100">
+                                                <h6 class="oc-detail-title">
+                                                    <i class="bi bi-person-check me-2"></i>Realização
+                                                </h6>
+                                                <dl class="row mb-0">
+                                                    <dt class="col-5">Observador</dt>
+                                                    <dd class="col-7">{{ registro.observador_nome or '-' }}</dd>
+                                                    <dt class="col-5">Matrícula</dt>
+                                                    <dd class="col-7">{{ registro.observador_matricula or '-' }}</dd>
+                                                    <dt class="col-5">Centro</dt>
+                                                    <dd class="col-7">
+                                                        {{ registro.centro_custos_codigo or '-' }}
+                                                        {% if registro.centro_custos_descricao %}<br><span class="text-muted small">{{ registro.centro_custos_descricao }}</span>{% endif %}
+                                                    </dd>
+                                                    <dt class="col-5">Pessoas</dt>
+                                                    <dd class="col-7">{{ registro.pessoas_observadas }}</dd>
+                                                </dl>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 col-lg-4">
+                                            <div class="oc-detail-panel h-100">
+                                                <h6 class="oc-detail-title">
+                                                    <i class="bi bi-clipboard-check me-2"></i>Resultado
+                                                </h6>
+                                                <dl class="row mb-0">
+                                                    <dt class="col-6">Marcações</dt>
+                                                    <dd class="col-6">{{ registro.total_marcacoes }}</dd>
+                                                    <dt class="col-6">Abordagem</dt>
+                                                    <dd class="col-6">{{ 'Sim' if registro.houve_abordagem else 'Não' }}</dd>
+                                                    <dt class="col-6">Correção imediata</dt>
+                                                    <dd class="col-6">{{ 'Sim' if registro.correcao_imediata else 'Não' }}</dd>
+                                                    <dt class="col-6">Situação</dt>
+                                                    <dd class="col-6">
+                                                        {% if registro.status == 'concluida' %}<span class="badge text-bg-success">Concluída</span>
+                                                        {% elif registro.status == 'cancelada' %}<span class="badge text-bg-secondary">Cancelada</span>
+                                                        {% else %}<span class="badge text-bg-warning">Rascunho</span>{% endif %}
+                                                    </dd>
+                                                </dl>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <h6 class="oc-detail-title mb-2">
+                                        <i class="bi bi-list-check me-2"></i>Comportamentos registrados
+                                    </h6>
+                                    <div class="table-responsive mb-3">
+                                        <table class="table table-sm table-bordered align-middle mb-0 oc-detail-table">
+                                            <thead><tr><th style="width:32%">Categoria</th><th>Item</th><th class="text-center" style="width:110px">Quantidade</th></tr></thead>
+                                            <tbody>
+                                                {% for item in marcacoes_por_registro.get(registro.id, []) %}
+                                                <tr>
+                                                    <td><span class="badge text-bg-light">{{ item.categoria_codigo }}</span> {{ item.categoria_nome }}</td>
+                                                    <td>{{ item.item_descricao }}</td>
+                                                    <td class="text-center fw-semibold">{{ item.quantidade }}</td>
+                                                </tr>
+                                                {% else %}
+                                                <tr><td colspan="3" class="text-center text-muted py-3">Nenhuma marcação registrada.</td></tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <div class="oc-detail-panel">
+                                        <h6 class="oc-detail-title">
+                                            <i class="bi bi-chat-left-text me-2"></i>Abordagem e observações
+                                        </h6>
+                                        <div class="row g-3">
+                                            <div class="col-12 col-lg-4"><strong class="d-block mb-1">Descrição da abordagem</strong>{{ registro.descricao_abordagem or 'Não informada.' }}</div>
+                                            <div class="col-12 col-lg-4"><strong class="d-block mb-1">Pontos positivos</strong>{{ registro.pontos_positivos or 'Não informados.' }}</div>
+                                            <div class="col-12 col-lg-4"><strong class="d-block mb-1">Observações gerais</strong>{{ registro.observacoes_gerais or 'Não informadas.' }}</div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="8" class="text-center text-muted py-4">Nenhuma observação encontrada.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if total_paginas %}
+<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+    <div class="text-muted small">
+        Exibindo página {{ page }} de {{ total_paginas }} — {{ total_registros }} registro(s)
+    </div>
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('main.observacoes_comportamentais', observador_id=filtros.get('observador_id', ''), observador_busca=filtros.get('observador_busca', ''), data_inicio=filtros.get('data_inicio', ''), data_fim=filtros.get('data_fim', ''), sort=filtros.get('sort', 'data'), order=filtros.get('order', 'desc'), page=page-1) }}">Anterior</a>
+            </li>
+            {% for p in range(1, total_paginas + 1) %}
+                {% if p == 1 or p == total_paginas or (p >= page - 2 and p <= page + 2) %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.observacoes_comportamentais', observador_id=filtros.get('observador_id', ''), observador_busca=filtros.get('observador_busca', ''), data_inicio=filtros.get('data_inicio', ''), data_fim=filtros.get('data_fim', ''), sort=filtros.get('sort', 'data'), order=filtros.get('order', 'desc'), page=p) }}">{{ p }}</a>
+                    </li>
+                {% elif p == page - 3 or p == page + 3 %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+            <li class="page-item {% if page >= total_paginas %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('main.observacoes_comportamentais', observador_id=filtros.get('observador_id', ''), observador_busca=filtros.get('observador_busca', ''), data_inicio=filtros.get('data_inicio', ''), data_fim=filtros.get('data_fim', ''), sort=filtros.get('sort', 'data'), order=filtros.get('order', 'desc'), page=page+1) }}">Próxima</a>
+            </li>
+        </ul>
+    </nav>
+</div>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const busca = document.getElementById('observador_busca');
+    const id = document.getElementById('observador_id');
+    const opcoes = Array.from(document.querySelectorAll('#listaObservadoresOc option'));
+
+    function sincronizarObservador() {
+        const selecionado = opcoes.find(opcao => opcao.value === busca.value);
+        id.value = selecionado ? selecionado.dataset.id : '';
+    }
+
+    busca.addEventListener('input', sincronizarObservador);
+    busca.addEventListener('change', sincronizarObservador);
+
+});
+</script>
+{% endblock %}

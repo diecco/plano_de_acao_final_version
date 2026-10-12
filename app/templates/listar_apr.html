@@ -398,8 +398,7 @@
             </a>
         {% endif %}
 
-        {% if apr.criado_por == session.get('usuario_id') or session.get('perfil') == 'administrador' %}
-
+        {% if apr.pode_editar %}
             <button type="button"
                     class="btn-acao-icon"
                     title="Editar"
@@ -414,7 +413,9 @@
                     data-arquivo="{{ apr.arquivo_pdf|default('', true)|e }}">
                 <i class="bi bi-pencil-square"></i>
             </button>
+        {% endif %}
 
+        {% if apr.pode_excluir %}
             <form method="POST"
                   action="{{ url_for('main.excluir_apr', id=apr.id) }}"
                   onsubmit="return confirm('Tem certeza que deseja excluir esta APR?');"
@@ -423,7 +424,6 @@
                     <i class="bi bi-trash"></i>
                 </button>
             </form>
-
         {% endif %}
 
     </div>

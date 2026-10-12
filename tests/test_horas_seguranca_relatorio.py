@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class HorasSegurancaRelatorioTests(unittest.TestCase):
-    def test_listagem_expoe_detalhes_e_pdf_sem_liberar_edicao(self):
+    def test_listagem_expoe_acoes_conforme_politica_central(self):
         template = (ROOT / "app" / "templates" / "listar_hs.html").read_text(
             encoding="utf-8"
         )
@@ -15,14 +15,16 @@ class HorasSegurancaRelatorioTests(unittest.TestCase):
         self.assertIn("detalhes-hs-{{ hs.id }}", template)
         self.assertIn("main.relatorio_pdf_hs", template)
         self.assertIn("itens_por_registro.get(hs.id|string, [])", template)
-        self.assertIn("{% if hs.id_auditor == session.get('usuario_id') %}", template)
+        self.assertIn("{% if hs.pode_editar %}", template)
+        self.assertIn("{% if hs.pode_excluir %}", template)
 
     def test_pdf_usa_mesmo_escopo_de_acesso_da_listagem(self):
         view = (ROOT / "app" / "views" / "horas_seguranca.py").read_text(
             encoding="utf-8"
         )
         self.assertIn("def _buscar_detalhes_hora_seguranca", view)
-        self.assertIn('pode_acessar_ssma(cursor, "hs", registro_id)', view)
+        self.assertIn("_pode_visualizar_hs(registro)", view)
+        self.assertIn("filtro_escopo_visualizacao", view)
         self.assertIn("def relatorio_pdf_hs", view)
         self.assertIn('mimetype="application/pdf"', view)
         self.assertIn("FROM hs_respostas resp", view)

@@ -12,6 +12,7 @@ DIRETORIOS_PERSISTENTES = (
     "aprs",
     "pcpm_movimentacoes",
     "comunicados",
+    "desvios",
 )
 
 

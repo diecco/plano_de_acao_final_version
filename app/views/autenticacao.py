@@ -75,12 +75,22 @@ def register_autenticacao_routes(blueprint):
                 session['acesso_acr'] = permissao(
                     usuario.get('acesso_acr')
                 )
+                session['acesso_observacao_comportamental'] = permissao(
+                    usuario.get('acesso_observacao_comportamental')
+                )
+                session['acesso_desvios'] = permissao(
+                    usuario.get('acesso_desvios')
+                )
 
                 # Flags adicionais
                 session['pode_ser_instrutor'] = permissao(usuario.get('pode_ser_instrutor'))
                 session['responsavel_revisao_padrao'] = permissao(usuario.get('responsavel_revisao_padrao'))
                 session['pode_criar_agendamento_ssma'] = permissao(usuario.get('pode_criar_agendamento_ssma'))
                 session['pode_ser_lider_ssma'] = permissao(usuario.get('pode_ser_lider_ssma'))
+                session['gestor_ssma'] = permissao(usuario.get('gestor_ssma'))
+                session['pode_direcionar_desvios'] = permissao(
+                    usuario.get('pode_direcionar_desvios')
+                )
 
                 # Perfis com escopo local precisam de Centro de Custo.
                 if (

@@ -1079,7 +1079,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 - ((painel.clientWidth - noRect.width) / 2);
             painel.scrollTo({left: Math.max(0, destino), behavior: 'smooth'});
         };
-        document.addEventListener('click', evento => {
+        document.addEventListener('click', async evento => {
             const adicionar = evento.target.closest('.js-adc-adicionar, .js-adc-adicionar-irmao');
             if (adicionar && formArvore.contains(adicionar)) {
                 sincronizarAdc();
@@ -1094,7 +1094,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (remover && formArvore.contains(remover)) {
                 sincronizarAdc();
                 const chaves = new Set([remover.dataset.chave, ...descendentesAdc(remover.dataset.chave)]);
-                if (chaves.size > 1 && !window.confirm('Remover este fato e todas as suas ramificações?')) return;
+                if (chaves.size > 1) {
+                    const confirmado = await window.confirmarAcaoSistema({
+                        titulo: 'Remover fato e ramificações',
+                        mensagem: 'Remover este fato e todas as suas ramificações?',
+                        observacao: 'Os fatos descendentes também serão removidos da árvore.',
+                        botao: 'Remover',
+                        icone: 'bi-trash',
+                    });
+                    if (!confirmado) return;
+                }
                 itensAdc = itensAdc.filter(item => !chaves.has(item.chave));
                 renderizarAdc();
             }

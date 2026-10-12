@@ -341,8 +341,7 @@
                                     <i class="bi bi-file-earmark-pdf"></i>
                                 </a>
 
-                                {% if hs.id_auditor == session.get('usuario_id') %}
-
+                                {% if hs.pode_editar %}
                                     <button type="button"
                                             class="btn-acao-icon"
                                             title="Editar"
@@ -359,7 +358,9 @@
                                             data-next="{{ request.full_path }}">
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
+                                {% endif %}
 
+                                {% if hs.pode_excluir %}
                                     <form method="POST"
                                           action="{{ url_for('main.excluir_hs', id=hs.id) }}"
                                           onsubmit="return confirm('Tem certeza que deseja excluir esta Hora de Segurança?');"

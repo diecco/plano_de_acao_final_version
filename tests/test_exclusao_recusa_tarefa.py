@@ -26,8 +26,11 @@ class ExclusaoRecusaTarefaTests(unittest.TestCase):
                 "app.views.recusa_tarefa.get_db_connection",
                 return_value=conexao,
             ), patch(
-                "app.views.recusa_tarefa.pode_acessar_ssma",
+                "app.views.recusa_tarefa._buscar_recusa",
                 return_value={"id": 17},
+            ), patch(
+                "app.views.recusa_tarefa._pode_excluir_recusa",
+                return_value=True,
             ):
                 resposta = client.post("/excluir_recusa/17")
 
@@ -53,8 +56,11 @@ class ExclusaoRecusaTarefaTests(unittest.TestCase):
                 "app.views.recusa_tarefa.get_db_connection",
                 return_value=conexao,
             ), patch(
-                "app.views.recusa_tarefa.pode_acessar_ssma",
+                "app.views.recusa_tarefa._buscar_recusa",
                 return_value={"id": 18},
+            ), patch(
+                "app.views.recusa_tarefa._pode_excluir_recusa",
+                return_value=True,
             ):
                 resposta = client.post("/excluir_recusa/18")
 

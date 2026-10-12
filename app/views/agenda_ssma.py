@@ -138,7 +138,8 @@ def register_agenda_ssma_routes(blueprint):
         praticas_validas = {
             "hora_seguranca",
             "auditoria_padrao",
-            "ifs"
+            "ifs",
+            "observacao_comportamental"
         }
 
         if pratica not in praticas_validas:
@@ -607,7 +608,8 @@ def register_agenda_ssma_routes(blueprint):
             praticas_validas = {
                 "hora_seguranca",
                 "auditoria_padrao",
-                "ifs"
+                "ifs",
+                "observacao_comportamental"
             }
 
             if pratica not in praticas_validas:
@@ -641,7 +643,10 @@ def register_agenda_ssma_routes(blueprint):
                         "de Padrão."
                     )
 
-            elif pratica == "ifs":
+            elif pratica in {
+                "ifs",
+                "observacao_comportamental"
+            }:
                 tema_id = None
                 colaborador_id = None
                 procedimento_id = None
@@ -2234,6 +2239,19 @@ def register_agenda_ssma_routes(blueprint):
                     )
                 )
 
+            # =================================================
+            # OBSERVAÇÃO COMPORTAMENTAL
+            # =================================================
+
+            if pratica == "observacao_comportamental":
+                return redirect(
+                    url_for(
+                        "main.nova_observacao_comportamental",
+                        agendamento_id=agendamento["id"],
+                        next=next_url
+                    )
+                )
+
             flash(
                 "A prática informada no agendamento é inválida.",
                 "danger"
@@ -2752,6 +2770,8 @@ def register_agenda_ssma_routes(blueprint):
 
                         WHEN vw.pratica = 'ifs'
                             THEN 'IFS'
+                        WHEN vw.pratica = 'observacao_comportamental'
+                            THEN 'Observação Comportamental'
 
                         ELSE vw.pratica
                     END AS pratica_nome,

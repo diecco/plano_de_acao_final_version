@@ -13,7 +13,27 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 208)
+        self.assertEqual(len(self.routes), 224)
+
+    def test_observacao_comportamental_routes_are_registered(self):
+        expected = {
+            ("/observacoes_comportamentais", ("GET",)):
+                "main.observacoes_comportamentais",
+            ("/observacoes_comportamentais/nova", ("GET", "POST")):
+                "main.nova_observacao_comportamental",
+            ("/observacoes_comportamentais/<int:registro_id>", ("GET",)):
+                "main.detalhar_observacao_comportamental",
+            ("/observacoes_comportamentais/<int:registro_id>/editar", ("GET", "POST")):
+                "main.editar_observacao_comportamental",
+            ("/observacoes_comportamentais/<int:registro_id>/excluir", ("POST",)):
+                "main.excluir_observacao_comportamental",
+            ("/observacoes_comportamentais/<int:registro_id>/cancelar", ("POST",)):
+                "main.cancelar_observacao_comportamental",
+            ("/observacoes_comportamentais/<int:registro_id>/reabrir", ("POST",)):
+                "main.reabrir_observacao_comportamental",
+        }
+        for route_contract, endpoint in expected.items():
+            self.assertEqual(self.routes.get(route_contract), endpoint)
 
     def test_visualizacao_de_melhoria_esta_registrada(self):
         self.assertEqual(

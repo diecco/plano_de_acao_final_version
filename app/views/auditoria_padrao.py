@@ -4,8 +4,45 @@ from datetime import date, datetime, timedelta
 
 from flask import flash, redirect, render_template, request, session, url_for
 
+from app.access_policy import (
+    filtro_escopo_visualizacao,
+    pode_alterar_registro,
+    pode_excluir_registro,
+)
 from app.decorators import login_required, module_required
 from app.utils.db import get_db_connection
+
+
+def _buscar_auditoria_padrao(cursor, registro_id):
+    cursor.execute("""
+        SELECT
+            ap.*,
+            auditado.centro_custos_id AS centro_custos_registro_id
+        FROM auditorias_padrao ap
+        JOIN usuarios auditado ON auditado.id = ap.auditado_id
+        WHERE ap.id = %s AND ap.ativo = 1
+    """, (registro_id,))
+    return cursor.fetchone()
+
+
+def _pode_alterar_auditoria_padrao(registro):
+    return bool(registro) and pode_alterar_registro(
+        session.get("perfil"),
+        session.get("usuario_id"),
+        session.get("centro_custos_id"),
+        registro.get("criado_por"),
+        registro.get("centro_custos_registro_id"),
+    )
+
+
+def _pode_excluir_auditoria_padrao(registro):
+    return bool(registro) and pode_excluir_registro(
+        session.get("perfil"),
+        session.get("usuario_id"),
+        session.get("centro_custos_id"),
+        registro.get("criado_por"),
+        registro.get("centro_custos_registro_id"),
+    )
 
 
 def register_auditoria_padrao_routes(blueprint):
@@ -996,7 +1033,6 @@ def register_auditoria_padrao_routes(blueprint):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
-        usuario_id = session.get('usuario_id')
         perfil = session.get('perfil')
         centro_custos_id = session.get('centro_custos_id')
 
@@ -1038,16 +1074,13 @@ def register_auditoria_padrao_routes(blueprint):
         filtros_sql = ["ap.ativo = 1"]
         params = []
 
-        # CONTROLE DE ESCOPO POR PERFIL
-        if perfil == 'basico':
-            filtros_sql.append("ap.criado_por = %s")
-            params.append(usuario_id)
-
-        elif perfil == 'intermediario':
-            filtros_sql.append("auditado.centro_custos_id = %s")
-            params.append(centro_custos_id)
-
-        # avançado e administrador veem tudo
+        filtro_escopo, valores_escopo = filtro_escopo_visualizacao(
+            perfil,
+            centro_custos_id,
+            campo_centro="auditado.centro_custos_id",
+        )
+        filtros_sql.append(filtro_escopo)
+        params.extend(valores_escopo)
 
         if auditor_id:
             filtros_sql.append("ap.auditor_id = %s")
@@ -1117,6 +1150,7 @@ def register_auditoria_padrao_routes(blueprint):
 
                 auditor.nome AS auditor_nome,
                 auditado.nome AS auditado_nome,
+                auditado.centro_custos_id AS centro_custos_registro_id,
 
                 td.sigla,
                 p.numero_documento,
@@ -1128,6 +1162,14 @@ def register_auditoria_padrao_routes(blueprint):
             LIMIT %s OFFSET %s
         """, params + [per_page, offset])
         auditorias = cursor.fetchall()
+
+        for auditoria in auditorias:
+            auditoria['pode_editar'] = (
+                _pode_alterar_auditoria_padrao(auditoria)
+            )
+            auditoria['pode_excluir'] = (
+                _pode_excluir_auditoria_padrao(auditoria)
+            )
 
         if perfil in ['administrador', 'avancado']:
             cursor.execute("""
@@ -1194,18 +1236,14 @@ def register_auditoria_padrao_routes(blueprint):
         cursor = conn.cursor(dictionary=True)
 
         try:
-            auditoria = pode_acessar_ssma(cursor, 'auditoria_padrao', id)
+            auditoria = _buscar_auditoria_padrao(cursor, id)
 
             if not auditoria:
                 flash('Auditoria de Padrão não encontrada ou você não possui permissão para excluí-la.', 'warning')
                 conn.close()
                 return redirect(url_for('main.listar_ap'))
 
-            perfil = session.get('perfil')
-            usuario_id = session.get('usuario_id')
-
-            # Regra adicional: somente administrador ou quem criou pode excluir
-            if perfil != 'administrador' and auditoria['criado_por'] != usuario_id:
+            if not _pode_excluir_auditoria_padrao(auditoria):
                 flash('Você não tem permissão para excluir esta Auditoria de Padrão.', 'warning')
                 conn.close()
                 return redirect(url_for('main.listar_ap'))
@@ -1236,7 +1274,7 @@ def register_auditoria_padrao_routes(blueprint):
         cursor = conn.cursor(dictionary=True)
 
         try:
-            auditoria = pode_acessar_ssma(cursor, 'auditoria_padrao', id)
+            auditoria = _buscar_auditoria_padrao(cursor, id)
 
             if not auditoria:
                 flash('Auditoria de Padrão não encontrada ou você não possui permissão para editá-la.', 'warning')
@@ -1244,11 +1282,9 @@ def register_auditoria_padrao_routes(blueprint):
                 return redirect(url_for('main.listar_ap'))
 
             perfil = session.get('perfil')
-            usuario_id = session.get('usuario_id')
             centro_custos_id = session.get('centro_custos_id')
 
-            # Regra adicional: somente administrador ou quem criou pode editar
-            if perfil != 'administrador' and auditoria['criado_por'] != usuario_id:
+            if not _pode_alterar_auditoria_padrao(auditoria):
                 flash('Você não tem permissão para editar esta Auditoria de Padrão.', 'warning')
                 conn.close()
                 return redirect(url_for('main.listar_ap'))

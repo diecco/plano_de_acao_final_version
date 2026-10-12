@@ -351,14 +351,15 @@
                         <td class="text-center">
                             <div class="d-flex justify-content-center gap-2">
 
-                                {% if ifs.criado_por == session.get('usuario_id') or session.get('perfil') == 'administrador' %}
-
+                                {% if ifs.pode_editar %}
                                     <a href="{{ url_for('main.editar_ifs', id=ifs.id) }}"
                                        class="btn-acao-icon"
                                        title="Editar">
                                         <i class="bi bi-pencil-square"></i>
                                     </a>
+                                {% endif %}
 
+                                {% if ifs.pode_excluir %}
                                     <form method="POST"
                                           action="{{ url_for('main.excluir_ifs', id=ifs.id) }}"
                                           onsubmit="return confirm('Tem certeza que deseja excluir esta IFS?');"
@@ -367,8 +368,9 @@
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
+                                {% endif %}
 
-                                {% else %}
+                                {% if not ifs.pode_editar and not ifs.pode_excluir %}
                                     <span class="text-muted small">Sem permissão</span>
                                 {% endif %}
 

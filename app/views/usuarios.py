@@ -41,11 +41,12 @@ def register_usuarios_routes(blueprint):
                 else 0
             )
 
-            pode_criar_agendamento_ssma = (
+            gestor_ssma = (
                 1
-                if request.form.get('pode_criar_agendamento_ssma') == '1'
+                if request.form.get('gestor_ssma') == '1'
                 else 0
             )
+            pode_criar_agendamento_ssma = 0
 
             pode_ser_lider_ssma = (
                 1
@@ -67,6 +68,8 @@ def register_usuarios_routes(blueprint):
             acesso_ssma = (
                 1 if request.form.get('acesso_ssma') else 0
             )
+            if gestor_ssma:
+                acesso_ssma = 1
 
             acesso_melhoria = (
                 1 if request.form.get('acesso_melhoria') else 0
@@ -94,6 +97,9 @@ def register_usuarios_routes(blueprint):
             acesso_acr = (
                 1 if request.form.get('acesso_acr') else 0
             )
+            acesso_observacao_comportamental = acesso_ssma
+            acesso_desvios = acesso_ssma
+            pode_direcionar_desvios = gestor_ssma
 
             if not nome:
                 flash('Informe o nome do funcionário.', 'danger')
@@ -202,8 +208,12 @@ def register_usuarios_routes(blueprint):
                 acesso_pcpm = 0
                 acesso_detectores_gas = 0
                 acesso_acr = 0
+                acesso_observacao_comportamental = 0
+                acesso_desvios = 0
+                pode_direcionar_desvios = 0
 
                 responsavel_revisao_padrao = 0
+                gestor_ssma = 0
                 pode_criar_agendamento_ssma = 0
                 pode_ser_lider_ssma = 0
 
@@ -307,6 +317,7 @@ def register_usuarios_routes(blueprint):
                         tem_acesso_sistema,
                         pode_ser_instrutor,
                         responsavel_revisao_padrao,
+                        gestor_ssma,
                         pode_criar_agendamento_ssma,
                         pode_ser_lider_ssma,
                         acesso_plano_acao,
@@ -317,7 +328,10 @@ def register_usuarios_routes(blueprint):
                         acesso_procedimentos,
                         acesso_pcpm,
                         acesso_detectores_gas,
-                        acesso_acr
+                        acesso_acr,
+                        acesso_observacao_comportamental,
+                        acesso_desvios,
+                        pode_direcionar_desvios
                     )
                     VALUES (
                         %s,
@@ -330,6 +344,9 @@ def register_usuarios_routes(blueprint):
                         %s,
                         %s,
                         1,
+                        %s,
+                        %s,
+                        %s,
                         %s,
                         %s,
                         %s,
@@ -360,6 +377,7 @@ def register_usuarios_routes(blueprint):
                     tem_acesso_sistema,
                     pode_ser_instrutor,
                     responsavel_revisao_padrao,
+                    gestor_ssma,
                     pode_criar_agendamento_ssma,
                     pode_ser_lider_ssma,
                     acesso_plano_acao,
@@ -370,7 +388,10 @@ def register_usuarios_routes(blueprint):
                     acesso_procedimentos,
                     acesso_pcpm,
                     acesso_detectores_gas,
-                    acesso_acr
+                    acesso_acr,
+                    acesso_observacao_comportamental,
+                    acesso_desvios,
+                    pode_direcionar_desvios
                 ))
 
                 usuario_id = cursor.lastrowid
@@ -678,13 +699,14 @@ def register_usuarios_routes(blueprint):
                 else 0
             )
 
-            pode_criar_agendamento_ssma = (
+            gestor_ssma = (
                 1
                 if request.form.get(
-                    'pode_criar_agendamento_ssma'
+                    'gestor_ssma'
                 ) == '1'
                 else 0
             )
+            pode_criar_agendamento_ssma = 0
 
             pode_ser_lider_ssma = (
                 1
@@ -722,6 +744,8 @@ def register_usuarios_routes(blueprint):
             acesso_ssma = (
                 1 if request.form.get('acesso_ssma') else 0
             )
+            if gestor_ssma:
+                acesso_ssma = 1
 
             acesso_melhoria = (
                 1 if request.form.get('acesso_melhoria') else 0
@@ -755,6 +779,9 @@ def register_usuarios_routes(blueprint):
             acesso_acr = (
                 1 if request.form.get('acesso_acr') else 0
             )
+            acesso_observacao_comportamental = acesso_ssma
+            acesso_desvios = acesso_ssma
+            pode_direcionar_desvios = gestor_ssma
 
             if not nome:
                 flash(
@@ -923,8 +950,12 @@ def register_usuarios_routes(blueprint):
                 acesso_pcpm = 0
                 acesso_detectores_gas = 0
                 acesso_acr = 0
+                acesso_observacao_comportamental = 0
+                acesso_desvios = 0
+                pode_direcionar_desvios = 0
 
                 responsavel_revisao_padrao = 0
+                gestor_ssma = 0
                 pode_criar_agendamento_ssma = 0
                 pode_ser_lider_ssma = 0
 
@@ -1025,6 +1056,7 @@ def register_usuarios_routes(blueprint):
                             tem_acesso_sistema = %s,
                             pode_ser_instrutor = %s,
                             responsavel_revisao_padrao = %s,
+                            gestor_ssma = %s,
                             pode_criar_agendamento_ssma = %s,
                             pode_ser_lider_ssma = %s,
                             acesso_plano_acao = %s,
@@ -1036,6 +1068,9 @@ def register_usuarios_routes(blueprint):
                             acesso_pcpm = %s,
                             acesso_detectores_gas = %s,
                             acesso_acr = %s,
+                            acesso_observacao_comportamental = %s,
+                            acesso_desvios = %s,
+                            pode_direcionar_desvios = %s,
                             senha_hash = %s
                         WHERE id = %s
                     """, (
@@ -1052,6 +1087,7 @@ def register_usuarios_routes(blueprint):
                         tem_acesso_sistema,
                         pode_ser_instrutor,
                         responsavel_revisao_padrao,
+                        gestor_ssma,
                         pode_criar_agendamento_ssma,
                         pode_ser_lider_ssma,
                         acesso_plano_acao,
@@ -1063,6 +1099,9 @@ def register_usuarios_routes(blueprint):
                         acesso_pcpm,
                         acesso_detectores_gas,
                         acesso_acr,
+                        acesso_observacao_comportamental,
+                        acesso_desvios,
+                        pode_direcionar_desvios,
                         hash_senha,
                         id
                     ))
@@ -1083,6 +1122,7 @@ def register_usuarios_routes(blueprint):
                             tem_acesso_sistema = %s,
                             pode_ser_instrutor = %s,
                             responsavel_revisao_padrao = %s,
+                            gestor_ssma = %s,
                             pode_criar_agendamento_ssma = %s,
                             pode_ser_lider_ssma = %s,
                             acesso_plano_acao = %s,
@@ -1093,7 +1133,10 @@ def register_usuarios_routes(blueprint):
                             acesso_procedimentos = %s,
                             acesso_pcpm = %s,
                             acesso_detectores_gas = %s,
-                            acesso_acr = %s
+                            acesso_acr = %s,
+                            acesso_observacao_comportamental = %s,
+                            acesso_desvios = %s,
+                            pode_direcionar_desvios = %s
                         WHERE id = %s
                     """, (
                         nome,
@@ -1109,6 +1152,7 @@ def register_usuarios_routes(blueprint):
                         tem_acesso_sistema,
                         pode_ser_instrutor,
                         responsavel_revisao_padrao,
+                        gestor_ssma,
                         pode_criar_agendamento_ssma,
                         pode_ser_lider_ssma,
                         acesso_plano_acao,
@@ -1120,6 +1164,9 @@ def register_usuarios_routes(blueprint):
                         acesso_pcpm,
                         acesso_detectores_gas,
                         acesso_acr,
+                        acesso_observacao_comportamental,
+                        acesso_desvios,
+                        pode_direcionar_desvios,
                         id
                     ))
 
@@ -1298,6 +1345,7 @@ def register_usuarios_routes(blueprint):
                 u.acesso_procedimentos,
                 u.acesso_detectores_gas,
                 u.acesso_acr,
+                u.acesso_observacao_comportamental,
 
                 c.nome AS nome_cargo,
 
@@ -1374,6 +1422,7 @@ def register_usuarios_routes(blueprint):
                 u.acesso_procedimentos,
                 u.acesso_detectores_gas,
                 u.acesso_acr,
+                u.acesso_observacao_comportamental,
                 c.nome,
                 cc.codigo,
                 cc.descricao,
@@ -1422,9 +1471,12 @@ def register_usuarios_routes(blueprint):
 
         if request.method == 'POST':
             perfil = request.form.get('perfil')
+            gestor_ssma = 1 if request.form.get('gestor_ssma') else 0
 
             acesso_plano_acao = 1 if request.form.get('acesso_plano_acao') else 0
             acesso_ssma = 1 if request.form.get('acesso_ssma') else 0
+            if gestor_ssma:
+                acesso_ssma = 1
             acesso_melhoria = 1 if request.form.get('acesso_melhoria') else 0
             acesso_gestao_pessoas = 1 if request.form.get('acesso_gestao_pessoas') else 0
             acesso_treinamentos = 1 if request.form.get('acesso_treinamentos') else 0
@@ -1434,6 +1486,9 @@ def register_usuarios_routes(blueprint):
                 1 if request.form.get('acesso_detectores_gas') else 0
             )
             acesso_acr = 1 if request.form.get('acesso_acr') else 0
+            acesso_observacao_comportamental = acesso_ssma
+            acesso_desvios = acesso_ssma
+            pode_direcionar_desvios = gestor_ssma
 
             cursor.execute("""
                 UPDATE usuarios
@@ -1446,7 +1501,11 @@ def register_usuarios_routes(blueprint):
                     acesso_procedimentos = %s,
                     acesso_pcpm = %s,
                     acesso_detectores_gas = %s,
-                    acesso_acr = %s
+                    acesso_acr = %s,
+                    gestor_ssma = %s,
+                    acesso_observacao_comportamental = %s,
+                    acesso_desvios = %s,
+                    pode_direcionar_desvios = %s
                 WHERE id = %s
             """, (
                 perfil,
@@ -1459,6 +1518,10 @@ def register_usuarios_routes(blueprint):
                 acesso_pcpm,
                 acesso_detectores_gas,
                 acesso_acr,
+                gestor_ssma,
+                acesso_observacao_comportamental,
+                acesso_desvios,
+                pode_direcionar_desvios,
                 id
             ))
 

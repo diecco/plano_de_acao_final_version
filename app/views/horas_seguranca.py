@@ -4,19 +4,54 @@ from datetime import date, datetime, timedelta
 
 from flask import flash, redirect, render_template, request, send_file, session, url_for
 
+from app.access_policy import (
+    filtro_escopo_visualizacao,
+    pode_alterar_registro,
+    pode_excluir_registro,
+    pode_visualizar_registro,
+)
 from app.decorators import (
     admin_required,
     login_required,
     module_required,
-    pode_acessar_ssma,
 )
 from app.utils.db import get_db_connection
 
 
+def _pode_visualizar_hs(registro):
+    return bool(registro) and pode_visualizar_registro(
+        session.get("perfil"), session.get("centro_custos_id"),
+        registro.get("centro_custos_autor_id"),
+    )
+
+
+def _pode_alterar_hs(registro):
+    return bool(registro) and pode_alterar_registro(
+        session.get("perfil"), session.get("usuario_id"),
+        session.get("centro_custos_id"), registro.get("id_auditor"),
+        registro.get("centro_custos_autor_id"),
+    )
+
+
+def _pode_excluir_hs(registro):
+    return bool(registro) and pode_excluir_registro(
+        session.get("perfil"), session.get("usuario_id"),
+        session.get("centro_custos_id"), registro.get("id_auditor"),
+        registro.get("centro_custos_autor_id"),
+    )
+
+
+def _buscar_registro_hs(cursor, registro_id):
+    cursor.execute("""
+        SELECT r.*, u.centro_custos_id AS centro_custos_autor_id
+        FROM hs_registros r
+        JOIN usuarios u ON u.id = r.id_auditor
+        WHERE r.id = %s
+    """, (registro_id,))
+    return cursor.fetchone()
+
+
 def _buscar_detalhes_hora_seguranca(cursor, registro_id):
-    acesso = pode_acessar_ssma(cursor, "hs", registro_id)
-    if not acesso:
-        return None, []
 
     cursor.execute("""
         SELECT
@@ -24,6 +59,7 @@ def _buscar_detalhes_hora_seguranca(cursor, registro_id):
             t.nome AS nome_tema,
             u.nome AS nome_auditor,
             u.matricula AS matricula_auditor,
+            u.centro_custos_id AS centro_custos_autor_id,
             cc.codigo AS centro_codigo,
             cc.descricao AS centro_descricao
         FROM hs_registros r
@@ -33,7 +69,7 @@ def _buscar_detalhes_hora_seguranca(cursor, registro_id):
         WHERE r.id = %s
     """, (registro_id,))
     registro = cursor.fetchone()
-    if not registro:
+    if not _pode_visualizar_hs(registro):
         return None, []
 
     participante_ids = [
@@ -1207,23 +1243,11 @@ def register_horas_seguranca_routes(blueprint):
 
         params_registros = []
 
-        if perfil == "basico":
-            query_registros += """
-                AND r.id_auditor = %s
-            """
-
-            params_registros.append(
-                usuario_id
-            )
-
-        elif perfil == "intermediario":
-            query_registros += """
-                AND u.centro_custos_id = %s
-            """
-
-            params_registros.append(
-                centro_custos_id
-            )
+        filtro_escopo, valores_escopo = filtro_escopo_visualizacao(
+            perfil, centro_custos_id, campo_centro="u.centro_custos_id"
+        )
+        query_registros += f" AND {filtro_escopo}"
+        params_registros.extend(valores_escopo)
 
         query_registros += """
             ORDER BY
@@ -1337,16 +1361,8 @@ def register_horas_seguranca_routes(blueprint):
             else:
                 return "Noite"
 
-        # 🔒 NOVO: validação centralizada
-        registro = pode_acessar_ssma(cursor, 'hs', id)
-
-        if not registro:
-            conn.close()
-            flash("Hora de Segurança não encontrada ou você não possui permissão para acessá-la.", "warning")
-            return redirect(url_for("main.listar_hs"))
-
-        # 🔒 REGRA DE NEGÓCIO MANTIDA (não alterei)
-        if session.get("perfil") != "administrador" and registro["id_auditor"] != session.get("usuario_id"):
+        registro = _buscar_registro_hs(cursor, id)
+        if not _pode_alterar_hs(registro):
             conn.close()
             flash("Você não tem permissão para editar esta Hora de Segurança.", "warning")
             return redirect(url_for("main.listar_hs"))
@@ -1381,7 +1397,7 @@ def register_horas_seguranca_routes(blueprint):
                 conn.close()
                 return redirect(next_url)
 
-            if session.get("perfil") != "administrador":
+            if session.get("perfil") not in {"administrador", "avancado"}:
                 id_auditor = registro["id_auditor"]
 
             try:
@@ -1703,17 +1719,10 @@ def register_horas_seguranca_routes(blueprint):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
-        registro = pode_acessar_ssma(cursor, 'hs', id)
-
-        if not registro:
+        registro = _buscar_registro_hs(cursor, id)
+        if not _pode_excluir_hs(registro):
             conn.close()
             flash("Hora de Segurança não encontrada ou você não possui permissão para excluí-la.", "warning")
-            return redirect(url_for("main.listar_hs"))
-
-        # Regra adicional: somente administrador ou auditor que lançou pode excluir
-        if session.get("perfil") != "administrador" and registro["id_auditor"] != session.get("usuario_id"):
-            conn.close()
-            flash("Você não tem permissão para excluir esta Hora de Segurança.", "warning")
             return redirect(url_for("main.listar_hs"))
 
         cursor.execute("""
@@ -1837,16 +1846,11 @@ def register_horas_seguranca_routes(blueprint):
 
         params = []
 
-        # CONTROLE DE ESCOPO POR PERFIL
-        if perfil == 'basico':
-            filtros_where += " AND r.id_auditor = %s"
-            params.append(usuario_id)
-
-        elif perfil == 'intermediario':
-            filtros_where += " AND u.centro_custos_id = %s"
-            params.append(centro_custos_id)
-
-        # avancado e administrador veem tudo
+        filtro_escopo, valores_escopo = filtro_escopo_visualizacao(
+            perfil, centro_custos_id, campo_centro="u.centro_custos_id"
+        )
+        filtros_where += f" AND {filtro_escopo}"
+        params.extend(valores_escopo)
 
         if auditor_id:
             filtros_where += " AND r.id_auditor = %s"
@@ -1929,6 +1933,7 @@ def register_horas_seguranca_routes(blueprint):
                 t.nome AS nome_tema,
                 u.nome AS nome_auditor,
                 u.matricula AS matricula_auditor,
+                u.centro_custos_id AS centro_custos_autor_id,
                 cc.codigo AS centro_codigo,
                 cc.descricao AS centro_descricao,
                 MAX(CASE WHEN resp.resultado = 'NC' THEN 1 ELSE 0 END) AS possui_nc
@@ -1941,6 +1946,9 @@ def register_horas_seguranca_routes(blueprint):
 
         cursor.execute(query, params + [per_page, offset])
         registros = cursor.fetchall()
+        for registro in registros:
+            registro['pode_editar'] = _pode_alterar_hs(registro)
+            registro['pode_excluir'] = _pode_excluir_hs(registro)
 
         if perfil in ['administrador', 'avancado']:
             cursor.execute("""
