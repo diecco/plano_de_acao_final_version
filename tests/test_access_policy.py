@@ -36,6 +36,14 @@ class AccessPolicyTests(unittest.TestCase):
             filtro_escopo_visualizacao("intermediario", None, "d"),
             ("1 = 0", []),
         )
+        self.assertEqual(
+            filtro_escopo_visualizacao(
+                "basico",
+                10,
+                campo_centro="COALESCE(r.centro_custos_id, u.centro_custos_id)",
+            ),
+            ("COALESCE(r.centro_custos_id, u.centro_custos_id) = %s", [10]),
+        )
 
 
 if __name__ == "__main__":

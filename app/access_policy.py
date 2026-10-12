@@ -1,7 +1,12 @@
 PERFIS_GLOBAIS = {"administrador", "avancado"}
 
 
-def filtro_escopo_visualizacao(perfil, centro_custos_id, alias="r"):
+def filtro_escopo_visualizacao(
+    perfil,
+    centro_custos_id,
+    alias="r",
+    campo_centro=None,
+):
     """Retorna o filtro SQL e os parâmetros do escopo de visualização."""
     if perfil in PERFIS_GLOBAIS:
         return "1 = 1", []
@@ -9,7 +14,8 @@ def filtro_escopo_visualizacao(perfil, centro_custos_id, alias="r"):
     if centro_custos_id is None:
         return "1 = 0", []
 
-    return f"{alias}.centro_custos_id = %s", [centro_custos_id]
+    coluna = campo_centro or f"{alias}.centro_custos_id"
+    return f"{coluna} = %s", [centro_custos_id]
 
 
 def pode_visualizar_registro(perfil, centro_usuario_id, centro_registro_id):
