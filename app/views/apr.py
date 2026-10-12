@@ -2,9 +2,44 @@ import os
 
 from flask import current_app, flash, redirect, render_template, request, session, url_for
 
+from app.access_policy import (
+    filtro_escopo_visualizacao,
+    pode_alterar_registro,
+    pode_excluir_registro,
+)
 from app.decorators import login_required, module_required
 from app.upload_security import UploadService, UploadValidationError, validar_conteudo_upload
 from app.utils.db import get_db_connection
+
+
+def _buscar_apr(cursor, registro_id):
+    cursor.execute("""
+        SELECT apr.*, emitente.centro_custos_id AS centro_custos_registro_id
+        FROM aprs apr
+        JOIN usuarios emitente ON emitente.id = apr.emitente_id
+        WHERE apr.id = %s AND apr.ativo = 1
+    """, (registro_id,))
+    return cursor.fetchone()
+
+
+def _pode_alterar_apr(registro):
+    return bool(registro) and pode_alterar_registro(
+        session.get("perfil"),
+        session.get("usuario_id"),
+        session.get("centro_custos_id"),
+        registro.get("criado_por"),
+        registro.get("centro_custos_registro_id"),
+    )
+
+
+def _pode_excluir_apr(registro):
+    return bool(registro) and pode_excluir_registro(
+        session.get("perfil"),
+        session.get("usuario_id"),
+        session.get("centro_custos_id"),
+        registro.get("criado_por"),
+        registro.get("centro_custos_registro_id"),
+    )
 
 
 def register_apr_routes(blueprint):
@@ -16,7 +51,6 @@ def register_apr_routes(blueprint):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
-        usuario_id = session.get('usuario_id')
         perfil = session.get('perfil')
         centro_custos_id = session.get('centro_custos_id')
 
@@ -54,16 +88,13 @@ def register_apr_routes(blueprint):
         filtros_sql = ["apr.ativo = 1"]
         params = []
 
-        # Controle de escopo por perfil
-        if perfil == 'basico':
-            filtros_sql.append("apr.criado_por = %s")
-            params.append(usuario_id)
-
-        elif perfil == 'intermediario':
-            filtros_sql.append("emitente.centro_custos_id = %s")
-            params.append(centro_custos_id)
-
-        # avançado e administrador veem tudo
+        filtro_escopo, valores_escopo = filtro_escopo_visualizacao(
+            perfil,
+            centro_custos_id,
+            campo_centro="emitente.centro_custos_id",
+        )
+        filtros_sql.append(filtro_escopo)
+        params.extend(valores_escopo)
 
         if emitente_id:
             filtros_sql.append("apr.emitente_id = %s")
@@ -117,6 +148,7 @@ def register_apr_routes(blueprint):
                 apr.criado_em,
 
                 emitente.nome AS emitente_nome,
+                emitente.centro_custos_id AS centro_custos_registro_id,
                 aprovador.nome AS aprovador_nome
 
             {base_from}
@@ -124,6 +156,9 @@ def register_apr_routes(blueprint):
             LIMIT %s OFFSET %s
         """, params + [per_page, offset])
         aprs = cursor.fetchall()
+        for apr in aprs:
+            apr['pode_editar'] = _pode_alterar_apr(apr)
+            apr['pode_excluir'] = _pode_excluir_apr(apr)
 
         if perfil in ['administrador', 'avancado']:
             cursor.execute("""
@@ -267,21 +302,15 @@ def register_apr_routes(blueprint):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
-        apr = pode_acessar_ssma(cursor, 'apr', id)
+        apr = _buscar_apr(cursor, id)
 
-        if not apr:
+        if not _pode_alterar_apr(apr):
             conn.close()
             flash('APR não encontrada ou você não possui permissão para editá-la.', 'warning')
             return redirect(url_for('main.listar_apr'))
 
-        usuario_id = session.get('usuario_id')
         perfil = session.get('perfil')
         centro_custos_id = session.get('centro_custos_id')
-
-        if apr['criado_por'] != usuario_id and perfil != 'administrador':
-            conn.close()
-            flash('Você não tem permissão para editar esta APR.', 'danger')
-            return redirect(url_for('main.listar_apr'))
 
         data_apr = request.form.get('data_apr', '').strip()
         area_setor = request.form.get('area_setor', '').strip()
@@ -389,16 +418,11 @@ def register_apr_routes(blueprint):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
-        apr = pode_acessar_ssma(cursor, 'apr', id)
+        apr = _buscar_apr(cursor, id)
 
-        if not apr:
+        if not _pode_excluir_apr(apr):
             conn.close()
             flash('APR não encontrada ou você não possui permissão para excluí-la.', 'warning')
-            return redirect(url_for('main.listar_apr'))
-
-        if apr['criado_por'] != session.get('usuario_id') and session.get('perfil') != 'administrador':
-            conn.close()
-            flash('Você não tem permissão para excluir esta APR.', 'danger')
             return redirect(url_for('main.listar_apr'))
 
         cursor.execute("""
