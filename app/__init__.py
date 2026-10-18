@@ -42,6 +42,10 @@ def create_app():
     from app.routes import main_routes
     app.register_blueprint(main_routes)
 
+    # Funcionalidades reversíveis controladas por variáveis de ambiente.
+    from app.feature_flags import register_feature_flags
+    register_feature_flags(app)
+
     # --- Scheduler (definido dentro da factory para ter app_context)
     def _job_send_reports():
         with app.app_context():

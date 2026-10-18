@@ -116,12 +116,14 @@
                                 {% endif %}>
                             IFS
                         </option>
-                        <option value="observacao_comportamental"
-                                {% if filtros.get('pratica', '') == 'observacao_comportamental' %}
-                                    selected
-                                {% endif %}>
-                            Observação Comportamental
-                        </option>
+                        {% if feature_observacao_comportamental_enabled %}
+                            <option value="observacao_comportamental"
+                                    {% if filtros.get('pratica', '') == 'observacao_comportamental' %}
+                                        selected
+                                    {% endif %}>
+                                Observação Comportamental
+                            </option>
+                        {% endif %}
                     </select>
                 </div>
 

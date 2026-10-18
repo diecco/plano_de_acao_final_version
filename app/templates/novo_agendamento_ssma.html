@@ -245,7 +245,9 @@
                                 <option value="hora_seguranca">Hora de Segurança</option>
                                 <option value="auditoria_padrao">Auditoria de Padrão</option>
                                 <option value="ifs">IFS — Inspeção de Frente de Serviço</option>
-                                <option value="observacao_comportamental">Observação Comportamental</option>
+                                {% if feature_observacao_comportamental_enabled %}
+                                    <option value="observacao_comportamental">Observação Comportamental</option>
+                                {% endif %}
                             </select>
                         </div>
 

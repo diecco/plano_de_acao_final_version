@@ -121,13 +121,13 @@
                             <i class="bi bi-calendar-check"></i><span>Meu calendário</span>
                         </a>
                     {% endif %}
-                    {% if session.get('acesso_ssma') or is_admin %}
+                    {% if feature_observacao_comportamental_enabled and (session.get('acesso_ssma') or is_admin) %}
                         <a href="{{ url_for('main.observacoes_comportamentais') }}"
                            class="sidebar-link {% if request.endpoint in ['main.observacoes_comportamentais', 'main.nova_observacao_comportamental', 'main.detalhar_observacao_comportamental', 'main.editar_observacao_comportamental'] %}active{% endif %}">
                             <i class="bi bi-eye"></i><span>Observação Comportamental</span>
                         </a>
                     {% endif %}
-                    {% if session.get('acesso_ssma') or is_admin %}
+                    {% if feature_relato_desvios_enabled and (session.get('acesso_ssma') or is_admin) %}
                         <a href="{{ url_for('main.listar_desvios') }}"
                            class="sidebar-link {% if request.endpoint in ['main.listar_desvios', 'main.novo_desvio', 'main.editar_desvio', 'main.detalhar_desvio'] %}active{% endif %}">
                             <i class="bi bi-exclamation-diamond"></i><span>Relatos de Desvio</span>
@@ -182,7 +182,7 @@
                 <div class="collapse sidebar-submenu {% if request.endpoint in endpoints_gestao_ssma %}show{% endif %}"
                      id="menuGestaoSsma"
                      data-bs-parent="#sidebarMenuAccordion">
-                    {% if is_admin or session.get('gestor_ssma') or session.get('pode_direcionar_desvios') %}
+                    {% if feature_relato_desvios_enabled and (is_admin or session.get('gestor_ssma') or session.get('pode_direcionar_desvios')) %}
                         <a href="{{ url_for('main.buffer_desvios') }}"
                            class="sidebar-link {% if request.endpoint == 'main.buffer_desvios' %}active{% endif %}">
                             <i class="bi bi-inbox"></i><span>Buffer de desvios</span>
