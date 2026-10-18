@@ -6,6 +6,10 @@ from datetime import date, datetime
 from flask import current_app, flash, redirect, render_template, request, session, url_for
 
 from app.decorators import gerenciar_agendamentos_ssma_required, lider_ssma_required, login_required
+from app.feature_flags import (
+    FEATURE_OBSERVACAO_COMPORTAMENTAL,
+    feature_enabled,
+)
 from app.utils.db import get_db_connection
 
 
@@ -139,8 +143,10 @@ def register_agenda_ssma_routes(blueprint):
             "hora_seguranca",
             "auditoria_padrao",
             "ifs",
-            "observacao_comportamental"
         }
+
+        if feature_enabled(FEATURE_OBSERVACAO_COMPORTAMENTAL):
+            praticas_validas.add("observacao_comportamental")
 
         if pratica not in praticas_validas:
             pratica = ""
@@ -609,8 +615,10 @@ def register_agenda_ssma_routes(blueprint):
                 "hora_seguranca",
                 "auditoria_padrao",
                 "ifs",
-                "observacao_comportamental"
             }
+
+            if feature_enabled(FEATURE_OBSERVACAO_COMPORTAMENTAL):
+                praticas_validas.add("observacao_comportamental")
 
             if pratica not in praticas_validas:
                 return (
@@ -2244,6 +2252,13 @@ def register_agenda_ssma_routes(blueprint):
             # =================================================
 
             if pratica == "observacao_comportamental":
+                if not feature_enabled(FEATURE_OBSERVACAO_COMPORTAMENTAL):
+                    flash(
+                        "Observação Comportamental está temporariamente indisponível.",
+                        "warning"
+                    )
+                    return redirect(next_url)
+
                 return redirect(
                     url_for(
                         "main.nova_observacao_comportamental",

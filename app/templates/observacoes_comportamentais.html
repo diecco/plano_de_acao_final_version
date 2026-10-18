@@ -55,6 +55,17 @@
 </div>
 <hr>
 
+{% if somente_leitura %}
+<div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <span><i class="bi bi-lock me-2"></i>Dados importados do Fluig, disponíveis somente para consulta.</span>
+    {% if session.get('perfil') == 'administrador' or session.get('gestor_ssma') %}
+    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.importar_observacoes_fluig') }}">
+        <i class="bi bi-file-earmark-arrow-up me-1"></i>Importar planilha
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-body">
         <form method="get" action="{{ url_for('main.observacoes_comportamentais') }}" id="formFiltrosOc">
@@ -94,10 +105,10 @@
                                class="btn btn-cinza" title="Limpar">
                                 <i class="bi bi-arrow-clockwise"></i>
                             </a>
-                            <a href="{{ url_for('main.nova_observacao_comportamental') }}"
+                            {% if not somente_leitura %}<a href="{{ url_for('main.nova_observacao_comportamental') }}"
                                class="btn btn-laranja" title="Nova Observação Comportamental">
                                 <i class="bi bi-plus-circle"></i>
-                            </a>
+                            </a>{% endif %}
                         </div>
                     </div>
                 </div>
@@ -112,7 +123,7 @@
             <table class="table table-bordered align-middle table-fixed">
                 <thead class="table-light">
                     <tr>
-                        <th style="width: 85px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">ID</span>{{ botoes_ordenacao('id') }}</div></th>
+                        <th style="width: 110px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">ID</span>{{ botoes_ordenacao('id') }}</div></th>
                         <th style="width: 125px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Data</span>{{ botoes_ordenacao('data') }}</div></th>
                         <th style="width: 220px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Observador</span>{{ botoes_ordenacao('observador') }}</div></th>
                         <th style="width: 260px;"><div class="d-flex justify-content-between align-items-center"><span class="th-label">Local / setor</span>{{ botoes_ordenacao('local') }}</div></th>
@@ -125,7 +136,7 @@
                 <tbody id="tabelaObservacoesOc">
                     {% for registro in registros %}
                         <tr>
-                            <td class="text-center">{{ registro.id }}</td>
+                            <td class="text-center">{{ registro.identificador_exibicao or registro.id }}</td>
                             <td>{{ registro.data_observacao.strftime('%d/%m/%Y') }}<br><small class="text-muted">{{ registro.hora_observacao }}</small></td>
                             <td>{{ registro.observador_nome }}</td>
                             <td><strong>{{ registro.local_observado }}</strong><br><small class="text-muted">{{ registro.setor_observado }}</small></td>
@@ -145,6 +156,10 @@
                                             aria-controls="detalhes-oc-{{ registro.id }}">
                                         <i class="bi bi-eye"></i>
                                     </button>
+                                    {% if registro.origem == 'fluig' %}<a class="btn-acao-icon" title="Abrir ficha completa"
+                                       href="{{ url_for('main.detalhar_observacao_fluig', registro_id=registro.id) }}">
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                    </a>{% endif %}
                                     {% if registro.pode_editar %}<a class="btn-acao-icon" title="Editar"
                                        href="{{ url_for('main.editar_observacao_comportamental', registro_id=registro.id) }}">
                                         <i class="bi bi-pencil-square"></i>
