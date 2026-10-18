@@ -1,7 +1,8 @@
+import hashlib
 from datetime import date
 from math import ceil
 
-from flask import flash, redirect, render_template, request, session, url_for
+from flask import abort, flash, redirect, render_template, request, session, url_for
 
 from app.access_policy import (
     filtro_escopo_visualizacao,
@@ -10,6 +11,11 @@ from app.access_policy import (
     pode_visualizar_registro,
 )
 from app.decorators import login_required, module_required
+from app.feature_flags import observacao_comportamental_read_only
+from app.services.fluig_observacao_import import (
+    FluigImportError,
+    parse_fluig_observacoes,
+)
 from app.utils.db import get_db_connection
 
 
@@ -230,11 +236,214 @@ def _registrar_historico(cursor, registro_id, evento, detalhes=None):
     """, (registro_id, session["usuario_id"], evento, detalhes))
 
 
+def _listar_observacoes_fluig():
+    observador_busca = (request.args.get("observador_busca") or "").strip()
+    data_inicio = (request.args.get("data_inicio") or "").strip()
+    data_fim = (request.args.get("data_fim") or "").strip()
+    sort = (request.args.get("sort") or "data").strip()
+    order = (request.args.get("order") or "desc").strip()
+    page = max(request.args.get("page", 1, type=int), 1)
+    colunas = {
+        "id": "r.solicitacao",
+        "data": "r.data_observacao",
+        "local": "r.local_observado",
+        "area": "r.area",
+        "observador": "r.observador_nome",
+        "pessoas": "r.pessoas_observadas",
+        "marcacoes": "total_marcacoes",
+        "status": "r.status",
+    }
+    sort = sort if sort in colunas else "data"
+    order = order if order in {"asc", "desc"} else "desc"
+    condicoes = ["1 = 1"]
+    parametros = []
+    if session.get("perfil") not in {"administrador", "avancado"}:
+        condicoes.append("""
+            r.centro_custos_codigo = (
+                SELECT codigo FROM centros_custos WHERE id = %s LIMIT 1
+            )
+        """)
+        parametros.append(session.get("centro_custos_id") or 0)
+    if observador_busca:
+        termo = f"%{observador_busca}%"
+        condicoes.append(
+            "(r.observador_nome LIKE %s OR r.observador_matricula LIKE %s)"
+        )
+        parametros.extend([termo, termo])
+    if data_inicio:
+        condicoes.append("r.data_observacao >= %s")
+        parametros.append(data_inicio)
+    if data_fim:
+        condicoes.append("r.data_observacao <= %s")
+        parametros.append(data_fim)
+    onde = " AND ".join(condicoes)
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            f"SELECT COUNT(*) total FROM oc_fluig_registros r WHERE {onde}",
+            tuple(parametros),
+        )
+        total = cursor.fetchone()["total"]
+        total_paginas = ceil(total / POR_PAGINA) if total else 0
+        if total_paginas and page > total_paginas:
+            page = total_paginas
+        offset = (page - 1) * POR_PAGINA
+        cursor.execute(f"""
+            SELECT r.*,
+                   r.solicitacao AS identificador_exibicao,
+                   0 AS houve_abordagem,
+                   0 AS correcao_imediata,
+                   NULL AS descricao_abordagem,
+                   NULL AS pontos_positivos,
+                   CONCAT('Situação no Fluig: ', COALESCE(r.situacao_fluig, '-'))
+                       AS observacoes_gerais,
+                   COALESCE(resp.total_marcacoes, 0) AS total_marcacoes
+            FROM oc_fluig_registros r
+            LEFT JOIN (
+                SELECT registro_id, SUM(quantidade) total_marcacoes
+                FROM oc_fluig_respostas GROUP BY registro_id
+            ) resp ON resp.registro_id = r.id
+            WHERE {onde}
+            ORDER BY {colunas[sort]} {order.upper()}, r.id DESC
+            LIMIT %s OFFSET %s
+        """, tuple(parametros + [POR_PAGINA, offset]))
+        registros = cursor.fetchall()
+        for registro in registros:
+            registro["origem"] = "fluig"
+            registro["pode_editar"] = False
+            registro["pode_excluir"] = False
+
+        marcacoes_por_registro = {r["id"]: [] for r in registros}
+        if registros:
+            ids = [r["id"] for r in registros]
+            placeholders = ", ".join(["%s"] * len(ids))
+            cursor.execute(f"""
+                SELECT fr.registro_id, c.codigo categoria_codigo,
+                       c.nome categoria_nome, i.codigo item_codigo,
+                       i.descricao item_descricao, fr.quantidade
+                FROM oc_fluig_respostas fr
+                JOIN oc_itens i ON i.codigo = fr.item_codigo
+                JOIN oc_categorias c ON c.id = i.categoria_id
+                WHERE fr.registro_id IN ({placeholders})
+                  AND fr.quantidade > 0
+                ORDER BY fr.registro_id, c.ordem, i.ordem
+            """, tuple(ids))
+            for item in cursor.fetchall():
+                marcacoes_por_registro[item["registro_id"]].append(item)
+        cursor.execute("""
+            SELECT DISTINCT observador_nome nome, observador_matricula matricula
+            FROM oc_fluig_registros ORDER BY observador_nome
+        """)
+        observadores = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+    return render_template(
+        "observacoes_comportamentais.html",
+        registros=registros,
+        marcacoes_por_registro=marcacoes_por_registro,
+        observadores=observadores,
+        filtros={
+            "observador_id": "",
+            "observador_busca": observador_busca,
+            "data_inicio": data_inicio,
+            "data_fim": data_fim,
+            "sort": sort,
+            "order": order,
+        },
+        page=page,
+        per_page=POR_PAGINA,
+        total_paginas=total_paginas,
+        total_registros=total,
+        somente_leitura=True,
+    )
+
+
+def _salvar_importacao_fluig(
+    cursor, registros, nome_arquivo, arquivo_hash, quantidade_erros=0
+):
+    cursor.execute("""
+        INSERT INTO oc_fluig_importacoes
+            (nome_arquivo, arquivo_hash, usuario_id, total_linhas, erros)
+        VALUES (%s, %s, %s, %s, %s)
+    """, (
+        nome_arquivo, arquivo_hash, session["usuario_id"],
+        len(registros) + quantidade_erros, quantidade_erros,
+    ))
+    importacao_id = cursor.lastrowid
+    inseridos = atualizados = inalterados = 0
+    for registro in registros:
+        cursor.execute(
+            "SELECT id, conteudo_hash FROM oc_fluig_registros WHERE solicitacao = %s",
+            (registro["solicitacao"],),
+        )
+        existente = cursor.fetchone()
+        if existente and existente["conteudo_hash"] == registro["conteudo_hash"]:
+            inalterados += 1
+            continue
+        valores = (
+            registro["solicitacao"], registro["data_observacao"],
+            registro["hora_observacao"], registro["observador_nome"],
+            registro["observador_matricula"], registro["centro_custos_codigo"],
+            registro["centro_custos_descricao"], registro["local_observado"],
+            registro["setor_observado"], registro["area"], registro["atividade"],
+            registro["pessoas_observadas"], registro["status"],
+            registro["situacao_fluig"], registro["conteudo_hash"], importacao_id,
+        )
+        cursor.execute("""
+            INSERT INTO oc_fluig_registros (
+                solicitacao, data_observacao, hora_observacao, observador_nome,
+                observador_matricula, centro_custos_codigo,
+                centro_custos_descricao, local_observado, setor_observado,
+                area, atividade, pessoas_observadas, status, situacao_fluig,
+                conteudo_hash, importacao_id
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                data_observacao=VALUES(data_observacao),
+                hora_observacao=VALUES(hora_observacao),
+                observador_nome=VALUES(observador_nome),
+                observador_matricula=VALUES(observador_matricula),
+                centro_custos_codigo=VALUES(centro_custos_codigo),
+                centro_custos_descricao=VALUES(centro_custos_descricao),
+                local_observado=VALUES(local_observado),
+                setor_observado=VALUES(setor_observado), area=VALUES(area),
+                atividade=VALUES(atividade), pessoas_observadas=VALUES(pessoas_observadas),
+                status=VALUES(status), situacao_fluig=VALUES(situacao_fluig),
+                conteudo_hash=VALUES(conteudo_hash), importacao_id=VALUES(importacao_id)
+        """, valores)
+        if existente:
+            registro_id = existente["id"]
+            atualizados += 1
+            cursor.execute(
+                "DELETE FROM oc_fluig_respostas WHERE registro_id = %s",
+                (registro_id,),
+            )
+        else:
+            registro_id = cursor.lastrowid
+            inseridos += 1
+        for codigo, quantidade in registro["respostas"].items():
+            cursor.execute("""
+                INSERT INTO oc_fluig_respostas (registro_id, item_codigo, quantidade)
+                VALUES (%s, %s, %s)
+            """, (registro_id, codigo, quantidade))
+    cursor.execute("""
+        UPDATE oc_fluig_importacoes
+        SET inseridos=%s, atualizados=%s, inalterados=%s
+        WHERE id=%s
+    """, (inseridos, atualizados, inalterados, importacao_id))
+    return inseridos, atualizados, inalterados
+
+
 def register_observacao_comportamental_routes(blueprint):
     @blueprint.route("/observacoes_comportamentais")
     @login_required
     @module_required("acesso_ssma")
     def observacoes_comportamentais():
+        if observacao_comportamental_read_only():
+            return _listar_observacoes_fluig()
         observador_id = request.args.get("observador_id", type=int)
         observador_busca = (
             request.args.get("observador_busca") or ""
@@ -395,6 +604,109 @@ def register_observacao_comportamental_routes(blueprint):
             per_page=POR_PAGINA,
             total_paginas=total_paginas,
             total_registros=total,
+        )
+
+    @blueprint.route("/observacoes_comportamentais/importar-fluig", methods=["GET", "POST"])
+    @login_required
+    @module_required("acesso_ssma")
+    def importar_observacoes_fluig():
+        if session.get("perfil") != "administrador" and not session.get("gestor_ssma"):
+            abort(403)
+        resultado = None
+        erros = []
+        if request.method == "POST":
+            arquivo = request.files.get("arquivo")
+            if not arquivo or not arquivo.filename:
+                flash("Selecione a planilha exportada do Fluig.", "warning")
+            elif not arquivo.filename.lower().endswith(".xlsx"):
+                flash("Envie um arquivo Excel no formato .xlsx.", "danger")
+            else:
+                conteudo = arquivo.read(15 * 1024 * 1024 + 1)
+                if len(conteudo) > 15 * 1024 * 1024:
+                    flash("O arquivo excede o limite de 15 MB.", "danger")
+                else:
+                    try:
+                        registros, erros = parse_fluig_observacoes(conteudo)
+                        conn = get_db_connection()
+                        cursor = conn.cursor(dictionary=True)
+                        try:
+                            inseridos, atualizados, inalterados = _salvar_importacao_fluig(
+                                cursor,
+                                registros,
+                                arquivo.filename[:255],
+                                hashlib.sha256(conteudo).hexdigest(),
+                                len(erros),
+                            )
+                            conn.commit()
+                        except Exception:
+                            conn.rollback()
+                            raise
+                        finally:
+                            cursor.close()
+                            conn.close()
+                        resultado = {
+                            "total": len(registros) + len(erros),
+                            "inseridos": inseridos,
+                            "atualizados": atualizados,
+                            "inalterados": inalterados,
+                            "erros": len(erros),
+                        }
+                        flash("Importação do Fluig concluída.", "success")
+                    except FluigImportError as exc:
+                        flash(str(exc), "danger")
+        return render_template(
+            "importar_observacoes_fluig.html",
+            resultado=resultado,
+            erros=erros[:100],
+        )
+
+    @blueprint.route("/observacoes_comportamentais/fluig/<int:registro_id>")
+    @login_required
+    @module_required("acesso_ssma")
+    def detalhar_observacao_fluig(registro_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute("""
+                SELECT r.*, r.solicitacao identificador_exibicao,
+                       0 houve_abordagem, 0 correcao_imediata,
+                       NULL descricao_abordagem, NULL pontos_positivos,
+                       CONCAT('Situação no Fluig: ', COALESCE(r.situacao_fluig, '-'))
+                           observacoes_gerais
+                FROM oc_fluig_registros r WHERE r.id = %s
+            """, (registro_id,))
+            registro = cursor.fetchone()
+            if not registro:
+                abort(404)
+            if session.get("perfil") not in {"administrador", "avancado"}:
+                cursor.execute(
+                    "SELECT codigo FROM centros_custos WHERE id = %s LIMIT 1",
+                    (session.get("centro_custos_id") or 0,),
+                )
+                centro = cursor.fetchone()
+                if not centro or centro["codigo"] != registro["centro_custos_codigo"]:
+                    abort(404)
+            cursor.execute("""
+                SELECT c.codigo categoria_codigo, c.nome categoria_nome,
+                       i.descricao item_descricao, fr.quantidade
+                FROM oc_fluig_respostas fr
+                JOIN oc_itens i ON i.codigo = fr.item_codigo
+                JOIN oc_categorias c ON c.id = i.categoria_id
+                WHERE fr.registro_id = %s ORDER BY c.ordem, i.ordem
+            """, (registro_id,))
+            marcacoes = cursor.fetchall()
+        finally:
+            cursor.close()
+            conn.close()
+        registro["origem"] = "fluig"
+        return render_template(
+            "detalhe_observacao_comportamental.html",
+            registro=registro,
+            marcacoes=marcacoes,
+            historico=[],
+            total_marcacoes=sum(item["quantidade"] for item in marcacoes),
+            pode_alterar=False,
+            somente_leitura=True,
         )
 
     @blueprint.route("/observacoes_comportamentais/nova", methods=["GET", "POST"])
