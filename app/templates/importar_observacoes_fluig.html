@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+{% block titulo %}Importar observações do Fluig{% endblock %}
+{% block conteudo %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 page-header">
+    <h2 class="page-title mb-0"><i class="bi bi-file-earmark-arrow-up me-2"></i>Importar observações do Fluig</h2>
+    <a class="btn btn-cinza" href="{{ url_for('main.observacoes_comportamentais') }}"><i class="bi bi-arrow-left me-1"></i>Voltar</a>
+</div><hr>
+
+<div class="alert alert-info">
+    Exporte no Fluig a consulta <strong>001 - Observação Comportamental</strong>, incluindo os dados do formulário.
+    Registros já existentes serão atualizados pelo número da solicitação e nunca serão duplicados.
+</div>
+
+<div class="card shadow-sm border-0 mb-4"><div class="card-body">
+    <form method="post" enctype="multipart/form-data">
+        <label for="arquivo" class="form-label">Planilha do Fluig (.xlsx)</label>
+        <div class="d-flex gap-2 flex-wrap">
+            <input class="form-control" style="max-width:650px" type="file" id="arquivo" name="arquivo" accept=".xlsx" required>
+            <button class="btn btn-laranja" type="submit"><i class="bi bi-upload me-1"></i>Validar e importar</button>
+        </div>
+        <small class="text-muted">Limite de 15 MB. Nenhum registro ausente no arquivo será excluído do TrackPlan.</small>
+    </form>
+</div></div>
+
+{% if resultado %}
+<div class="card shadow-sm border-0 mb-4"><div class="card-header bg-white fw-semibold">Resultado da importação</div><div class="card-body">
+    <div class="row g-3 text-center">
+        <div class="col-6 col-md"><div class="border rounded p-3"><strong class="d-block fs-4">{{ resultado.total }}</strong>Total</div></div>
+        <div class="col-6 col-md"><div class="border rounded p-3"><strong class="d-block fs-4 text-success">{{ resultado.inseridos }}</strong>Inseridos</div></div>
+        <div class="col-6 col-md"><div class="border rounded p-3"><strong class="d-block fs-4 text-primary">{{ resultado.atualizados }}</strong>Atualizados</div></div>
+        <div class="col-6 col-md"><div class="border rounded p-3"><strong class="d-block fs-4 text-muted">{{ resultado.inalterados }}</strong>Sem alteração</div></div>
+        <div class="col-6 col-md"><div class="border rounded p-3"><strong class="d-block fs-4 text-danger">{{ resultado.erros }}</strong>Erros</div></div>
+    </div>
+</div></div>
+{% endif %}
+
+{% if erros %}
+<div class="card shadow-sm border-0"><div class="card-header bg-white fw-semibold">Linhas não importadas</div><div class="table-responsive">
+    <table class="table table-sm mb-0"><thead><tr><th>Linha</th><th>Motivo</th></tr></thead><tbody>
+    {% for erro in erros %}<tr><td>{{ erro.linha }}</td><td>{{ erro.erro }}</td></tr>{% endfor %}
+    </tbody></table>
+</div></div>
+{% endif %}
+{% endblock %}

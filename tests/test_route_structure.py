@@ -13,12 +13,16 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 255)
+        self.assertEqual(len(self.routes), 259)
 
     def test_observacao_comportamental_routes_are_registered(self):
         expected = {
             ("/observacoes_comportamentais", ("GET",)):
                 "main.observacoes_comportamentais",
+            ("/observacoes_comportamentais/importar-fluig", ("GET", "POST")):
+                "main.importar_observacoes_fluig",
+            ("/observacoes_comportamentais/fluig/<int:registro_id>", ("GET",)):
+                "main.detalhar_observacao_fluig",
             ("/observacoes_comportamentais/nova", ("GET", "POST")):
                 "main.nova_observacao_comportamental",
             ("/observacoes_comportamentais/<int:registro_id>", ("GET",)):
