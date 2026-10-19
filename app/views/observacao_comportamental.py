@@ -374,17 +374,36 @@ def _salvar_importacao_fluig(
         len(registros) + quantidade_erros, quantidade_erros,
     ))
     importacao_id = cursor.lastrowid
+    solicitacoes = [registro["solicitacao"] for registro in registros]
+    existentes = {}
+    for inicio in range(0, len(solicitacoes), 500):
+        lote = solicitacoes[inicio:inicio + 500]
+        placeholders = ", ".join(["%s"] * len(lote))
+        cursor.execute(
+            f"""
+                SELECT id, solicitacao, conteudo_hash
+                FROM oc_fluig_registros
+                WHERE solicitacao IN ({placeholders})
+            """,
+            tuple(lote),
+        )
+        existentes.update({item["solicitacao"]: item for item in cursor.fetchall()})
+
+    alterados = []
     inseridos = atualizados = inalterados = 0
     for registro in registros:
-        cursor.execute(
-            "SELECT id, conteudo_hash FROM oc_fluig_registros WHERE solicitacao = %s",
-            (registro["solicitacao"],),
-        )
-        existente = cursor.fetchone()
+        existente = existentes.get(registro["solicitacao"])
         if existente and existente["conteudo_hash"] == registro["conteudo_hash"]:
             inalterados += 1
             continue
-        valores = (
+        alterados.append(registro)
+        if existente:
+            atualizados += 1
+        else:
+            inseridos += 1
+
+    if alterados:
+        valores_registros = [(
             registro["solicitacao"], registro["data_observacao"],
             registro["hora_observacao"], registro["observador_nome"],
             registro["observador_matricula"], registro["centro_custos_codigo"],
@@ -392,8 +411,8 @@ def _salvar_importacao_fluig(
             registro["setor_observado"], registro["area"], registro["atividade"],
             registro["pessoas_observadas"], registro["status"],
             registro["situacao_fluig"], registro["conteudo_hash"], importacao_id,
-        )
-        cursor.execute("""
+        ) for registro in alterados]
+        cursor.executemany("""
             INSERT INTO oc_fluig_registros (
                 solicitacao, data_observacao, hora_observacao, observador_nome,
                 observador_matricula, centro_custos_codigo,
@@ -413,22 +432,44 @@ def _salvar_importacao_fluig(
                 atividade=VALUES(atividade), pessoas_observadas=VALUES(pessoas_observadas),
                 status=VALUES(status), situacao_fluig=VALUES(situacao_fluig),
                 conteudo_hash=VALUES(conteudo_hash), importacao_id=VALUES(importacao_id)
-        """, valores)
-        if existente:
-            registro_id = existente["id"]
-            atualizados += 1
+        """, valores_registros)
+
+        ids_por_solicitacao = {}
+        solicitacoes_alteradas = [registro["solicitacao"] for registro in alterados]
+        for inicio in range(0, len(solicitacoes_alteradas), 500):
+            lote = solicitacoes_alteradas[inicio:inicio + 500]
+            placeholders = ", ".join(["%s"] * len(lote))
             cursor.execute(
-                "DELETE FROM oc_fluig_respostas WHERE registro_id = %s",
-                (registro_id,),
+                f"""
+                    SELECT id, solicitacao
+                    FROM oc_fluig_registros
+                    WHERE solicitacao IN ({placeholders})
+                """,
+                tuple(lote),
             )
-        else:
-            registro_id = cursor.lastrowid
-            inseridos += 1
-        for codigo, quantidade in registro["respostas"].items():
-            cursor.execute("""
+            ids_por_solicitacao.update({
+                item["solicitacao"]: item["id"] for item in cursor.fetchall()
+            })
+
+        ids_alterados = list(ids_por_solicitacao.values())
+        for inicio in range(0, len(ids_alterados), 500):
+            lote = ids_alterados[inicio:inicio + 500]
+            placeholders = ", ".join(["%s"] * len(lote))
+            cursor.execute(
+                f"DELETE FROM oc_fluig_respostas WHERE registro_id IN ({placeholders})",
+                tuple(lote),
+            )
+
+        valores_respostas = [
+            (ids_por_solicitacao[registro["solicitacao"]], codigo, quantidade)
+            for registro in alterados
+            for codigo, quantidade in registro["respostas"].items()
+        ]
+        if valores_respostas:
+            cursor.executemany("""
                 INSERT INTO oc_fluig_respostas (registro_id, item_codigo, quantidade)
                 VALUES (%s, %s, %s)
-            """, (registro_id, codigo, quantidade))
+            """, valores_respostas)
     cursor.execute("""
         UPDATE oc_fluig_importacoes
         SET inseridos=%s, atualizados=%s, inalterados=%s
@@ -1110,3 +1151,4 @@ def register_observacao_comportamental_routes(blueprint):
             cursor.close()
             conn.close()
         return redirect(url_for("main.detalhar_observacao_comportamental", registro_id=registro_id))
+
