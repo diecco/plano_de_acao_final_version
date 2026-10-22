@@ -59,6 +59,10 @@ class CadastroUsuariosSqlTests(unittest.TestCase):
         self.assertIn('aria-label="Aplicar filtros"', template)
         self.assertIn('aria-label="Limpar filtros"', template)
         self.assertIn('aria-label="Novo funcionário"', template)
+        self.assertIn('id="listaUsuarios"', template)
+        self.assertIn('id="usuarios-data"', template)
+        self.assertIn("configurarBuscaUsuario", template)
+        self.assertNotIn("Busca: {{ filtros.get('busca') }}", template)
 
 
 if __name__ == "__main__":
