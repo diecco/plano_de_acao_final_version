@@ -641,6 +641,9 @@ def register_usuarios_routes(blueprint):
     def editar_usuario(id):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
+        return_to = request.args.get('next', '').strip()
+        if not return_to.startswith('/listar_usuarios'):
+            return_to = url_for('main.listar_usuarios')
 
         cursor.execute("""
             SELECT
@@ -1264,9 +1267,7 @@ def register_usuarios_routes(blueprint):
             finally:
                 conn.close()
 
-            return redirect(
-                url_for('main.listar_usuarios')
-            )
+            return redirect(return_to)
 
         cursor.execute("""
             SELECT
@@ -1334,7 +1335,8 @@ def register_usuarios_routes(blueprint):
             setores=setores,
             cargos=cargos,
             funcoes=funcoes,
-            habilitacoes=habilitacoes
+            habilitacoes=habilitacoes,
+            return_to=return_to,
         )
 
     @blueprint.route('/listar_usuarios', methods=['GET'])
@@ -1344,10 +1346,24 @@ def register_usuarios_routes(blueprint):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
+        busca = request.args.get('busca', '').strip()
         status = request.args.get('status', '').strip()
         tem_acesso_sistema = request.args.get('tem_acesso_sistema', '').strip()
         pode_ser_instrutor = request.args.get('pode_ser_instrutor', '').strip()
         centro_custos_id = request.args.get('centro_custos_id', '').strip()
+        perfil = request.args.get('perfil', '').strip()
+
+        try:
+            page = max(1, int(request.args.get('page', 1)))
+        except (TypeError, ValueError):
+            page = 1
+
+        try:
+            per_page = int(request.args.get('per_page', 20))
+        except (TypeError, ValueError):
+            per_page = 20
+        if per_page not in {20, 50, 100}:
+            per_page = 20
 
         sort = request.args.get('sort', 'nome').strip()
         order = request.args.get('order', 'asc').strip()
@@ -1361,6 +1377,56 @@ def register_usuarios_routes(blueprint):
 
         coluna_sort = colunas_validas.get(sort, 'u.nome')
         direcao = 'ASC' if order == 'asc' else 'DESC'
+
+        filtros_sql = []
+        params = []
+
+        if busca:
+            filtros_sql.append(
+                "(u.nome LIKE %s OR u.matricula LIKE %s)"
+            )
+            termo_busca = f"%{busca}%"
+            params.extend([termo_busca, termo_busca])
+
+        if status != '':
+            filtros_sql.append("u.ativo = %s")
+            params.append(status)
+
+        if tem_acesso_sistema != '':
+            filtros_sql.append("u.tem_acesso_sistema = %s")
+            params.append(tem_acesso_sistema)
+
+        if pode_ser_instrutor != '':
+            filtros_sql.append("u.pode_ser_instrutor = %s")
+            params.append(pode_ser_instrutor)
+
+        if centro_custos_id:
+            filtros_sql.append("u.centro_custos_id = %s")
+            params.append(centro_custos_id)
+
+        if perfil:
+            filtros_sql.append("u.perfil = %s")
+            params.append(perfil)
+
+        where_sql = ""
+        if filtros_sql:
+            where_sql = " AND " + " AND ".join(filtros_sql)
+
+        cursor.execute(
+            f"""
+                SELECT COUNT(*) AS total
+                FROM usuarios u
+                WHERE 1=1 {where_sql}
+            """,
+            params,
+        )
+        total_registros = cursor.fetchone()['total']
+        total_paginas = max(
+            1,
+            (total_registros + per_page - 1) // per_page,
+        )
+        page = min(page, total_paginas)
+        offset = (page - 1) * per_page
 
         query = f"""
             SELECT
@@ -1420,26 +1486,8 @@ def register_usuarios_routes(blueprint):
                 ON f.id = ufs.funcao_id
             LEFT JOIN setores st
                 ON st.id = ufs.setor_id
-            WHERE 1=1
+            WHERE 1=1 {where_sql}
         """
-
-        params = []
-
-        if status != '':
-            query += " AND u.ativo = %s"
-            params.append(status)
-
-        if tem_acesso_sistema != '':
-            query += " AND u.tem_acesso_sistema = %s"
-            params.append(tem_acesso_sistema)
-
-        if pode_ser_instrutor != '':
-            query += " AND u.pode_ser_instrutor = %s"
-            params.append(pode_ser_instrutor)
-
-        if centro_custos_id:
-            query += " AND u.centro_custos_id = %s"
-            params.append(centro_custos_id)
 
         query += f"""
             GROUP BY
@@ -1469,9 +1517,10 @@ def register_usuarios_routes(blueprint):
                 cc.descricao,
                 s.nome
             ORDER BY {coluna_sort} {direcao}, u.nome ASC
+            LIMIT %s OFFSET %s
         """
 
-        cursor.execute(query, params)
+        cursor.execute(query, [*params, per_page, offset])
         usuarios = cursor.fetchall()
 
         cursor.execute("""
@@ -1488,10 +1537,13 @@ def register_usuarios_routes(blueprint):
         conn.close()
 
         filtros = {
+            'busca': busca,
             'status': status,
             'tem_acesso_sistema': tem_acesso_sistema,
             'pode_ser_instrutor': pode_ser_instrutor,
             'centro_custos_id': centro_custos_id,
+            'perfil': perfil,
+            'per_page': per_page,
             'sort': sort,
             'order': order
         }
@@ -1500,7 +1552,13 @@ def register_usuarios_routes(blueprint):
             'listar_usuarios.html',
             usuarios=usuarios,
             centros_custos=centros_custos,
-            filtros=filtros
+            filtros=filtros,
+            page=page,
+            per_page=per_page,
+            total_paginas=total_paginas,
+            total_registros=total_registros,
+            primeiro_registro=(offset + 1 if total_registros else 0),
+            ultimo_registro=min(offset + per_page, total_registros),
         )
 
     @blueprint.route('/permissoes_usuario/<int:id>', methods=['GET', 'POST'])
@@ -1604,3 +1662,4 @@ def register_usuarios_routes(blueprint):
             return redirect('/usuarios')
 
         return render_template('permissoes_usuario.html', usuario=usuario)
+
