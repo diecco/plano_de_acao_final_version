@@ -35,6 +35,32 @@ class CadastroUsuariosSqlTests(unittest.TestCase):
             "marcadores e parâmetros.",
         )
 
+    def test_listagem_tem_busca_e_paginacao_no_servidor(self):
+        source = (ROOT / "app" / "views" / "usuarios.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("u.nome LIKE %s OR u.matricula LIKE %s", source)
+        self.assertIn("SELECT COUNT(*) AS total", source)
+        self.assertIn("LIMIT %s OFFSET %s", source)
+        self.assertIn("per_page not in {20, 50, 100}", source)
+
+    def test_template_da_listagem_compila_e_usa_acoes_minimalistas(self):
+        from app import create_app
+
+        app = create_app()
+        app.jinja_env.get_template("listar_usuarios.html")
+
+        template = (
+            ROOT / "app" / "templates" / "listar_usuarios.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn('name="busca"', template)
+        self.assertIn('class="pagination pagination-sm mb-0"', template)
+        self.assertIn('aria-label="Aplicar filtros"', template)
+        self.assertIn('aria-label="Limpar filtros"', template)
+        self.assertIn('aria-label="Novo funcionário"', template)
+
 
 if __name__ == "__main__":
     unittest.main()
+
