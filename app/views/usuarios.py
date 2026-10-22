@@ -1347,6 +1347,7 @@ def register_usuarios_routes(blueprint):
         cursor = conn.cursor(dictionary=True)
 
         busca = request.args.get('busca', '').strip()
+        usuario_id = request.args.get('usuario_id', '').strip()
         status = request.args.get('status', '').strip()
         tem_acesso_sistema = request.args.get('tem_acesso_sistema', '').strip()
         pode_ser_instrutor = request.args.get('pode_ser_instrutor', '').strip()
@@ -1381,7 +1382,10 @@ def register_usuarios_routes(blueprint):
         filtros_sql = []
         params = []
 
-        if busca:
+        if usuario_id:
+            filtros_sql.append("u.id = %s")
+            params.append(usuario_id)
+        elif busca:
             filtros_sql.append(
                 "(u.nome LIKE %s OR u.matricula LIKE %s)"
             )
@@ -1534,10 +1538,18 @@ def register_usuarios_routes(blueprint):
         """)
         centros_custos = cursor.fetchall()
 
+        cursor.execute("""
+            SELECT id, nome, matricula
+            FROM usuarios
+            ORDER BY nome
+        """)
+        usuarios_autocomplete = cursor.fetchall()
+
         conn.close()
 
         filtros = {
             'busca': busca,
+            'usuario_id': usuario_id,
             'status': status,
             'tem_acesso_sistema': tem_acesso_sistema,
             'pode_ser_instrutor': pode_ser_instrutor,
@@ -1551,6 +1563,7 @@ def register_usuarios_routes(blueprint):
         return render_template(
             'listar_usuarios.html',
             usuarios=usuarios,
+            usuarios_autocomplete=usuarios_autocomplete,
             centros_custos=centros_custos,
             filtros=filtros,
             page=page,
