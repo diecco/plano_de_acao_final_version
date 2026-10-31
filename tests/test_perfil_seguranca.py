@@ -1,5 +1,6 @@
 import unittest
 from datetime import date
+from pathlib import Path
 
 from app.views.perfil_seguranca import _periodo_perfil
 
@@ -16,6 +17,13 @@ class PerfilSegurancaTests(unittest.TestCase):
         self.assertEqual("2026-10", mes)
         self.assertEqual(date(2026, 10, 1), inicio)
         self.assertEqual(date(2026, 10, 31), fim)
+
+    def test_consulta_usa_nome_real_da_tabela_de_auditorias(self):
+        fonte = (
+            Path(__file__).parents[1] / "app" / "views" / "perfil_seguranca.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("FROM auditorias_padrao ap", fonte)
+        self.assertNotIn("FROM auditoria_padrao ap", fonte)
 
 
 if __name__ == "__main__":
