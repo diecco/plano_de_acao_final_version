@@ -226,22 +226,22 @@
         </div>
     </div>
 
-    <!-- PARTICIPANTES -->
+    <!-- AUDITADOS -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
 
             <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
                 <h5 class="text-laranja m-0">
                     <i class="bi bi-people me-2"></i>
-                    Participantes
+                    Auditados
                 </h5>
 
                 <button type="button"
                         class="btn btn-laranja"
                         data-bs-toggle="modal"
                         data-bs-target="#modalParticipantes"
-                        title="Selecionar participantes"
-                        aria-label="Selecionar participantes">
+                        title="Selecionar auditados"
+                        aria-label="Selecionar auditados">
                     <i class="bi bi-plus-circle"></i>
                 </button>
             </div>
@@ -249,7 +249,7 @@
             {% if agendamento and participante_previsto_id %}
                 <div class="alert alert-light border mb-3">
                     <i class="bi bi-info-circle me-1"></i>
-                    O colaborador previsto foi incluído automaticamente. Outros participantes podem ser acrescentados.
+                    O colaborador previsto foi incluído automaticamente. Outros auditados podem ser acrescentados.
                     A remoção do colaborador previsto exigirá justificativa.
                 </div>
             {% endif %}
@@ -260,13 +260,26 @@
 
             <div id="mensagemParticipantesVazio"
                  class="hs-participantes-vazio">
-                Nenhum participante selecionado.
+                Nenhum auditado selecionado.
             </div>
 
             <small class="text-muted"
                    id="contadorParticipantes">
             </small>
 
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="text-laranja mb-2"><i class="bi bi-person-plus me-2"></i>Participantes da realização <span class="text-muted fw-normal small">(opcional)</span></h5>
+            <p class="text-muted small">Selecione líderes ou acompanhantes que participaram da realização, sem classificá-los como auditados.</p>
+            <select class="form-select" name="participantes" multiple size="6" aria-label="Participantes da realização">
+                {% for usuario in usuarios %}
+                    <option value="{{ usuario.id }}">{{ usuario.matricula or 'Sem matrícula' }} — {{ usuario.nome }}</option>
+                {% endfor %}
+            </select>
+            <small class="text-muted">Use Ctrl para selecionar mais de uma pessoa.</small>
         </div>
     </div>
 
@@ -831,7 +844,7 @@ function atualizarParticipantes() {
         const input = document.createElement("input");
 
         input.type = "hidden";
-        input.name = "participantes";
+        input.name = "auditados";
         input.value = participante.id;
         input.className = "input-participante-hidden";
 
@@ -1158,7 +1171,7 @@ function identificarAlteracoesAgendamento() {
         )
     ) {
         motivos.push(
-            "O colaborador previsto não está entre os participantes."
+            "O colaborador previsto não está entre os auditados."
         );
     }
 
@@ -1477,3 +1490,4 @@ document.addEventListener(
 </script>
 
 {% endblock %}
+
