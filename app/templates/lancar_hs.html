@@ -53,6 +53,16 @@
         resize: vertical;
         min-height: 120px;
     }
+    .hs-multiselect { position: relative; }
+    .hs-multiselect-toggle { background:#fff; border:1px solid #ced4da; border-radius:.5rem; color:#495057; min-height:48px; padding:.65rem .85rem; text-align:left; width:100%; }
+    .hs-multiselect-toggle::after { content:"▾"; float:right; color:#6c757d; }
+    .hs-multiselect-menu { background:#fff; border:1px solid #ced4da; border-radius:.6rem; box-shadow:0 .5rem 1rem rgba(0,0,0,.12); display:none; left:0; margin-top:.25rem; max-height:340px; overflow:hidden; padding:.65rem; position:absolute; right:0; z-index:1080; }
+    .hs-multiselect.open .hs-multiselect-menu { display:block; }
+    .hs-multiselect-lista { max-height:250px; overflow-y:auto; padding-top:.4rem; }
+    .hs-multiselect-opcao { align-items:center; border-radius:.4rem; cursor:pointer; display:flex; gap:.65rem; padding:.5rem .45rem; }
+    .hs-multiselect-opcao:hover { background:#fff5ee; }
+    .hs-multiselect-opcao input { flex:0 0 auto; }
+    .hs-selecionados-resumo { color:#6c757d; font-size:.86rem; line-height:1.45; margin-top:.55rem; min-height:1.25rem; }
 </style>
 
 <div class="page-header">
@@ -226,49 +236,26 @@
         </div>
     </div>
 
-    <!-- PARTICIPANTES -->
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
-
-            <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
-                <h5 class="text-laranja m-0">
-                    <i class="bi bi-people me-2"></i>
-                    Participantes
-                </h5>
-
-                <button type="button"
-                        class="btn btn-laranja"
-                        data-bs-toggle="modal"
-                        data-bs-target="#modalParticipantes"
-                        title="Selecionar participantes"
-                        aria-label="Selecionar participantes">
-                    <i class="bi bi-plus-circle"></i>
-                </button>
+    <div class="card shadow-sm border-0 mb-4"><div class="card-body"><div class="row g-4">
+        <div class="col-lg-6">
+            <label class="form-label fw-semibold">Auditados <span class="text-danger">*</span></label>
+            <div class="hs-multiselect" id="seletorAuditados">
+                <button type="button" class="hs-multiselect-toggle" id="toggleAuditados">Selecionar auditados</button>
+                <div class="hs-multiselect-menu"><input class="form-control" id="buscaAuditadosInline" placeholder="Buscar por nome ou matrícula" autocomplete="off"><div class="hs-multiselect-lista" id="listaAuditadosInline"></div></div>
             </div>
-
-            {% if agendamento and participante_previsto_id %}
-                <div class="alert alert-light border mb-3">
-                    <i class="bi bi-info-circle me-1"></i>
-                    O colaborador previsto foi incluído automaticamente. Outros participantes podem ser acrescentados.
-                    A remoção do colaborador previsto exigirá justificativa.
-                </div>
-            {% endif %}
-
-            <div id="resumoParticipantes"
-                 class="d-flex flex-wrap gap-2 mb-2">
-            </div>
-
-            <div id="mensagemParticipantesVazio"
-                 class="hs-participantes-vazio">
-                Nenhum participante selecionado.
-            </div>
-
-            <small class="text-muted"
-                   id="contadorParticipantes">
-            </small>
-
+            <div id="resumoParticipantes" class="hs-selecionados-resumo"></div>
+            <div id="mensagemParticipantesVazio" class="d-none"></div><small id="contadorParticipantes" class="d-none"></small>
+            {% if agendamento and participante_previsto_id %}<div class="form-text">O auditado previsto foi incluído automaticamente; sua remoção exige justificativa.</div>{% endif %}
         </div>
-    </div>
+        <div class="col-lg-6">
+            <label class="form-label fw-semibold">Participantes <span class="text-muted fw-normal">opcional</span></label>
+            <div class="hs-multiselect" id="seletorAcompanhantes">
+                <button type="button" class="hs-multiselect-toggle" id="toggleAcompanhantes">Selecionar participantes</button>
+                <div class="hs-multiselect-menu"><input class="form-control" id="buscaAcompanhantesInline" placeholder="Buscar por nome ou matrícula" autocomplete="off"><div class="hs-multiselect-lista" id="listaAcompanhantesInline"></div></div>
+            </div>
+            <div id="resumoAcompanhantes" class="hs-selecionados-resumo"></div>
+        </div>
+    </div></div></div>
 
     <!-- ITENS DE VERIFICAÇÃO -->
     <div class="card shadow-sm border-0 mb-4">
@@ -621,6 +608,7 @@ const TEMA_SELECIONADO_ID = JSON.parse(
 );
 
 let participantesSelecionados = [];
+let acompanhantesSelecionados = [];
 let envioConfirmado = false;
 
 function normalizarTexto(texto) {
@@ -806,37 +794,92 @@ function atualizarParticipantes() {
     const form =
         document.getElementById("formLancarHS");
 
-    resumo.innerHTML = "";
+    resumo.textContent = "";
 
     form
         .querySelectorAll(".input-participante-hidden")
         .forEach(elemento => elemento.remove());
 
     if (participantesSelecionados.length === 0) {
-        vazio.style.display = "flex";
+        vazio.style.display = "none";
         contador.textContent = "";
+        const toggle = document.getElementById("toggleAuditados");
+        if (toggle) toggle.textContent = "Selecionar auditados";
+        if (typeof renderizarSeletoresInline === "function") renderizarSeletoresInline();
         return;
     }
 
     vazio.style.display = "none";
 
-    contador.textContent =
-        `${participantesSelecionados.length} participante(s) selecionado(s).`;
+    contador.textContent = "";
+    resumo.textContent = participantesSelecionados.map(item => item.nome).join(", ");
+    const toggle = document.getElementById("toggleAuditados");
+    if (toggle) toggle.textContent = `${participantesSelecionados.length} auditado(s) selecionado(s)`;
 
     participantesSelecionados.forEach(participante => {
-        resumo.appendChild(
-            criarBadgeParticipante(participante)
-        );
-
         const input = document.createElement("input");
 
         input.type = "hidden";
-        input.name = "participantes";
+        input.name = "auditados";
         input.value = participante.id;
         input.className = "input-participante-hidden";
 
         form.appendChild(input);
     });
+    if (typeof renderizarSeletoresInline === "function") renderizarSeletoresInline();
+}
+
+function atualizarAcompanhantes() {
+    const form = document.getElementById("formLancarHS");
+    form.querySelectorAll(".input-acompanhante-hidden").forEach(item => item.remove());
+    acompanhantesSelecionados.forEach(participante => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = "participantes";
+        input.value = participante.id;
+        input.className = "input-acompanhante-hidden";
+        form.appendChild(input);
+    });
+    const resumo = document.getElementById("resumoAcompanhantes");
+    const toggle = document.getElementById("toggleAcompanhantes");
+    if (resumo) resumo.textContent = acompanhantesSelecionados.map(item => item.nome).join(", ");
+    if (toggle) toggle.textContent = acompanhantesSelecionados.length
+        ? `${acompanhantesSelecionados.length} participante(s) selecionado(s)`
+        : "Selecionar participantes";
+    renderizarSeletoresInline();
+}
+
+function alternarAcompanhante(usuario, marcado) {
+    acompanhantesSelecionados = acompanhantesSelecionados.filter(item => String(item.id) !== String(usuario.id));
+    if (marcado) acompanhantesSelecionados.push({id:String(usuario.id), nome:usuario.nome || "", matricula:usuario.matricula || ""});
+    atualizarAcompanhantes();
+    salvarDraftHS();
+}
+
+function renderizarListaInline(tipo) {
+    const auditados = tipo === "auditados";
+    const campo = document.getElementById(auditados ? "buscaAuditadosInline" : "buscaAcompanhantesInline");
+    const lista = document.getElementById(auditados ? "listaAuditadosInline" : "listaAcompanhantesInline");
+    if (!campo || !lista) return;
+    const termo = normalizarTexto(campo.value || "");
+    lista.innerHTML = "";
+    participantesDisponiveis.filter(usuario => normalizarTexto(`${usuario.matricula || ""} ${usuario.nome || ""}`).includes(termo)).forEach(usuario => {
+        const selecionado = auditados ? participanteJaSelecionado(usuario.id) : acompanhantesSelecionados.some(item => String(item.id) === String(usuario.id));
+        const bloqueado = auditados ? acompanhantesSelecionados.some(item => String(item.id) === String(usuario.id)) : participanteJaSelecionado(usuario.id);
+        const label = document.createElement("label");
+        label.className = "hs-multiselect-opcao";
+        label.innerHTML = `<input type="checkbox" class="form-check-input mt-0" ${selecionado ? "checked" : ""} ${bloqueado ? "disabled" : ""}><span>${usuario.matricula ? usuario.matricula + " — " : ""}${usuario.nome}</span>`;
+        const checkbox = label.querySelector("input");
+        checkbox.addEventListener("change", () => auditados
+            ? (checkbox.checked ? adicionarParticipante(usuario.id, usuario.nome, usuario.matricula) : removerParticipante(usuario.id))
+            : alternarAcompanhante(usuario, checkbox.checked));
+        lista.appendChild(label);
+    });
+}
+
+function renderizarSeletoresInline() {
+    renderizarListaInline("auditados");
+    renderizarListaInline("acompanhantes");
 }
 
 function atualizarListaSelecionadosModal() {
@@ -972,6 +1015,9 @@ function coletarDraftHS() {
         participantes:
             participantesSelecionados,
 
+        acompanhantes:
+            acompanhantesSelecionados,
+
         itens: {}
     };
 
@@ -1044,9 +1090,13 @@ function restaurarDraftHS() {
             participantesSelecionados =
                 draft.participantes;
         }
+        if (Array.isArray(draft.acompanhantes)) {
+            acompanhantesSelecionados = draft.acompanhantes;
+        }
 
         definirTurnoAutomaticamente();
         atualizarParticipantes();
+        atualizarAcompanhantes();
         atualizarListaSelecionadosModal();
 
         if (draft.itens) {
@@ -1158,7 +1208,7 @@ function identificarAlteracoesAgendamento() {
         )
     ) {
         motivos.push(
-            "O colaborador previsto não está entre os participantes."
+            "O colaborador previsto não está entre os auditados."
         );
     }
 
@@ -1229,6 +1279,28 @@ document.addEventListener(
             document.getElementById(
                 "btnConfirmarJustificativa"
             );
+
+        [
+            ["seletorAuditados", "toggleAuditados"],
+            ["seletorAcompanhantes", "toggleAcompanhantes"]
+        ].forEach(([seletorId, toggleId]) => {
+            const seletor = document.getElementById(seletorId);
+            const toggle = document.getElementById(toggleId);
+            if (seletor && toggle) toggle.addEventListener("click", evento => {
+                evento.stopPropagation();
+                document.querySelectorAll(".hs-multiselect.open").forEach(item => {
+                    if (item !== seletor) item.classList.remove("open");
+                });
+                seletor.classList.toggle("open");
+                if (seletor.classList.contains("open")) seletor.querySelector("input")?.focus();
+            });
+        });
+        document.getElementById("buscaAuditadosInline")?.addEventListener("input", () => renderizarListaInline("auditados"));
+        document.getElementById("buscaAcompanhantesInline")?.addEventListener("input", () => renderizarListaInline("acompanhantes"));
+        document.addEventListener("click", evento => {
+            if (!evento.target.closest(".hs-multiselect")) document.querySelectorAll(".hs-multiselect.open").forEach(item => item.classList.remove("open"));
+        });
+        renderizarSeletoresInline();
 
         if (buscarParticipante) {
             buscarParticipante.addEventListener(
@@ -1471,9 +1543,11 @@ document.addEventListener(
         }
 
         atualizarParticipantes();
+        atualizarAcompanhantes();
         atualizarListaSelecionadosModal();
     }
 );
 </script>
 
 {% endblock %}
+
