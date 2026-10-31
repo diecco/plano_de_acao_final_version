@@ -21,7 +21,7 @@ from app.utils.db import get_db_connection
 
 
 def _sincronizar_participantes_hs(cursor, registro_id, participante_ids):
-    """Mantém a relação normalizada sem remover o campo legado durante a transição."""
+    """Mantém os auditados na relação histórica, sem quebrar o campo legado."""
     cursor.execute(
         "DELETE FROM hs_registros_participantes WHERE id_registro = %s",
         (registro_id,),
@@ -43,6 +43,42 @@ def _sincronizar_participantes_hs(cursor, registro_id, participante_ids):
                VALUES (%s, %s)""",
             valores,
         )
+
+
+def _sincronizar_acompanhantes_hs(cursor, registro_id, participante_ids):
+    cursor.execute(
+        "DELETE FROM hs_registros_acompanhantes WHERE id_registro = %s",
+        (registro_id,),
+    )
+    valores = []
+    vistos = set()
+    for participante_id in participante_ids:
+        try:
+            participante_id = int(participante_id)
+        except (TypeError, ValueError):
+            continue
+        if participante_id in vistos:
+            continue
+        vistos.add(participante_id)
+        valores.append((registro_id, participante_id))
+    if valores:
+        cursor.executemany(
+            """INSERT INTO hs_registros_acompanhantes (id_registro, usuario_id)
+               VALUES (%s, %s)""",
+            valores,
+        )
+
+
+def _nomes_usuarios_hs(cursor, usuario_ids):
+    if not usuario_ids:
+        return ""
+    placeholders = ", ".join(["%s"] * len(usuario_ids))
+    cursor.execute(
+        f"SELECT id, nome FROM usuarios WHERE id IN ({placeholders})",
+        usuario_ids,
+    )
+    nomes = {item["id"]: item["nome"] for item in cursor.fetchall()}
+    return ", ".join(nomes.get(item_id, f"ID {item_id}") for item_id in usuario_ids)
 
 
 def _centro_registro_hs(registro):
@@ -127,19 +163,14 @@ def _buscar_detalhes_hora_seguranca(cursor, registro_id):
             for valor in (registro.get("participantes") or "").split(",")
             if valor.strip().isdigit()
         ]
-    nomes_por_id = {}
-    if participante_ids:
-        placeholders = ", ".join(["%s"] * len(participante_ids))
-        cursor.execute(f"""
-            SELECT id, nome
-            FROM usuarios
-            WHERE id IN ({placeholders})
-        """, participante_ids)
-        nomes_por_id = {item["id"]: item["nome"] for item in cursor.fetchall()}
-    registro["nomes_participantes"] = ", ".join(
-        nomes_por_id.get(item_id, f"ID {item_id}")
-        for item_id in participante_ids
+    registro["nomes_auditados"] = _nomes_usuarios_hs(cursor, participante_ids)
+    cursor.execute(
+        """SELECT usuario_id FROM hs_registros_acompanhantes
+           WHERE id_registro = %s ORDER BY id""",
+        (registro_id,),
     )
+    acompanhante_ids = [item["usuario_id"] for item in cursor.fetchall()]
+    registro["nomes_participantes"] = _nomes_usuarios_hs(cursor, acompanhante_ids)
 
     cursor.execute("""
         SELECT
@@ -585,11 +616,17 @@ def register_horas_seguranca_routes(blueprint):
             # Auditor sempre será o usuário logado
             id_auditor = usuario_id
 
+            campo_auditados = "auditados" if "auditados" in request.form else "participantes"
             participantes = [
                 str(participante_id).strip()
                 for participante_id
-                in request.form.getlist("participantes")
+                in request.form.getlist(campo_auditados)
                 if str(participante_id).strip()
+            ]
+            acompanhantes = [
+                str(participante_id).strip()
+                for participante_id in request.form.getlist("participantes")
+                if campo_auditados == "auditados" and str(participante_id).strip()
             ]
 
             observacoes_gerais = (
@@ -675,7 +712,7 @@ def register_horas_seguranca_routes(blueprint):
                 )
 
             # -------------------------------------------------
-            # VALIDAR PARTICIPANTES E ESCOPO
+            # VALIDAR AUDITADOS E ESCOPO
             # -------------------------------------------------
 
             participantes_validos = []
@@ -733,7 +770,7 @@ def register_horas_seguranca_routes(blueprint):
                     != len(participantes_unicos)
                 ):
                     flash(
-                        "Um ou mais participantes são inválidos "
+                        "Um ou mais auditados são inválidos "
                         "ou estão fora do seu centro de custos.",
                         "warning"
                     )
@@ -750,6 +787,34 @@ def register_horas_seguranca_routes(blueprint):
                     )
 
             # -------------------------------------------------
+            if acompanhantes:
+                acompanhantes_unicos = list(dict.fromkeys(acompanhantes))
+                if set(acompanhantes_unicos) & set(participantes_validos):
+                    flash("A mesma pessoa não pode ser auditada e participante da realização.", "warning")
+                    fechar_conexao()
+                    return redirect(montar_url_retorno_formulario(
+                        agendamento_id=agendamento_id, id_tema=id_tema,
+                        participante_id=participante_previsto_id, next_url=next_url
+                    ))
+                placeholders = ", ".join(["%s"] * len(acompanhantes_unicos))
+                if perfil in {"administrador", "avancado"}:
+                    sql_acompanhantes = f"SELECT id FROM usuarios WHERE ativo=1 AND id IN ({placeholders})"
+                    params_acompanhantes = acompanhantes_unicos
+                else:
+                    sql_acompanhantes = f"SELECT id FROM usuarios WHERE ativo=1 AND centro_custos_id=%s AND id IN ({placeholders})"
+                    params_acompanhantes = [centro_custos_id, *acompanhantes_unicos]
+                cursor.execute(sql_acompanhantes, params_acompanhantes)
+                acompanhantes_validos = [str(item["id"]) for item in cursor.fetchall()]
+                if len(acompanhantes_validos) != len(acompanhantes_unicos):
+                    flash("Um ou mais participantes são inválidos ou estão fora do seu centro de custos.", "warning")
+                    fechar_conexao()
+                    return redirect(montar_url_retorno_formulario(
+                        agendamento_id=agendamento_id, id_tema=id_tema,
+                        participante_id=participante_previsto_id, next_url=next_url
+                    ))
+            else:
+                acompanhantes_validos = []
+
             # COMPARAR EXECUÇÃO COM O AGENDAMENTO
             # -------------------------------------------------
 
@@ -874,6 +939,9 @@ def register_horas_seguranca_routes(blueprint):
                 id_registro = cursor.lastrowid
                 _sincronizar_participantes_hs(
                     cursor, id_registro, participantes_validos
+                )
+                _sincronizar_acompanhantes_hs(
+                    cursor, id_registro, acompanhantes_validos
                 )
 
                 # ---------------------------------------------
@@ -1437,7 +1505,12 @@ def register_horas_seguranca_routes(blueprint):
             local = request.form.get("local")
             id_tema = request.form.get("id_tema")
             id_auditor = request.form.get("id_auditor")
-            participantes = request.form.getlist("participantes")
+            campo_auditados = "auditados" if "auditados" in request.form else "participantes"
+            participantes = request.form.getlist(campo_auditados)
+            acompanhantes = (
+                request.form.getlist("participantes")
+                if campo_auditados == "auditados" else []
+            )
             observacoes_gerais = (
                 (request.form.get("observacoes_gerais") or "").strip()
                 if "observacoes_gerais" in request.form
@@ -1485,6 +1558,7 @@ def register_horas_seguranca_routes(blueprint):
                     id
                 ))
                 _sincronizar_participantes_hs(cursor, id, participantes)
+                _sincronizar_acompanhantes_hs(cursor, id, acompanhantes)
 
                 cursor.execute("""
                     SELECT *
@@ -1734,6 +1808,15 @@ def register_horas_seguranca_routes(blueprint):
 
         cursor.execute("SELECT id, nome, matricula FROM usuarios WHERE ativo=1 ORDER BY nome")
         usuarios = cursor.fetchall()
+
+        cursor.execute(
+            """SELECT usuario_id FROM hs_registros_acompanhantes
+               WHERE id_registro=%s ORDER BY id""",
+            (id,),
+        )
+        registro["acompanhante_ids"] = [
+            str(item["usuario_id"]) for item in cursor.fetchall()
+        ]
 
         cursor.execute("""
             SELECT
@@ -2283,9 +2366,9 @@ def register_horas_seguranca_routes(blueprint):
             if r.get('participantes'):
                 ids = [p.strip() for p in r['participantes'].split(',') if p.strip()]
                 nomes = [mapa_usuarios.get(pid, f'ID {pid}') for pid in ids]
-                r['nomes_participantes'] = ', '.join(nomes)
+                r['nomes_auditados'] = ', '.join(nomes)
             else:
-                r['nomes_participantes'] = ''
+                r['nomes_auditados'] = ''
 
             if r.get('hora') and hasattr(r['hora'], 'strftime'):
                 r['hora'] = r['hora'].strftime('%H:%M')
@@ -2304,6 +2387,26 @@ def register_horas_seguranca_routes(blueprint):
 
         if ids_registros:
             placeholders = ", ".join(["%s"] * len(ids_registros))
+
+            cursor.execute(f"""
+                SELECT ha.id_registro, ha.usuario_id, u.nome
+                FROM hs_registros_acompanhantes ha
+                JOIN usuarios u ON u.id = ha.usuario_id
+                WHERE ha.id_registro IN ({placeholders})
+                ORDER BY ha.id_registro, u.nome
+            """, ids_registros)
+            acompanhantes_por_registro = defaultdict(list)
+            acompanhantes_ids_por_registro = defaultdict(list)
+            for item in cursor.fetchall():
+                acompanhantes_por_registro[item["id_registro"]].append(item["nome"])
+                acompanhantes_ids_por_registro[item["id_registro"]].append(str(item["usuario_id"]))
+            for registro in registros:
+                registro["nomes_participantes"] = ", ".join(
+                    acompanhantes_por_registro.get(registro["id"], [])
+                )
+                registro["acompanhantes_csv"] = ",".join(
+                    acompanhantes_ids_por_registro.get(registro["id"], [])
+                )
 
             cursor.execute(f"""
                 SELECT
@@ -2376,3 +2479,4 @@ def register_horas_seguranca_routes(blueprint):
             total_registros=total_registros,
             total_paginas=total_paginas
         )
+
