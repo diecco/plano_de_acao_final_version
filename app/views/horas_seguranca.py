@@ -666,6 +666,7 @@ def register_horas_seguranca_routes(blueprint):
                 and id_tema
                 and id_auditor
                 and turno
+                and participantes
             ):
                 flash(
                     "Preencha todos os campos obrigatórios.",
@@ -1526,7 +1527,7 @@ def register_horas_seguranca_routes(blueprint):
                     conn.close()
                     return redirect(next_url)
 
-            if not (data and hora and id_tema and id_auditor and turno):
+            if not (data and hora and id_tema and id_auditor and turno and participantes):
                 flash("Preencha todos os campos obrigatórios.", "danger")
                 conn.close()
                 return redirect(next_url)
