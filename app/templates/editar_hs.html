@@ -85,6 +85,13 @@
         padding: 0.45rem 0.65rem;
         border-radius: 999px;
     }
+    .hs-multiselect { position:relative; }
+    .hs-multiselect-toggle { background:#fff;border:1px solid #ced4da;border-radius:.5rem;color:#495057;min-height:48px;padding:.65rem .85rem;text-align:left;width:100%; }
+    .hs-multiselect-toggle::after { content:"▾";float:right;color:#6c757d; }
+    .hs-multiselect-menu { background:#fff;border:1px solid #ced4da;border-radius:.6rem;box-shadow:0 .5rem 1rem rgba(0,0,0,.12);display:none;left:0;margin-top:.25rem;max-height:340px;overflow:hidden;padding:.65rem;position:absolute;right:0;z-index:1080; }
+    .hs-multiselect.open .hs-multiselect-menu { display:block; }
+    .hs-multiselect .lista-busca { border:0;border-radius:0;display:block;max-height:250px;padding:.4rem 0 0; }
+    .hs-selecionados-resumo { color:#6c757d;font-size:.86rem;line-height:1.45;margin-top:.55rem;min-height:1.25rem; }
 </style>
 
 <form method="POST" action="/editar_hs/{{ registro.id }}" class="bloco-compacto" id="formEditarHS">
@@ -168,37 +175,17 @@
     {% set parts = registro.participantes.split(',') if registro.participantes else [] %}
     {% set acompanhantes = registro.acompanhante_ids or [] %}
 
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
-            <h5 class="text-laranja mb-3">Auditados</h5>
-
-            <div class="row g-2 mb-3">
-                <div class="col-md-8">
-                    <input type="text"
-                           id="buscarParticipante"
-                           class="form-control"
-                           placeholder="Digite matrícula ou nome..."
-                           autocomplete="off">
-                </div>
-
-                <div class="col-md-2 d-grid">
-                    <button type="button" class="btn btn-cinza" id="btnSelecionarTodos">
-                        Selecionar resultados
-                    </button>
-                </div>
-
-                <div class="col-md-2 d-grid">
-                    <button type="button" class="btn btn-cinza" id="btnLimparParticipantes">
-                        Limpar
-                    </button>
-                </div>
-            </div>
-
-            <div id="participantesPlaceholder" class="bloco-placeholder mb-3">
-                Digite no campo de pesquisa para localizar e selecionar os participantes.
-            </div>
-
-            <div class="lista-busca" id="listaParticipantes">
+    <div class="card shadow-sm border-0 mb-4"><div class="card-body"><div class="row g-4">
+        <div class="col-lg-6">
+            <label class="form-label fw-semibold">Auditados <span class="text-danger">*</span></label>
+            <div class="hs-multiselect" id="seletorAuditadosEditar">
+                <button type="button" class="hs-multiselect-toggle" id="toggleAuditadosEditar">Selecionar auditados</button>
+                <div class="hs-multiselect-menu">
+                    <input type="text" id="buscarParticipante" class="form-control" placeholder="Buscar por nome ou matrícula" autocomplete="off">
+                    <button type="button" class="d-none" id="btnSelecionarTodos"></button>
+                    <button type="button" class="d-none" id="btnLimparParticipantes"></button>
+                    <div id="participantesPlaceholder" class="d-none"></div>
+                    <div class="lista-busca" id="listaParticipantes">
                 {% for usuario in usuarios %}
                     <div class="lista-busca-item"
                          data-busca="{{ ((usuario.matricula or '') ~ ' ' ~ (usuario.nome or ''))|lower }}">
@@ -217,32 +204,31 @@
                         </label>
                     </div>
                 {% endfor %}
+                    </div>
+                </div>
             </div>
-
-            <div class="mt-3">
-                <small class="text-muted fw-semibold" id="contadorParticipantes">
-                    Nenhum participante selecionado.
-                </small>
-            </div>
-
-            <div id="resumoParticipantes" class="mt-3 d-flex flex-wrap gap-2"></div>
+            <small class="d-none" id="contadorParticipantes"></small>
+            <div id="resumoParticipantes" class="hs-selecionados-resumo"></div>
         </div>
-    </div>
-
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
-            <h5 class="text-laranja mb-2">Participantes da realização <span class="text-muted fw-normal small">(opcional)</span></h5>
-            <p class="text-muted small">Líderes ou acompanhantes presentes na realização, diferentes dos auditados.</p>
-            <select class="form-select" name="participantes" multiple size="6">
+        <div class="col-lg-6">
+            <label class="form-label fw-semibold">Participantes <span class="text-muted fw-normal">opcional</span></label>
+            <div class="hs-multiselect" id="seletorAcompanhantesEditar">
+                <button type="button" class="hs-multiselect-toggle" id="toggleAcompanhantesEditar">Selecionar participantes</button>
+                <div class="hs-multiselect-menu">
+                    <input class="form-control" id="buscarAcompanhanteEditar" placeholder="Buscar por nome ou matrícula" autocomplete="off">
+                    <div class="lista-busca" id="listaAcompanhantesEditar">
                 {% for usuario in usuarios %}
-                    <option value="{{ usuario.id }}" {% if usuario.id|string in acompanhantes %}selected{% endif %}>
-                        {{ usuario.matricula or 'Sem matrícula' }} — {{ usuario.nome }}
-                    </option>
+                    <label class="lista-busca-item acompanhante-item" data-busca="{{ ((usuario.matricula or '') ~ ' ' ~ (usuario.nome or ''))|lower }}">
+                        <input class="form-check-input chk-acompanhante" type="checkbox" name="participantes" value="{{ usuario.id }}" {% if usuario.id|string in acompanhantes %}checked{% endif %}>
+                        <span><strong>{{ usuario.matricula or '-' }}</strong> — {{ usuario.nome }}</span>
+                    </label>
                 {% endfor %}
-            </select>
-            <small class="text-muted">Use Ctrl para selecionar mais de uma pessoa.</small>
+                    </div>
+                </div>
+            </div>
+            <div id="resumoAcompanhantesEditar" class="hs-selecionados-resumo"></div>
         </div>
-    </div>
+    </div></div></div>
 
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
@@ -432,42 +418,19 @@ function atualizarResumoParticipantes() {
     const contador = document.getElementById("contadorParticipantes");
     const selecionados = document.querySelectorAll(".chk-participante:checked");
 
-    container.innerHTML = "";
+    container.textContent = "";
 
     if (selecionados.length === 0) {
-        contador.textContent = "Nenhum participante selecionado.";
+        contador.textContent = "";
+        document.getElementById("toggleAuditadosEditar").textContent = "Selecionar auditados";
+        atualizarEstadoCruzadoEditar();
         return;
     }
 
-    contador.textContent = selecionados.length + " participante(s) selecionado(s).";
-
-    selecionados.forEach(function(chk) {
-        const label = document.querySelector('label[for="' + chk.id + '"]');
-
-        if (label) {
-            const badge = document.createElement("span");
-            badge.className = "badge badge-participante d-inline-flex align-items-center gap-2";
-
-            const nome = document.createElement("span");
-            nome.textContent = label.textContent.trim();
-
-            const botaoRemover = document.createElement("button");
-            botaoRemover.type = "button";
-            botaoRemover.className = "btn-close btn-close-sm";
-            botaoRemover.setAttribute("aria-label", "Remover participante");
-            botaoRemover.style.fontSize = "0.6rem";
-            botaoRemover.style.opacity = "0.8";
-
-            botaoRemover.addEventListener("click", function() {
-                chk.checked = false;
-                atualizarResumoParticipantes();
-            });
-
-            badge.appendChild(nome);
-            badge.appendChild(botaoRemover);
-            container.appendChild(badge);
-        }
-    });
+    contador.textContent = "";
+    document.getElementById("toggleAuditadosEditar").textContent = selecionados.length + " auditado(s) selecionado(s)";
+    container.textContent = Array.from(selecionados).map(chk => document.querySelector('label[for="' + chk.id + '"]')?.textContent.trim() || "").filter(Boolean).join(", ");
+    atualizarEstadoCruzadoEditar();
 }
 
 function filtrarParticipantes() {
@@ -480,13 +443,9 @@ function filtrarParticipantes() {
     const itens = document.querySelectorAll(".lista-busca-item");
 
     if (termo === "") {
-        lista.classList.remove("show");
-        placeholder.style.display = "block";
-        placeholder.textContent = "Digite no campo de pesquisa para localizar e selecionar os participantes.";
-
-        itens.forEach(function(item) {
-            item.style.display = "none";
-        });
+        lista.classList.add("show");
+        placeholder.style.display = "none";
+        itens.forEach(function(item) { item.style.display = "flex"; });
 
         return;
     }
@@ -512,6 +471,25 @@ function filtrarParticipantes() {
     }
 }
 
+function atualizarResumoAcompanhantesEditar() {
+    const selecionados = document.querySelectorAll(".chk-acompanhante:checked");
+    document.getElementById("toggleAcompanhantesEditar").textContent = selecionados.length ? selecionados.length + " participante(s) selecionado(s)" : "Selecionar participantes";
+    document.getElementById("resumoAcompanhantesEditar").textContent = Array.from(selecionados).map(chk => chk.closest("label")?.textContent.trim() || "").filter(Boolean).join(", ");
+    atualizarEstadoCruzadoEditar();
+}
+
+function atualizarEstadoCruzadoEditar() {
+    const auditados = new Set(Array.from(document.querySelectorAll(".chk-participante:checked")).map(item => item.value));
+    const acompanhantes = new Set(Array.from(document.querySelectorAll(".chk-acompanhante:checked")).map(item => item.value));
+    document.querySelectorAll(".chk-participante").forEach(item => { item.disabled = acompanhantes.has(item.value) && !item.checked; });
+    document.querySelectorAll(".chk-acompanhante").forEach(item => { item.disabled = auditados.has(item.value) && !item.checked; });
+}
+
+function filtrarAcompanhantesEditar() {
+    const termo = normalizarTextoHS(document.getElementById("buscarAcompanhanteEditar").value);
+    document.querySelectorAll(".acompanhante-item").forEach(item => { item.style.display = normalizarTextoHS(item.dataset.busca || "").includes(termo) ? "flex" : "none"; });
+}
+
 document.querySelectorAll(".resultado-select").forEach(function(el) {
     el.addEventListener("change", function() {
         toggleCamposNC(this.dataset.id);
@@ -521,8 +499,25 @@ document.querySelectorAll(".resultado-select").forEach(function(el) {
 document.querySelectorAll(".chk-participante").forEach(function(el) {
     el.addEventListener("change", atualizarResumoParticipantes);
 });
+document.querySelectorAll(".chk-acompanhante").forEach(function(el) {
+    el.addEventListener("change", atualizarResumoAcompanhantesEditar);
+});
 
 document.getElementById("buscarParticipante").addEventListener("input", filtrarParticipantes);
+document.getElementById("buscarAcompanhanteEditar").addEventListener("input", filtrarAcompanhantesEditar);
+
+[["seletorAuditadosEditar", "toggleAuditadosEditar"], ["seletorAcompanhantesEditar", "toggleAcompanhantesEditar"]].forEach(function(ids) {
+    const seletor = document.getElementById(ids[0]);
+    document.getElementById(ids[1]).addEventListener("click", function(evento) {
+        evento.stopPropagation();
+        document.querySelectorAll(".hs-multiselect.open").forEach(item => { if (item !== seletor) item.classList.remove("open"); });
+        seletor.classList.toggle("open");
+        if (seletor.classList.contains("open")) seletor.querySelector("input")?.focus();
+    });
+});
+document.addEventListener("click", function(evento) {
+    if (!evento.target.closest(".hs-multiselect")) document.querySelectorAll(".hs-multiselect.open").forEach(item => item.classList.remove("open"));
+});
 
 document.getElementById("hora").addEventListener("input", function() {
     definirTurnoAutomaticamente();
@@ -569,10 +564,6 @@ document.getElementById("formEditarHS").addEventListener("submit", function() {
 });
 
 document.addEventListener("DOMContentLoaded", function() {
-    document.querySelectorAll(".lista-busca-item").forEach(function(item) {
-        item.style.display = "none";
-    });
-
     definirTurnoAutomaticamente();
 
     document.querySelectorAll(".resultado-select").forEach(function(el) {
@@ -580,6 +571,9 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     atualizarResumoParticipantes();
+    atualizarResumoAcompanhantesEditar();
+    filtrarParticipantes();
+    filtrarAcompanhantesEditar();
 });
 </script>
 
