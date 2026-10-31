@@ -354,6 +354,7 @@
                                             data-tema-id="{{ hs.id_tema }}"
                                             data-auditor-id="{{ hs.id_auditor }}"
                                             data-participantes="{{ hs.participantes|default('', true)|e }}"
+                                            data-acompanhantes="{{ hs.acompanhantes_csv|default('', true)|e }}"
                                             data-observacoes="{{ hs.observacoes_gerais|default('', true)|e }}"
                                             data-next="{{ request.full_path }}">
                                         <i class="bi bi-pencil-square"></i>
@@ -425,6 +426,8 @@
                                                     {{ hs.centro_codigo or '-' }}
                                                     {% if hs.centro_descricao %}<br><span class="text-muted small">{{ hs.centro_descricao }}</span>{% endif %}
                                                 </dd>
+                                                <dt class="col-5">Auditados</dt>
+                                                <dd class="col-7">{{ hs.nomes_auditados or '-' }}</dd>
                                                 <dt class="col-5">Participantes</dt>
                                                 <dd class="col-7">{{ hs.nomes_participantes or '-' }}</dd>
                                             </dl>
@@ -777,7 +780,7 @@
                         <label class="form-label">Participantes</label>
 
                         <div class="alert alert-light border mb-2">
-                            A edição rápida não altera os participantes. Os participantes atuais serão preservados ao salvar.
+                            A edição rápida preserva os auditados e participantes atuais.
                         </div>
 
                         <div id="modal_participantes_hidden_container"></div>
@@ -1057,10 +1060,19 @@ document.addEventListener('DOMContentLoaded', function () {
             participantes.forEach(participanteId => {
                 const input = document.createElement('input');
                 input.type = 'hidden';
-                input.name = 'participantes';
+                input.name = 'auditados';
                 input.value = participanteId;
                 participantesHiddenContainer.appendChild(input);
             });
+            (button.getAttribute('data-acompanhantes') || '')
+                .split(',').map(valor => valor.trim()).filter(Boolean)
+                .forEach(participanteId => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'participantes';
+                    input.value = participanteId;
+                    participantesHiddenContainer.appendChild(input);
+                });
 
             renderizarItensHS(id);
         });
@@ -1075,3 +1087,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 {% endblock %}
+
