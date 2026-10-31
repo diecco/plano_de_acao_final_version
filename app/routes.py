@@ -21,6 +21,7 @@ from app.views.instrutores import register_instrutores_routes
 from app.views.matriz_capacitacao import register_matriz_capacitacao_routes
 from app.views.melhorias import register_melhorias_routes
 from app.views.origens import register_origens_routes
+from app.views.perfil_seguranca import register_perfil_seguranca_routes
 from app.views.observacao_comportamental import (
     register_observacao_comportamental_routes,
 )
@@ -49,6 +50,7 @@ register_detectores_gas_routes(main_routes)
 register_desvios_routes(main_routes)
 register_superintendencias_routes(main_routes)
 register_origens_routes(main_routes)
+register_perfil_seguranca_routes(main_routes)
 register_observacao_comportamental_routes(main_routes)
 register_setores_routes(main_routes)
 register_funcoes_routes(main_routes)
@@ -82,3 +84,4 @@ def arquivo_muito_grande(_erro):
         return jsonify({'sucesso': False, 'mensagem': mensagem}), 413
     flash(mensagem, 'danger')
     return redirect(request.referrer or url_for('main.index'))
+
