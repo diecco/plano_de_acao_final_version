@@ -13,7 +13,7 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 259)
+        self.assertEqual(len(self.routes), 260)
 
     def test_observacao_comportamental_routes_are_registered(self):
         expected = {
@@ -565,3 +565,4 @@ class RouteStructureTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
