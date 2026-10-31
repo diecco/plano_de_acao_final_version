@@ -33,7 +33,7 @@ def _linha_tempo(cursor, usuario_id, inicio, fim):
         ("Auditoria de Padrão", """
             SELECT ap.id, ap.data_auditoria AS data_evento,
                    CONCAT_WS(' — ', ap.area_auditada, ap.atividade_auditada) AS descricao
-            FROM auditoria_padrao ap
+            FROM auditorias_padrao ap
             WHERE ap.auditado_id = %s AND ap.data_auditoria BETWEEN %s AND %s
         """),
         ("Recusa à Tarefa", """
@@ -130,7 +130,7 @@ def register_perfil_seguranca_routes(blueprint):
                   (SELECT COUNT(*) FROM hs_registros_participantes hp
                    JOIN hs_registros r ON r.id=hp.id_registro
                    WHERE hp.usuario_id=%s AND r.data BETWEEN %s AND %s) AS horas_seguranca,
-                  (SELECT COUNT(*) FROM auditoria_padrao ap
+                  (SELECT COUNT(*) FROM auditorias_padrao ap
                    WHERE ap.auditado_id=%s AND ap.data_auditoria BETWEEN %s AND %s) AS auditorias_padrao,
                   (SELECT COUNT(*) FROM recusa_tarefa rt
                    WHERE rt.id_usuario=%s AND rt.data_recusa BETWEEN %s AND %s) AS recusas,
