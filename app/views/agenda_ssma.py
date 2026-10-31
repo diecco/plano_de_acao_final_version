@@ -13,6 +13,65 @@ from app.feature_flags import (
 from app.utils.db import get_db_connection
 
 
+def _resolver_periodo_aderencia(periodo, mes_referencia=None, data_inicio=None,
+                                data_fim=None, hoje=None):
+    """Resolve o período do relatório sem alterar suas regras de cálculo."""
+    hoje = hoje or date.today()
+    periodo = (periodo or 'mes_atual').strip()
+    periodos_validos = {
+        'mes_atual', 'mes_anterior', 'mes_proximo',
+        'mes_ano', 'personalizado'
+    }
+    if periodo not in periodos_validos:
+        raise ValueError('Período informado inválido.')
+
+    if periodo == 'personalizado':
+        try:
+            inicio = datetime.strptime(
+                (data_inicio or '').strip(), '%Y-%m-%d'
+            ).date()
+            fim = datetime.strptime(
+                (data_fim or '').strip(), '%Y-%m-%d'
+            ).date()
+        except (TypeError, ValueError):
+            raise ValueError(
+                'Informe as datas inicial e final do período personalizado.'
+            )
+        if inicio > fim:
+            raise ValueError(
+                'A data inicial não pode ser posterior à data final.'
+            )
+        if (inicio.year, inicio.month) != (fim.year, fim.month):
+            raise ValueError(
+                'O período personalizado deve permanecer dentro do mesmo mês.'
+            )
+        return inicio, fim, inicio.strftime('%Y-%m')
+
+    if periodo == 'mes_ano':
+        try:
+            referencia = datetime.strptime(
+                (mes_referencia or '').strip(), '%Y-%m'
+            ).date()
+        except (TypeError, ValueError):
+            raise ValueError('Selecione um mês e ano válidos.')
+    else:
+        deslocamento = {
+            'mes_anterior': -1,
+            'mes_atual': 0,
+            'mes_proximo': 1
+        }[periodo]
+        indice_mes = hoje.year * 12 + hoje.month - 1 + deslocamento
+        referencia = date(indice_mes // 12, indice_mes % 12 + 1, 1)
+
+    inicio = date(referencia.year, referencia.month, 1)
+    fim = date(
+        referencia.year,
+        referencia.month,
+        calendar.monthrange(referencia.year, referencia.month)[1]
+    )
+    return inicio, fim, inicio.strftime('%Y-%m')
+
+
 def register_agenda_ssma_routes(blueprint):
     @blueprint.route(
         "/agendamentos_ssma",
@@ -2336,14 +2395,40 @@ def register_agenda_ssma_routes(blueprint):
 
         hoje = datetime.today()
 
-        mes_padrao = hoje.strftime(
-            '%Y-%m'
+        nomes_meses = (
+            'Janeiro', 'Fevereiro', 'Março', 'Abril',
+            'Maio', 'Junho', 'Julho', 'Agosto',
+            'Setembro', 'Outubro', 'Novembro', 'Dezembro'
         )
+        opcoes_periodo = []
+        for valor, prefixo in (
+            ('mes_atual', 'Este mês'),
+            ('mes_anterior', 'Mês anterior'),
+            ('mes_proximo', 'Próximo mês')
+        ):
+            inicio_opcao, _, _ = _resolver_periodo_aderencia(
+                valor, hoje=hoje.date()
+            )
+            opcoes_periodo.append({
+                'valor': valor,
+                'rotulo': (
+                    f'{prefixo} — {nomes_meses[inicio_opcao.month - 1]}/'
+                    f'{inicio_opcao.year}'
+                )
+            })
 
-        mes_selecionado = (
-            request.args.get('mes')
-            or mes_padrao
+        mes_legado = (request.args.get('mes') or '').strip()
+        periodo_selecionado = (
+            request.args.get('periodo')
+            or ('mes_ano' if mes_legado else 'mes_atual')
         ).strip()
+        mes_referencia = (
+            request.args.get('mes_referencia')
+            or mes_legado
+            or hoje.strftime('%Y-%m')
+        ).strip()
+        data_inicio_informada = (request.args.get('data_inicio') or '').strip()
+        data_fim_informada = (request.args.get('data_fim') or '').strip()
 
         pratica = (
             request.args.get('pratica')
@@ -2416,51 +2501,24 @@ def register_agenda_ssma_routes(blueprint):
         por_pagina = 25
 
         # =========================================================
-        # TRATAMENTO DO MÊS
+        # TRATAMENTO DO PERÍODO
         # =========================================================
 
         try:
-            ano, mes = map(
-                int,
-                mes_selecionado.split('-')
+            inicio_periodo, fim_periodo, mes_selecionado = (
+                _resolver_periodo_aderencia(
+                    periodo_selecionado,
+                    mes_referencia,
+                    data_inicio_informada,
+                    data_fim_informada,
+                    hoje.date()
+                )
             )
+            data_inicio = inicio_periodo.strftime('%Y-%m-%d')
+            data_fim = fim_periodo.strftime('%Y-%m-%d')
 
-            if mes < 1 or mes > 12:
-                raise ValueError
-
-            primeiro_dia = datetime(
-                ano,
-                mes,
-                1
-            ).date()
-
-            ultimo_dia_numero = calendar.monthrange(
-                ano,
-                mes
-            )[1]
-
-            ultimo_dia = datetime(
-                ano,
-                mes,
-                ultimo_dia_numero
-            ).date()
-
-            data_inicio = primeiro_dia.strftime(
-                '%Y-%m-%d'
-            )
-
-            data_fim = ultimo_dia.strftime(
-                '%Y-%m-%d'
-            )
-
-        except (
-            ValueError,
-            TypeError
-        ):
-            flash(
-                'Mês informado inválido.',
-                'warning'
-            )
+        except ValueError as erro_periodo:
+            flash(str(erro_periodo), 'warning')
 
             return redirect(
                 url_for(
@@ -3132,7 +3190,10 @@ def register_agenda_ssma_routes(blueprint):
                     return redirect(
                         url_for(
                             'main.relatorio_aderencia_ssma',
-                            mes=mes_selecionado,
+                            periodo=periodo_selecionado,
+                            mes_referencia=mes_referencia,
+                            data_inicio=data_inicio_informada,
+                            data_fim=data_fim_informada,
                             pratica=pratica
                         )
                     )
@@ -3173,6 +3234,11 @@ def register_agenda_ssma_routes(blueprint):
                 paginacao=paginacao,
 
                 mes_selecionado=mes_selecionado,
+                periodo_selecionado=periodo_selecionado,
+                opcoes_periodo=opcoes_periodo,
+                mes_referencia=mes_referencia,
+                data_inicio_selecionada=data_inicio,
+                data_fim_selecionada=data_fim,
                 pratica_selecionada=pratica,
                 lider_id_selecionado=lider_id,
 
@@ -3207,3 +3273,4 @@ def register_agenda_ssma_routes(blueprint):
                     conn.close()
                 except Exception:
                     pass
+
