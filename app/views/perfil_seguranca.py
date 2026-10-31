@@ -1,10 +1,11 @@
 import calendar
 from datetime import date, datetime
 
-from flask import render_template, request, session
+from flask import flash, redirect, render_template, request, session, url_for
 
 from app.decorators import gerenciar_agendamentos_ssma_required, login_required
 from app.utils.db import get_db_connection
+from app.views.agenda_ssma import _resolver_periodo_aderencia
 
 
 def _periodo_perfil(valor, hoje=None):
@@ -71,7 +72,34 @@ def register_perfil_seguranca_routes(blueprint):
     @gerenciar_agendamentos_ssma_required
     def perfil_seguranca_colaborador():
         usuario_id = request.args.get("usuario_id", type=int)
-        mes, inicio, fim = _periodo_perfil(request.args.get("mes"))
+        hoje = date.today()
+        nomes_meses = (
+            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+        )
+        opcoes_periodo = []
+        for valor, prefixo in (
+            ("mes_atual", "Este mês"),
+            ("mes_anterior", "Mês anterior"),
+            ("mes_proximo", "Próximo mês"),
+        ):
+            inicio_opcao, _, _ = _resolver_periodo_aderencia(valor, hoje=hoje)
+            opcoes_periodo.append({
+                "valor": valor,
+                "rotulo": f"{prefixo} — {nomes_meses[inicio_opcao.month - 1]}/{inicio_opcao.year}",
+            })
+        mes_legado = (request.args.get("mes") or "").strip()
+        periodo = (request.args.get("periodo") or ("mes_ano" if mes_legado else "mes_atual")).strip()
+        mes_referencia = (request.args.get("mes_referencia") or mes_legado or hoje.strftime("%Y-%m")).strip()
+        data_inicio = (request.args.get("data_inicio") or "").strip()
+        data_fim = (request.args.get("data_fim") or "").strip()
+        try:
+            inicio, fim, mes = _resolver_periodo_aderencia(
+                periodo, mes_referencia, data_inicio, data_fim, hoje
+            )
+        except ValueError as exc:
+            flash(str(exc), "warning")
+            return redirect(url_for("main.perfil_seguranca_colaborador"))
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         perfil = (session.get("perfil") or "").lower()
@@ -130,6 +158,11 @@ def register_perfil_seguranca_routes(blueprint):
             colaborador=selecionado,
             usuario_id=usuario_id,
             mes=mes,
+            periodo_selecionado=periodo,
+            opcoes_periodo=opcoes_periodo,
+            mes_referencia=mes_referencia,
+            data_inicio_selecionada=inicio.strftime("%Y-%m-%d"),
+            data_fim_selecionada=fim.strftime("%Y-%m-%d"),
             inicio=inicio,
             fim=fim,
             indicadores=indicadores,
