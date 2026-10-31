@@ -182,8 +182,14 @@ def gerar_pdf_hora_seguranca(registro, itens):
                 f"{_texto(registro.get('centro_descricao'))}",
                 estilos["normal"],
             ),
+            paragrafo("Auditados", estilos["rotulo"]),
+            paragrafo(registro.get("nomes_auditados"), estilos["normal"]),
+        ],
+        [
             paragrafo("Participantes", estilos["rotulo"]),
-            paragrafo(registro.get("nomes_participantes"), estilos["normal"]),
+            paragrafo(registro.get("nomes_participantes") or "—", estilos["normal"]),
+            "",
+            "",
         ],
     ]
     tabela_identificacao = Table(
@@ -315,3 +321,4 @@ def gerar_pdf_hora_seguranca(registro, itens):
     )
     buffer.seek(0)
     return buffer
+
