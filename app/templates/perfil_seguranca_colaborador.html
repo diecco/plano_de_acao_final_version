@@ -1,21 +1,32 @@
 {% extends "layout.html" %}
 {% block titulo %}Perfil de Segurança do Colaborador{% endblock %}
 {% block conteudo %}
-<div class="container-fluid py-3">
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <div><h2 class="text-laranja mb-1">Perfil de Segurança do Colaborador</h2><p class="text-muted mb-0">Visão factual da participação individual nas práticas de SSMAQ.</p></div>
-  </div>
-  <div class="card shadow-sm border-0 mb-4"><div class="card-body">
-    <form method="get" class="row g-3 align-items-end">
-      <div class="col-lg-8 position-relative">
+<div class="page-header"><h2 class="page-title"><i class="bi bi-person-vcard me-2"></i>Perfil de Segurança do Colaborador</h2></div>
+<hr>
+<div class="card shadow-sm mb-4"><div class="card-body">
+    <form method="get" action="{{ url_for('main.perfil_seguranca_colaborador') }}" class="row g-3 align-items-end" autocomplete="off">
+      <div class="col-12 col-md-6 col-xl-4">
+        <label class="form-label" for="periodo">Período de análise</label>
+        <select class="form-select" id="periodo" name="periodo">
+          {% for opcao in opcoes_periodo %}<option value="{{ opcao.valor }}" {% if periodo_selecionado == opcao.valor %}selected{% endif %}>{{ opcao.rotulo }}</option>{% endfor %}
+          <option value="mes_ano" {% if periodo_selecionado == 'mes_ano' %}selected{% endif %}>Escolher mês e ano</option>
+          <option value="personalizado" {% if periodo_selecionado == 'personalizado' %}selected{% endif %}>Período personalizado</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-6 col-xl-3 d-none" id="campo_mes_referencia"><label class="form-label" for="mes_referencia">Mês e ano</label><input type="month" class="form-control" id="mes_referencia" name="mes_referencia" value="{{ mes_referencia }}"></div>
+      <div class="col-12 col-md-6 col-xl-3 d-none" id="campo_data_inicio"><label class="form-label" for="data_inicio">Data inicial</label><input type="date" class="form-control" id="data_inicio" name="data_inicio" value="{{ data_inicio_selecionada }}"></div>
+      <div class="col-12 col-md-6 col-xl-3 d-none" id="campo_data_fim"><label class="form-label" for="data_fim">Data final</label><input type="date" class="form-control" id="data_fim" name="data_fim" value="{{ data_fim_selecionada }}"></div>
+      <div class="col-12 col-md-6 col-xl-4 position-relative">
         <label class="form-label" for="busca_colaborador">Colaborador</label>
         <input id="busca_colaborador" class="form-control" placeholder="Digite nome ou matrícula" autocomplete="off"
-               value="{% if colaborador %}{{ colaborador.matricula or '' }} — {{ colaborador.nome }}{% endif %}">
+               value="{% if colaborador %}{{ colaborador.nome }}{% if colaborador.matricula %} — {{ colaborador.matricula }}{% endif %}{% endif %}">
         <input type="hidden" id="usuario_id" name="usuario_id" value="{{ usuario_id or '' }}">
-        <div id="sugestoes_colaborador" class="list-group position-absolute w-100 shadow" style="z-index:1080;display:none"></div>
+        <div id="sugestoes_colaborador" class="autocomplete-list shadow-sm d-none"></div>
       </div>
-      <div class="col-lg-2"><label class="form-label" for="mes">Mês</label><input type="month" class="form-control" id="mes" name="mes" value="{{ mes }}" required></div>
-      <div class="col-lg-2 d-grid"><button class="btn btn-laranja"><i class="bi bi-funnel me-1"></i>Aplicar</button></div>
+      <div class="col-12 col-xl-auto ms-xl-auto"><div class="d-flex gap-2 justify-content-end">
+        <button class="btn btn-laranja btn-icon-minimal" title="Filtrar" aria-label="Filtrar"><i class="bi bi-funnel"></i></button>
+        <a class="btn btn-cinza" href="{{ url_for('main.perfil_seguranca_colaborador') }}" title="Limpar"><i class="bi bi-arrow-clockwise"></i></a>
+      </div></div>
     </form>
   </div></div>
   {% if colaborador and indicadores %}
@@ -42,17 +53,29 @@
       </tbody></table></div>
     </div></div>
   {% elif usuario_id %}<div class="alert alert-warning">Colaborador inválido ou fora do seu escopo de acesso.</div>
-  {% else %}<div class="alert alert-light border">Selecione um colaborador e um mês para gerar o perfil.</div>{% endif %}
-</div>
+  {% else %}<div class="alert alert-light border">Selecione um colaborador e um período para gerar o perfil.</div>{% endif %}
 <script id="colaboradores-perfil-data" type="application/json">{{ usuarios|tojson }}</script>
 <script>
 (() => {
+ const periodo=document.getElementById('periodo'), grupoMes=document.getElementById('campo_mes_referencia'), campoMes=document.getElementById('mes_referencia'), grupoInicio=document.getElementById('campo_data_inicio'), inicio=document.getElementById('data_inicio'), grupoFim=document.getElementById('campo_data_fim'), fim=document.getElementById('data_fim');
+ const limites=data=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(data||''))return null;const [ano,mes]=data.split('-').map(Number);const ultimo=new Date(ano,mes,0).getDate();return {min:`${ano}-${String(mes).padStart(2,'0')}-01`,max:`${ano}-${String(mes).padStart(2,'0')}-${String(ultimo).padStart(2,'0')}`};};
+ const sincronizarLimites=()=>{const l=limites(inicio.value||fim.value);if(!l){inicio.removeAttribute('min');inicio.removeAttribute('max');fim.removeAttribute('min');fim.removeAttribute('max');return;}inicio.min=l.min;inicio.max=l.max;fim.min=inicio.value||l.min;fim.max=l.max;};
+ const atualizarPeriodo=()=>{const mes=periodo.value==='mes_ano', personalizado=periodo.value==='personalizado';grupoMes.classList.toggle('d-none',!mes);grupoInicio.classList.toggle('d-none',!personalizado);grupoFim.classList.toggle('d-none',!personalizado);campoMes.disabled=!mes;campoMes.required=mes;inicio.disabled=!personalizado;inicio.required=personalizado;fim.disabled=!personalizado;fim.required=personalizado;if(personalizado)sincronizarLimites();};
+ periodo.addEventListener('change',atualizarPeriodo);inicio.addEventListener('change',sincronizarLimites);fim.addEventListener('change',sincronizarLimites);atualizarPeriodo();
  const dados=JSON.parse(document.getElementById('colaboradores-perfil-data').textContent||'[]');
  const busca=document.getElementById('busca_colaborador'), oculto=document.getElementById('usuario_id'), lista=document.getElementById('sugestoes_colaborador');
  const normalizar=v=>(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
- busca.addEventListener('input',()=>{oculto.value=''; const termo=normalizar(busca.value.trim()); lista.innerHTML=''; if(!termo){lista.style.display='none';return;} dados.filter(u=>normalizar(`${u.matricula||''} ${u.nome||''}`).includes(termo)).slice(0,12).forEach(u=>{const b=document.createElement('button');b.type='button';b.className='list-group-item list-group-item-action';b.textContent=`${u.matricula||'Sem matrícula'} — ${u.nome}`;b.onclick=()=>{busca.value=b.textContent;oculto.value=u.id;lista.style.display='none';};lista.appendChild(b);}); lista.style.display=lista.children.length?'block':'none';});
- document.addEventListener('click',e=>{if(!e.target.closest('.position-relative'))lista.style.display='none';});
+ const fechar=()=>{lista.innerHTML='';lista.classList.add('d-none');};
+ busca.addEventListener('input',()=>{oculto.value='';const termo=normalizar(busca.value.trim());lista.innerHTML='';if(!termo){fechar();return;}dados.filter(u=>normalizar(`${u.matricula||''} ${u.nome||''}`).includes(termo)).slice(0,12).forEach(u=>{const b=document.createElement('button');b.type='button';b.className='autocomplete-item';b.textContent=`${u.nome}${u.matricula?' — '+u.matricula:''}`;b.onclick=()=>{busca.value=b.textContent;oculto.value=u.id;fechar();};lista.appendChild(b);});lista.classList.toggle('d-none',!lista.children.length);});
+ document.addEventListener('click',e=>{if(!e.target.closest('.position-relative'))fechar();});
 })();
 </script>
+<style>
+.btn-icon-minimal { width: 42px; height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.autocomplete-list { position: absolute; top: 100%; left: calc(var(--bs-gutter-x) * .5); right: calc(var(--bs-gutter-x) * .5); z-index: 1050; max-height: 280px; overflow-y: auto; background: #fff; border: 1px solid #dee2e6; border-radius: .375rem; margin-top: 4px; }
+.autocomplete-item { width: 100%; border: 0; border-bottom: 1px solid #f1f1f1; background: #fff; padding: .65rem .85rem; text-align: left; }
+.autocomplete-item:last-child { border-bottom: 0; }
+.autocomplete-item:hover, .autocomplete-item:focus { background: #fff4eb; outline: none; }
+</style>
 {% endblock %}
 
