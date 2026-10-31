@@ -16,7 +16,10 @@ class HorasSegurancaAuditadosTests(unittest.TestCase):
         template = (ROOT / "app" / "templates" / "lancar_hs.html").read_text(encoding="utf-8")
         view = (ROOT / "app" / "views" / "horas_seguranca.py").read_text(encoding="utf-8")
         self.assertIn('input.name = "auditados"', template)
-        self.assertIn('name="participantes" multiple', template)
+        self.assertIn('id="seletorAuditados"', template)
+        self.assertIn('id="seletorAcompanhantes"', template)
+        self.assertIn('input.name = "participantes"', template)
+        self.assertIn("hs-multiselect-opcao", template)
         self.assertIn("_sincronizar_acompanhantes_hs", view)
         self.assertIn('request.form.getlist("participantes")', view)
 
