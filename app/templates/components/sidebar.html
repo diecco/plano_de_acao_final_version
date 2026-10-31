@@ -164,6 +164,7 @@
                 'main.listar_agendamentos_ssma',
                 'main.novo_agendamento_ssma',
                 'main.relatorio_aderencia_ssma',
+                'main.perfil_seguranca_colaborador',
                 'main.buffer_desvios',
                 'main.analise_critica_hs'
             ] %}
@@ -197,6 +198,10 @@
                         <a href="{{ url_for('main.relatorio_aderencia_ssma') }}"
                            class="sidebar-link {% if request.endpoint == 'main.relatorio_aderencia_ssma' %}active{% endif %}">
                             <i class="bi bi-clipboard-data"></i><span>Relatório de aderência</span>
+                        </a>
+                        <a href="{{ url_for('main.perfil_seguranca_colaborador') }}"
+                           class="sidebar-link {% if request.endpoint == 'main.perfil_seguranca_colaborador' %}active{% endif %}">
+                            <i class="bi bi-person-vcard"></i><span>Perfil de segurança</span>
                         </a>
                         <a href="{{ url_for('main.analise_critica_hs') }}"
                            class="sidebar-link {% if request.endpoint == 'main.analise_critica_hs' %}active{% endif %}">
@@ -619,3 +624,4 @@
         class="sidebar-overlay"
         id="sidebarOverlay"
         aria-label="Fechar menu"></button>
+
