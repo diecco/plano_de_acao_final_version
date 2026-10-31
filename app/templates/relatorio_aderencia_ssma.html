@@ -410,12 +410,9 @@
                             'col-aderencia'
                         ) }}
 
-                        {{ cabecalho_ordenavel(
-                            'desvios_identificados',
-                            'Desvio',
-                            'text-start',
-                            'col-desvio'
-                        ) }}
+                        <th class="text-start col-desvio">
+                            Desvios da execução
+                        </th>
 
                         <th class="text-center col-detalhes">
                             Detalhes
@@ -574,9 +571,9 @@
                             <!-- Desvio sem destaque visual -->
                             <td class="text-start deviation-cell">
 
-                                {% if registro.desvios_identificados %}
+                                {% if registro.desvios_execucao %}
 
-                                    {{ registro.desvios_identificados }}
+                                    {{ registro.desvios_execucao }}
 
                                 {% else %}
 
@@ -873,7 +870,7 @@
                                                         Desvios
                                                     </dt>
                                                     <dd class="col-7">
-                                                        {{ registro.desvios_identificados or 'Sem desvios identificados' }}
+                                                        {{ registro.desvios_execucao or 'Sem desvios identificados' }}
                                                     </dd>
                                                     <dt class="col-5">
                                                         Justificativa
@@ -1331,4 +1328,5 @@ document.addEventListener('DOMContentLoaded', function () {
 
 </style>
 {% endblock %}
+
 
