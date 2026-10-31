@@ -72,6 +72,114 @@ def _resolver_periodo_aderencia(periodo, mes_referencia=None, data_inicio=None,
     return inicio, fim, inicio.strftime('%Y-%m')
 
 
+def _carregar_desvios_execucao(cursor, registros):
+    """Acrescenta aos agendamentos os desvios registrados na prática executada."""
+    por_pratica = {
+        'hora_seguranca': [],
+        'auditoria_padrao': [],
+        'ifs': []
+    }
+
+    for registro in registros:
+        registro['desvios_execucao'] = None
+        pratica = registro.get('pratica')
+        executado_id = registro.get('registro_executado_id')
+        if pratica in por_pratica and executado_id:
+            por_pratica[pratica].append(executado_id)
+
+    desvios = {}
+
+    def adicionar_desvio(pratica, registro_id, descricao):
+        chave = (pratica, registro_id)
+        desvios.setdefault(chave, []).append(descricao)
+
+    ids_hs = sorted(set(por_pratica['hora_seguranca']))
+    if ids_hs:
+        marcadores = ', '.join(['%s'] * len(ids_hs))
+        cursor.execute(f"""
+            SELECT
+                achados.registro_id,
+                achados.descricao
+            FROM (
+                SELECT
+                    resposta.id_registro AS registro_id,
+                    resposta.id AS achado_id,
+                    1 AS origem_ordem,
+                    TRIM(resposta.descricao_desvio) AS descricao
+                FROM hs_respostas resposta
+                WHERE resposta.id_registro IN ({marcadores})
+                  AND resposta.resultado = 'NC'
+                  AND NULLIF(TRIM(resposta.descricao_desvio), '') IS NOT NULL
+
+                UNION ALL
+
+                SELECT
+                    adicional.id_registro AS registro_id,
+                    adicional.id AS achado_id,
+                    2 AS origem_ordem,
+                    TRIM(adicional.descricao_situacao) AS descricao
+                FROM hs_registros_adicionais adicional
+                WHERE adicional.id_registro IN ({marcadores})
+                  AND adicional.tipo = 'desvio'
+                  AND NULLIF(TRIM(adicional.descricao_situacao), '') IS NOT NULL
+            ) achados
+            ORDER BY
+                achados.registro_id,
+                achados.origem_ordem,
+                achados.achado_id
+        """, tuple(ids_hs + ids_hs))
+        for item in cursor.fetchall() or []:
+            adicionar_desvio(
+                'hora_seguranca',
+                item['registro_id'],
+                item['descricao']
+            )
+
+    consultas = {
+        'auditoria_padrao': (
+            'auditoria_padrao_desvios',
+            'auditoria_id'
+        ),
+        'ifs': (
+            'ifs_desvios',
+            'inspecao_id'
+        )
+    }
+
+    for pratica, (tabela, coluna_vinculo) in consultas.items():
+        ids = sorted(set(por_pratica[pratica]))
+        if not ids:
+            continue
+        marcadores = ', '.join(['%s'] * len(ids))
+        cursor.execute(f"""
+            SELECT
+                {coluna_vinculo} AS registro_id,
+                TRIM(desvio_observado) AS descricao
+            FROM {tabela}
+            WHERE {coluna_vinculo} IN ({marcadores})
+              AND NULLIF(TRIM(desvio_observado), '') IS NOT NULL
+            ORDER BY {coluna_vinculo}, id
+        """, tuple(ids))
+        for item in cursor.fetchall() or []:
+            adicionar_desvio(
+                pratica,
+                item['registro_id'],
+                item['descricao']
+            )
+
+    for registro in registros:
+        chave = (
+            registro.get('pratica'),
+            registro.get('registro_executado_id')
+        )
+        descricoes = desvios.get(chave) or []
+        registro['desvios_execucao'] = (
+            '; '.join(descricoes)
+            if descricoes
+            else None
+        )
+
+
 def register_agenda_ssma_routes(blueprint):
     @blueprint.route(
         "/agendamentos_ssma",
@@ -2472,9 +2580,6 @@ def register_agenda_ssma_routes(blueprint):
             'classificacao_aderencia': (
                 'vw.classificacao_aderencia'
             ),
-            'desvios_identificados': (
-                'vw.desvios_identificados'
-            )
         }
 
         coluna_ordenacao = colunas_ordenacao.get(
@@ -3145,6 +3250,11 @@ def register_agenda_ssma_routes(blueprint):
                 or []
             )
 
+            _carregar_desvios_execucao(
+                cursor,
+                registros
+            )
+
             # =====================================================
             # 5. LÍDERES DO CENTRO DE CUSTO
             # =====================================================
@@ -3273,4 +3383,5 @@ def register_agenda_ssma_routes(blueprint):
                     conn.close()
                 except Exception:
                     pass
+
 
