@@ -14,12 +14,34 @@
         <div class="card-body">
             <form method="GET" action="{{ url_for('main.relatorio_aderencia_ssma') }}" autocomplete="off">
                 <div class="row g-3 align-items-end">
-                    <div class="col-12 col-md-4 col-xl-3">
-                        <label for="mes" class="form-label">Mês</label>
-                        <input type="month" class="form-control" id="mes" name="mes" value="{{ mes_selecionado }}">
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <label for="periodo" class="form-label">Período da programação</label>
+                        <select class="form-select" id="periodo" name="periodo">
+                            {% for opcao in opcoes_periodo %}
+                                <option value="{{ opcao.valor }}" {% if periodo_selecionado == opcao.valor %}selected{% endif %}>{{ opcao.rotulo }}</option>
+                            {% endfor %}
+                            <option value="mes_ano" {% if periodo_selecionado == 'mes_ano' %}selected{% endif %}>Escolher mês e ano</option>
+                            <option value="personalizado" {% if periodo_selecionado == 'personalizado' %}selected{% endif %}>Período personalizado</option>
+                        </select>
+                        <div class="form-text">Considera a data programada da prática.</div>
                     </div>
 
-                    <div class="col-12 col-md-4 col-xl-3">
+                    <div class="col-12 col-md-6 col-xl-3 d-none" id="campo_mes_referencia">
+                        <label for="mes_referencia" class="form-label">Mês e ano</label>
+                        <input type="month" class="form-control" id="mes_referencia" name="mes_referencia" value="{{ mes_referencia }}">
+                    </div>
+
+                    <div class="col-12 col-md-6 col-xl-3 d-none" id="campo_data_inicio">
+                        <label for="data_inicio" class="form-label">Data inicial</label>
+                        <input type="date" class="form-control" id="data_inicio" name="data_inicio" value="{{ data_inicio_selecionada }}">
+                    </div>
+
+                    <div class="col-12 col-md-6 col-xl-3 d-none" id="campo_data_fim">
+                        <label for="data_fim" class="form-label">Data final</label>
+                        <input type="date" class="form-control" id="data_fim" name="data_fim" value="{{ data_fim_selecionada }}">
+                    </div>
+
+                    <div class="col-12 col-md-6 col-xl-3">
                         <label for="pratica" class="form-label">Prática</label>
                         <select class="form-select" id="pratica" name="pratica">
                             <option value="">Todas</option>
@@ -29,7 +51,7 @@
                         </select>
                     </div>
 
-                    <div class="col-12 col-md-4 col-xl-4 position-relative">
+                    <div class="col-12 col-md-6 col-xl-3 position-relative">
                         <label for="lider_busca" class="form-label">Líder</label>
                         <input
                             type="text"
@@ -41,7 +63,7 @@
                         <div id="lider_resultados" class="autocomplete-list shadow-sm d-none"></div>
                     </div>
 
-                    <div class="col-12 col-xl-2">
+                    <div class="col-12 col-xl-auto ms-xl-auto">
                         <div class="d-flex gap-2 justify-content-end flex-wrap">
                             <button type="submit" class="btn btn-laranja btn-icon-minimal" title="Filtrar" aria-label="Filtrar">
                                 <i class="bi bi-funnel"></i>
@@ -284,7 +306,10 @@
                                     title="Ordenar crescente"
                                     href="{{ url_for(
                                         'main.relatorio_aderencia_ssma',
-                                        mes=mes_selecionado,
+                                        periodo=periodo_selecionado,
+                                        mes_referencia=mes_referencia,
+                                        data_inicio=data_inicio_selecionada,
+                                        data_fim=data_fim_selecionada,
                                         pratica=pratica_selecionada,
                                         lider_id=lider_id_selecionado,
                                         ordenar_por=campo,
@@ -305,7 +330,10 @@
                                     title="Ordenar decrescente"
                                     href="{{ url_for(
                                         'main.relatorio_aderencia_ssma',
-                                        mes=mes_selecionado,
+                                        periodo=periodo_selecionado,
+                                        mes_referencia=mes_referencia,
+                                        data_inicio=data_inicio_selecionada,
+                                        data_fim=data_fim_selecionada,
                                         pratica=pratica_selecionada,
                                         lider_id=lider_id_selecionado,
                                         ordenar_por=campo,
@@ -893,7 +921,10 @@
                             class="page-link"
                             href="{{ url_for(
                                 'main.relatorio_aderencia_ssma',
-                                mes=mes_selecionado,
+                                periodo=periodo_selecionado,
+                                mes_referencia=mes_referencia,
+                                data_inicio=data_inicio_selecionada,
+                                data_fim=data_fim_selecionada,
                                 pratica=pratica_selecionada,
                                 lider_id=lider_id_selecionado,
                                 ordenar_por=ordenar_por,
@@ -920,7 +951,10 @@
                                     class="page-link"
                                     href="{{ url_for(
                                         'main.relatorio_aderencia_ssma',
-                                        mes=mes_selecionado,
+                                        periodo=periodo_selecionado,
+                                        mes_referencia=mes_referencia,
+                                        data_inicio=data_inicio_selecionada,
+                                        data_fim=data_fim_selecionada,
                                         pratica=pratica_selecionada,
                                         lider_id=lider_id_selecionado,
                                         ordenar_por=ordenar_por,
@@ -949,7 +983,10 @@
                             class="page-link"
                             href="{{ url_for(
                                 'main.relatorio_aderencia_ssma',
-                                mes=mes_selecionado,
+                                periodo=periodo_selecionado,
+                                mes_referencia=mes_referencia,
+                                data_inicio=data_inicio_selecionada,
+                                data_fim=data_fim_selecionada,
                                 pratica=pratica_selecionada,
                                 lider_id=lider_id_selecionado,
                                 ordenar_por=ordenar_por,
@@ -970,6 +1007,59 @@
 <script id="dados-lideres-aderencia" type="application/json">{{ lideres | tojson }}</script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const campoPeriodo = document.getElementById('periodo');
+    const grupoMesReferencia = document.getElementById('campo_mes_referencia');
+    const campoMesReferencia = document.getElementById('mes_referencia');
+    const grupoDataInicio = document.getElementById('campo_data_inicio');
+    const campoDataInicio = document.getElementById('data_inicio');
+    const grupoDataFim = document.getElementById('campo_data_fim');
+    const campoDataFim = document.getElementById('data_fim');
+
+    function limitesDoMes(dataIso) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dataIso || '')) return null;
+        const [ano, mes] = dataIso.split('-').map(Number);
+        const ultimoDia = new Date(ano, mes, 0).getDate();
+        return {
+            minimo: `${ano}-${String(mes).padStart(2, '0')}-01`,
+            maximo: `${ano}-${String(mes).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`
+        };
+    }
+
+    function sincronizarLimitesPersonalizados() {
+        const limites = limitesDoMes(campoDataInicio.value || campoDataFim.value);
+        if (!limites) {
+            ['min', 'max'].forEach(function (atributo) {
+                campoDataInicio.removeAttribute(atributo);
+                campoDataFim.removeAttribute(atributo);
+            });
+            return;
+        }
+        campoDataInicio.min = limites.minimo;
+        campoDataInicio.max = limites.maximo;
+        campoDataFim.min = campoDataInicio.value || limites.minimo;
+        campoDataFim.max = limites.maximo;
+    }
+
+    function atualizarCamposPeriodo() {
+        const escolherMes = campoPeriodo.value === 'mes_ano';
+        const personalizado = campoPeriodo.value === 'personalizado';
+        grupoMesReferencia.classList.toggle('d-none', !escolherMes);
+        grupoDataInicio.classList.toggle('d-none', !personalizado);
+        grupoDataFim.classList.toggle('d-none', !personalizado);
+        campoMesReferencia.disabled = !escolherMes;
+        campoMesReferencia.required = escolherMes;
+        campoDataInicio.disabled = !personalizado;
+        campoDataInicio.required = personalizado;
+        campoDataFim.disabled = !personalizado;
+        campoDataFim.required = personalizado;
+        if (personalizado) sincronizarLimitesPersonalizados();
+    }
+
+    campoPeriodo.addEventListener('change', atualizarCamposPeriodo);
+    campoDataInicio.addEventListener('change', sincronizarLimitesPersonalizados);
+    campoDataFim.addEventListener('change', sincronizarLimitesPersonalizados);
+    atualizarCamposPeriodo();
+
     document.querySelectorAll('.js-progress-bar').forEach(function (barra) {
         const valor = parseFloat(barra.dataset.progress);
         const valorSeguro = Number.isFinite(valor) ? Math.min(Math.max(valor, 0), 100) : 0;
@@ -1242,3 +1332,4 @@ document.addEventListener('DOMContentLoaded', function () {
 
 </style>
 {% endblock %}
+
