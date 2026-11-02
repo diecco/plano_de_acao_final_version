@@ -152,7 +152,6 @@ def register_perfil_seguranca_routes(blueprint):
         if visao not in {"geral", "individual"}:
             visao = "geral"
         usuario_id = request.args.get("usuario_id", type=int)
-        busca = (request.args.get("busca") or "").strip()
         centro_filtro = request.args.get("centro_custos_id", type=int)
         cargo_filtro = request.args.get("cargo_id", type=int)
         status_filtro = (request.args.get("status") or "ativo").strip().lower()
@@ -234,7 +233,7 @@ def register_perfil_seguranca_routes(blueprint):
         total_paginas = 0
         if visao == "geral":
             filtros_sql, filtros_params = _filtros_usuarios(
-                global_, centro_escopo, busca, centro_filtro, cargo_filtro,
+                global_, centro_escopo, "", centro_filtro, cargo_filtro,
                 status_filtro,
             )
             cursor.execute(
@@ -285,7 +284,7 @@ def register_perfil_seguranca_routes(blueprint):
         return render_template(
             "perfil_seguranca_colaborador.html",
             visao=visao, usuarios=usuarios, colaborador=selecionado,
-            usuario_id=usuario_id, resumo=resumo, busca=busca, centros=centros,
+            usuario_id=usuario_id, resumo=resumo, centros=centros,
             cargos=cargos, centro_filtro=centro_filtro, cargo_filtro=cargo_filtro,
             status_filtro=status_filtro,
             pode_escolher_centro=pode_escolher_centro,
