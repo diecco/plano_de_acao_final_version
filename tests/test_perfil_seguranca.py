@@ -46,6 +46,17 @@ class PerfilSegurancaTests(unittest.TestCase):
         self.assertIn("u.nome LIKE %s OR u.matricula LIKE %s", sql)
         self.assertEqual([7, 4, "%Maria%", "%Maria%"], parametros)
 
+    def test_visao_geral_filtra_status_sem_perder_escopo(self):
+        sql, parametros = _filtros_usuarios(
+            False, 7, status="inativo"
+        )
+        self.assertIn("u.ativo = 0", sql)
+        self.assertIn("u.centro_custos_id = %s", sql)
+        self.assertEqual([7], parametros)
+
+        sql_todos, _ = _filtros_usuarios(True, None, status="todos")
+        self.assertNotIn("u.ativo", sql_todos)
+
     def test_indicadores_identificam_colaborador_sem_registros(self):
         item = _preparar_indicadores({
             "horas_seguranca": 0,
