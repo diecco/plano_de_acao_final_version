@@ -141,7 +141,9 @@ class PerfilSegurancaTests(unittest.TestCase):
             self.assertIn(rotulo, template)
         self.assertIn("main.editar_acao", template)
         self.assertIn("next=url_retorno", template)
-        self.assertIn('class="ap-voltar">Voltar</a>', template)
+        self.assertIn(
+            'class="btn btn-cinza btn-sm">Voltar</a>', template
+        )
         self.assertNotIn("type=\"submit\"", template)
 
 
