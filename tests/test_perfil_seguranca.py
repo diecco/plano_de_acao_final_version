@@ -120,6 +120,8 @@ class PerfilSegurancaTests(unittest.TestCase):
             self.assertIn(rotulo, template)
         self.assertIn("main.editar_acao", template)
         self.assertIn("next=url_retorno", template)
+        self.assertIn("{% block conteudo %}", template)
+        self.assertNotIn("{% block content %}", template)
         self.assertNotIn("type=\"submit\"", template)
 
 
