@@ -4,7 +4,7 @@
 
 {% block conteudo %}
 <style>
-    .hs-consulta { border: 1px solid #ff6b1a; border-radius: 16px; padding: 20px; }
+    .hs-consulta { padding: 0; }
     .hs-consulta-titulo { color: #3f4650; font-weight: 700; text-align: center; }
     .hs-consulta-subtitulo { color: #68717d; text-align: center; }
     .hs-secao-titulo { color: #f26322; font-weight: 600; margin: 1.35rem 0 .65rem; }
@@ -15,6 +15,8 @@
     .hs-link-acao { color: inherit; text-decoration: underline; text-decoration-color: #f36b21; text-underline-offset: 3px; }
     .hs-link-acao:hover { color: #e95813; }
     .hs-badge-leitura { background: #f1f3f5; color: #4f5965; font-weight: 400; }
+    .hs-voltar { color: #4f5965; text-decoration: none; padding: .35rem .15rem; }
+    .hs-voltar:hover { color: #f26322; }
 </style>
 
 <div class="hs-consulta">
@@ -75,6 +77,14 @@
     <h5 class="hs-secao-titulo">2. Itens de verificação</h5>
     <div class="table-responsive">
         <table class="table table-bordered align-middle hs-tabela mb-0">
+            <colgroup>
+                <col style="width: 3%">
+                <col style="width: 42%">
+                <col style="width: 9%">
+                <col style="width: 28%">
+                <col style="width: 12%">
+                <col style="width: 6%">
+            </colgroup>
             <thead>
                 <tr>
                     <th class="text-center">#</th>
@@ -150,9 +160,7 @@
     {% endif %}
 
     <div class="mt-4">
-        <a href="{{ url_retorno }}" class="btn btn-cinza">
-            <i class="bi bi-arrow-left me-1"></i>Voltar ao Perfil de Segurança
-        </a>
+        <a href="{{ url_retorno }}" class="hs-voltar">Voltar</a>
     </div>
 </div>
 {% endblock %}
