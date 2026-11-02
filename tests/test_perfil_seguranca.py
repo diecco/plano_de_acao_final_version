@@ -93,6 +93,19 @@ class PerfilSegurancaTests(unittest.TestCase):
         self.assertIn("Consulta somente leitura", template)
         self.assertIn("Voltar ao Perfil de Segurança", template)
 
+    def test_visualizacao_da_recusa_reproduz_campos_do_lancamento(self):
+        template = (
+            Path(__file__).parents[1] / "app" / "templates" /
+            "visualizar_recusa_perfil_seguranca.html"
+        ).read_text(encoding="utf-8")
+        for rotulo in (
+            "Data da Recusa", "Hora da Recusa", "Pessoa que Recusou",
+            "Área / Local", "Classificação", "Potencial de Severidade",
+            "Causa da Recusa", "Descrição da Recusa",
+        ):
+            self.assertIn(rotulo, template)
+        self.assertNotIn("type=\"submit\"", template)
+
 
 if __name__ == "__main__":
     unittest.main()
