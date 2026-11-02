@@ -121,7 +121,9 @@ class PerfilSegurancaTests(unittest.TestCase):
         self.assertIn("main.editar_acao", template)
         self.assertIn("next=url_retorno", template)
         self.assertIn('<col style="width: 28%">', template)
-        self.assertIn('class="hs-voltar">Voltar</a>', template)
+        self.assertIn(
+            'class="btn btn-cinza btn-sm">Voltar</a>', template
+        )
         self.assertNotIn("Voltar ao Perfil de Segurança", template)
         self.assertIn("{% block conteudo %}", template)
         self.assertNotIn("{% block content %}", template)
