@@ -24,28 +24,36 @@ def _periodo_perfil(valor, hoje=None):
 def _linha_tempo(cursor, usuario_id, inicio, fim):
     consultas = (
         ("Hora de Segurança", """
-            SELECT r.id, r.data AS data_evento, t.nome AS descricao
-            FROM hs_registros_participantes hp
-            JOIN hs_registros r ON r.id = hp.id_registro
+            SELECT DISTINCT r.id, r.data AS data_evento, t.nome AS descricao
+            FROM hs_registros r
+            LEFT JOIN hs_registros_participantes hp
+              ON hp.id_registro = r.id AND hp.usuario_id = %s
             LEFT JOIN hs_temas t ON t.id = r.id_tema
-            WHERE hp.usuario_id = %s AND r.data BETWEEN %s AND %s
-        """),
+            WHERE (
+                hp.usuario_id IS NOT NULL
+                OR FIND_IN_SET(
+                    CAST(%s AS CHAR),
+                    REPLACE(COALESCE(r.participantes, ''), ' ', '')
+                ) > 0
+            )
+              AND r.data BETWEEN %s AND %s
+        """, True),
         ("Auditoria de Padrão", """
             SELECT ap.id, ap.data_auditoria AS data_evento,
                    CONCAT_WS(' — ', ap.area_auditada, ap.atividade_auditada) AS descricao
             FROM auditorias_padrao ap
             WHERE ap.auditado_id = %s AND ap.data_auditoria BETWEEN %s AND %s
-        """),
+        """, False),
         ("Recusa à Tarefa", """
             SELECT r.id, r.data_recusa AS data_evento, r.descricao
             FROM recusa_tarefa r
             WHERE r.id_usuario = %s AND r.data_recusa BETWEEN %s AND %s
-        """),
+        """, False),
         ("Melhoria", """
             SELECT m.id, m.data AS data_evento, m.titulo AS descricao
             FROM melhorias m
             WHERE m.executante_id = %s AND m.data BETWEEN %s AND %s
-        """),
+        """, False),
         ("Treinamento", """
             SELECT tr.id, tr.data_treinamento AS data_evento,
                    p.titulo AS descricao
@@ -55,11 +63,16 @@ def _linha_tempo(cursor, usuario_id, inicio, fim):
             LEFT JOIN procedimentos p ON p.id = tr.procedimento_id
             WHERE trp.usuario_id = %s AND COALESCE(trp.presenca, 1) = 1
               AND tr.data_treinamento BETWEEN %s AND %s
-        """),
+        """, False),
     )
     eventos = []
-    for tipo, sql in consultas:
-        cursor.execute(sql, (usuario_id, inicio, fim))
+    for tipo, sql, inclui_legado_hs in consultas:
+        parametros = (
+            (usuario_id, usuario_id, inicio, fim)
+            if inclui_legado_hs
+            else (usuario_id, inicio, fim)
+        )
+        cursor.execute(sql, parametros)
         for item in cursor.fetchall() or []:
             item["tipo"] = tipo
             eventos.append(item)
@@ -127,9 +140,18 @@ def register_perfil_seguranca_routes(blueprint):
         if usuario_id in permitidos:
             cursor.execute("""
                 SELECT
-                  (SELECT COUNT(*) FROM hs_registros_participantes hp
-                   JOIN hs_registros r ON r.id=hp.id_registro
-                   WHERE hp.usuario_id=%s AND r.data BETWEEN %s AND %s) AS horas_seguranca,
+                  (SELECT COUNT(DISTINCT r.id)
+                   FROM hs_registros r
+                   LEFT JOIN hs_registros_participantes hp
+                     ON hp.id_registro=r.id AND hp.usuario_id=%s
+                   WHERE (
+                       hp.usuario_id IS NOT NULL
+                       OR FIND_IN_SET(
+                           CAST(%s AS CHAR),
+                           REPLACE(COALESCE(r.participantes, ''), ' ', '')
+                       ) > 0
+                   )
+                     AND r.data BETWEEN %s AND %s) AS horas_seguranca,
                   (SELECT COUNT(*) FROM auditorias_padrao ap
                    WHERE ap.auditado_id=%s AND ap.data_auditoria BETWEEN %s AND %s) AS auditorias_padrao,
                   (SELECT COUNT(*) FROM recusa_tarefa rt
@@ -142,7 +164,7 @@ def register_perfil_seguranca_routes(blueprint):
                    WHERE trp.usuario_id=%s AND COALESCE(trp.presenca,1)=1
                      AND tr.data_treinamento BETWEEN %s AND %s) AS minutos_treinamento
             """, (
-                usuario_id, inicio, fim, usuario_id, inicio, fim,
+                usuario_id, usuario_id, inicio, fim, usuario_id, inicio, fim,
                 usuario_id, inicio, fim, usuario_id, inicio, fim,
                 usuario_id, inicio, fim,
             ))
