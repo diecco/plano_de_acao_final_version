@@ -57,9 +57,16 @@ def _colunas_indicadores():
     """
 
 
-def _filtros_usuarios(global_, centro_escopo, busca="", centro_id=None, cargo_id=None):
-    clausulas = ["u.ativo = 1"]
+def _filtros_usuarios(
+    global_, centro_escopo, busca="", centro_id=None, cargo_id=None,
+    status="ativo",
+):
+    clausulas = []
     parametros = []
+    if status == "ativo":
+        clausulas.append("u.ativo = 1")
+    elif status == "inativo":
+        clausulas.append("u.ativo = 0")
     if not global_:
         clausulas.append("u.centro_custos_id = %s")
         parametros.append(centro_escopo)
@@ -73,7 +80,7 @@ def _filtros_usuarios(global_, centro_escopo, busca="", centro_id=None, cargo_id
         clausulas.append("(u.nome LIKE %s OR u.matricula LIKE %s)")
         termo = f"%{busca}%"
         parametros.extend((termo, termo))
-    return " AND ".join(clausulas), parametros
+    return " AND ".join(clausulas) or "1 = 1", parametros
 
 
 def _preparar_indicadores(item):
@@ -148,6 +155,9 @@ def register_perfil_seguranca_routes(blueprint):
         busca = (request.args.get("busca") or "").strip()
         centro_filtro = request.args.get("centro_custos_id", type=int)
         cargo_filtro = request.args.get("cargo_id", type=int)
+        status_filtro = (request.args.get("status") or "ativo").strip().lower()
+        if status_filtro not in {"ativo", "inativo", "todos"}:
+            status_filtro = "ativo"
         pagina = max(request.args.get("pagina", 1, type=int), 1)
 
         hoje = date.today()
@@ -185,7 +195,9 @@ def register_perfil_seguranca_routes(blueprint):
         centro_escopo = session.get("centro_custos_id")
         global_ = perfil in {"administrador", "avancado"}
 
-        escopo_sql, escopo_params = _filtros_usuarios(global_, centro_escopo)
+        escopo_sql, escopo_params = _filtros_usuarios(
+            global_, centro_escopo, status="todos"
+        )
         cursor.execute(f"""
             SELECT u.id, u.nome, u.matricula, u.centro_custos_id,
                    c.nome AS cargo_nome, cc.codigo AS centro_codigo
@@ -207,13 +219,23 @@ def register_perfil_seguranca_routes(blueprint):
                 ORDER BY codigo, descricao
             """)
             centros = cursor.fetchall() or []
+        elif centro_escopo:
+            cursor.execute("""
+                SELECT id, codigo, descricao FROM centros_custos
+                WHERE id = %s
+                LIMIT 1
+            """, (centro_escopo,))
+            centros = cursor.fetchall() or []
+            centro_filtro = centro_escopo
+        pode_escolher_centro = len(centros) > 1
 
         resumo = []
         total_colaboradores = total_com_registros = totais_praticas = 0
         total_paginas = 0
         if visao == "geral":
             filtros_sql, filtros_params = _filtros_usuarios(
-                global_, centro_escopo, busca, centro_filtro, cargo_filtro
+                global_, centro_escopo, busca, centro_filtro, cargo_filtro,
+                status_filtro,
             )
             cursor.execute(
                 f"SELECT COUNT(*) AS total FROM usuarios u WHERE {filtros_sql}",
@@ -265,6 +287,8 @@ def register_perfil_seguranca_routes(blueprint):
             visao=visao, usuarios=usuarios, colaborador=selecionado,
             usuario_id=usuario_id, resumo=resumo, busca=busca, centros=centros,
             cargos=cargos, centro_filtro=centro_filtro, cargo_filtro=cargo_filtro,
+            status_filtro=status_filtro,
+            pode_escolher_centro=pode_escolher_centro,
             global_=global_, pagina=pagina, por_pagina=POR_PAGINA,
             total_paginas=total_paginas, total_colaboradores=total_colaboradores,
             total_com_registros=total_com_registros,

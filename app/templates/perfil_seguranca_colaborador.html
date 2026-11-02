@@ -10,7 +10,6 @@
 
 <div class="page-header">
   <h2 class="page-title"><i class="bi bi-person-vcard me-2"></i>Perfil de Segurança do Colaborador</h2>
-  <p class="text-muted mb-0">Consulte os indicadores coletivos e aprofunde a análise no perfil individual.</p>
 </div>
 
 <nav class="report-tabs" aria-label="Visões do relatório">
@@ -53,20 +52,26 @@
         <label class="form-label" for="busca">Colaborador</label>
         <input class="form-control" id="busca" name="busca" value="{{ busca }}" placeholder="Nome ou matrícula">
       </div>
-      {% if global_ %}
       <div class="col-12 col-md-6 col-xl-3">
         <label class="form-label" for="centro_custos_id">Centro de custos</label>
-        <select class="form-select" id="centro_custos_id" name="centro_custos_id">
-          <option value="">Todos</option>
+        <select class="form-select" id="centro_custos_id" name="centro_custos_id" {% if not pode_escolher_centro %}disabled{% endif %}>
+          {% if pode_escolher_centro %}<option value="">Todos</option>{% endif %}
           {% for centro in centros %}<option value="{{ centro.id }}" {% if centro_filtro == centro.id %}selected{% endif %}>{{ centro.codigo }}{% if centro.descricao %} — {{ centro.descricao }}{% endif %}</option>{% endfor %}
         </select>
       </div>
-      {% endif %}
       <div class="col-12 col-md-6 col-xl-3">
         <label class="form-label" for="cargo_id">Função</label>
         <select class="form-select" id="cargo_id" name="cargo_id">
           <option value="">Todas</option>
           {% for cargo in cargos %}<option value="{{ cargo.id }}" {% if cargo_filtro == cargo.id %}selected{% endif %}>{{ cargo.nome }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-6 col-xl-2">
+        <label class="form-label" for="status">Status</label>
+        <select class="form-select" id="status" name="status">
+          <option value="ativo" {% if status_filtro == 'ativo' %}selected{% endif %}>Ativos</option>
+          <option value="inativo" {% if status_filtro == 'inativo' %}selected{% endif %}>Inativos</option>
+          <option value="todos" {% if status_filtro == 'todos' %}selected{% endif %}>Todos</option>
         </select>
       </div>
     {% else %}
@@ -101,8 +106,7 @@
 
   <div class="card shadow-sm border-0"><div class="card-body">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-      <div><h5 class="text-laranja mb-1">Resultados por colaborador</h5><div class="text-muted small">{{ inicio.strftime('%d/%m/%Y') }} a {{ fim.strftime('%d/%m/%Y') }}</div></div>
-      <span class="badge text-bg-light border">{{ total_colaboradores }} colaborador(es)</span>
+      <h5 class="text-laranja mb-1">Resultados por colaborador</h5>
     </div>
     <div class="table-responsive"><table class="table table-hover table-bordered align-middle mb-0 profile-table">
       <thead><tr><th>Colaborador</th><th>Função</th><th>Centro de custos</th><th class="text-center" title="Horas de Segurança">HS</th><th class="text-center" title="Auditorias de Padrão">Auditorias</th><th class="text-center">Recusas</th><th class="text-center">Melhorias</th><th class="text-center">Treinamento</th><th class="text-center">Perfil</th></tr></thead>
@@ -122,11 +126,11 @@
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mt-3">
       <span class="text-muted small">Página {{ pagina }} de {{ total_paginas }}</span>
       <nav aria-label="Paginação"><ul class="pagination pagination-sm mb-0">
-        <li class="page-item {% if pagina == 1 %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.perfil_seguranca_colaborador', visao='geral', pagina=pagina-1, periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada, busca=busca, centro_custos_id=centro_filtro or '', cargo_id=cargo_filtro or '') }}">Anterior</a></li>
+        <li class="page-item {% if pagina == 1 %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.perfil_seguranca_colaborador', visao='geral', pagina=pagina-1, periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada, busca=busca, centro_custos_id=centro_filtro or '', cargo_id=cargo_filtro or '', status=status_filtro) }}">Anterior</a></li>
         {% for p in range(1, total_paginas + 1) %}{% if p == 1 or p == total_paginas or (p >= pagina - 2 and p <= pagina + 2) %}
-          <li class="page-item {% if p == pagina %}active{% endif %}"><a class="page-link" href="{{ url_for('main.perfil_seguranca_colaborador', visao='geral', pagina=p, periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada, busca=busca, centro_custos_id=centro_filtro or '', cargo_id=cargo_filtro or '') }}">{{ p }}</a></li>
+          <li class="page-item {% if p == pagina %}active{% endif %}"><a class="page-link" href="{{ url_for('main.perfil_seguranca_colaborador', visao='geral', pagina=p, periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada, busca=busca, centro_custos_id=centro_filtro or '', cargo_id=cargo_filtro or '', status=status_filtro) }}">{{ p }}</a></li>
         {% elif p == pagina - 3 or p == pagina + 3 %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}{% endfor %}
-        <li class="page-item {% if pagina == total_paginas %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.perfil_seguranca_colaborador', visao='geral', pagina=pagina+1, periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada, busca=busca, centro_custos_id=centro_filtro or '', cargo_id=cargo_filtro or '') }}">Próxima</a></li>
+        <li class="page-item {% if pagina == total_paginas %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.perfil_seguranca_colaborador', visao='geral', pagina=pagina+1, periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada, busca=busca, centro_custos_id=centro_filtro or '', cargo_id=cargo_filtro or '', status=status_filtro) }}">Próxima</a></li>
       </ul></nav>
     </div>
     {% endif %}
