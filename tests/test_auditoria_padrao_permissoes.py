@@ -37,6 +37,14 @@ class AuditoriaPadraoPermissoesTests(unittest.TestCase):
             source,
         )
 
+    def test_cabecalho_nao_referencia_item_fora_do_laco(self):
+        template = (
+            ROOT / "app" / "templates" / "listar_ap.html"
+        ).read_text(encoding="utf-8")
+
+        cabecalho = template.split("<tbody>", 1)[0]
+        self.assertNotIn("ap.id", cabecalho)
+
 
 if __name__ == "__main__":
     unittest.main()
