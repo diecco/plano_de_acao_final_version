@@ -137,6 +137,27 @@ def _linha_tempo(cursor, usuario_id, inicio, fim):
         cursor.execute(sql, parametros)
         for item in cursor.fetchall() or []:
             item["tipo"] = tipo
+            data_evento = item.get("data_evento")
+            data_iso = (
+                data_evento.strftime("%Y-%m-%d")
+                if data_evento and hasattr(data_evento, "strftime")
+                else data_evento
+            )
+            if tipo == "Hora de Segurança":
+                item["url_pratica"] = url_for("main.editar_hs", id=item["id"])
+            elif tipo == "Auditoria de Padrão":
+                item["url_pratica"] = url_for(
+                    "main.listar_ap", auditado_id=usuario_id,
+                    data_inicio=data_iso, data_fim=data_iso,
+                ) + f"#auditoria-padrao-{item['id']}"
+            elif tipo == "Recusa à Tarefa":
+                item["url_pratica"] = url_for("main.editar_recusa", id=item["id"])
+            elif tipo == "Melhoria":
+                item["url_pratica"] = url_for("main.editar_melhoria", id=item["id"])
+            else:
+                item["url_pratica"] = url_for(
+                    "main.editar_treinamento", id=item["id"]
+                )
             eventos.append(item)
     return sorted(eventos, key=lambda item: (
         item.get("data_evento") or date.min, item.get("id") or 0
