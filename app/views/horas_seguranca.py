@@ -1,5 +1,6 @@
 import json
 import os
+from collections import defaultdict
 from datetime import date, datetime, timedelta
 
 from flask import flash, redirect, render_template, request, send_file, session, url_for
