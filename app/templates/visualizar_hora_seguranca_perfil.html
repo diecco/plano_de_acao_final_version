@@ -1,0 +1,158 @@
+{% extends "layout.html" %}
+
+{% block title %}Hora de Segurança{% endblock %}
+
+{% block content %}
+<style>
+    .hs-consulta { border: 1px solid #ff6b1a; border-radius: 16px; padding: 20px; }
+    .hs-consulta-titulo { color: #3f4650; font-weight: 700; text-align: center; }
+    .hs-consulta-subtitulo { color: #68717d; text-align: center; }
+    .hs-secao-titulo { color: #f26322; font-weight: 600; margin: 1.35rem 0 .65rem; }
+    .hs-identificacao th { width: 15%; background: #f1f2f3; color: #66717e; }
+    .hs-identificacao td { width: 35%; }
+    .hs-tabela thead th { background: #f36b21; color: #fff; vertical-align: middle; }
+    .hs-tabela th, .hs-tabela td { border-color: #d9dde1; padding: .55rem; }
+    .hs-link-acao { color: inherit; text-decoration: underline; text-decoration-color: #f36b21; text-underline-offset: 3px; }
+    .hs-link-acao:hover { color: #e95813; }
+    .hs-badge-leitura { background: #f1f3f5; color: #4f5965; font-weight: 400; }
+</style>
+
+<div class="hs-consulta">
+    <header class="mb-4">
+        <h2 class="hs-consulta-titulo mb-1">RELATÓRIO DE HORA DE SEGURANÇA</h2>
+        <div class="hs-consulta-subtitulo">Registro #{{ registro.id }}</div>
+        <div class="text-center mt-2">
+            <span class="badge rounded-pill hs-badge-leitura">
+                <i class="bi bi-lock me-1"></i>Somente leitura
+            </span>
+        </div>
+    </header>
+
+    <h5 class="hs-secao-titulo">1. Identificação</h5>
+    <div class="table-responsive">
+        <table class="table table-bordered hs-identificacao mb-0">
+            <tbody>
+                <tr>
+                    <th>Data</th>
+                    <td>{{ registro.data.strftime('%d/%m/%Y') if registro.data and registro.data.strftime else registro.data or '-' }}</td>
+                    <th>Hora / turno</th>
+                    <td>{{ registro.hora or '-' }}{% if registro.turno %} - {{ registro.turno }}{% endif %}</td>
+                </tr>
+                <tr>
+                    <th>Auditor</th>
+                    <td>{{ registro.nome_auditor or '-' }}</td>
+                    <th>Matrícula</th>
+                    <td>{{ registro.matricula_auditor or '-' }}</td>
+                </tr>
+                <tr>
+                    <th>Tema</th>
+                    <td>{{ registro.nome_tema or '-' }}</td>
+                    <th>Local</th>
+                    <td>{{ registro.local or '-' }}</td>
+                </tr>
+                <tr>
+                    <th>Centro de custos</th>
+                    <td>
+                        {{ registro.centro_codigo or '-' }}
+                        {% if registro.centro_descricao %} - {{ registro.centro_descricao }}{% endif %}
+                    </td>
+                    <th>Auditados</th>
+                    <td>{{ registro.nomes_auditados or '-' }}</td>
+                </tr>
+                <tr>
+                    <th>Participantes</th>
+                    <td colspan="3">{{ registro.nomes_participantes or '-' }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    {% if registro.observacoes_gerais %}
+    <h5 class="hs-secao-titulo">Observações gerais</h5>
+    <div class="border rounded p-3">{{ registro.observacoes_gerais }}</div>
+    {% endif %}
+
+    <h5 class="hs-secao-titulo">2. Itens de verificação</h5>
+    <div class="table-responsive">
+        <table class="table table-bordered align-middle hs-tabela mb-0">
+            <thead>
+                <tr>
+                    <th class="text-center">#</th>
+                    <th>Item</th>
+                    <th class="text-center">Resultado</th>
+                    <th>Desvio / ação</th>
+                    <th>Status da ação</th>
+                    <th class="text-center">Prazo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in itens_hs %}
+                {% set tem_texto = item.descricao_desvio or item.descricao_acao %}
+                <tr>
+                    <td class="text-center">{{ loop.index }}</td>
+                    <td>{{ item.texto }}</td>
+                    <td class="text-center">{{ item.resultado or '-' }}</td>
+                    <td>
+                        {% if tem_texto %}
+                            {% if item.id_acao_gerada %}
+                            <a class="hs-link-acao"
+                               href="{{ url_for('main.editar_acao', id=item.id_acao_gerada, next=url_retorno) }}"
+                               title="Abrir ação vinculada">
+                                {% if item.descricao_desvio %}{{ item.descricao_desvio }}{% endif %}
+                                {% if item.descricao_acao %}{% if item.descricao_desvio %}<br>{% endif %}Ação: {{ item.descricao_acao }}{% endif %}
+                            </a>
+                            {% else %}
+                                {% if item.descricao_desvio %}{{ item.descricao_desvio }}{% endif %}
+                                {% if item.descricao_acao %}{% if item.descricao_desvio %}<br>{% endif %}Ação: {{ item.descricao_acao }}{% endif %}
+                            {% endif %}
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>{{ item.status_acao or '-' }}</td>
+                    <td class="text-center">{{ item.prazo_acao.strftime('%d/%m/%Y') if item.prazo_acao and item.prazo_acao.strftime else item.prazo_acao or '-' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted">Nenhum item registrado.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <p class="mt-2 mb-0">
+        Resumo: {{ itens_hs|length }} item(ns) verificado(s),
+        {{ itens_hs|selectattr('resultado', 'equalto', 'NC')|list|length }} não conformidade(s).
+    </p>
+
+    {% if registro.itens_adicionais %}
+    <h5 class="hs-secao-titulo">3. Outros itens identificados</h5>
+    <div class="table-responsive">
+        <table class="table table-bordered align-middle hs-tabela mb-0">
+            <thead><tr><th>Tipo</th><th>Item</th><th>Situação observada</th><th>Desvio / ação</th><th>Status da ação</th><th>Prazo</th></tr></thead>
+            <tbody>
+                {% for item in registro.itens_adicionais %}
+                <tr>
+                    <td>{{ item.tipo|title }}</td>
+                    <td>{{ item.item_verificacao }}</td>
+                    <td>{{ item.descricao_situacao }}</td>
+                    <td>
+                        {% if item.id_acao_gerada %}
+                        <a class="hs-link-acao"
+                           href="{{ url_for('main.editar_acao', id=item.id_acao_gerada, next=url_retorno) }}"
+                           title="Abrir ação vinculada">{{ item.descricao_acao or 'Ação vinculada' }}</a>
+                        {% else %}{{ item.descricao_acao or '-' }}{% endif %}
+                    </td>
+                    <td>{{ item.status_acao or '-' }}</td>
+                    <td>{{ item.prazo.strftime('%d/%m/%Y') if item.prazo and item.prazo.strftime else item.prazo or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="mt-4">
+        <a href="{{ url_retorno }}" class="btn btn-cinza">
+            <i class="bi bi-arrow-left me-1"></i>Voltar ao Perfil de Segurança
+        </a>
+    </div>
+</div>
+{% endblock %}

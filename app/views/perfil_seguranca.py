@@ -468,7 +468,20 @@ def register_perfil_seguranca_routes(blueprint):
 
         configuracao = consultas.get(tipo)
         registro = None
-        if usuario_permitido and configuracao:
+        itens_hs = []
+        if usuario_permitido and tipo == "hora-seguranca":
+            cursor.execute(consultas[tipo][1], consultas[tipo][2])
+            registro_vinculado = cursor.fetchone()
+            if registro_vinculado:
+                from app.views.horas_seguranca import (
+                    _buscar_detalhes_hora_seguranca,
+                )
+
+                registro, itens_hs = _buscar_detalhes_hora_seguranca(
+                    cursor, registro_id
+                )
+            titulo, campos = consultas[tipo][0], consultas[tipo][3]
+        elif usuario_permitido and configuracao:
             titulo, sql, parametros, campos = configuracao
             cursor.execute(sql, parametros)
             registro = cursor.fetchone()
@@ -483,10 +496,12 @@ def register_perfil_seguranca_routes(blueprint):
         template = (
             "visualizar_recusa_perfil_seguranca.html"
             if tipo == "recusa-tarefa"
+            else "visualizar_hora_seguranca_perfil.html"
+            if tipo == "hora-seguranca"
             else "visualizar_pratica_perfil_seguranca.html"
         )
         return render_template(
             template,
             titulo_pratica=titulo, registro=registro, campos=campos,
-            url_retorno=retorno,
+            itens_hs=itens_hs, url_retorno=retorno,
         )
