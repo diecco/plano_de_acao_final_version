@@ -106,6 +106,22 @@ class PerfilSegurancaTests(unittest.TestCase):
             self.assertIn(rotulo, template)
         self.assertNotIn("type=\"submit\"", template)
 
+    def test_visualizacao_hs_reproduz_pdf_e_vincula_acoes(self):
+        raiz = Path(__file__).parents[1]
+        template = (
+            raiz / "app" / "templates" /
+            "visualizar_hora_seguranca_perfil.html"
+        ).read_text(encoding="utf-8")
+        for rotulo in (
+            "RELATÓRIO DE HORA DE SEGURANÇA", "1. Identificação",
+            "2. Itens de verificação", "Status da ação", "Desvio / ação",
+            "Auditados", "Participantes",
+        ):
+            self.assertIn(rotulo, template)
+        self.assertIn("main.editar_acao", template)
+        self.assertIn("next=url_retorno", template)
+        self.assertNotIn("type=\"submit\"", template)
+
 
 if __name__ == "__main__":
     unittest.main()
