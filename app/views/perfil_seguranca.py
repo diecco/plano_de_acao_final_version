@@ -481,6 +481,52 @@ def register_perfil_seguranca_routes(blueprint):
                     cursor, registro_id
                 )
             titulo, campos = consultas[tipo][0], consultas[tipo][3]
+        elif usuario_permitido and tipo == "auditoria-padrao":
+            cursor.execute("""
+                SELECT ap.id, ap.data_auditoria, ap.area_auditada,
+                       ap.atividade_auditada, ap.pontos_observados,
+                       ap.necessita_revisao_padrao,
+                       ap.oportunidade_revisao, ap.justificativa_revisao,
+                       ap.sugestao_revisao, ap.acao_revisao_id,
+                       auditor.nome AS auditor_nome,
+                       auditor.matricula AS auditor_matricula,
+                       auditado.nome AS auditado_nome,
+                       auditado.matricula AS auditado_matricula,
+                       p.numero_documento, p.titulo AS procedimento_titulo,
+                       td.sigla AS procedimento_sigla,
+                       pr.numero_revisao,
+                       ar.status AS status_acao_revisao
+                  FROM auditorias_padrao ap
+                  JOIN usuarios auditor ON auditor.id = ap.auditor_id
+                  JOIN usuarios auditado ON auditado.id = ap.auditado_id
+                  LEFT JOIN procedimentos p ON p.id = ap.procedimento_id
+                  LEFT JOIN tipos_documento td ON td.id = p.tipo_documento_id
+                  LEFT JOIN procedimento_revisoes pr
+                    ON pr.id = ap.procedimento_revisao_id
+                  LEFT JOIN acoes ar ON ar.id = ap.acao_revisao_id
+                 WHERE ap.id = %s AND ap.auditado_id = %s
+                   AND COALESCE(ap.ativo, 1) = 1
+            """, (registro_id, usuario_id))
+            registro = cursor.fetchone()
+            if registro:
+                cursor.execute("""
+                    SELECT r.numero_item, r.item_verificacao, r.resultado,
+                           d.desvio_observado, d.acao_proposta,
+                           d.responsavel_id, d.prazo, d.acao_id,
+                           responsavel.nome AS responsavel_nome,
+                           a.status AS status_acao
+                      FROM auditoria_padrao_respostas r
+                      LEFT JOIN auditoria_padrao_desvios d
+                        ON d.auditoria_id = r.auditoria_id
+                       AND d.numero_item = r.numero_item
+                      LEFT JOIN usuarios responsavel
+                        ON responsavel.id = d.responsavel_id
+                      LEFT JOIN acoes a ON a.id = d.acao_id
+                     WHERE r.auditoria_id = %s
+                     ORDER BY r.numero_item
+                """, (registro_id,))
+                itens_hs = cursor.fetchall()
+            titulo, campos = consultas[tipo][0], consultas[tipo][3]
         elif usuario_permitido and configuracao:
             titulo, sql, parametros, campos = configuracao
             cursor.execute(sql, parametros)
@@ -498,6 +544,8 @@ def register_perfil_seguranca_routes(blueprint):
             if tipo == "recusa-tarefa"
             else "visualizar_hora_seguranca_perfil.html"
             if tipo == "hora-seguranca"
+            else "visualizar_auditoria_padrao_perfil.html"
+            if tipo == "auditoria-padrao"
             else "visualizar_pratica_perfil_seguranca.html"
         )
         return render_template(

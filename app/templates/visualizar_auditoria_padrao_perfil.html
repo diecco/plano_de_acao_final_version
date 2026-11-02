@@ -1,0 +1,145 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Auditoria de Padrão{% endblock %}
+
+{% block conteudo %}
+<style>
+    .ap-consulta-titulo { color: #f26322; font-weight: 500; text-align: center; }
+    .ap-consulta-subtitulo { color: #68717d; text-align: center; }
+    .ap-secao-titulo { color: #f26322; font-weight: 600; margin: 1.35rem 0 .65rem; }
+    .ap-identificacao th { width: 15%; background: #f1f2f3; color: #66717e; }
+    .ap-identificacao td { width: 35%; }
+    .ap-tabela thead th { background: #f36b21; color: #fff; vertical-align: middle; }
+    .ap-tabela th, .ap-tabela td { border-color: #d9dde1; padding: .55rem; }
+    .ap-link-acao { color: inherit; text-decoration: underline; text-decoration-color: #f36b21; text-underline-offset: 3px; }
+    .ap-link-acao:hover { color: #e95813; }
+    .ap-badge-leitura { background: #f1f3f5; color: #4f5965; font-weight: 400; }
+    .ap-voltar { color: #4f5965; text-decoration: none; padding: .35rem .15rem; }
+    .ap-voltar:hover { color: #f26322; }
+</style>
+
+<header class="mb-4">
+    <h2 class="ap-consulta-titulo mb-1">AUDITORIA DE PADRÃO</h2>
+    <div class="ap-consulta-subtitulo">Registro #{{ registro.id }}</div>
+    <div class="text-center mt-2">
+        <span class="badge rounded-pill ap-badge-leitura">
+            <i class="bi bi-lock me-1"></i>Somente leitura
+        </span>
+    </div>
+</header>
+
+<h5 class="ap-secao-titulo">1. Identificação</h5>
+<div class="table-responsive">
+    <table class="table table-bordered ap-identificacao mb-0">
+        <tbody>
+            <tr>
+                <th>Data</th>
+                <td>{{ registro.data_auditoria.strftime('%d/%m/%Y') if registro.data_auditoria and registro.data_auditoria.strftime else registro.data_auditoria or '-' }}</td>
+                <th>Área auditada</th>
+                <td>{{ registro.area_auditada or '-' }}</td>
+            </tr>
+            <tr>
+                <th>Auditor</th>
+                <td>{{ registro.auditor_nome or '-' }}</td>
+                <th>Matrícula</th>
+                <td>{{ registro.auditor_matricula or '-' }}</td>
+            </tr>
+            <tr>
+                <th>Auditado</th>
+                <td>{{ registro.auditado_nome or '-' }}</td>
+                <th>Matrícula</th>
+                <td>{{ registro.auditado_matricula or '-' }}</td>
+            </tr>
+            <tr>
+                <th>Atividade auditada</th>
+                <td colspan="3">{{ registro.atividade_auditada or '-' }}</td>
+            </tr>
+            <tr>
+                <th>Procedimento</th>
+                <td colspan="3">
+                    {{ registro.procedimento_sigla or '' }}
+                    {% if registro.numero_documento %} — {{ registro.numero_documento }}{% endif %}
+                    {% if registro.procedimento_titulo %} — {{ registro.procedimento_titulo }}{% endif %}
+                    {% if registro.numero_revisao %} | Rev. {{ registro.numero_revisao }}{% endif %}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<h5 class="ap-secao-titulo">2. Itens de verificação</h5>
+<div class="table-responsive">
+    <table class="table table-bordered align-middle ap-tabela mb-0">
+        <colgroup>
+            <col style="width: 4%">
+            <col style="width: 34%">
+            <col style="width: 9%">
+            <col style="width: 27%">
+            <col style="width: 11%">
+            <col style="width: 9%">
+            <col style="width: 6%">
+        </colgroup>
+        <thead>
+            <tr><th>#</th><th>Item</th><th>Resultado</th><th>Desvio / ação</th><th>Responsável</th><th>Status da ação</th><th>Prazo</th></tr>
+        </thead>
+        <tbody>
+            {% for item in itens_hs %}
+            {% set tem_texto = item.desvio_observado or item.acao_proposta %}
+            <tr>
+                <td class="text-center">{{ item.numero_item }}</td>
+                <td>{{ item.item_verificacao }}</td>
+                <td class="text-center">{{ item.resultado or '-' }}</td>
+                <td>
+                    {% if tem_texto %}
+                        {% if item.acao_id %}
+                        <a class="ap-link-acao" href="{{ url_for('main.editar_acao', id=item.acao_id, next=url_retorno) }}" title="Abrir ação vinculada">
+                            {% if item.desvio_observado %}{{ item.desvio_observado }}{% endif %}
+                            {% if item.acao_proposta %}{% if item.desvio_observado %}<br>{% endif %}Ação: {{ item.acao_proposta }}{% endif %}
+                        </a>
+                        {% else %}
+                            {% if item.desvio_observado %}{{ item.desvio_observado }}{% endif %}
+                            {% if item.acao_proposta %}{% if item.desvio_observado %}<br>{% endif %}Ação: {{ item.acao_proposta }}{% endif %}
+                        {% endif %}
+                    {% else %}-{% endif %}
+                </td>
+                <td>{{ item.responsavel_nome or '-' }}</td>
+                <td>{{ item.status_acao or '-' }}</td>
+                <td>{{ item.prazo.strftime('%d/%m/%Y') if item.prazo and item.prazo.strftime else item.prazo or '-' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="text-center text-muted">Nenhum item registrado.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p class="mt-2 mb-0">
+    Resumo: {{ itens_hs|length }} item(ns) verificado(s),
+    {{ itens_hs|selectattr('resultado', 'equalto', 'NC')|list|length }} não conformidade(s).
+</p>
+
+<h5 class="ap-secao-titulo">3. Pontos observados / oportunidades de melhoria</h5>
+<div class="border rounded p-3">{{ registro.pontos_observados or 'Nenhum ponto adicional registrado.' }}</div>
+
+{% if registro.necessita_revisao_padrao %}
+<h5 class="ap-secao-titulo">4. Solicitação de revisão do padrão</h5>
+<div class="table-responsive">
+    <table class="table table-bordered ap-identificacao mb-0">
+        <tbody>
+            <tr><th>Oportunidade</th><td colspan="3">{{ registro.oportunidade_revisao or '-' }}</td></tr>
+            <tr><th>Justificativa</th><td colspan="3">{{ registro.justificativa_revisao or '-' }}</td></tr>
+            <tr><th>Sugestão</th><td colspan="3">
+                {% if registro.acao_revisao_id %}
+                <a class="ap-link-acao" href="{{ url_for('main.editar_acao', id=registro.acao_revisao_id, next=url_retorno) }}">{{ registro.sugestao_revisao or 'Ação de revisão vinculada' }}</a>
+                {% else %}{{ registro.sugestao_revisao or '-' }}{% endif %}
+            </td></tr>
+            <tr><th>Status da ação</th><td colspan="3">{{ registro.status_acao_revisao or '-' }}</td></tr>
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="mt-4">
+    <a href="{{ url_retorno }}" class="ap-voltar">Voltar</a>
+</div>
+{% endblock %}

@@ -127,6 +127,23 @@ class PerfilSegurancaTests(unittest.TestCase):
         self.assertNotIn("{% block content %}", template)
         self.assertNotIn("type=\"submit\"", template)
 
+    def test_visualizacao_ap_exibe_checklist_e_acoes_somente_leitura(self):
+        template = (
+            Path(__file__).parents[1] / "app" / "templates" /
+            "visualizar_auditoria_padrao_perfil.html"
+        ).read_text(encoding="utf-8")
+        for rotulo in (
+            "AUDITORIA DE PADRÃO", "1. Identificação",
+            "2. Itens de verificação", "Desvio / ação",
+            "Responsável", "Status da ação",
+            "Pontos observados / oportunidades de melhoria",
+        ):
+            self.assertIn(rotulo, template)
+        self.assertIn("main.editar_acao", template)
+        self.assertIn("next=url_retorno", template)
+        self.assertIn('class="ap-voltar">Voltar</a>', template)
+        self.assertNotIn("type=\"submit\"", template)
+
 
 if __name__ == "__main__":
     unittest.main()
