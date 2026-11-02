@@ -7,6 +7,15 @@
   <input type="hidden" name="data_inicio" value="{{ data_inicio_selecionada }}">
   <input type="hidden" name="data_fim" value="{{ data_fim_selecionada }}">
 {%- endmacro %}
+{% macro cabecalho_ordenavel(rotulo, chave, titulo='') -%}
+  <span class="sortable-heading"{% if titulo %} title="{{ titulo }}"{% endif %}>
+    <span>{{ rotulo }}</span>
+    <span class="sort-controls">
+      <a href="{{ url_for('main.perfil_seguranca_colaborador', visao='geral', periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada, centro_custos_id=centro_filtro or '', cargo_id=cargo_filtro or '', status=status_filtro, ordenar=chave, direcao='asc') }}" class="sort-button {% if ordenar == chave and direcao == 'asc' %}active{% endif %}" title="Ordenar {{ rotulo }} em ordem crescente" aria-label="Ordenar {{ rotulo }} em ordem crescente"><i class="bi bi-caret-up-fill"></i></a>
+      <a href="{{ url_for('main.perfil_seguranca_colaborador', visao='geral', periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada, centro_custos_id=centro_filtro or '', cargo_id=cargo_filtro or '', status=status_filtro, ordenar=chave, direcao='desc') }}" class="sort-button {% if ordenar == chave and direcao == 'desc' %}active{% endif %}" title="Ordenar {{ rotulo }} em ordem decrescente" aria-label="Ordenar {{ rotulo }} em ordem decrescente"><i class="bi bi-caret-down-fill"></i></a>
+    </span>
+  </span>
+{%- endmacro %}
 
 <div class="page-header">
   <h2 class="page-title"><i class="bi bi-person-vcard me-2"></i>Perfil de Segurança do Colaborador</h2>
@@ -106,7 +115,7 @@
     </div>
     <div class="table-responsive"><table class="table table-hover table-bordered align-middle mb-0 profile-table">
       <colgroup><col class="col-colaborador"><col class="col-funcao">{% for _ in range(6) %}<col class="col-indicador">{% endfor %}</colgroup>
-      <thead><tr><th>Colaborador</th><th>Função</th><th class="text-center" title="Horas de Segurança">HS</th><th class="text-center" title="Auditorias de Padrão">Auditorias</th><th class="text-center">Recusas</th><th class="text-center">Melhorias</th><th class="text-center">Treinamentos</th><th class="text-center">Perfil</th></tr></thead>
+      <thead><tr><th>{{ cabecalho_ordenavel('Colaborador', 'nome') }}</th><th>{{ cabecalho_ordenavel('Função', 'funcao') }}</th><th class="text-center">{{ cabecalho_ordenavel('HS', 'hs', 'Horas de Segurança') }}</th><th class="text-center">{{ cabecalho_ordenavel('Auditorias', 'auditorias', 'Auditorias de Padrão') }}</th><th class="text-center">{{ cabecalho_ordenavel('Recusas', 'recusas') }}</th><th class="text-center">{{ cabecalho_ordenavel('Melhorias', 'melhorias') }}</th><th class="text-center">{{ cabecalho_ordenavel('Treinamentos', 'treinamentos') }}</th><th class="text-center">Perfil</th></tr></thead>
       <tbody>
       {% for item in resumo %}<tr>
         <td><a class="profile-name-link" href="{{ url_for('main.perfil_seguranca_colaborador', visao='individual', usuario_id=item.id, periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada) }}"><strong>{{ item.nome }}</strong></a><div class="small text-muted">{{ item.matricula or 'Sem matrícula' }}</div></td>
@@ -123,11 +132,11 @@
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mt-3">
       <span class="text-muted small">Página {{ pagina }} de {{ total_paginas }}</span>
       <nav aria-label="Paginação"><ul class="pagination pagination-sm mb-0">
-        <li class="page-item {% if pagina == 1 %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.perfil_seguranca_colaborador', visao='geral', pagina=pagina-1, periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada, centro_custos_id=centro_filtro or '', cargo_id=cargo_filtro or '', status=status_filtro) }}">Anterior</a></li>
+        <li class="page-item {% if pagina == 1 %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.perfil_seguranca_colaborador', visao='geral', pagina=pagina-1, periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada, centro_custos_id=centro_filtro or '', cargo_id=cargo_filtro or '', status=status_filtro, ordenar=ordenar, direcao=direcao) }}">Anterior</a></li>
         {% for p in range(1, total_paginas + 1) %}{% if p == 1 or p == total_paginas or (p >= pagina - 2 and p <= pagina + 2) %}
-          <li class="page-item {% if p == pagina %}active{% endif %}"><a class="page-link" href="{{ url_for('main.perfil_seguranca_colaborador', visao='geral', pagina=p, periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada, centro_custos_id=centro_filtro or '', cargo_id=cargo_filtro or '', status=status_filtro) }}">{{ p }}</a></li>
+          <li class="page-item {% if p == pagina %}active{% endif %}"><a class="page-link" href="{{ url_for('main.perfil_seguranca_colaborador', visao='geral', pagina=p, periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada, centro_custos_id=centro_filtro or '', cargo_id=cargo_filtro or '', status=status_filtro, ordenar=ordenar, direcao=direcao) }}">{{ p }}</a></li>
         {% elif p == pagina - 3 or p == pagina + 3 %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}{% endfor %}
-        <li class="page-item {% if pagina == total_paginas %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.perfil_seguranca_colaborador', visao='geral', pagina=pagina+1, periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada, centro_custos_id=centro_filtro or '', cargo_id=cargo_filtro or '', status=status_filtro) }}">Próxima</a></li>
+        <li class="page-item {% if pagina == total_paginas %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.perfil_seguranca_colaborador', visao='geral', pagina=pagina+1, periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada, centro_custos_id=centro_filtro or '', cargo_id=cargo_filtro or '', status=status_filtro, ordenar=ordenar, direcao=direcao) }}">Próxima</a></li>
       </ul></nav>
     </div>
     {% endif %}
@@ -173,6 +182,7 @@
 .report-tabs{display:flex;gap:.35rem;border-bottom:1px solid #dee2e6;margin:1.25rem 0 1.5rem}.report-tab{padding:.75rem 1rem;color:#495057;text-decoration:none;border-radius:.6rem .6rem 0 0}.report-tab:hover{color:var(--cor-laranja,#f36c21);background:#fff7f1}.report-tab.active{color:#b84a0b;background:#fff0e6;font-weight:600;border-bottom:2px solid var(--cor-laranja,#f36c21)}
 .btn-icon-minimal{width:42px;height:38px;display:inline-flex;align-items:center;justify-content:center;padding:0}.btn-icon-table{width:34px;height:32px;display:inline-flex;align-items:center;justify-content:center;padding:0}.btn-outline-laranja{color:#ef641b;border-color:#ef641b}.btn-outline-laranja:hover{color:#fff;background:#ef641b}
 .metric-card{border:0;border-top:3px solid}.metric-verde{border-top-color:#188477}.metric-azul{border-top-color:#3b82f6}.metric-laranja{border-top-color:#f36c21}.profile-table{table-layout:fixed;min-width:980px}.profile-table .col-colaborador{width:24%}.profile-table .col-funcao{width:22%}.profile-table .col-indicador{width:9%}.profile-table thead th{white-space:nowrap}.profile-table td{vertical-align:middle}.profile-table tbody tr:hover{background:#fff9f4}.profile-name-link{color:#212529;text-decoration:none}.profile-name-link:hover,.profile-name-link:focus{color:#ef641b;text-decoration:underline}
+.sortable-heading{display:inline-flex;align-items:center;justify-content:center;gap:.35rem}.sort-controls{display:inline-flex;flex-direction:column;line-height:.55}.sort-button{color:rgba(255,255,255,.62);font-size:.62rem;height:.62rem;text-decoration:none}.sort-button:hover,.sort-button:focus,.sort-button.active{color:#fff}.sort-button.active{filter:drop-shadow(0 0 1px rgba(33,37,41,.8))}
 .autocomplete-list{position:absolute;top:100%;left:calc(var(--bs-gutter-x)*.5);right:calc(var(--bs-gutter-x)*.5);z-index:1050;max-height:280px;overflow-y:auto;background:#fff;border:1px solid #dee2e6;border-radius:.375rem;margin-top:4px}.autocomplete-item{width:100%;border:0;border-bottom:1px solid #f1f1f1;background:#fff;padding:.65rem .85rem;text-align:left}.autocomplete-item:hover,.autocomplete-item:focus{background:#fff4eb;outline:none}
 .empty-profile{text-align:center;padding:4rem 1rem;background:#fff;border:1px solid #e9ecef;border-radius:.75rem}.empty-profile i{font-size:2.5rem;color:#ef641b}.empty-profile h5{margin-top:1rem}.empty-profile p{color:#6c757d;margin-bottom:0}
 .pagination .page-item.active .page-link{background:#ef641b;border-color:#ef641b}.pagination .page-link{color:#9f410d}

@@ -157,6 +157,21 @@ def register_perfil_seguranca_routes(blueprint):
         status_filtro = (request.args.get("status") or "ativo").strip().lower()
         if status_filtro not in {"ativo", "inativo", "todos"}:
             status_filtro = "ativo"
+        ordenar = (request.args.get("ordenar") or "nome").strip().lower()
+        direcao = (request.args.get("direcao") or "asc").strip().lower()
+        colunas_ordenacao = {
+            "nome": "u.nome",
+            "funcao": "c.nome",
+            "hs": "horas_seguranca",
+            "auditorias": "auditorias_padrao",
+            "recusas": "recusas",
+            "melhorias": "melhorias",
+            "treinamentos": "minutos_treinamento",
+        }
+        if ordenar not in colunas_ordenacao:
+            ordenar = "nome"
+        if direcao not in {"asc", "desc"}:
+            direcao = "asc"
         pagina = max(request.args.get("pagina", 1, type=int), 1)
 
         hoje = date.today()
@@ -251,7 +266,7 @@ def register_perfil_seguranca_routes(blueprint):
                   LEFT JOIN cargos c ON c.id = u.cargo_id
                   LEFT JOIN centros_custos cc ON cc.id = u.centro_custos_id
                  WHERE {filtros_sql}
-                 ORDER BY u.nome
+                 ORDER BY {colunas_ordenacao[ordenar]} {direcao.upper()}, u.nome
                  LIMIT %s OFFSET %s
             """, list(_parametros_indicadores(inicio, fim)) + filtros_params +
                  [POR_PAGINA, (pagina - 1) * POR_PAGINA])
@@ -287,6 +302,7 @@ def register_perfil_seguranca_routes(blueprint):
             usuario_id=usuario_id, resumo=resumo, centros=centros,
             cargos=cargos, centro_filtro=centro_filtro, cargo_filtro=cargo_filtro,
             status_filtro=status_filtro,
+            ordenar=ordenar, direcao=direcao,
             pode_escolher_centro=pode_escolher_centro,
             global_=global_, pagina=pagina, por_pagina=POR_PAGINA,
             total_paginas=total_paginas, total_colaboradores=total_colaboradores,
