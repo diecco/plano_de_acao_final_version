@@ -94,7 +94,7 @@ def _preparar_indicadores(item):
     return item
 
 
-def _linha_tempo(cursor, usuario_id, inicio, fim):
+def _linha_tempo(cursor, usuario_id, inicio, fim, url_retorno):
     consultas = (
         ("Hora de Segurança", """
             SELECT DISTINCT r.id, r.data AS data_evento, t.nome AS descricao
@@ -137,27 +137,18 @@ def _linha_tempo(cursor, usuario_id, inicio, fim):
         cursor.execute(sql, parametros)
         for item in cursor.fetchall() or []:
             item["tipo"] = tipo
-            data_evento = item.get("data_evento")
-            data_iso = (
-                data_evento.strftime("%Y-%m-%d")
-                if data_evento and hasattr(data_evento, "strftime")
-                else data_evento
+            tipos_url = {
+                "Hora de Segurança": "hora-seguranca",
+                "Auditoria de Padrão": "auditoria-padrao",
+                "Recusa à Tarefa": "recusa-tarefa",
+                "Melhoria": "melhoria",
+                "Treinamento": "treinamento",
+            }
+            item["url_pratica"] = url_for(
+                "main.visualizar_pratica_perfil_seguranca",
+                tipo=tipos_url[tipo], registro_id=item["id"],
+                usuario_id=usuario_id, next=url_retorno,
             )
-            if tipo == "Hora de Segurança":
-                item["url_pratica"] = url_for("main.editar_hs", id=item["id"])
-            elif tipo == "Auditoria de Padrão":
-                item["url_pratica"] = url_for(
-                    "main.listar_ap", auditado_id=usuario_id,
-                    data_inicio=data_iso, data_fim=data_iso,
-                ) + f"#auditoria-padrao-{item['id']}"
-            elif tipo == "Recusa à Tarefa":
-                item["url_pratica"] = url_for("main.editar_recusa", id=item["id"])
-            elif tipo == "Melhoria":
-                item["url_pratica"] = url_for("main.editar_melhoria", id=item["id"])
-            else:
-                item["url_pratica"] = url_for(
-                    "main.editar_treinamento", id=item["id"]
-                )
             eventos.append(item)
     return sorted(eventos, key=lambda item: (
         item.get("data_evento") or date.min, item.get("id") or 0
@@ -313,7 +304,16 @@ def register_perfil_seguranca_routes(blueprint):
                 _parametros_indicadores(inicio, fim) + (usuario_id,),
             )
             indicadores = _preparar_indicadores(cursor.fetchone() or {})
-            eventos = _linha_tempo(cursor, usuario_id, inicio, fim)
+            url_retorno = url_for(
+                "main.perfil_seguranca_colaborador", visao="individual",
+                usuario_id=usuario_id, periodo=periodo,
+                mes_referencia=mes_referencia,
+                data_inicio=inicio.strftime("%Y-%m-%d"),
+                data_fim=fim.strftime("%Y-%m-%d"),
+            )
+            eventos = _linha_tempo(
+                cursor, usuario_id, inicio, fim, url_retorno
+            )
 
         cursor.close()
         conn.close()
@@ -335,4 +335,151 @@ def register_perfil_seguranca_routes(blueprint):
             data_inicio_selecionada=inicio.strftime("%Y-%m-%d"),
             data_fim_selecionada=fim.strftime("%Y-%m-%d"),
             inicio=inicio, fim=fim, indicadores=indicadores, eventos=eventos,
+        )
+
+    @blueprint.route(
+        "/perfil-seguranca-colaborador/pratica/<tipo>/<int:registro_id>",
+        methods=["GET"],
+    )
+    @login_required
+    @gerenciar_agendamentos_ssma_required
+    def visualizar_pratica_perfil_seguranca(tipo, registro_id):
+        usuario_id = request.args.get("usuario_id", type=int)
+        retorno = (request.args.get("next") or "").strip()
+        if not retorno.startswith("/") or retorno.startswith("//"):
+            retorno = url_for(
+                "main.perfil_seguranca_colaborador", visao="individual",
+                usuario_id=usuario_id or "",
+            )
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        perfil = (session.get("perfil") or "").lower()
+        centro_escopo = session.get("centro_custos_id")
+        parametros_usuario = [usuario_id]
+        sql_usuario = "SELECT id FROM usuarios WHERE id = %s"
+        if perfil not in {"administrador", "avancado"}:
+            sql_usuario += " AND centro_custos_id = %s"
+            parametros_usuario.append(centro_escopo)
+        cursor.execute(sql_usuario, parametros_usuario)
+        usuario_permitido = cursor.fetchone()
+
+        consultas = {
+            "hora-seguranca": ("Hora de Segurança", """
+                SELECT r.data, r.hora, r.turno, r.local,
+                       t.nome AS tema, a.nome AS auditor,
+                       r.observacoes_gerais AS observacoes
+                  FROM hs_registros r
+                  JOIN hs_temas t ON t.id = r.id_tema
+                  JOIN usuarios a ON a.id = r.id_auditor
+                  LEFT JOIN hs_registros_participantes hp
+                    ON hp.id_registro = r.id AND hp.usuario_id = %s
+                 WHERE r.id = %s
+                   AND (hp.usuario_id IS NOT NULL OR FIND_IN_SET(
+                       CAST(%s AS CHAR),
+                       REPLACE(COALESCE(r.participantes, ''), ' ', '')
+                   ) > 0)
+            """, (usuario_id, registro_id, usuario_id), (
+                ("Data", "data"), ("Hora", "hora"), ("Turno", "turno"),
+                ("Local", "local"), ("Tema", "tema"),
+                ("Auditor", "auditor"), ("Observações", "observacoes"),
+            )),
+            "auditoria-padrao": ("Auditoria de Padrão", """
+                SELECT ap.data_auditoria AS data, auditor.nome AS auditor,
+                       auditado.nome AS auditado, ap.area_auditada AS area,
+                       ap.atividade_auditada AS atividade,
+                       ap.pontos_observados AS pontos,
+                       CONCAT_WS(' — ', td.sigla, p.numero_documento, p.titulo)
+                           AS procedimento
+                  FROM auditorias_padrao ap
+                  JOIN usuarios auditor ON auditor.id = ap.auditor_id
+                  JOIN usuarios auditado ON auditado.id = ap.auditado_id
+                  LEFT JOIN procedimentos p ON p.id = ap.procedimento_id
+                  LEFT JOIN tipos_documento td ON td.id = p.tipo_documento_id
+                 WHERE ap.id = %s AND ap.auditado_id = %s
+            """, (registro_id, usuario_id), (
+                ("Data", "data"), ("Auditor", "auditor"),
+                ("Auditado", "auditado"), ("Procedimento", "procedimento"),
+                ("Área auditada", "area"), ("Atividade", "atividade"),
+                ("Pontos observados", "pontos"),
+            )),
+            "recusa-tarefa": ("Recusa à Tarefa", """
+                SELECT r.data_recusa AS data, r.hora_recusa AS hora,
+                       u.nome AS colaborador, r.local, r.classificacao,
+                       r.potencial_severidade AS potencial,
+                       c.descricao AS causa, r.descricao
+                  FROM recusa_tarefa r
+                  JOIN usuarios u ON u.id = r.id_usuario
+                  LEFT JOIN causas_recusa c ON c.id = r.id_causa
+                 WHERE r.id = %s AND r.id_usuario = %s
+            """, (registro_id, usuario_id), (
+                ("Data", "data"), ("Hora", "hora"),
+                ("Colaborador", "colaborador"), ("Local", "local"),
+                ("Classificação", "classificacao"),
+                ("Potencial", "potencial"), ("Causa", "causa"),
+                ("Descrição", "descricao"),
+            )),
+            "melhoria": ("Melhoria", """
+                SELECT m.data, u.nome AS executante, m.titulo,
+                       m.tipo_ganho, m.descricao_antes, m.acao_realizada,
+                       m.descricao_depois, m.resultados_alcancados,
+                       m.economia_estimada, m.observacoes
+                  FROM melhorias m
+                  JOIN usuarios u ON u.id = m.executante_id
+                 WHERE m.id = %s AND m.executante_id = %s
+            """, (registro_id, usuario_id), (
+                ("Data", "data"), ("Executante", "executante"),
+                ("Título", "titulo"), ("Tipo de ganho", "tipo_ganho"),
+                ("Situação anterior", "descricao_antes"),
+                ("Ação realizada", "acao_realizada"),
+                ("Situação posterior", "descricao_depois"),
+                ("Resultados alcançados", "resultados_alcancados"),
+                ("Economia estimada", "economia_estimada"),
+                ("Observações", "observacoes"),
+            )),
+            "treinamento": ("Treinamento", """
+                SELECT tr.data_treinamento AS data, tr.hora_inicio,
+                       tr.hora_fim, tr.local_treinamento AS local,
+                       p.titulo AS procedimento, pr.numero_revisao AS revisao,
+                       CASE WHEN tr.tipo_instrutor = 'interno' THEN ui.nome
+                            WHEN tr.tipo_instrutor = 'externo' THEN ie.nome
+                            ELSE '-' END AS instrutor,
+                       tr.observacoes
+                  FROM treinamentos_realizados tr
+                  JOIN treinamentos_realizados_participantes trp
+                    ON trp.treinamento_realizado_id = tr.id
+                  LEFT JOIN procedimentos p ON p.id = tr.procedimento_id
+                  LEFT JOIN procedimento_revisoes pr
+                    ON pr.id = tr.procedimento_revisao_id
+                  LEFT JOIN usuarios ui ON ui.id = tr.instrutor_usuario_id
+                  LEFT JOIN instrutores_externos ie
+                    ON ie.id = tr.instrutor_externo_id
+                 WHERE tr.id = %s AND trp.usuario_id = %s
+                   AND COALESCE(trp.presenca, 1) = 1
+            """, (registro_id, usuario_id), (
+                ("Data", "data"), ("Hora inicial", "hora_inicio"),
+                ("Hora final", "hora_fim"), ("Local", "local"),
+                ("Procedimento", "procedimento"), ("Revisão", "revisao"),
+                ("Instrutor", "instrutor"), ("Observações", "observacoes"),
+            )),
+        }
+
+        configuracao = consultas.get(tipo)
+        registro = None
+        if usuario_permitido and configuracao:
+            titulo, sql, parametros, campos = configuracao
+            cursor.execute(sql, parametros)
+            registro = cursor.fetchone()
+        else:
+            titulo, campos = "Prática de segurança", ()
+        cursor.close()
+        conn.close()
+
+        if not registro:
+            flash("Prática não encontrada ou fora do seu escopo de acesso.", "warning")
+            return redirect(retorno)
+        return render_template(
+            "visualizar_pratica_perfil_seguranca.html",
+            titulo_pratica=titulo, registro=registro, campos=campos,
+            url_retorno=retorno,
         )

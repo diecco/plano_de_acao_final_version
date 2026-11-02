@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+{% block titulo %}{{ titulo_pratica }}{% endblock %}
+{% block conteudo %}
+<div class="page-header">
+  <h2 class="page-title"><i class="bi bi-eye me-2"></i>{{ titulo_pratica }}</h2>
+</div>
+<hr>
+
+<div class="card shadow-sm border-0 practice-view-card">
+  <div class="card-body">
+    <div class="d-flex align-items-center justify-content-between gap-3 mb-4">
+      <div>
+        <h5 class="text-laranja mb-1">Detalhes da prática</h5>
+        <p class="text-muted small mb-0">Consulta somente leitura.</p>
+      </div>
+      <span class="read-only-badge"><i class="bi bi-lock me-1"></i>Somente leitura</span>
+    </div>
+
+    <dl class="row g-0 practice-details mb-0">
+      {% for rotulo, chave in campos %}
+        {% set valor = registro.get(chave) %}
+        <div class="col-12 col-md-6 detail-item">
+          <dt>{{ rotulo }}</dt>
+          <dd>
+            {% if not valor and valor != 0 %}—
+            {% elif chave == 'data' and valor.strftime %}{{ valor.strftime('%d/%m/%Y') }}
+            {% elif chave in ['hora', 'hora_inicio', 'hora_fim'] and valor.strftime %}{{ valor.strftime('%H:%M') }}
+            {% else %}{{ valor }}{% endif %}
+          </dd>
+        </div>
+      {% endfor %}
+    </dl>
+  </div>
+</div>
+
+<div class="mt-3">
+  <a class="btn btn-cinza" href="{{ url_retorno }}">
+    <i class="bi bi-arrow-left me-1"></i>Voltar ao Perfil de Segurança
+  </a>
+</div>
+
+<style>
+.practice-view-card{max-width:1100px}.read-only-badge{display:inline-flex;align-items:center;padding:.35rem .65rem;border-radius:999px;background:#f1f3f5;color:#495057;font-size:.8rem}.practice-details{border:1px solid #e9ecef;border-radius:.6rem;overflow:hidden}.detail-item{padding:1rem 1.1rem;border-bottom:1px solid #e9ecef}.detail-item:nth-child(odd){border-right:1px solid #e9ecef}.detail-item dt{color:#6c757d;font-size:.78rem;font-weight:500;margin-bottom:.25rem}.detail-item dd{color:#212529;font-weight:600;margin:0;white-space:pre-line;overflow-wrap:anywhere}@media(max-width:767.98px){.detail-item:nth-child(odd){border-right:0}}
+</style>
+{% endblock %}

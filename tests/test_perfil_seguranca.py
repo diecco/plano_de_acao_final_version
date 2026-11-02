@@ -80,6 +80,19 @@ class PerfilSegurancaTests(unittest.TestCase):
         self.assertEqual(4, item["total_praticas"])
         self.assertEqual(1.5, item["horas_treinamento"])
 
+    def test_historico_abre_visualizacao_somente_leitura(self):
+        raiz = Path(__file__).parents[1]
+        fonte = (raiz / "app" / "views" / "perfil_seguranca.py").read_text(
+            encoding="utf-8"
+        )
+        template = (
+            raiz / "app" / "templates" /
+            "visualizar_pratica_perfil_seguranca.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("visualizar_pratica_perfil_seguranca", fonte)
+        self.assertIn("Consulta somente leitura", template)
+        self.assertIn("Voltar ao Perfil de Segurança", template)
+
 
 if __name__ == "__main__":
     unittest.main()
