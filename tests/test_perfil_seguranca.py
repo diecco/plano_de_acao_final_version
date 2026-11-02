@@ -2,7 +2,11 @@ import unittest
 from datetime import date
 from pathlib import Path
 
-from app.views.perfil_seguranca import _periodo_perfil
+from app.views.perfil_seguranca import (
+    _filtros_usuarios,
+    _periodo_perfil,
+    _preparar_indicadores,
+)
 
 
 class PerfilSegurancaTests(unittest.TestCase):
@@ -33,7 +37,38 @@ class PerfilSegurancaTests(unittest.TestCase):
         self.assertIn("FIND_IN_SET", fonte)
         self.assertIn("COUNT(DISTINCT r.id)", fonte)
 
+    def test_visao_geral_respeita_escopo_e_busca(self):
+        sql, parametros = _filtros_usuarios(
+            False, 7, "Maria", centro_id=99, cargo_id=4
+        )
+        self.assertIn("u.centro_custos_id = %s", sql)
+        self.assertIn("u.cargo_id = %s", sql)
+        self.assertIn("u.nome LIKE %s OR u.matricula LIKE %s", sql)
+        self.assertEqual([7, 4, "%Maria%", "%Maria%"], parametros)
+
+    def test_indicadores_identificam_colaborador_sem_registros(self):
+        item = _preparar_indicadores({
+            "horas_seguranca": 0,
+            "auditorias_padrao": 0,
+            "recusas": 0,
+            "melhorias": 0,
+            "minutos_treinamento": 0,
+        })
+        self.assertFalse(item["tem_registros"])
+        self.assertEqual(0.0, item["horas_treinamento"])
+
+    def test_indicadores_convertem_minutos_de_treinamento(self):
+        item = _preparar_indicadores({
+            "horas_seguranca": 1,
+            "auditorias_padrao": 2,
+            "recusas": 1,
+            "melhorias": 0,
+            "minutos_treinamento": 90,
+        })
+        self.assertTrue(item["tem_registros"])
+        self.assertEqual(4, item["total_praticas"])
+        self.assertEqual(1.5, item["horas_treinamento"])
+
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -1,21 +1,75 @@
 {% extends "layout.html" %}
 {% block titulo %}Perfil de Segurança do Colaborador{% endblock %}
 {% block conteudo %}
-<div class="page-header"><h2 class="page-title"><i class="bi bi-person-vcard me-2"></i>Perfil de Segurança do Colaborador</h2></div>
-<hr>
+{% macro periodo_oculto() -%}
+  <input type="hidden" name="periodo" value="{{ periodo_selecionado }}">
+  <input type="hidden" name="mes_referencia" value="{{ mes_referencia }}">
+  <input type="hidden" name="data_inicio" value="{{ data_inicio_selecionada }}">
+  <input type="hidden" name="data_fim" value="{{ data_fim_selecionada }}">
+{%- endmacro %}
+
+<div class="page-header">
+  <h2 class="page-title"><i class="bi bi-person-vcard me-2"></i>Perfil de Segurança do Colaborador</h2>
+  <p class="text-muted mb-0">Consulte os indicadores coletivos e aprofunde a análise no perfil individual.</p>
+</div>
+
+<nav class="report-tabs" aria-label="Visões do relatório">
+  <a class="report-tab {% if visao == 'geral' %}active{% endif %}"
+     href="{{ url_for('main.perfil_seguranca_colaborador', visao='geral', periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada) }}">
+    Visão geral
+  </a>
+  <a class="report-tab {% if visao == 'individual' %}active{% endif %}"
+     href="{{ url_for('main.perfil_seguranca_colaborador', visao='individual', periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada, usuario_id=usuario_id or '') }}">
+    Perfil individual
+  </a>
+</nav>
+
 <div class="card shadow-sm mb-4"><div class="card-body">
-    <form method="get" action="{{ url_for('main.perfil_seguranca_colaborador') }}" class="row g-3 align-items-end" autocomplete="off">
-      <div class="col-12 col-md-6 col-xl-4">
-        <label class="form-label" for="periodo">Período de análise</label>
-        <select class="form-select" id="periodo" name="periodo">
-          {% for opcao in opcoes_periodo %}<option value="{{ opcao.valor }}" {% if periodo_selecionado == opcao.valor %}selected{% endif %}>{{ opcao.rotulo }}</option>{% endfor %}
-          <option value="mes_ano" {% if periodo_selecionado == 'mes_ano' %}selected{% endif %}>Escolher mês e ano</option>
-          <option value="personalizado" {% if periodo_selecionado == 'personalizado' %}selected{% endif %}>Período personalizado</option>
+  <form method="get" action="{{ url_for('main.perfil_seguranca_colaborador') }}" class="row g-3 align-items-end" autocomplete="off">
+    <input type="hidden" name="visao" value="{{ visao }}">
+    <div class="col-12 col-md-6 col-xl-3">
+      <label class="form-label" for="periodo">Período de análise</label>
+      <select class="form-select" id="periodo" name="periodo">
+        {% for opcao in opcoes_periodo %}<option value="{{ opcao.valor }}" {% if periodo_selecionado == opcao.valor %}selected{% endif %}>{{ opcao.rotulo }}</option>{% endfor %}
+        <option value="mes_ano" {% if periodo_selecionado == 'mes_ano' %}selected{% endif %}>Escolher mês e ano</option>
+        <option value="personalizado" {% if periodo_selecionado == 'personalizado' %}selected{% endif %}>Período personalizado</option>
+      </select>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3 d-none" id="campo_mes_referencia">
+      <label class="form-label" for="mes_referencia">Mês e ano</label>
+      <input type="month" class="form-control" id="mes_referencia" name="mes_referencia" value="{{ mes_referencia }}">
+    </div>
+    <div class="col-12 col-md-6 col-xl-2 d-none" id="campo_data_inicio">
+      <label class="form-label" for="data_inicio">Data inicial</label>
+      <input type="date" class="form-control" id="data_inicio" name="data_inicio" value="{{ data_inicio_selecionada }}">
+    </div>
+    <div class="col-12 col-md-6 col-xl-2 d-none" id="campo_data_fim">
+      <label class="form-label" for="data_fim">Data final</label>
+      <input type="date" class="form-control" id="data_fim" name="data_fim" value="{{ data_fim_selecionada }}">
+    </div>
+
+    {% if visao == 'geral' %}
+      <div class="col-12 col-md-6 col-xl-3">
+        <label class="form-label" for="busca">Colaborador</label>
+        <input class="form-control" id="busca" name="busca" value="{{ busca }}" placeholder="Nome ou matrícula">
+      </div>
+      {% if global_ %}
+      <div class="col-12 col-md-6 col-xl-3">
+        <label class="form-label" for="centro_custos_id">Centro de custos</label>
+        <select class="form-select" id="centro_custos_id" name="centro_custos_id">
+          <option value="">Todos</option>
+          {% for centro in centros %}<option value="{{ centro.id }}" {% if centro_filtro == centro.id %}selected{% endif %}>{{ centro.codigo }}{% if centro.descricao %} — {{ centro.descricao }}{% endif %}</option>{% endfor %}
         </select>
       </div>
-      <div class="col-12 col-md-6 col-xl-3 d-none" id="campo_mes_referencia"><label class="form-label" for="mes_referencia">Mês e ano</label><input type="month" class="form-control" id="mes_referencia" name="mes_referencia" value="{{ mes_referencia }}"></div>
-      <div class="col-12 col-md-6 col-xl-3 d-none" id="campo_data_inicio"><label class="form-label" for="data_inicio">Data inicial</label><input type="date" class="form-control" id="data_inicio" name="data_inicio" value="{{ data_inicio_selecionada }}"></div>
-      <div class="col-12 col-md-6 col-xl-3 d-none" id="campo_data_fim"><label class="form-label" for="data_fim">Data final</label><input type="date" class="form-control" id="data_fim" name="data_fim" value="{{ data_fim_selecionada }}"></div>
+      {% endif %}
+      <div class="col-12 col-md-6 col-xl-3">
+        <label class="form-label" for="cargo_id">Função</label>
+        <select class="form-select" id="cargo_id" name="cargo_id">
+          <option value="">Todas</option>
+          {% for cargo in cargos %}<option value="{{ cargo.id }}" {% if cargo_filtro == cargo.id %}selected{% endif %}>{{ cargo.nome }}</option>{% endfor %}
+        </select>
+      </div>
+    {% else %}
       <div class="col-12 col-md-6 col-xl-4 position-relative">
         <label class="form-label" for="busca_colaborador">Colaborador</label>
         <input id="busca_colaborador" class="form-control" placeholder="Digite nome ou matrícula" autocomplete="off"
@@ -23,12 +77,61 @@
         <input type="hidden" id="usuario_id" name="usuario_id" value="{{ usuario_id or '' }}">
         <div id="sugestoes_colaborador" class="autocomplete-list shadow-sm d-none"></div>
       </div>
-      <div class="col-12 col-xl-auto ms-xl-auto"><div class="d-flex gap-2 justify-content-end">
-        <button class="btn btn-laranja btn-icon-minimal" title="Filtrar" aria-label="Filtrar"><i class="bi bi-funnel"></i></button>
-        <a class="btn btn-cinza" href="{{ url_for('main.perfil_seguranca_colaborador') }}" title="Limpar"><i class="bi bi-arrow-clockwise"></i></a>
-      </div></div>
-    </form>
+    {% endif %}
+
+    <div class="col-12 col-xl-auto ms-xl-auto"><div class="d-flex gap-2 justify-content-end">
+      <button class="btn btn-laranja btn-icon-minimal" title="Aplicar filtros" aria-label="Aplicar filtros"><i class="bi bi-funnel"></i></button>
+      <a class="btn btn-cinza btn-icon-minimal" href="{{ url_for('main.perfil_seguranca_colaborador', visao=visao) }}" title="Limpar filtros" aria-label="Limpar filtros"><i class="bi bi-arrow-clockwise"></i></a>
+    </div></div>
+  </form>
+</div></div>
+
+{% if visao == 'geral' %}
+  <div class="row g-3 mb-4">
+    {% for rotulo, valor, detalhe, cor in [
+      ('Colaboradores analisados', total_colaboradores, 'no resultado filtrado', 'verde'),
+      ('Com registros', total_com_registros, 'no período selecionado', 'azul'),
+      ('Sem registros', total_sem_registros, 'no período selecionado', 'laranja')
+    ] %}
+    <div class="col-12 col-md-4"><div class="card metric-card metric-{{ cor }} h-100 shadow-sm"><div class="card-body">
+      <div class="text-muted small">{{ rotulo }}</div><div class="display-6 fw-semibold mt-2">{{ valor }}</div><div class="text-muted small">{{ detalhe }}</div>
+    </div></div></div>
+    {% endfor %}
+  </div>
+
+  <div class="card shadow-sm border-0"><div class="card-body">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+      <div><h5 class="text-laranja mb-1">Resultados por colaborador</h5><div class="text-muted small">{{ inicio.strftime('%d/%m/%Y') }} a {{ fim.strftime('%d/%m/%Y') }}</div></div>
+      <span class="badge text-bg-light border">{{ total_colaboradores }} colaborador(es)</span>
+    </div>
+    <div class="table-responsive"><table class="table table-hover table-bordered align-middle mb-0 profile-table">
+      <thead><tr><th>Colaborador</th><th>Função</th><th>Centro de custos</th><th class="text-center" title="Horas de Segurança">HS</th><th class="text-center" title="Auditorias de Padrão">Auditorias</th><th class="text-center">Recusas</th><th class="text-center">Melhorias</th><th class="text-center">Treinamento</th><th class="text-center">Perfil</th></tr></thead>
+      <tbody>
+      {% for item in resumo %}<tr>
+        <td><strong>{{ item.nome }}</strong><div class="small text-muted">{{ item.matricula or 'Sem matrícula' }}</div></td>
+        <td>{{ item.cargo_nome or '—' }}</td><td>{{ item.centro_codigo or '—' }}</td>
+        <td class="text-center">{{ item.horas_seguranca }}</td><td class="text-center">{{ item.auditorias_padrao }}</td>
+        <td class="text-center">{{ item.recusas }}</td><td class="text-center">{{ item.melhorias }}</td><td class="text-center">{{ item.horas_treinamento }} h</td>
+        <td class="text-center"><a class="btn btn-sm btn-outline-laranja btn-icon-table" title="Abrir perfil individual" aria-label="Abrir perfil de {{ item.nome }}"
+          href="{{ url_for('main.perfil_seguranca_colaborador', visao='individual', usuario_id=item.id, periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada) }}"><i class="bi bi-eye"></i></a></td>
+      </tr>{% else %}<tr><td colspan="9" class="text-center text-muted py-5">Nenhum colaborador encontrado com os filtros informados.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+
+    {% if total_paginas > 1 %}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mt-3">
+      <span class="text-muted small">Página {{ pagina }} de {{ total_paginas }}</span>
+      <nav aria-label="Paginação"><ul class="pagination pagination-sm mb-0">
+        <li class="page-item {% if pagina == 1 %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.perfil_seguranca_colaborador', visao='geral', pagina=pagina-1, periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada, busca=busca, centro_custos_id=centro_filtro or '', cargo_id=cargo_filtro or '') }}">Anterior</a></li>
+        {% for p in range(1, total_paginas + 1) %}{% if p == 1 or p == total_paginas or (p >= pagina - 2 and p <= pagina + 2) %}
+          <li class="page-item {% if p == pagina %}active{% endif %}"><a class="page-link" href="{{ url_for('main.perfil_seguranca_colaborador', visao='geral', pagina=p, periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada, busca=busca, centro_custos_id=centro_filtro or '', cargo_id=cargo_filtro or '') }}">{{ p }}</a></li>
+        {% elif p == pagina - 3 or p == pagina + 3 %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}{% endfor %}
+        <li class="page-item {% if pagina == total_paginas %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.perfil_seguranca_colaborador', visao='geral', pagina=pagina+1, periodo=periodo_selecionado, mes_referencia=mes_referencia, data_inicio=data_inicio_selecionada, data_fim=data_fim_selecionada, busca=busca, centro_custos_id=centro_filtro or '', cargo_id=cargo_filtro or '') }}">Próxima</a></li>
+      </ul></nav>
+    </div>
+    {% endif %}
   </div></div>
+{% else %}
   {% if colaborador and indicadores %}
     <div class="card shadow-sm border-0 mb-4"><div class="card-body d-flex flex-wrap justify-content-between gap-3">
       <div><div class="text-muted small">Colaborador</div><strong>{{ colaborador.nome }}</strong><div class="small">{{ colaborador.matricula or 'Sem matrícula' }}</div></div>
@@ -37,13 +140,7 @@
       <div><div class="text-muted small">Período</div><strong>{{ inicio.strftime('%d/%m/%Y') }} a {{ fim.strftime('%d/%m/%Y') }}</strong></div>
     </div></div>
     <div class="row g-3 mb-4">
-      {% for rotulo, valor, icone in [
-        ('Horas de Segurança', indicadores.horas_seguranca, 'clock-history'),
-        ('Auditorias de Padrão', indicadores.auditorias_padrao, 'clipboard-check'),
-        ('Recusas à Tarefa', indicadores.recusas, 'exclamation-triangle'),
-        ('Melhorias', indicadores.melhorias, 'lightbulb'),
-        ('Horas de treinamento', indicadores.horas_treinamento, 'mortarboard')
-      ] %}
+      {% for rotulo, valor, icone in [('Horas de Segurança', indicadores.horas_seguranca, 'clock-history'), ('Auditorias de Padrão', indicadores.auditorias_padrao, 'clipboard-check'), ('Recusas à Tarefa', indicadores.recusas, 'exclamation-triangle'), ('Melhorias', indicadores.melhorias, 'lightbulb'), ('Horas de treinamento', indicadores.horas_treinamento, 'mortarboard')] %}
       <div class="col-6 col-xl"><div class="card h-100 shadow-sm border-0"><div class="card-body"><i class="bi bi-{{ icone }} text-laranja fs-4"></i><div class="display-6 fw-semibold mt-2">{{ valor }}</div><div class="text-muted small">{{ rotulo }}</div></div></div></div>
       {% endfor %}
     </div>
@@ -53,29 +150,31 @@
       </tbody></table></div>
     </div></div>
   {% elif usuario_id %}<div class="alert alert-warning">Colaborador inválido ou fora do seu escopo de acesso.</div>
-  {% else %}<div class="alert alert-light border">Selecione um colaborador e um período para gerar o perfil.</div>{% endif %}
+  {% else %}<div class="empty-profile"><i class="bi bi-person-search"></i><h5>Selecione um colaborador</h5><p>Use a busca acima ou abra um perfil diretamente pela aba Visão geral.</p></div>{% endif %}
+{% endif %}
+
 <script id="colaboradores-perfil-data" type="application/json">{{ usuarios|tojson }}</script>
 <script>
 (() => {
  const periodo=document.getElementById('periodo'), grupoMes=document.getElementById('campo_mes_referencia'), campoMes=document.getElementById('mes_referencia'), grupoInicio=document.getElementById('campo_data_inicio'), inicio=document.getElementById('data_inicio'), grupoFim=document.getElementById('campo_data_fim'), fim=document.getElementById('data_fim');
  const limites=data=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(data||''))return null;const [ano,mes]=data.split('-').map(Number);const ultimo=new Date(ano,mes,0).getDate();return {min:`${ano}-${String(mes).padStart(2,'0')}-01`,max:`${ano}-${String(mes).padStart(2,'0')}-${String(ultimo).padStart(2,'0')}`};};
- const sincronizarLimites=()=>{const l=limites(inicio.value||fim.value);if(!l){inicio.removeAttribute('min');inicio.removeAttribute('max');fim.removeAttribute('min');fim.removeAttribute('max');return;}inicio.min=l.min;inicio.max=l.max;fim.min=inicio.value||l.min;fim.max=l.max;};
- const atualizarPeriodo=()=>{const mes=periodo.value==='mes_ano', personalizado=periodo.value==='personalizado';grupoMes.classList.toggle('d-none',!mes);grupoInicio.classList.toggle('d-none',!personalizado);grupoFim.classList.toggle('d-none',!personalizado);campoMes.disabled=!mes;campoMes.required=mes;inicio.disabled=!personalizado;inicio.required=personalizado;fim.disabled=!personalizado;fim.required=personalizado;if(personalizado)sincronizarLimites();};
+ const sincronizarLimites=()=>{const l=limites(inicio.value||fim.value);if(!l)return;inicio.min=l.min;inicio.max=l.max;fim.min=inicio.value||l.min;fim.max=l.max;};
+ const atualizarPeriodo=()=>{const ehMes=periodo.value==='mes_ano', personalizado=periodo.value==='personalizado';grupoMes.classList.toggle('d-none',!ehMes);grupoInicio.classList.toggle('d-none',!personalizado);grupoFim.classList.toggle('d-none',!personalizado);campoMes.disabled=!ehMes;campoMes.required=ehMes;inicio.disabled=!personalizado;inicio.required=personalizado;fim.disabled=!personalizado;fim.required=personalizado;if(personalizado)sincronizarLimites();};
  periodo.addEventListener('change',atualizarPeriodo);inicio.addEventListener('change',sincronizarLimites);fim.addEventListener('change',sincronizarLimites);atualizarPeriodo();
- const dados=JSON.parse(document.getElementById('colaboradores-perfil-data').textContent||'[]');
- const busca=document.getElementById('busca_colaborador'), oculto=document.getElementById('usuario_id'), lista=document.getElementById('sugestoes_colaborador');
- const normalizar=v=>(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
- const fechar=()=>{lista.innerHTML='';lista.classList.add('d-none');};
+ const busca=document.getElementById('busca_colaborador'); if(!busca)return;
+ const dados=JSON.parse(document.getElementById('colaboradores-perfil-data').textContent||'[]'), oculto=document.getElementById('usuario_id'), lista=document.getElementById('sugestoes_colaborador');
+ const normalizar=v=>(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); const fechar=()=>{lista.innerHTML='';lista.classList.add('d-none');};
  busca.addEventListener('input',()=>{oculto.value='';const termo=normalizar(busca.value.trim());lista.innerHTML='';if(!termo){fechar();return;}dados.filter(u=>normalizar(`${u.matricula||''} ${u.nome||''}`).includes(termo)).slice(0,12).forEach(u=>{const b=document.createElement('button');b.type='button';b.className='autocomplete-item';b.textContent=`${u.nome}${u.matricula?' — '+u.matricula:''}`;b.onclick=()=>{busca.value=b.textContent;oculto.value=u.id;fechar();};lista.appendChild(b);});lista.classList.toggle('d-none',!lista.children.length);});
  document.addEventListener('click',e=>{if(!e.target.closest('.position-relative'))fechar();});
 })();
 </script>
 <style>
-.btn-icon-minimal { width: 42px; height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
-.autocomplete-list { position: absolute; top: 100%; left: calc(var(--bs-gutter-x) * .5); right: calc(var(--bs-gutter-x) * .5); z-index: 1050; max-height: 280px; overflow-y: auto; background: #fff; border: 1px solid #dee2e6; border-radius: .375rem; margin-top: 4px; }
-.autocomplete-item { width: 100%; border: 0; border-bottom: 1px solid #f1f1f1; background: #fff; padding: .65rem .85rem; text-align: left; }
-.autocomplete-item:last-child { border-bottom: 0; }
-.autocomplete-item:hover, .autocomplete-item:focus { background: #fff4eb; outline: none; }
+.report-tabs{display:flex;gap:.35rem;border-bottom:1px solid #dee2e6;margin:1.25rem 0 1.5rem}.report-tab{padding:.75rem 1rem;color:#495057;text-decoration:none;border-radius:.6rem .6rem 0 0}.report-tab:hover{color:var(--cor-laranja,#f36c21);background:#fff7f1}.report-tab.active{color:#b84a0b;background:#fff0e6;font-weight:600;border-bottom:2px solid var(--cor-laranja,#f36c21)}
+.btn-icon-minimal{width:42px;height:38px;display:inline-flex;align-items:center;justify-content:center;padding:0}.btn-icon-table{width:34px;height:32px;display:inline-flex;align-items:center;justify-content:center;padding:0}.btn-outline-laranja{color:#ef641b;border-color:#ef641b}.btn-outline-laranja:hover{color:#fff;background:#ef641b}
+.metric-card{border:0;border-top:3px solid}.metric-verde{border-top-color:#188477}.metric-azul{border-top-color:#3b82f6}.metric-laranja{border-top-color:#f36c21}.profile-table thead th{white-space:nowrap}.profile-table td{vertical-align:middle}.profile-table tbody tr:hover{background:#fff9f4}
+.autocomplete-list{position:absolute;top:100%;left:calc(var(--bs-gutter-x)*.5);right:calc(var(--bs-gutter-x)*.5);z-index:1050;max-height:280px;overflow-y:auto;background:#fff;border:1px solid #dee2e6;border-radius:.375rem;margin-top:4px}.autocomplete-item{width:100%;border:0;border-bottom:1px solid #f1f1f1;background:#fff;padding:.65rem .85rem;text-align:left}.autocomplete-item:hover,.autocomplete-item:focus{background:#fff4eb;outline:none}
+.empty-profile{text-align:center;padding:4rem 1rem;background:#fff;border:1px solid #e9ecef;border-radius:.75rem}.empty-profile i{font-size:2.5rem;color:#ef641b}.empty-profile h5{margin-top:1rem}.empty-profile p{color:#6c757d;margin-bottom:0}
+.pagination .page-item.active .page-link{background:#ef641b;border-color:#ef641b}.pagination .page-link{color:#9f410d}
 </style>
 {% endblock %}
 
