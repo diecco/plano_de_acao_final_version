@@ -25,6 +25,14 @@ class PerfilSegurancaTests(unittest.TestCase):
         self.assertIn("FROM auditorias_padrao ap", fonte)
         self.assertNotIn("FROM auditoria_padrao ap", fonte)
 
+    def test_horas_de_seguranca_consideram_relacao_e_campo_legado(self):
+        fonte = (
+            Path(__file__).parents[1] / "app" / "views" / "perfil_seguranca.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("LEFT JOIN hs_registros_participantes hp", fonte)
+        self.assertIn("FIND_IN_SET", fonte)
+        self.assertIn("COUNT(DISTINCT r.id)", fonte)
+
 
 if __name__ == "__main__":
     unittest.main()
