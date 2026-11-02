@@ -1,0 +1,90 @@
+{% extends 'layout.html' %}
+
+{% block titulo %}Visualização de Recusa à Tarefa{% endblock %}
+
+{% block conteudo %}
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        Recusa à Tarefa
+    </h2>
+</div>
+<hr>
+
+<div class="d-flex justify-content-end mb-3">
+    <span class="read-only-badge">
+        <i class="bi bi-lock me-1"></i>Somente leitura
+    </span>
+</div>
+
+<div aria-label="Detalhes da Recusa à Tarefa">
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <label for="data" class="form-label">Data da Recusa</label>
+            <input type="date" id="data" class="form-control"
+                   value="{{ registro.data.strftime('%Y-%m-%d') if registro.data else '' }}"
+                   readonly>
+        </div>
+
+        <div class="col-md-2">
+            <label for="hora" class="form-label">Hora da Recusa</label>
+            <input type="time" id="hora" class="form-control"
+                   value="{{ registro.hora.strftime('%H:%M') if registro.hora and registro.hora.strftime else (registro.hora|string)[:5] }}"
+                   readonly>
+        </div>
+
+        <div class="col-md-4">
+            <label for="colaborador" class="form-label">Pessoa que Recusou</label>
+            <input type="text" id="colaborador" class="form-control"
+                   value="{{ registro.colaborador or '' }}" readonly>
+        </div>
+
+        <div class="col-md-3">
+            <label for="local" class="form-label">Área / Local</label>
+            <input type="text" id="local" class="form-control"
+                   value="{{ registro.local or '' }}" readonly>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <label for="classificacao" class="form-label">Classificação</label>
+            <input type="text" id="classificacao" class="form-control"
+                   value="{{ registro.classificacao or '' }}" readonly>
+        </div>
+
+        <div class="col-md-4">
+            <label for="potencial" class="form-label">Potencial de Severidade</label>
+            <input type="text" id="potencial" class="form-control"
+                   value="{{ registro.potencial or '' }}" readonly>
+        </div>
+
+        <div class="col-md-4">
+            <label for="causa" class="form-label">Causa da Recusa</label>
+            <input type="text" id="causa" class="form-control"
+                   value="{{ registro.causa or '' }}" readonly>
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <label for="descricao" class="form-label">Descrição da Recusa</label>
+        <textarea id="descricao" class="form-control" rows="4"
+                  readonly>{{ registro.descricao or '' }}</textarea>
+    </div>
+
+    <div class="record-metadata mb-4">
+        <span><strong>Registro:</strong> #{{ registro.id }}</span>
+        <span><strong>Registrado por:</strong> {{ registro.registrado_por or 'Não informado' }}</span>
+    </div>
+
+    <div class="d-flex justify-content-end">
+        <a href="{{ url_retorno }}" class="btn btn-cinza">
+            <i class="bi bi-arrow-left me-1"></i>Voltar
+        </a>
+    </div>
+</div>
+
+<style>
+.read-only-badge{display:inline-flex;align-items:center;padding:.35rem .65rem;border-radius:999px;background:#f1f3f5;color:#495057;font-size:.8rem}.form-control[readonly]{background-color:#f8f9fa;color:#212529;opacity:1;cursor:default}.record-metadata{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;padding:.75rem 1rem;border-left:3px solid #ea6a23;background:#f8f9fa;color:#6c757d;font-size:.85rem}.record-metadata strong{color:#495057}
+</style>
+{% endblock %}

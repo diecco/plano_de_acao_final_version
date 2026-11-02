@@ -404,13 +404,15 @@ def register_perfil_seguranca_routes(blueprint):
                 ("Pontos observados", "pontos"),
             )),
             "recusa-tarefa": ("Recusa à Tarefa", """
-                SELECT r.data_recusa AS data, r.hora_recusa AS hora,
+                SELECT r.id, r.data_recusa AS data, r.hora_recusa AS hora,
                        u.nome AS colaborador, r.local, r.classificacao,
                        r.potencial_severidade AS potencial,
-                       c.descricao AS causa, r.descricao
+                       c.descricao AS causa, r.descricao,
+                       criador.nome AS registrado_por
                   FROM recusa_tarefa r
                   JOIN usuarios u ON u.id = r.id_usuario
                   LEFT JOIN causas_recusa c ON c.id = r.id_causa
+                  LEFT JOIN usuarios criador ON criador.id = r.criado_por
                  WHERE r.id = %s AND r.id_usuario = %s
             """, (registro_id, usuario_id), (
                 ("Data", "data"), ("Hora", "hora"),
@@ -478,8 +480,13 @@ def register_perfil_seguranca_routes(blueprint):
         if not registro:
             flash("Prática não encontrada ou fora do seu escopo de acesso.", "warning")
             return redirect(retorno)
+        template = (
+            "visualizar_recusa_perfil_seguranca.html"
+            if tipo == "recusa-tarefa"
+            else "visualizar_pratica_perfil_seguranca.html"
+        )
         return render_template(
-            "visualizar_pratica_perfil_seguranca.html",
+            template,
             titulo_pratica=titulo, registro=registro, campos=campos,
             url_retorno=retorno,
         )
