@@ -116,10 +116,29 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn('name="executor_id"', template)
         self.assertIn('name="data_inicio"', template)
         self.assertIn('name="data_fim"', template)
+        self.assertIn('name="periodo"', template)
+        self.assertIn('name="mes_referencia"', template)
+        self.assertIn('id="executor_busca"', template)
+        self.assertIn("autocomplete-list", template)
         self.assertIn("bi-funnel", template)
         self.assertIn("bi-arrow-clockwise", template)
         self.assertIn("bi-plus-circle", template)
         self.assertNotIn("Novo preenchimento", template)
+
+    def test_period_filter_matches_adherence_report_options(self):
+        from datetime import date
+        from app.views.checklists_dinamicos import _resolver_periodo_listagem
+
+        inicio, fim, referencia = _resolver_periodo_listagem(
+            "mes_anterior", hoje=date(2026, 1, 15)
+        )
+        self.assertEqual(inicio, date(2025, 12, 1))
+        self.assertEqual(fim, date(2025, 12, 31))
+        self.assertEqual(referencia, "2025-12")
+        with self.assertRaisesRegex(ValueError, "mesmo mês"):
+            _resolver_periodo_listagem(
+                "personalizado", data_inicio="2026-01-31", data_fim="2026-02-01"
+            )
 
 
 if __name__ == "__main__":

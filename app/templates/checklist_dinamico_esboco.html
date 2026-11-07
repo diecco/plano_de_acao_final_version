@@ -12,24 +12,33 @@
         <form method="get" action="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id) }}">
             <div class="bloco-filtros">
                 <div class="row g-3 align-items-end">
-                    <div class="col-md-4">
-                        <label for="executor_id" class="form-label">Responsável pelo preenchimento</label>
-                        <select class="form-select" name="executor_id" id="executor_id">
-                            <option value="">Todos</option>
-                            {% for usuario in usuarios_filtro %}
-                            <option value="{{ usuario.id }}" {% if filtros.executor_id == usuario.id|string %}selected{% endif %}>{{ usuario.nome }}{% if usuario.matricula %} — {{ usuario.matricula }}{% endif %}</option>
-                            {% endfor %}
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <label for="periodo" class="form-label">Período do preenchimento</label>
+                        <select class="form-select" id="periodo" name="periodo">
+                            {% for opcao in opcoes_periodo %}<option value="{{ opcao.valor }}" {% if filtros.periodo == opcao.valor %}selected{% endif %}>{{ opcao.rotulo }}</option>{% endfor %}
+                            <option value="mes_ano" {% if filtros.periodo == 'mes_ano' %}selected{% endif %}>Escolher mês e ano</option>
+                            <option value="personalizado" {% if filtros.periodo == 'personalizado' %}selected{% endif %}>Período personalizado</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-12 col-md-6 col-xl-3 d-none" id="campo_mes_referencia">
+                        <label for="mes_referencia" class="form-label">Mês e ano</label>
+                        <input class="form-control" type="month" id="mes_referencia" name="mes_referencia" value="{{ filtros.mes_referencia }}">
+                    </div>
+                    <div class="col-12 col-md-6 col-xl-3 d-none" id="campo_data_inicio">
                         <label for="data_inicio" class="form-label">Data inicial</label>
                         <input class="form-control" type="date" name="data_inicio" id="data_inicio" value="{{ filtros.data_inicio }}">
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-12 col-md-6 col-xl-3 d-none" id="campo_data_fim">
                         <label for="data_fim" class="form-label">Data final</label>
                         <input class="form-control" type="date" name="data_fim" id="data_fim" value="{{ filtros.data_fim }}">
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-12 col-md-6 col-xl-3 position-relative">
+                        <label for="executor_busca" class="form-label">Responsável pelo preenchimento</label>
+                        <input class="form-control" type="text" id="executor_busca" autocomplete="off" placeholder="Digite o nome ou a matrícula" value="{% if executor_selecionado %}{{ executor_selecionado.nome }}{% if executor_selecionado.matricula %} — {{ executor_selecionado.matricula }}{% endif %}{% endif %}">
+                        <input type="hidden" name="executor_id" id="executor_id" value="{{ filtros.executor_id }}">
+                        <div id="executor_resultados" class="autocomplete-list shadow-sm d-none"></div>
+                    </div>
+                    <div class="col-12 col-xl-auto ms-xl-auto">
                         <div class="d-flex gap-2 justify-content-end">
                             <button class="btn btn-laranja" type="submit" title="Filtrar" aria-label="Filtrar"><i class="bi bi-funnel"></i></button>
                             <a class="btn btn-cinza" href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id) }}" title="Limpar filtros" aria-label="Limpar filtros"><i class="bi bi-arrow-clockwise"></i></a>
@@ -63,4 +72,75 @@
         </div>
     </div>
 </div>
+<script id="dados-executores-checklist" type="application/json">{{ usuarios_filtro|tojson }}</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const periodo = document.getElementById('periodo');
+    const grupoMes = document.getElementById('campo_mes_referencia');
+    const mes = document.getElementById('mes_referencia');
+    const grupoInicio = document.getElementById('campo_data_inicio');
+    const inicio = document.getElementById('data_inicio');
+    const grupoFim = document.getElementById('campo_data_fim');
+    const fim = document.getElementById('data_fim');
+    function limitesDoMes(dataIso) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dataIso || '')) return null;
+        const partes = dataIso.split('-').map(Number);
+        const ultimoDia = new Date(partes[0], partes[1], 0).getDate();
+        const prefixo = partes[0] + '-' + String(partes[1]).padStart(2, '0') + '-';
+        return { minimo: prefixo + '01', maximo: prefixo + String(ultimoDia).padStart(2, '0') };
+    }
+    function sincronizarLimites() {
+        const limites = limitesDoMes(inicio.value || fim.value);
+        if (!limites) { inicio.removeAttribute('min'); inicio.removeAttribute('max'); fim.removeAttribute('min'); fim.removeAttribute('max'); return; }
+        inicio.min = limites.minimo; inicio.max = limites.maximo;
+        fim.min = inicio.value || limites.minimo; fim.max = limites.maximo;
+    }
+    function atualizarPeriodo() {
+        const escolherMes = periodo.value === 'mes_ano';
+        const personalizado = periodo.value === 'personalizado';
+        grupoMes.classList.toggle('d-none', !escolherMes);
+        grupoInicio.classList.toggle('d-none', !personalizado);
+        grupoFim.classList.toggle('d-none', !personalizado);
+        mes.disabled = !escolherMes; mes.required = escolherMes;
+        inicio.disabled = !personalizado; inicio.required = personalizado;
+        fim.disabled = !personalizado; fim.required = personalizado;
+        if (personalizado) sincronizarLimites();
+    }
+    periodo.addEventListener('change', atualizarPeriodo);
+    inicio.addEventListener('change', sincronizarLimites);
+    fim.addEventListener('change', sincronizarLimites);
+    atualizarPeriodo();
+
+    const usuarios = JSON.parse(document.getElementById('dados-executores-checklist').textContent || '[]');
+    const busca = document.getElementById('executor_busca');
+    const id = document.getElementById('executor_id');
+    const resultados = document.getElementById('executor_resultados');
+    const normalizar = valor => (valor || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    function fechar() { resultados.innerHTML = ''; resultados.classList.add('d-none'); }
+    function pesquisar() {
+        const termo = normalizar(busca.value);
+        if (!termo) { id.value = ''; fechar(); return; }
+        const encontrados = usuarios.filter(u => normalizar(u.nome).includes(termo) || normalizar(u.matricula).includes(termo)).slice(0, 10);
+        resultados.innerHTML = '';
+        if (!encontrados.length) { const vazio = document.createElement('div'); vazio.className = 'autocomplete-empty'; vazio.textContent = 'Nenhum responsável encontrado.'; resultados.appendChild(vazio); }
+        encontrados.forEach(u => {
+            const botao = document.createElement('button'); botao.type = 'button'; botao.className = 'autocomplete-item';
+            const nome = document.createElement('span'); nome.className = 'fw-semibold'; nome.textContent = u.nome;
+            const matricula = document.createElement('small'); matricula.className = 'text-muted'; matricula.textContent = u.matricula || '';
+            botao.append(nome, matricula); botao.addEventListener('click', () => { busca.value = u.nome + (u.matricula ? ' — ' + u.matricula : ''); id.value = u.id; fechar(); });
+            resultados.appendChild(botao);
+        });
+        resultados.classList.remove('d-none');
+    }
+    busca.addEventListener('input', () => { id.value = ''; pesquisar(); });
+    busca.addEventListener('focus', () => { if (busca.value.trim()) pesquisar(); });
+    document.addEventListener('click', evento => { if (!busca.contains(evento.target) && !resultados.contains(evento.target)) fechar(); });
+});
+</script>
+<style>
+.autocomplete-list { position:absolute; top:100%; left:calc(var(--bs-gutter-x) * .5); right:calc(var(--bs-gutter-x) * .5); z-index:1050; max-height:280px; overflow-y:auto; background:#fff; border:1px solid #dee2e6; border-radius:.375rem; margin-top:4px; }
+.autocomplete-item { width:100%; border:0; background:#fff; padding:.65rem .85rem; display:flex; flex-direction:column; align-items:flex-start; text-align:left; }
+.autocomplete-item:hover,.autocomplete-item:focus { background:#fff4eb; }
+.autocomplete-empty { padding:.75rem .85rem; color:#6c757d; }
+</style>
 {% endblock %}
