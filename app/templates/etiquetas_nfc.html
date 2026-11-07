@@ -1,92 +1,134 @@
 {% extends 'layout.html' %}
 
-{% block title %}Etiquetas NFC{% endblock %}
+{% block titulo %}Etiquetas NFC{% endblock %}
+
+{% block extra_css %}
+<style>
+  .nfc-metric-card { border: 0; border-left: 4px solid var(--bs-primary); }
+  .nfc-metric-card.metric-active { border-left-color: #198754; }
+  .nfc-metric-card.metric-inactive { border-left-color: #6c757d; }
+  .nfc-metric-card.metric-global { border-left-color: #f26722; }
+  .nfc-metric-icon { width: 42px; height: 42px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #fff3ec; color: #f26722; }
+  .nfc-actions .btn { width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+  .nfc-table { table-layout: fixed; min-width: 950px; }
+  .nfc-table .col-number { width: 16%; }
+  .nfc-table .col-description { width: 29%; }
+  .nfc-table .col-scope { width: 37%; }
+  .nfc-table .col-status { width: 10%; }
+  .nfc-table .col-actions { width: 8%; }
+  .nfc-table td { overflow-wrap: anywhere; }
+</style>
+{% endblock %}
 
 {% block conteudo %}
-<div class="container-fluid py-3">
-  <div class="card border-warning rounded-4 shadow-sm">
-    <div class="card-body p-4">
-      <div class="text-center border-bottom pb-3 mb-4">
-        <h2 class="h4 text-uppercase text-orange mb-0"><i class="bi bi-broadcast-pin me-2"></i>Etiquetas NFC</h2>
-      </div>
+{% macro lista_url(pagina=1, ordenacao=None, direcao=None) -%}
+{{ url_for('main.etiquetas_nfc', busca=filtros.busca, abrangencia=filtros.abrangencia, status=filtros.status, centro_custos_id=filtros.centro_custos_id, per_page=filtros.per_page, sort=ordenacao or filtros.sort, order=direcao or filtros.order, page=pagina) }}
+{%- endmacro %}
 
-      <form method="post" class="card border-0 shadow-sm mb-4">
-        <div class="card-body">
-          {% if etiqueta_edicao %}<input type="hidden" name="id" value="{{ etiqueta_edicao.id }}">{% endif %}
-          <div class="row g-3 align-items-end">
-            <div class="col-lg-3">
-              <label class="form-label text-orange">Número da etiqueta *</label>
-              <input class="form-control" name="numero" maxlength="80" required
-                     value="{{ etiqueta_edicao.numero if etiqueta_edicao else request.form.get('numero', '') }}">
-            </div>
-            <div class="col-lg-5">
-              <label class="form-label text-orange">Descrição *</label>
-              <input class="form-control" name="descricao" maxlength="255" required
-                     value="{{ etiqueta_edicao.descricao if etiqueta_edicao else request.form.get('descricao', '') }}">
-            </div>
-            <div class="col-lg-4">
-              <label class="form-label text-orange">Abrangência *</label>
-              {% set abrangencia = etiqueta_edicao.abrangencia if etiqueta_edicao else request.form.get('abrangencia', 'global') %}
-              <select class="form-select" name="abrangencia" id="abrangenciaNfc">
-                <option value="global" {{ 'selected' if abrangencia == 'global' }}>Global</option>
-                <option value="centros" {{ 'selected' if abrangencia == 'centros' }}>Centros de custos selecionados</option>
-              </select>
-            </div>
-            <div class="col-12" id="centrosNfc">
-              <label class="form-label text-orange">Centros de custos *</label>
-              <select class="form-select" name="centro_custos_ids" multiple size="5">
-                {% for centro in centros_custos %}
-                <option value="{{ centro.id }}" {{ 'selected' if centro.id|string in centros_selecionados }}>
-                  {{ centro.codigo }} - {{ centro.descricao }}
-                </option>
-                {% endfor %}
-              </select>
-              <div class="form-text">Use Ctrl para selecionar mais de um centro de custos.</div>
-            </div>
-          </div>
-          <div class="d-flex justify-content-end gap-2 mt-3">
-            {% if etiqueta_edicao %}<a class="btn btn-outline-secondary" href="{{ url_for('main.etiquetas_nfc') }}">Cancelar</a>{% endif %}
-            <button class="btn btn-orange" type="submit">{{ 'Salvar alterações' if etiqueta_edicao else 'Cadastrar etiqueta' }}</button>
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div style="width:40px"></div>
+  <div class="text-center flex-grow-1"><h2 class="page-title mb-0"><i class="bi bi-broadcast-pin me-2"></i>Etiquetas NFC</h2></div>
+  <div style="width:40px"></div>
+</div>
+<div class="page-header-line"></div><hr>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3"><div class="card shadow-sm nfc-metric-card h-100"><div class="card-body d-flex align-items-center gap-3"><span class="nfc-metric-icon"><i class="bi bi-tags"></i></span><div><div class="text-muted small">Etiquetas cadastradas</div><div class="fs-3 fw-bold">{{ indicadores.total }}</div></div></div></div></div>
+  <div class="col-6 col-xl-3"><div class="card shadow-sm nfc-metric-card metric-active h-100"><div class="card-body d-flex align-items-center gap-3"><span class="nfc-metric-icon"><i class="bi bi-check-circle"></i></span><div><div class="text-muted small">Ativas</div><div class="fs-3 fw-bold">{{ indicadores.ativas }}</div></div></div></div></div>
+  <div class="col-6 col-xl-3"><div class="card shadow-sm nfc-metric-card metric-inactive h-100"><div class="card-body d-flex align-items-center gap-3"><span class="nfc-metric-icon"><i class="bi bi-slash-circle"></i></span><div><div class="text-muted small">Inativas</div><div class="fs-3 fw-bold">{{ indicadores.inativas }}</div></div></div></div></div>
+  <div class="col-6 col-xl-3"><div class="card shadow-sm nfc-metric-card metric-global h-100"><div class="card-body d-flex align-items-center gap-3"><span class="nfc-metric-icon"><i class="bi bi-globe2"></i></span><div><div class="text-muted small">Abrangência global</div><div class="fs-3 fw-bold">{{ indicadores.globais }}</div></div></div></div></div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body">
+    <form method="get" action="{{ url_for('main.etiquetas_nfc') }}">
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-lg-4">
+          <label class="form-label" for="filtroBusca">Número ou descrição</label>
+          <input class="form-control" id="filtroBusca" name="busca" value="{{ filtros.busca }}" placeholder="Digite para pesquisar...">
+        </div>
+        <div class="col-6 col-lg-2">
+          <label class="form-label" for="filtroAbrangencia">Abrangência</label>
+          <select class="form-select" id="filtroAbrangencia" name="abrangencia">
+            <option value="">Todas</option>
+            <option value="global" {{ 'selected' if filtros.abrangencia == 'global' }}>Global</option>
+            <option value="centros" {{ 'selected' if filtros.abrangencia == 'centros' }}>Por centros</option>
+          </select>
+        </div>
+        <div class="col-6 col-lg-2">
+          <label class="form-label" for="filtroStatus">Status</label>
+          <select class="form-select" id="filtroStatus" name="status">
+            <option value="">Todos</option>
+            <option value="1" {{ 'selected' if filtros.status == '1' }}>Ativa</option>
+            <option value="0" {{ 'selected' if filtros.status == '0' }}>Inativa</option>
+          </select>
+        </div>
+        <div class="col-12 col-lg-4">
+          <label class="form-label" for="filtroCentro">Centro de custos</label>
+          <select class="form-select" id="filtroCentro" name="centro_custos_id">
+            <option value="">Todos</option>
+            {% for centro in centros_custos %}<option value="{{ centro.id }}" {{ 'selected' if filtros.centro_custos_id == centro.id|string }}>{{ centro.codigo }} - {{ centro.descricao }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-lg-2">
+          <label class="form-label" for="porPagina">Por página</label>
+          <select class="form-select" id="porPagina" name="per_page">
+            {% for quantidade in (20, 50, 100) %}<option value="{{ quantidade }}" {{ 'selected' if filtros.per_page == quantidade }}>{{ quantidade }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-lg-10">
+          <div class="d-flex justify-content-end gap-2 nfc-actions">
+            <button class="btn btn-laranja" type="submit" title="Aplicar filtros" aria-label="Aplicar filtros"><i class="bi bi-funnel"></i></button>
+            <a class="btn btn-cinza" href="{{ url_for('main.etiquetas_nfc') }}" title="Limpar filtros" aria-label="Limpar filtros"><i class="bi bi-arrow-clockwise"></i></a>
+            <button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalEtiquetaNfc" title="Nova etiqueta" aria-label="Nova etiqueta"><i class="bi bi-plus-circle"></i></button>
           </div>
         </div>
-      </form>
-
-      <div class="table-responsive">
-        <table class="table table-bordered table-hover align-middle mb-0">
-          <thead class="table-orange text-center">
-            <tr><th>Número</th><th>Descrição</th><th>Abrangência</th><th>Status</th><th style="width:110px">Ações</th></tr>
-          </thead>
-          <tbody>
-            {% for etiqueta in etiquetas %}
-            <tr>
-              <td>{{ etiqueta.numero }}</td>
-              <td>{{ etiqueta.descricao }}</td>
-              <td>{{ 'Global' if etiqueta.abrangencia == 'global' else (etiqueta.centros or '-') }}</td>
-              <td class="text-center"><span class="badge {{ 'bg-success' if etiqueta.ativo else 'bg-secondary' }}">{{ 'Ativa' if etiqueta.ativo else 'Inativa' }}</span></td>
-              <td class="text-center text-nowrap">
-                <a href="{{ url_for('main.etiquetas_nfc', editar_id=etiqueta.id) }}" class="btn btn-sm btn-link text-orange" title="Editar"><i class="bi bi-pencil"></i></a>
-                <form method="post" action="{{ url_for('main.alterar_status_etiqueta_nfc', etiqueta_id=etiqueta.id) }}" class="d-inline">
-                  <input type="hidden" name="ativo" value="{{ 0 if etiqueta.ativo else 1 }}">
-                  <button class="btn btn-sm btn-link {{ 'text-danger' if etiqueta.ativo else 'text-success' }}" title="{{ 'Inativar' if etiqueta.ativo else 'Reativar' }}"><i class="bi {{ 'bi-slash-circle' if etiqueta.ativo else 'bi-check-circle' }}"></i></button>
-                </form>
-              </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="5" class="text-center text-muted py-4">Nenhuma etiqueta NFC cadastrada.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+        <input type="hidden" name="sort" value="{{ filtros.sort }}"><input type="hidden" name="order" value="{{ filtros.order }}">
       </div>
-    </div>
+    </form>
   </div>
 </div>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const scope = document.getElementById('abrangenciaNfc');
-  const centers = document.getElementById('centrosNfc');
-  const refresh = () => { centers.classList.toggle('d-none', scope.value !== 'centros'); };
-  scope.addEventListener('change', refresh);
-  refresh();
-});
-</script>
+
+<div class="d-flex justify-content-between align-items-center mb-2"><span class="text-muted small">{{ total_filtrado }} etiqueta(s) encontrada(s)</span></div>
+<div class="card shadow-sm border-0"><div class="card-body">
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover align-middle nfc-table mb-0">
+      <thead class="table-light"><tr>
+        {% set colunas = [('numero', 'Número', 'col-number'), ('descricao', 'Descrição', 'col-description'), ('abrangencia', 'Abrangência', 'col-scope'), ('status', 'Status', 'col-status')] %}
+        {% for chave, rotulo, classe in colunas %}{% set ativa = filtros.sort == chave %}{% set proxima = 'desc' if ativa and filtros.order == 'asc' else 'asc' %}
+        <th class="{{ classe }}"><div class="d-flex justify-content-between align-items-center gap-2"><span>{{ rotulo }}</span><a class="btn btn-link p-0 text-muted" href="{{ lista_url(1, chave, proxima) }}" title="Ordenar por {{ rotulo|lower }}"><i class="bi bi-caret-{{ 'up' if ativa and filtros.order == 'asc' else 'down' }}-fill"></i></a></div></th>
+        {% endfor %}
+        <th class="col-actions text-center">Ações</th>
+      </tr></thead>
+      <tbody>
+        {% for etiqueta in etiquetas %}<tr>
+          <td>{{ etiqueta.numero }}</td><td>{{ etiqueta.descricao }}</td>
+          <td>{% if etiqueta.abrangencia == 'global' %}<span class="badge bg-light text-dark border">Global</span>{% else %}{{ etiqueta.centros or '—' }}{% endif %}</td>
+          <td class="text-center"><span class="badge {{ 'bg-success' if etiqueta.ativo else 'bg-secondary' }}">{{ 'Ativa' if etiqueta.ativo else 'Inativa' }}</span></td>
+          <td class="text-center"><div class="d-flex justify-content-center gap-2">
+            <a class="btn-acao-icon" href="{{ url_for('main.etiquetas_nfc', editar_id=etiqueta.id) }}" title="Editar" aria-label="Editar etiqueta {{ etiqueta.numero }}"><i class="bi bi-pencil-square"></i></a>
+            <form method="post" action="{{ url_for('main.alterar_status_etiqueta_nfc', etiqueta_id=etiqueta.id) }}" onsubmit="return confirm('{{ 'Deseja inativar esta etiqueta?' if etiqueta.ativo else 'Deseja reativar esta etiqueta?' }}');"><input type="hidden" name="ativo" value="{{ 0 if etiqueta.ativo else 1 }}"><button class="btn-acao-icon" title="{{ 'Inativar' if etiqueta.ativo else 'Reativar' }}" aria-label="{{ 'Inativar' if etiqueta.ativo else 'Reativar' }} etiqueta {{ etiqueta.numero }}"><i class="bi {{ 'bi-x-circle' if etiqueta.ativo else 'bi-check-circle' }}"></i></button></form>
+          </div></td>
+        </tr>{% else %}<tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-search me-1"></i>Nenhuma etiqueta encontrada para os filtros informados.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div></div>
+
+{% if total_paginas > 1 %}<div class="d-flex justify-content-between align-items-center mt-3"><span class="text-muted small">Página {{ pagina }} de {{ total_paginas }}</span><nav aria-label="Paginação das etiquetas NFC"><ul class="pagination pagination-sm mb-0"><li class="page-item {{ 'disabled' if pagina <= 1 }}"><a class="page-link" href="{{ lista_url(pagina - 1) }}">Anterior</a></li>{% for p in range(1, total_paginas + 1) %}{% if p == 1 or p == total_paginas or (p >= pagina - 2 and p <= pagina + 2) %}<li class="page-item {{ 'active' if p == pagina }}"><a class="page-link" href="{{ lista_url(p) }}">{{ p }}</a></li>{% elif p == pagina - 3 or p == pagina + 3 %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}{% endfor %}<li class="page-item {{ 'disabled' if pagina >= total_paginas }}"><a class="page-link" href="{{ lista_url(pagina + 1) }}">Próxima</a></li></ul></nav></div>{% endif %}
+
+<div class="modal fade" id="modalEtiquetaNfc" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content"><form method="post" action="{{ url_for('main.etiquetas_nfc') }}"><div class="modal-header"><h5 class="modal-title text-laranja">{{ 'Editar etiqueta NFC' if etiqueta_edicao else 'Nova etiqueta NFC' }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div><div class="modal-body">
+  {% if etiqueta_edicao %}<input type="hidden" name="id" value="{{ etiqueta_edicao.id }}">{% endif %}
+  {% set abrangencia_form = etiqueta_edicao.abrangencia if etiqueta_edicao else request.form.get('abrangencia', 'global') %}
+  <div class="row g-3"><div class="col-md-4"><label class="form-label" for="numeroEtiqueta">Número da etiqueta *</label><input class="form-control" id="numeroEtiqueta" name="numero" maxlength="80" required value="{{ etiqueta_edicao.numero if etiqueta_edicao else request.form.get('numero', '') }}"></div><div class="col-md-8"><label class="form-label" for="descricaoEtiqueta">Descrição *</label><input class="form-control" id="descricaoEtiqueta" name="descricao" maxlength="255" required value="{{ etiqueta_edicao.descricao if etiqueta_edicao else request.form.get('descricao', '') }}"></div><div class="col-12"><label class="form-label" for="abrangenciaNfc">Abrangência *</label><select class="form-select" name="abrangencia" id="abrangenciaNfc"><option value="global" {{ 'selected' if abrangencia_form == 'global' }}>Global</option><option value="centros" {{ 'selected' if abrangencia_form == 'centros' }}>Centros de custos selecionados</option></select></div><div class="col-12" id="centrosNfc"><label class="form-label" for="centrosNfcSelect">Centros de custos *</label><select class="form-select" id="centrosNfcSelect" name="centro_custos_ids" multiple size="6">{% for centro in centros_custos %}<option value="{{ centro.id }}" {{ 'selected' if centro.id|string in centros_selecionados }}>{{ centro.codigo }} - {{ centro.descricao }}</option>{% endfor %}</select><div class="form-text">Use Ctrl para selecionar mais de um centro de custos.</div></div></div>
+</div><div class="modal-footer"><a class="btn btn-cinza" href="{{ url_for('main.etiquetas_nfc') }}" {% if not etiqueta_edicao %}data-bs-dismiss="modal"{% endif %}>Cancelar</a><button class="btn btn-laranja" type="submit">{{ 'Salvar alterações' if etiqueta_edicao else 'Salvar' }}</button></div></form></div></div></div>
 {% endblock %}
+
+{% block extra_js %}<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const scope = document.getElementById('abrangenciaNfc'); const centers = document.getElementById('centrosNfc'); const select = document.getElementById('centrosNfcSelect');
+  const refresh = () => { const targeted = scope.value === 'centros'; centers.hidden = !targeted; select.disabled = !targeted; if (!targeted) Array.from(select.options).forEach(option => option.selected = false); };
+  scope.addEventListener('change', refresh); refresh();
+  {% if etiqueta_edicao or erro_formulario %}bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEtiquetaNfc')).show();{% endif %}
+});
+</script>{% endblock %}

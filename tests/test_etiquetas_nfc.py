@@ -27,6 +27,19 @@ class EtiquetasNfcTest(unittest.TestCase):
         self.assertIn("main.etiquetas_nfc", sidebar)
         self.assertIn("Etiquetas NFC", sidebar)
 
+    def test_listagem_segue_padrao_administrativo(self):
+        template = (ROOT / "app" / "templates" / "etiquetas_nfc.html").read_text(encoding="utf-8")
+        source = (ROOT / "app" / "views" / "etiquetas_nfc.py").read_text(encoding="utf-8")
+        self.assertIn("Etiquetas cadastradas", template)
+        self.assertIn("Aplicar filtros", template)
+        self.assertIn("Limpar filtros", template)
+        self.assertIn("Nova etiqueta", template)
+        self.assertIn("btn-acao-icon", template)
+        self.assertIn("lista_url", template)
+        self.assertIn("total_paginas", template)
+        self.assertIn("colunas_ordenacao", source)
+        self.assertIn("LIMIT %s OFFSET %s", source)
+
 
 if __name__ == "__main__":
     unittest.main()
