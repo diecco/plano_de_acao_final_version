@@ -32,6 +32,15 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn("cm.status = 'publicado'", source)
         self.assertIn("cm.exibir_menu = 1", source)
 
+    def test_sidebar_configuration_is_conditional_and_uses_orange_switch(self):
+        template = (
+            ROOT / "app" / "templates" / "checklists_dinamicos.html"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("Primeiro esboço", template)
+        self.assertIn('id="blocoSidebar" hidden', template)
+        self.assertIn("atualizarSidebar", template)
+        self.assertIn("background-color: #f26722", template)
+
 
 if __name__ == "__main__":
     unittest.main()
