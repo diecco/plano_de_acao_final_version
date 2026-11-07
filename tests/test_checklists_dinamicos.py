@@ -1,3 +1,4 @@
+import json
 import unittest
 from pathlib import Path
 
@@ -40,6 +41,53 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn('id="blocoSidebar" hidden', template)
         self.assertIn("atualizarSidebar", template)
         self.assertIn("background-color: #f26722", template)
+
+    def test_verification_item_builder_has_server_side_validation(self):
+        source = (
+            ROOT / "app" / "views" / "checklists_dinamicos.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("def validar_estrutura", source)
+        self.assertIn("O limite é de 200 itens por checklist", source)
+        self.assertIn("negative_comment", source)
+        self.assertIn("estrutura_json", source)
+
+        javascript = (
+            ROOT / "app" / "static" / "js" / "checklist-builder.js"
+        ).read_text(encoding="utf-8")
+        editor = (
+            ROOT / "app" / "templates" / "checklist_dinamico_editar.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Adicionar seção", editor)
+        self.assertIn("Matriz de avaliação", javascript)
+        self.assertIn("Exigir descrição do desvio", javascript)
+
+    def test_items_migration_is_reexecutable(self):
+        sql = (
+            ROOT / "docs" / "adicionar_itens_checklists_dinamicos.sql"
+        ).read_text(encoding="utf-8")
+        self.assertIn("information_schema.COLUMNS", sql)
+        self.assertIn("ADD COLUMN estrutura_json JSON", sql)
+
+    def test_server_accepts_a_valid_definition_and_rejects_empty_sections(self):
+        from app.views.checklists_dinamicos import validar_estrutura
+
+        valid = [{
+            "title": "Condições do local",
+            "questions": [{
+                "text": "O local está sinalizado?",
+                "type": "conformity",
+                "required": True,
+                "negative_comment": True,
+                "negative_evidence": False,
+                "options": [],
+            }],
+        }]
+        clean = validar_estrutura(json.dumps(valid))
+        self.assertEqual(clean[0]["questions"][0]["text"], "O local está sinalizado?")
+
+        invalid = [{"title": "Sem itens", "questions": []}]
+        with self.assertRaisesRegex(ValueError, "ao menos um item"):
+            validar_estrutura(json.dumps(invalid))
 
 
 if __name__ == "__main__":

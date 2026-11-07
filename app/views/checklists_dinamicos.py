@@ -1,8 +1,11 @@
 """Primeiro núcleo dos checklists configuráveis do TrackPlan.
 
-Esta etapa cuida do catálogo, abrangência por centro de custos e publicação na
-sidebar. A definição das perguntas será adicionada sobre este mesmo catálogo.
+Cuida do catálogo, abrangência por centro de custos, publicação na sidebar e
+definição validada dos itens de verificação.
 """
+
+import json
+import unicodedata
 
 from flask import abort, flash, redirect, render_template, request, session, url_for
 
@@ -14,6 +17,150 @@ MODULOS_MENU = {
     "ssma": "SSMA",
     "gestao_ssma": "Gestão SSMA",
 }
+
+TIPOS_RESPOSTA = {
+    "conformity": "Conforme / Não conforme / Não aplicável",
+    "yes_no": "Sim / Não / Não aplicável",
+    "choice": "Seleção de uma opção",
+    "multichoice": "Múltipla escolha",
+    "matrix": "Matriz de avaliação",
+    "ranking": "Ordem de prioridade",
+    "rating": "Avaliação por nota",
+    "text": "Texto",
+    "number": "Número",
+    "counter": "Contador",
+    "date": "Data",
+}
+
+
+def _normalizar_texto(valor):
+    valor = unicodedata.normalize("NFKD", valor or "")
+    return " ".join(
+        "".join(c for c in valor if not unicodedata.combining(c)).lower().split()
+    )
+
+
+def _lista_textos(valor, minimo, maximo, mensagem):
+    if not isinstance(valor, list) or not minimo <= len(valor) <= maximo:
+        raise ValueError(mensagem)
+    resultado = []
+    for item in valor:
+        if not isinstance(item, str) or not 1 <= len(item.strip()) <= 120:
+            raise ValueError(mensagem)
+        resultado.append(item.strip())
+    if len({_normalizar_texto(item) for item in resultado}) != len(resultado):
+        raise ValueError("Não repita alternativas no mesmo item.")
+    return resultado
+
+
+def validar_estrutura(raw):
+    """Valida e higieniza a definição recebida do construtor visual."""
+    if isinstance(raw, list):
+        secoes = raw
+    else:
+        try:
+            secoes = json.loads(raw or "")
+        except (TypeError, ValueError):
+            raise ValueError("Não foi possível ler os itens de verificação.")
+    if not isinstance(secoes, list) or not 1 <= len(secoes) <= 30:
+        raise ValueError("Inclua de 1 a 30 seções.")
+
+    limpas = []
+    total = 0
+    for secao in secoes:
+        if not isinstance(secao, dict):
+            raise ValueError("Seção inválida.")
+        titulo = secao.get("title")
+        perguntas = secao.get("questions")
+        if not isinstance(titulo, str) or not 1 <= len(titulo.strip()) <= 120:
+            raise ValueError("Informe o nome de cada seção, com até 120 caracteres.")
+        if not isinstance(perguntas, list) or not perguntas:
+            raise ValueError("Cada seção precisa ter ao menos um item de verificação.")
+
+        itens = []
+        for pergunta in perguntas:
+            total += 1
+            if total > 200:
+                raise ValueError("O limite é de 200 itens por checklist.")
+            if not isinstance(pergunta, dict):
+                raise ValueError("Item de verificação inválido.")
+            texto = pergunta.get("text")
+            tipo = pergunta.get("type")
+            if (
+                not isinstance(texto, str)
+                or not 1 <= len(texto.strip()) <= 500
+                or tipo not in TIPOS_RESPOSTA
+            ):
+                raise ValueError("Confira o texto e o tipo de resposta de cada item.")
+            for chave in ("required", "negative_comment", "negative_evidence"):
+                if type(pergunta.get(chave)) is not bool:
+                    raise ValueError("Confira as regras de preenchimento dos itens.")
+
+            negativo = tipo in {"conformity", "yes_no"}
+            item = {
+                "text": texto.strip(),
+                "type": tipo,
+                "required": pergunta["required"],
+                "negative_comment": pergunta["negative_comment"] if negativo else False,
+                "negative_evidence": pergunta["negative_evidence"] if negativo else False,
+                "options": [],
+            }
+            ajuda = pergunta.get("help", "")
+            if not isinstance(ajuda, str) or len(ajuda.strip()) > 1000:
+                raise ValueError("Use até 1.000 caracteres na orientação de cada item.")
+            if ajuda.strip():
+                item["help"] = ajuda.strip()
+
+            if tipo in {"choice", "multichoice", "ranking"}:
+                item["options"] = _lista_textos(
+                    pergunta.get("options"), 2, 20,
+                    "Itens de seleção precisam ter de 2 a 20 alternativas.",
+                )
+            elif tipo == "matrix":
+                item["matrix_rows"] = _lista_textos(
+                    pergunta.get("matrix_rows"), 1, 20,
+                    "A matriz precisa ter de 1 a 20 linhas.",
+                )
+                item["matrix_columns"] = _lista_textos(
+                    pergunta.get("matrix_columns"), 2, 10,
+                    "A matriz precisa ter de 2 a 10 alternativas.",
+                )
+            elif tipo == "rating":
+                minimo = pergunta.get("rating_min", 1)
+                maximo = pergunta.get("rating_max", 5)
+                estilo = pergunta.get("rating_style", "numbers")
+                if minimo not in (0, 1) or type(maximo) is not int or not 2 <= maximo <= 10 or maximo <= minimo:
+                    raise ValueError("Confira os limites da avaliação por nota.")
+                if estilo not in {"numbers", "stars"} or (minimo == 0 and estilo == "stars"):
+                    raise ValueError("Confira a apresentação da avaliação por nota.")
+                item.update(rating_min=minimo, rating_max=maximo, rating_style=estilo)
+                for origem, destino in (("rating_low_label", "rating_low_label"), ("rating_high_label", "rating_high_label")):
+                    rotulo = pergunta.get(origem, "")
+                    if not isinstance(rotulo, str) or len(rotulo.strip()) > 80:
+                        raise ValueError("Use até 80 caracteres nas descrições da escala.")
+                    if rotulo.strip():
+                        item[destino] = rotulo.strip()
+            elif tipo == "number":
+                unidade = pergunta.get("measurement_unit", "")
+                casas = pergunta.get("decimal_places")
+                if not isinstance(unidade, str) or len(unidade.strip()) > 20:
+                    raise ValueError("Use até 20 caracteres na unidade de medida.")
+                if casas is not None and (type(casas) is not int or not 0 <= casas <= 10):
+                    raise ValueError("Confira as casas decimais do item numérico.")
+                item.update(measurement_unit=unidade.strip(), decimal_places=casas)
+            elif tipo == "counter":
+                minimo = pergunta.get("minimum", 0)
+                maximo = pergunta.get("maximum", 999)
+                inicial = pergunta.get("counter_initial", 0)
+                contado = pergunta.get("counted", True)
+                if any(type(v) is not int or not 0 <= v <= 1000000 for v in (minimo, maximo, inicial)):
+                    raise ValueError("Confira os valores do contador.")
+                if minimo > maximo or not minimo <= inicial <= maximo or type(contado) is not bool:
+                    raise ValueError("O valor inicial do contador deve estar entre o mínimo e o máximo.")
+                item.update(minimum=minimo, maximum=maximo, counter_initial=inicial, counted=contado)
+            itens.append(item)
+        limpas.append({"title": titulo.strip(), "questions": itens})
+    return limpas
 
 
 def carregar_checklists_sidebar():
@@ -221,25 +368,81 @@ def register_checklists_dinamicos_routes(blueprint):
             modulos_menu=MODULOS_MENU,
         )
 
+    @blueprint.route("/admin/checklists/<int:checklist_id>/editar", methods=["GET", "POST"])
+    @login_required
+    @admin_required
+    def editar_checklist_dinamico(checklist_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute("SELECT * FROM checklist_modelos WHERE id = %s", (checklist_id,))
+            checklist = cursor.fetchone()
+            if not checklist:
+                abort(404)
+            if checklist["status"] == "publicado":
+                flash("A versão publicada é somente leitura.", "info")
+                return redirect(url_for("main.checklists_dinamicos"))
+
+            if request.method == "POST":
+                try:
+                    estrutura = validar_estrutura(request.form.get("estrutura_json"))
+                except ValueError as erro:
+                    flash(str(erro), "danger")
+                    checklist["estrutura_json"] = request.form.get("estrutura_json") or "[]"
+                else:
+                    estrutura_json = json.dumps(estrutura, ensure_ascii=False)
+                    cursor.execute("""
+                        UPDATE checklist_modelos
+                           SET estrutura_json = %s
+                         WHERE id = %s AND status = 'rascunho'
+                    """, (estrutura_json, checklist_id))
+                    conn.commit()
+                    flash("Itens de verificação salvos.", "success")
+                    return redirect(url_for("main.editar_checklist_dinamico", checklist_id=checklist_id))
+
+            estrutura = checklist.get("estrutura_json") or "[]"
+            if not isinstance(estrutura, str):
+                estrutura = json.dumps(estrutura, ensure_ascii=False)
+        finally:
+            cursor.close()
+            conn.close()
+
+        return render_template(
+            "checklist_dinamico_editar.html",
+            checklist=checklist,
+            estrutura=estrutura,
+            tipos_resposta=TIPOS_RESPOSTA,
+        )
+
     @blueprint.post("/admin/checklists/<int:checklist_id>/publicar")
     @login_required
     @admin_required
     def publicar_checklist_dinamico(checklist_id):
         conn = get_db_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(dictionary=True)
         try:
+            cursor.execute(
+                "SELECT status, estrutura_json FROM checklist_modelos WHERE id = %s AND ativo = 1",
+                (checklist_id,),
+            )
+            checklist = cursor.fetchone()
+            if not checklist:
+                abort(404)
+            if checklist["status"] == "publicado":
+                flash("O checklist já está publicado.", "info")
+                return redirect(url_for("main.checklists_dinamicos"))
+            try:
+                estrutura = validar_estrutura(checklist.get("estrutura_json"))
+            except ValueError as erro:
+                flash(f"Não foi possível publicar: {erro}", "danger")
+                return redirect(url_for("main.editar_checklist_dinamico", checklist_id=checklist_id))
             cursor.execute("""
                 UPDATE checklist_modelos
-                   SET publicado_em = CASE
-                       WHEN status = 'publicado' THEN NULL
-                       ELSE CURRENT_TIMESTAMP
-                   END,
-                       status = CASE
-                       WHEN status = 'publicado' THEN 'rascunho'
-                       ELSE 'publicado'
-                   END
-                 WHERE id = %s AND ativo = 1
-            """, (checklist_id,))
+                   SET estrutura_json = %s,
+                       status = 'publicado',
+                       publicado_em = CURRENT_TIMESTAMP
+                 WHERE id = %s AND status = 'rascunho'
+            """, (json.dumps(estrutura, ensure_ascii=False), checklist_id))
             conn.commit()
         finally:
             cursor.close()
@@ -277,7 +480,18 @@ def register_checklists_dinamicos_routes(blueprint):
                 abort(404)
             if not _pode_acessar_modulo(checklist["modulo_menu"]):
                 abort(403)
+            estrutura = checklist.get("estrutura_json") or []
+            if isinstance(estrutura, str):
+                try:
+                    estrutura = json.loads(estrutura)
+                except ValueError:
+                    estrutura = []
         finally:
             cursor.close()
             conn.close()
-        return render_template("checklist_dinamico_esboco.html", checklist=checklist)
+        return render_template(
+            "checklist_dinamico_esboco.html",
+            checklist=checklist,
+            estrutura=estrutura,
+            tipos_resposta=TIPOS_RESPOSTA,
+        )
