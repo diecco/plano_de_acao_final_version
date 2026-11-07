@@ -38,6 +38,7 @@ TIPOS_RESPOSTA = {
     "person": "Uma pessoa",
     "people": "Várias pessoas",
     "sector": "Setor / Área",
+    "nfc_tag": "Etiqueta NFC",
 }
 
 
@@ -372,10 +373,11 @@ def _opcoes_periodo_listagem(hoje=None):
     return opcoes
 
 
-def _validar_respostas(estrutura, formulario, pessoas=None, setores=None):
+def _validar_respostas(estrutura, formulario, pessoas=None, setores=None, etiquetas_nfc=None):
     """Converte e valida as respostas sem confiar nos valores do navegador."""
     pessoas = {str(item["id"]): item for item in (pessoas or [])}
     setores = {str(item["id"]): item for item in (setores or [])}
+    etiquetas_nfc = {str(item["id"]): item for item in (etiquetas_nfc or [])}
     respostas = {}
     erros = []
     for secao_indice, secao in enumerate(estrutura):
@@ -401,6 +403,13 @@ def _validar_respostas(estrutura, formulario, pessoas=None, setores=None):
             elif tipo == "sector":
                 setor = setores.get(str(valor))
                 valor = ({"id": setor["id"], "name": setor["nome"]} if setor else {})
+            elif tipo == "nfc_tag":
+                etiqueta = etiquetas_nfc.get(str(valor))
+                valor = ({
+                    "id": etiqueta["id"],
+                    "number": etiqueta["numero"],
+                    "description": etiqueta["descricao"],
+                } if etiqueta else {})
             elif tipo == "matrix":
                 valor = {}
                 colunas = item.get("matrix_columns", [])
@@ -1052,10 +1061,42 @@ def register_checklists_dinamicos_routes(blueprint):
             cursor.execute("SELECT id, nome FROM setores WHERE ativo = 1 ORDER BY nome")
             setores = cursor.fetchall()
 
+            centro_custos_id = session.get("centro_custos_id")
+            if centro_custos_id:
+                cursor.execute("""
+                    SELECT DISTINCT e.id, e.numero, e.descricao
+                      FROM nfc_etiquetas e
+                      LEFT JOIN nfc_etiquetas_centros ec ON ec.etiqueta_id = e.id
+                     WHERE e.ativo = 1
+                       AND (e.abrangencia = 'global' OR ec.centro_custos_id = %s)
+                     ORDER BY e.descricao, e.numero
+                """, (centro_custos_id,))
+            elif ((session.get("perfil") or "").lower() == "administrador"
+                  and checklist.get("abrangencia") == "centros"):
+                cursor.execute("""
+                    SELECT DISTINCT e.id, e.numero, e.descricao
+                      FROM nfc_etiquetas e
+                      LEFT JOIN nfc_etiquetas_centros ec ON ec.etiqueta_id = e.id
+                      LEFT JOIN checklist_modelos_centros cmc
+                        ON cmc.centro_custos_id = ec.centro_custos_id
+                     WHERE e.ativo = 1
+                       AND (e.abrangencia = 'global' OR cmc.checklist_id = %s)
+                     ORDER BY e.descricao, e.numero
+                """, (checklist_id,))
+            else:
+                cursor.execute("""
+                    SELECT e.id, e.numero, e.descricao
+                      FROM nfc_etiquetas e
+                     WHERE e.ativo = 1 AND e.abrangencia = 'global'
+                     ORDER BY e.descricao, e.numero
+                """)
+            etiquetas_nfc = cursor.fetchall()
+
             valores = request.form.to_dict(flat=False) if request.method == "POST" else {}
             if request.method == "POST":
                 respostas, erros = _validar_respostas(
-                    estrutura, request.form, pessoas=pessoas, setores=setores
+                    estrutura, request.form, pessoas=pessoas, setores=setores,
+                    etiquetas_nfc=etiquetas_nfc
                 )
                 propostas_acoes, erros_acoes = _validar_acoes_checklist(
                     estrutura, request.form, responsaveis=responsaveis_acao
@@ -1107,6 +1148,7 @@ def register_checklists_dinamicos_routes(blueprint):
             pessoas=pessoas,
             responsaveis_acao=responsaveis_acao,
             setores=setores,
+            etiquetas_nfc=etiquetas_nfc,
             hoje_iso=date.today().isoformat(),
         )
 
