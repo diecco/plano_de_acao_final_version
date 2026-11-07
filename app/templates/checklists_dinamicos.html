@@ -2,6 +2,23 @@
 
 {% block titulo %}Checklists configuráveis{% endblock %}
 
+{% block extra_css %}
+<style>
+    .checklist-sidebar-switch .form-check-input:checked {
+        background-color: #f26722;
+        border-color: #f26722;
+    }
+    .checklist-sidebar-switch .form-check-input:focus {
+        border-color: #f26722;
+        box-shadow: 0 0 0 .2rem rgba(242, 103, 34, .18);
+    }
+    .checklist-sidebar-options {
+        border-left: 3px solid #f26722;
+        padding-left: 1rem;
+    }
+</style>
+{% endblock %}
+
 {% block conteudo %}
 <div class="page-header">
     <h2 class="page-title text-center mb-0">
@@ -12,43 +29,24 @@
 
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body">
-        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-            <div>
-                <h5 class="mb-1">Novo checklist</h5>
-                <p class="text-muted mb-0">Defina a abrangência e onde o checklist será encontrado.</p>
-            </div>
-            <span class="badge bg-light text-dark border">Primeiro esboço</span>
+        <div class="mb-3">
+            <h5 class="mb-1">Novo checklist</h5>
+            <p class="text-muted mb-0">Defina a identificação e a abrangência do checklist.</p>
         </div>
         <form method="post">
             <div class="row g-3">
-                <div class="col-12 col-lg-5">
+                <div class="col-12 col-lg-7">
                     <label class="form-label" for="nome">Nome do checklist</label>
                     <input class="form-control" id="nome" name="nome" maxlength="150" required>
                 </div>
-                <div class="col-12 col-lg-3">
+                <div class="col-12 col-lg-5">
                     <label class="form-label" for="abrangencia">Abrangência</label>
                     <select class="form-select" id="abrangencia" name="abrangencia">
                         <option value="global">Global</option>
                         <option value="centros">Centros de custos selecionados</option>
                     </select>
                 </div>
-                <div class="col-12 col-md-7 col-lg-3">
-                    <label class="form-label" for="modulo_menu">Local na sidebar</label>
-                    <select class="form-select" id="modulo_menu" name="modulo_menu">
-                        {% for valor, rotulo in modulos_menu.items() %}
-                        <option value="{{ valor }}">{{ rotulo }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-12 col-md-5 col-lg-1">
-                    <label class="form-label" for="ordem_menu">Ordem</label>
-                    <input class="form-control" id="ordem_menu" name="ordem_menu" type="number" min="0" value="0">
-                </div>
-                <div class="col-12 col-lg-6">
-                    <label class="form-label" for="descricao">Descrição</label>
-                    <textarea class="form-control" id="descricao" name="descricao" rows="4" maxlength="2000"></textarea>
-                </div>
-                <div class="col-12 col-lg-6" id="blocoCentros" hidden>
+                <div class="col-12" id="blocoCentros" hidden>
                     <label class="form-label" for="centro_custos_ids">Centros de custos</label>
                     <select class="form-select" id="centro_custos_ids" name="centro_custos_ids" multiple size="5">
                         {% for centro in centros_custos %}
@@ -58,9 +56,29 @@
                     <div class="form-text">Selecione todos os centros alcançados pelo checklist.</div>
                 </div>
                 <div class="col-12">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" id="exibir_menu" name="exibir_menu" type="checkbox" value="1" checked>
+                    <label class="form-label" for="descricao">Descrição</label>
+                    <textarea class="form-control" id="descricao" name="descricao" rows="3" maxlength="2000"></textarea>
+                </div>
+                <div class="col-12">
+                    <div class="form-check form-switch checklist-sidebar-switch">
+                        <input class="form-check-input" id="exibir_menu" name="exibir_menu" type="checkbox" value="1">
                         <label class="form-check-label" for="exibir_menu">Exibir na sidebar depois da publicação</label>
+                    </div>
+                </div>
+                <div class="col-12 checklist-sidebar-options" id="blocoSidebar" hidden>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-8 col-lg-9">
+                            <label class="form-label" for="modulo_menu">Local na sidebar</label>
+                            <select class="form-select" id="modulo_menu" name="modulo_menu">
+                                {% for valor, rotulo in modulos_menu.items() %}
+                                <option value="{{ valor }}">{{ rotulo }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4 col-lg-3">
+                            <label class="form-label" for="ordem_menu">Ordem</label>
+                            <input class="form-control" id="ordem_menu" name="ordem_menu" type="number" min="0" value="0">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -120,14 +138,26 @@ document.addEventListener('DOMContentLoaded', function () {
     const abrangencia = document.getElementById('abrangencia');
     const bloco = document.getElementById('blocoCentros');
     const centros = document.getElementById('centro_custos_ids');
+    const exibirMenu = document.getElementById('exibir_menu');
+    const blocoSidebar = document.getElementById('blocoSidebar');
+    const moduloMenu = document.getElementById('modulo_menu');
+    const ordemMenu = document.getElementById('ordem_menu');
     function atualizarAbrangencia() {
         const direcionado = abrangencia.value === 'centros';
         bloco.hidden = !direcionado;
         centros.disabled = !direcionado;
         if (!direcionado) Array.from(centros.options).forEach(o => o.selected = false);
     }
+    function atualizarSidebar() {
+        const exibir = exibirMenu.checked;
+        blocoSidebar.hidden = !exibir;
+        moduloMenu.disabled = !exibir;
+        ordemMenu.disabled = !exibir;
+    }
     abrangencia.addEventListener('change', atualizarAbrangencia);
+    exibirMenu.addEventListener('change', atualizarSidebar);
     atualizarAbrangencia();
+    atualizarSidebar();
 });
 </script>
 {% endblock %}
