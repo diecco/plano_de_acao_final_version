@@ -13,7 +13,7 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 268)
+        self.assertEqual(len(self.routes), 270)
 
     def test_configurable_checklist_routes_are_registered(self):
         expected = {

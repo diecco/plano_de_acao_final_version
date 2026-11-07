@@ -1,0 +1,92 @@
+{% extends 'layout.html' %}
+
+{% block title %}Etiquetas NFC{% endblock %}
+
+{% block conteudo %}
+<div class="container-fluid py-3">
+  <div class="card border-warning rounded-4 shadow-sm">
+    <div class="card-body p-4">
+      <div class="text-center border-bottom pb-3 mb-4">
+        <h2 class="h4 text-uppercase text-orange mb-0"><i class="bi bi-broadcast-pin me-2"></i>Etiquetas NFC</h2>
+      </div>
+
+      <form method="post" class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          {% if etiqueta_edicao %}<input type="hidden" name="id" value="{{ etiqueta_edicao.id }}">{% endif %}
+          <div class="row g-3 align-items-end">
+            <div class="col-lg-3">
+              <label class="form-label text-orange">Número da etiqueta *</label>
+              <input class="form-control" name="numero" maxlength="80" required
+                     value="{{ etiqueta_edicao.numero if etiqueta_edicao else request.form.get('numero', '') }}">
+            </div>
+            <div class="col-lg-5">
+              <label class="form-label text-orange">Descrição *</label>
+              <input class="form-control" name="descricao" maxlength="255" required
+                     value="{{ etiqueta_edicao.descricao if etiqueta_edicao else request.form.get('descricao', '') }}">
+            </div>
+            <div class="col-lg-4">
+              <label class="form-label text-orange">Abrangência *</label>
+              {% set abrangencia = etiqueta_edicao.abrangencia if etiqueta_edicao else request.form.get('abrangencia', 'global') %}
+              <select class="form-select" name="abrangencia" id="abrangenciaNfc">
+                <option value="global" {{ 'selected' if abrangencia == 'global' }}>Global</option>
+                <option value="centros" {{ 'selected' if abrangencia == 'centros' }}>Centros de custos selecionados</option>
+              </select>
+            </div>
+            <div class="col-12" id="centrosNfc">
+              <label class="form-label text-orange">Centros de custos *</label>
+              <select class="form-select" name="centro_custos_ids" multiple size="5">
+                {% for centro in centros_custos %}
+                <option value="{{ centro.id }}" {{ 'selected' if centro.id|string in centros_selecionados }}>
+                  {{ centro.codigo }} - {{ centro.descricao }}
+                </option>
+                {% endfor %}
+              </select>
+              <div class="form-text">Use Ctrl para selecionar mais de um centro de custos.</div>
+            </div>
+          </div>
+          <div class="d-flex justify-content-end gap-2 mt-3">
+            {% if etiqueta_edicao %}<a class="btn btn-outline-secondary" href="{{ url_for('main.etiquetas_nfc') }}">Cancelar</a>{% endif %}
+            <button class="btn btn-orange" type="submit">{{ 'Salvar alterações' if etiqueta_edicao else 'Cadastrar etiqueta' }}</button>
+          </div>
+        </div>
+      </form>
+
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle mb-0">
+          <thead class="table-orange text-center">
+            <tr><th>Número</th><th>Descrição</th><th>Abrangência</th><th>Status</th><th style="width:110px">Ações</th></tr>
+          </thead>
+          <tbody>
+            {% for etiqueta in etiquetas %}
+            <tr>
+              <td>{{ etiqueta.numero }}</td>
+              <td>{{ etiqueta.descricao }}</td>
+              <td>{{ 'Global' if etiqueta.abrangencia == 'global' else (etiqueta.centros or '-') }}</td>
+              <td class="text-center"><span class="badge {{ 'bg-success' if etiqueta.ativo else 'bg-secondary' }}">{{ 'Ativa' if etiqueta.ativo else 'Inativa' }}</span></td>
+              <td class="text-center text-nowrap">
+                <a href="{{ url_for('main.etiquetas_nfc', editar_id=etiqueta.id) }}" class="btn btn-sm btn-link text-orange" title="Editar"><i class="bi bi-pencil"></i></a>
+                <form method="post" action="{{ url_for('main.alterar_status_etiqueta_nfc', etiqueta_id=etiqueta.id) }}" class="d-inline">
+                  <input type="hidden" name="ativo" value="{{ 0 if etiqueta.ativo else 1 }}">
+                  <button class="btn btn-sm btn-link {{ 'text-danger' if etiqueta.ativo else 'text-success' }}" title="{{ 'Inativar' if etiqueta.ativo else 'Reativar' }}"><i class="bi {{ 'bi-slash-circle' if etiqueta.ativo else 'bi-check-circle' }}"></i></button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center text-muted py-4">Nenhuma etiqueta NFC cadastrada.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const scope = document.getElementById('abrangenciaNfc');
+  const centers = document.getElementById('centrosNfc');
+  const refresh = () => { centers.classList.toggle('d-none', scope.value !== 'centros'); };
+  scope.addEventListener('change', refresh);
+  refresh();
+});
+</script>
+{% endblock %}
