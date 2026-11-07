@@ -20,4 +20,9 @@
 .person-result input { accent-color: #f26722; }
 .person-empty { padding: .75rem; color: #6c757d; }
 .person-selected { margin-top: .4rem; color: #6c757d; font-size: .82rem; line-height: 1.4; }
+.checklist-verification-table thead th { background: #f26722; color: #fff; text-align: center; vertical-align: middle; }
+.checklist-verification-table .verification-item-column { width: 45%; }
+.checklist-verification-table .verification-result-column { width: 18%; }
+.checklist-verification-table .verification-deviation-column { width: 37%; }
+.checklist-verification-table .negative-details { margin: 0; }
 @media (max-width: 767px) { .answer-chip span { padding: .45rem .65rem; } }

@@ -235,6 +235,7 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         }]
         clean = validar_estrutura(json.dumps(definition))
         self.assertEqual(clean[0]["layout"], "header")
+        self.assertEqual(clean[0]["questions"][0]["type"], "people")
 
         builder = (ROOT / "app" / "static" / "js" / "checklist-builder.js").read_text(encoding="utf-8")
         template = (ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html").read_text(encoding="utf-8")
@@ -247,6 +248,14 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         source = (ROOT / "app" / "views" / "checklists_dinamicos.py").read_text(encoding="utf-8")
         self.assertIn("cmc.centro_custos_id = u.centro_custos_id", source)
         self.assertIn("AND u.ativo = 1", source)
+
+    def test_conformity_items_use_dropdown_table_layout(self):
+        template = (ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html").read_text(encoding="utf-8")
+        runner = (ROOT / "app" / "static" / "js" / "checklist-run.js").read_text(encoding="utf-8")
+        self.assertIn("checklist-verification-table", template)
+        self.assertIn("Desvio / evidência", template)
+        self.assertIn("data-result-select", template)
+        self.assertIn('select[name="${name}"]', runner)
 
 
 if __name__ == "__main__":

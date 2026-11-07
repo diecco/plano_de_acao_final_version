@@ -48,6 +48,20 @@ def _normalizar_texto(valor):
     )
 
 
+def _ajustar_campo_pessoa_do_cabecalho(item):
+    """Mantém compatibilidade com cabeçalhos criados antes dos tipos de pessoa."""
+    if item.get("type") != "conformity":
+        return
+    rotulo = _normalizar_texto(item.get("text"))
+    for sufixo in (" (opcional)", " opcional"):
+        if rotulo.endswith(sufixo):
+            rotulo = rotulo[:-len(sufixo)].strip()
+    if rotulo in {"auditado", "auditados", "participante", "participantes"}:
+        item["type"] = "people"
+    elif rotulo in {"auditor", "responsavel", "responsavel pelo preenchimento"}:
+        item["type"] = "person"
+
+
 def _lista_textos(valor, minimo, maximo, mensagem):
     if not isinstance(valor, list) or not minimo <= len(valor) <= maximo:
         raise ValueError(mensagem)
@@ -176,6 +190,9 @@ def validar_estrutura(raw):
             )
         if layout not in {"standard", "header"}:
             raise ValueError("Confira a apresentação de cada seção.")
+        if layout == "header":
+            for item in itens:
+                _ajustar_campo_pessoa_do_cabecalho(item)
         limpas.append({"title": titulo.strip(), "layout": layout, "questions": itens})
     return limpas
 
@@ -297,6 +314,10 @@ def _ler_estrutura(valor):
                     "dados gerais", "identificacao", "cabecalho"
                 } else "standard"
             )
+        if secao.get("layout") == "header":
+            for item in secao.get("questions", []):
+                if isinstance(item, dict):
+                    _ajustar_campo_pessoa_do_cabecalho(item)
     return estrutura
 
 

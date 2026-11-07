@@ -13,10 +13,37 @@
     <section class="card border-0 shadow-sm mb-4 {% if secao.layout == 'header' %}checklist-header-card{% endif %}">
         <div class="card-body p-4">
             <h5 class="text-laranja mb-4">{% if secao.layout != 'header' %}{{ section_counter.value }}. {% endif %}{{ secao.title }}</h5>
+            {% set conformity_items = secao.questions|selectattr('type', 'equalto', 'conformity')|list %}
+            {% set conformity_table = secao.layout != 'header' and conformity_items|length == secao.questions|length %}
+            {% if conformity_table %}
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle checklist-verification-table mb-0">
+                    <colgroup><col class="verification-item-column"><col class="verification-result-column"><col class="verification-deviation-column"></colgroup>
+                    <thead><tr><th>Item</th><th>Resultado</th><th>Desvio / evidência</th></tr></thead>
+                    <tbody>
+                    {% for item in secao.questions %}
+                        {% set ii = loop.index0 %}{% set key = 'q_' ~ si ~ '_' ~ ii %}{% set current = valores.get(key, [''])[0] %}
+                        <tr data-type="conformity">
+                            <td>{{ item.text }}{% if item.required %} <span class="text-danger">*</span>{% endif %}{% if item.help %}<small class="d-block text-muted mt-1">{{ item.help }}</small>{% endif %}</td>
+                            <td><select class="form-select" name="{{ key }}" data-result-select><option value="">Selecione</option><option value="conforme" {% if current == 'conforme' %}selected{% endif %}>Conforme</option><option value="nao_conforme" {% if current == 'nao_conforme' %}selected{% endif %}>Não conforme</option><option value="nao_aplicavel" {% if current == 'nao_aplicavel' %}selected{% endif %}>Não aplicável</option></select></td>
+                            <td>
+                                {% if item.negative_comment or item.negative_evidence %}
+                                <div class="negative-details" data-negative-for="{{ key }}">
+                                    {% if item.negative_comment %}<textarea class="form-control mb-2" name="{{ key }}_comment" rows="2" placeholder="Descreva o desvio">{{ valores.get(key ~ '_comment', [''])[0] }}</textarea>{% endif %}
+                                    {% if item.negative_evidence %}<input class="form-control" name="{{ key }}_evidence" value="{{ valores.get(key ~ '_evidence', [''])[0] }}" placeholder="Evidência / referência">{% endif %}
+                                </div>
+                                {% else %}<span class="text-muted">—</span>{% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
             <div class="{% if secao.layout == 'header' %}row g-3{% endif %}">
             {% for item in secao.questions %}
                 {% set ii = loop.index0 %}{% set key = 'q_' ~ si ~ '_' ~ ii %}{% set current = valores.get(key, [''])[0] %}
-                <div class="{% if secao.layout == 'header' %}{% if item.type in ['textarea', 'people', 'matrix', 'ranking'] %}col-12{% elif item.type in ['date', 'time'] %}col-12 col-md-3{% else %}col-12 col-md-6 col-xl-4{% endif %}{% endif %}">
+                <div class="{% if secao.layout == 'header' %}{% if item.type in ['textarea', 'matrix', 'ranking'] %}col-12{% else %}col-12 col-md-6 col-xl-4{% endif %}{% endif %}">
                 <div class="checklist-question" data-type="{{ item.type }}">
                     <label class="question-title">{% if secao.layout != 'header' %}{{ loop.index }}. {% endif %}{{ item.text }}{% if item.required %} <span class="text-danger">*</span>{% endif %}</label>
                     {% if item.help %}<small class="d-block text-muted mb-2">{{ item.help }}</small>{% endif %}
@@ -38,13 +65,9 @@
                     {% elif item.type == 'sector' %}
                         <select class="form-select" name="{{ key }}"><option value="">Selecione o setor ou área</option>{% for setor in setores %}<option value="{{ setor.id }}" {% if current == setor.id|string %}selected{% endif %}>{{ setor.nome }}</option>{% endfor %}</select>
                     {% elif item.type in ['conformity', 'yes_no'] %}
-                        <div class="answer-options">
                         {% if item.type == 'conformity' %}{% set options = [('conforme','Conforme'),('nao_conforme','Não conforme'),('nao_aplicavel','Não aplicável')] %}
                         {% else %}{% set options = [('sim','Sim'),('nao','Não'),('nao_aplicavel','Não aplicável')] %}{% endif %}
-                        {% for oval, olabel in options %}
-                            <label class="answer-chip"><input type="radio" name="{{ key }}" value="{{ oval }}" {% if current == oval %}checked{% endif %}> <span>{{ olabel }}</span></label>
-                        {% endfor %}
-                        </div>
+                        <select class="form-select" name="{{ key }}" data-result-select><option value="">Selecione</option>{% for oval, olabel in options %}<option value="{{ oval }}" {% if current == oval %}selected{% endif %}>{{ olabel }}</option>{% endfor %}</select>
                     {% elif item.type == 'choice' %}
                         <div class="answer-options">{% for option in item.options %}<label class="answer-chip"><input type="radio" name="{{ key }}" value="{{ option }}" {% if current == option %}checked{% endif %}> <span>{{ option }}</span></label>{% endfor %}</div>
                     {% elif item.type == 'rating' %}
@@ -67,6 +90,7 @@
                 </div>
             {% endfor %}
             </div>
+            {% endif %}
         </div>
     </section>
 {% endfor %}
