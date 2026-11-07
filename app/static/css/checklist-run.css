@@ -1,0 +1,13 @@
+.checklist-question { padding: 1.25rem 0; border-top: 1px solid #e7e9ed; }
+.checklist-question:first-of-type { border-top: 0; padding-top: 0; }
+.question-title { display: block; font-weight: 600; margin-bottom: .45rem; }
+.answer-options { display: flex; flex-wrap: wrap; gap: .55rem; }
+.answer-chip { cursor: pointer; margin: 0; }
+.answer-chip input { position: absolute; opacity: 0; pointer-events: none; }
+.answer-chip span { display: inline-block; border: 1px solid #d6dbe1; border-radius: .45rem; padding: .5rem .85rem; background: #fff; transition: .15s ease; }
+.answer-chip input:checked + span { color: #fff; background: #f5661b; border-color: #f5661b; }
+.negative-details { padding: 1rem; border-left: 3px solid #f5661b; background: #fff8f4; border-radius: .35rem; }
+.negative-details[hidden] { display: none !important; }
+.checklist-date { max-width: 260px; }
+.matrix-table th:first-child { min-width: 220px; }
+@media (max-width: 767px) { .answer-chip span { padding: .45rem .65rem; } }

@@ -89,6 +89,26 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "ao menos um item"):
             validar_estrutura(json.dumps(invalid))
 
+    def test_execution_is_stored_with_snapshot_and_server_validation(self):
+        source = (
+            ROOT / "app" / "views" / "checklists_dinamicos.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("def _validar_respostas", source)
+        self.assertIn("estrutura_snapshot_json", source)
+        self.assertIn("INSERT INTO checklist_execucoes", source)
+
+        migration = (
+            ROOT / "docs" / "criar_execucoes_checklists_dinamicos.sql"
+        ).read_text(encoding="utf-8")
+        self.assertIn("CREATE TABLE IF NOT EXISTS checklist_execucoes", migration)
+        self.assertIn("respostas_json JSON NOT NULL", migration)
+
+        template = (
+            ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Concluir checklist", template)
+        self.assertIn("negative-details", template)
+
 
 if __name__ == "__main__":
     unittest.main()

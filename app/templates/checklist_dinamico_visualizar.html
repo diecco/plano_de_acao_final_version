@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+{% block titulo %}{{ execucao.checklist_nome }} #{{ execucao.id }}{% endblock %}
+
+{% block conteudo %}
+<div class="page-header"><h2 class="page-title text-center mb-0"><i class="bi bi-eye me-2"></i>{{ execucao.checklist_nome }}</h2></div>
+<hr>
+<div class="card border-0 shadow-sm mb-4"><div class="card-body p-4"><div class="row g-3"><div class="col-md-3"><small class="text-muted d-block">Registro</small><strong>#{{ execucao.id }}</strong></div><div class="col-md-3"><small class="text-muted d-block">Concluído em</small><strong>{{ execucao.concluido_em.strftime('%d/%m/%Y %H:%M') }}</strong></div><div class="col-md-3"><small class="text-muted d-block">Responsável</small><strong>{{ execucao.executor_nome }}</strong></div><div class="col-md-3"><small class="text-muted d-block">Centro de custos</small><strong>{{ execucao.centro_codigo or '-' }}{% if execucao.centro_descricao %} - {{ execucao.centro_descricao }}{% endif %}</strong></div></div></div></div>
+
+{% for secao in estrutura %}
+{% set si = loop.index0 %}
+<section class="card border-0 shadow-sm mb-4"><div class="card-body p-4"><h5 class="text-laranja mb-3">{{ loop.index }}. {{ secao.title }}</h5><div class="table-responsive"><table class="table align-middle"><thead><tr><th style="width:55%">Item</th><th>Resposta</th><th>Complemento</th></tr></thead><tbody>
+{% for item in secao.questions %}{% set key = 'q_' ~ si ~ '_' ~ loop.index0 %}{% set answer = respostas.get(key, {}) %}{% set value = answer.get('value') %}
+<tr><td><strong>{{ item.text }}</strong>{% if item.help %}<small class="d-block text-muted">{{ item.help }}</small>{% endif %}</td><td>
+{% if value is mapping %}{% for row, column in value.items() %}<span class="d-block">{{ row }}: <strong>{{ column }}</strong></span>{% endfor %}
+{% elif value is sequence and value is not string %}{{ value|join(', ') }}
+{% elif value == 'nao_conforme' %}Não conforme{% elif value == 'nao_aplicavel' %}Não aplicável{% elif value == 'conforme' %}Conforme{% elif value == 'sim' %}Sim{% elif value == 'nao' %}Não{% else %}{{ value if value not in [none, ''] else '-' }}{% endif %}
+{% if item.measurement_unit and value not in [none, ''] %} {{ item.measurement_unit }}{% endif %}
+</td><td>{% if answer.get('comment') %}<div><small class="text-muted">Comentário:</small> {{ answer.comment }}</div>{% endif %}{% if answer.get('evidence') %}<div><small class="text-muted">Evidência:</small> {{ answer.evidence }}</div>{% endif %}{% if not answer.get('comment') and not answer.get('evidence') %}-{% endif %}</td></tr>
+{% endfor %}
+</tbody></table></div></div></section>
+{% endfor %}
+{% if execucao.observacoes %}<div class="card border-0 shadow-sm mb-4"><div class="card-body p-4"><h5 class="text-laranja">Observações gerais</h5><p class="mb-0">{{ execucao.observacoes }}</p></div></div>{% endif %}
+<a class="btn btn-secondary" href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=execucao.checklist_id) }}">Voltar</a>
+{% endblock %}

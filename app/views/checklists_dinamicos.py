@@ -6,6 +6,8 @@ definição validada dos itens de verificação.
 
 import json
 import unicodedata
+from datetime import date
+from decimal import Decimal, InvalidOperation
 
 from flask import abort, flash, redirect, render_template, request, session, url_for
 
@@ -261,6 +263,125 @@ def _buscar_modelo_visivel(cursor, checklist_id):
     return cursor.fetchone()
 
 
+def _ler_estrutura(valor):
+    if isinstance(valor, list):
+        return valor
+    try:
+        estrutura = json.loads(valor or "[]")
+    except (TypeError, ValueError):
+        return []
+    return estrutura if isinstance(estrutura, list) else []
+
+
+def _chave_resposta(secao_indice, item_indice):
+    return f"q_{secao_indice}_{item_indice}"
+
+
+def _validar_respostas(estrutura, formulario):
+    """Converte e valida as respostas sem confiar nos valores do navegador."""
+    respostas = {}
+    erros = []
+    for secao_indice, secao in enumerate(estrutura):
+        for item_indice, item in enumerate(secao.get("questions", [])):
+            chave = _chave_resposta(secao_indice, item_indice)
+            tipo = item.get("type")
+            bruto = formulario.get(chave, "")
+            valor = bruto.strip() if isinstance(bruto, str) else bruto
+
+            if tipo == "multichoice":
+                valor = [v for v in formulario.getlist(chave) if v in item.get("options", [])]
+            elif tipo == "matrix":
+                valor = {}
+                colunas = item.get("matrix_columns", [])
+                for linha_indice, linha in enumerate(item.get("matrix_rows", [])):
+                    selecionada = formulario.get(f"{chave}_matrix_{linha_indice}", "")
+                    if selecionada in colunas:
+                        valor[linha] = selecionada
+            elif tipo == "ranking":
+                valor = [
+                    formulario.get(f"{chave}_rank_{indice}", "")
+                    for indice in range(len(item.get("options", [])))
+                ]
+                if set(valor) != set(item.get("options", [])) or len(set(valor)) != len(valor):
+                    valor = []
+            elif tipo in {"choice"} and valor not in item.get("options", []):
+                valor = ""
+            elif tipo == "conformity" and valor not in {"conforme", "nao_conforme", "nao_aplicavel"}:
+                valor = ""
+            elif tipo == "yes_no" and valor not in {"sim", "nao", "nao_aplicavel"}:
+                valor = ""
+            elif tipo == "rating":
+                try:
+                    nota = int(valor)
+                except (TypeError, ValueError):
+                    valor = ""
+                else:
+                    valor = nota if item.get("rating_min", 1) <= nota <= item.get("rating_max", 5) else ""
+            elif tipo == "number":
+                try:
+                    valor = str(Decimal(str(valor).replace(",", "."))) if valor != "" else ""
+                except (InvalidOperation, ValueError):
+                    valor = ""
+            elif tipo == "counter":
+                try:
+                    contador = int(valor)
+                except (TypeError, ValueError):
+                    valor = ""
+                else:
+                    valor = contador if item.get("minimum", 0) <= contador <= item.get("maximum", 999) else ""
+            elif tipo == "date" and valor:
+                try:
+                    date.fromisoformat(valor)
+                except ValueError:
+                    valor = ""
+
+            vazio = valor in ("", [], {})
+            if item.get("required") and vazio:
+                erros.append(f"Responda: {item.get('text')}" )
+
+            negativo = (
+                (tipo == "conformity" and valor == "nao_conforme")
+                or (tipo == "yes_no" and valor == "nao")
+            )
+            comentario = (formulario.get(f"{chave}_comment") or "").strip()
+            evidencia = (formulario.get(f"{chave}_evidence") or "").strip()
+            if negativo and item.get("negative_comment") and not comentario:
+                erros.append(f"Informe o comentário do resultado negativo: {item.get('text')}")
+            if negativo and item.get("negative_evidence") and not evidencia:
+                erros.append(f"Informe a evidência do resultado negativo: {item.get('text')}")
+
+            respostas[chave] = {
+                "value": valor,
+                "comment": comentario or None,
+                "evidence": evidencia or None,
+            }
+    return respostas, erros
+
+
+def _execucao_visivel(cursor, execucao_id):
+    parametros = [execucao_id]
+    escopo = "1 = 1"
+    if (session.get("perfil") or "").lower() != "administrador":
+        centro_id = session.get("centro_custos_id")
+        if centro_id:
+            escopo = "ce.centro_custos_id = %s"
+            parametros.append(centro_id)
+        else:
+            escopo = "ce.executor_id = %s"
+            parametros.append(session.get("usuario_id"))
+    cursor.execute(f"""
+        SELECT ce.*, cm.nome AS checklist_nome, u.nome AS executor_nome,
+               cc.codigo AS centro_codigo, cc.descricao AS centro_descricao
+          FROM checklist_execucoes ce
+          JOIN checklist_modelos cm ON cm.id = ce.checklist_id
+          JOIN usuarios u ON u.id = ce.executor_id
+     LEFT JOIN centros_custos cc ON cc.id = ce.centro_custos_id
+         WHERE ce.id = %s AND ({escopo})
+         LIMIT 1
+    """, parametros)
+    return cursor.fetchone()
+
+
 def register_checklists_dinamicos_routes(blueprint):
     @blueprint.route("/admin/checklists", methods=["GET", "POST"])
     @login_required
@@ -480,12 +601,29 @@ def register_checklists_dinamicos_routes(blueprint):
                 abort(404)
             if not _pode_acessar_modulo(checklist["modulo_menu"]):
                 abort(403)
-            estrutura = checklist.get("estrutura_json") or []
-            if isinstance(estrutura, str):
-                try:
-                    estrutura = json.loads(estrutura)
-                except ValueError:
-                    estrutura = []
+            estrutura = _ler_estrutura(checklist.get("estrutura_json"))
+            parametros = [checklist_id]
+            escopo = "1 = 1"
+            if (session.get("perfil") or "").lower() != "administrador":
+                centro_id = session.get("centro_custos_id")
+                if centro_id:
+                    escopo = "ce.centro_custos_id = %s"
+                    parametros.append(centro_id)
+                else:
+                    escopo = "ce.executor_id = %s"
+                    parametros.append(session.get("usuario_id"))
+            cursor.execute(f"""
+                SELECT ce.id, ce.concluido_em, ce.executor_id,
+                       u.nome AS executor_nome,
+                       cc.codigo AS centro_codigo
+                  FROM checklist_execucoes ce
+                  JOIN usuarios u ON u.id = ce.executor_id
+             LEFT JOIN centros_custos cc ON cc.id = ce.centro_custos_id
+                 WHERE ce.checklist_id = %s AND ({escopo})
+                 ORDER BY ce.concluido_em DESC, ce.id DESC
+                 LIMIT 50
+            """, parametros)
+            execucoes = cursor.fetchall()
         finally:
             cursor.close()
             conn.close()
@@ -494,4 +632,85 @@ def register_checklists_dinamicos_routes(blueprint):
             checklist=checklist,
             estrutura=estrutura,
             tipos_resposta=TIPOS_RESPOSTA,
+            execucoes=execucoes,
+        )
+
+    @blueprint.route("/checklists/<int:checklist_id>/aplicar", methods=["GET", "POST"])
+    @login_required
+    def aplicar_checklist_dinamico(checklist_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            checklist = _buscar_modelo_visivel(cursor, checklist_id)
+            if not checklist:
+                abort(404)
+            if not _pode_acessar_modulo(checklist["modulo_menu"]):
+                abort(403)
+            estrutura = _ler_estrutura(checklist.get("estrutura_json"))
+            if not estrutura:
+                flash("Este checklist não possui itens publicados.", "danger")
+                return redirect(url_for("main.abrir_checklist_dinamico", checklist_id=checklist_id))
+
+            valores = request.form.to_dict(flat=False) if request.method == "POST" else {}
+            if request.method == "POST":
+                respostas, erros = _validar_respostas(estrutura, request.form)
+                observacoes = (request.form.get("observacoes") or "").strip()
+                if len(observacoes) > 2000:
+                    erros.append("Use até 2.000 caracteres nas observações gerais.")
+                if erros:
+                    for erro in erros[:8]:
+                        flash(erro, "danger")
+                else:
+                    cursor.execute("""
+                        INSERT INTO checklist_execucoes (
+                            checklist_id, executor_id, centro_custos_id,
+                            respostas_json, estrutura_snapshot_json, observacoes
+                        ) VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (
+                        checklist_id,
+                        session.get("usuario_id"),
+                        session.get("centro_custos_id"),
+                        json.dumps(respostas, ensure_ascii=False),
+                        json.dumps(estrutura, ensure_ascii=False),
+                        observacoes or None,
+                    ))
+                    execucao_id = cursor.lastrowid
+                    conn.commit()
+                    flash("Checklist concluído com sucesso.", "success")
+                    return redirect(url_for("main.visualizar_execucao_checklist", execucao_id=execucao_id))
+        finally:
+            cursor.close()
+            conn.close()
+
+        return render_template(
+            "checklist_dinamico_aplicar.html",
+            checklist=checklist,
+            estrutura=estrutura,
+            valores=valores,
+        )
+
+    @blueprint.get("/checklists/execucoes/<int:execucao_id>")
+    @login_required
+    def visualizar_execucao_checklist(execucao_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            execucao = _execucao_visivel(cursor, execucao_id)
+            if not execucao:
+                abort(404)
+            estrutura = _ler_estrutura(execucao.get("estrutura_snapshot_json"))
+            respostas = execucao.get("respostas_json") or {}
+            if isinstance(respostas, str):
+                try:
+                    respostas = json.loads(respostas)
+                except ValueError:
+                    respostas = {}
+        finally:
+            cursor.close()
+            conn.close()
+        return render_template(
+            "checklist_dinamico_visualizar.html",
+            execucao=execucao,
+            estrutura=estrutura,
+            respostas=respostas,
         )
