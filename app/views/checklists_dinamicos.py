@@ -29,10 +29,15 @@ TIPOS_RESPOSTA = {
     "matrix": "Matriz de avaliação",
     "ranking": "Ordem de prioridade",
     "rating": "Avaliação por nota",
-    "text": "Texto",
+    "text": "Texto curto",
+    "textarea": "Texto longo",
     "number": "Número",
     "counter": "Contador",
     "date": "Data",
+    "time": "Hora",
+    "person": "Uma pessoa",
+    "people": "Várias pessoas",
+    "sector": "Setor / Área",
 }
 
 
@@ -322,8 +327,10 @@ def _opcoes_periodo_listagem(hoje=None):
     return opcoes
 
 
-def _validar_respostas(estrutura, formulario):
+def _validar_respostas(estrutura, formulario, pessoas=None, setores=None):
     """Converte e valida as respostas sem confiar nos valores do navegador."""
+    pessoas = {str(item["id"]): item for item in (pessoas or [])}
+    setores = {str(item["id"]): item for item in (setores or [])}
     respostas = {}
     erros = []
     for secao_indice, secao in enumerate(estrutura):
@@ -335,6 +342,20 @@ def _validar_respostas(estrutura, formulario):
 
             if tipo == "multichoice":
                 valor = [v for v in formulario.getlist(chave) if v in item.get("options", [])]
+            elif tipo == "people":
+                ids = list(dict.fromkeys(formulario.getlist(chave)))
+                valor = [
+                    {"id": pessoas[item_id]["id"], "name": pessoas[item_id]["nome"],
+                     "registration": pessoas[item_id].get("matricula")}
+                    for item_id in ids if item_id in pessoas
+                ]
+            elif tipo == "person":
+                pessoa = pessoas.get(str(valor))
+                valor = ({"id": pessoa["id"], "name": pessoa["nome"],
+                          "registration": pessoa.get("matricula")} if pessoa else {})
+            elif tipo == "sector":
+                setor = setores.get(str(valor))
+                valor = ({"id": setor["id"], "name": setor["nome"]} if setor else {})
             elif tipo == "matrix":
                 valor = {}
                 colunas = item.get("matrix_columns", [])
@@ -379,6 +400,17 @@ def _validar_respostas(estrutura, formulario):
                     date.fromisoformat(valor)
                 except ValueError:
                     valor = ""
+            elif tipo == "time" and valor:
+                try:
+                    datetime.strptime(valor, "%H:%M")
+                except ValueError:
+                    valor = ""
+            elif tipo == "text" and len(valor) > 255:
+                valor = ""
+                erros.append(f"Use até 255 caracteres em: {item.get('text')}")
+            elif tipo == "textarea" and len(valor) > 3000:
+                valor = ""
+                erros.append(f"Use até 3.000 caracteres em: {item.get('text')}")
 
             vazio = valor in ("", [], {})
             if item.get("required") and vazio:
@@ -823,9 +855,30 @@ def register_checklists_dinamicos_routes(blueprint):
                 flash("Este checklist não possui itens publicados.", "danger")
                 return redirect(url_for("main.abrir_checklist_dinamico", checklist_id=checklist_id))
 
+            if (session.get("perfil") or "").lower() == "administrador":
+                cursor.execute("""
+                    SELECT id, nome, matricula FROM usuarios
+                     WHERE ativo = 1 ORDER BY nome
+                """)
+            elif session.get("centro_custos_id"):
+                cursor.execute("""
+                    SELECT id, nome, matricula FROM usuarios
+                     WHERE ativo = 1 AND centro_custos_id = %s ORDER BY nome
+                """, (session.get("centro_custos_id"),))
+            else:
+                cursor.execute("""
+                    SELECT id, nome, matricula FROM usuarios
+                     WHERE ativo = 1 AND id = %s
+                """, (session.get("usuario_id"),))
+            pessoas = cursor.fetchall()
+            cursor.execute("SELECT id, nome FROM setores WHERE ativo = 1 ORDER BY nome")
+            setores = cursor.fetchall()
+
             valores = request.form.to_dict(flat=False) if request.method == "POST" else {}
             if request.method == "POST":
-                respostas, erros = _validar_respostas(estrutura, request.form)
+                respostas, erros = _validar_respostas(
+                    estrutura, request.form, pessoas=pessoas, setores=setores
+                )
                 observacoes = (request.form.get("observacoes") or "").strip()
                 if len(observacoes) > 2000:
                     erros.append("Use até 2.000 caracteres nas observações gerais.")
@@ -859,6 +912,8 @@ def register_checklists_dinamicos_routes(blueprint):
             checklist=checklist,
             estrutura=estrutura,
             valores=valores,
+            pessoas=pessoas,
+            setores=setores,
         )
 
     @blueprint.get("/checklists/execucoes/<int:execucao_id>")

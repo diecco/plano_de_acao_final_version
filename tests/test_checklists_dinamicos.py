@@ -189,6 +189,40 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn(".checklist-section-summary-actions", css)
 
+    def test_additional_field_types_work_from_builder_to_execution(self):
+        from werkzeug.datastructures import MultiDict
+        from app.views.checklists_dinamicos import _validar_respostas, validar_estrutura
+
+        kinds = ["time", "text", "textarea", "person", "people", "sector"]
+        definition = [{
+            "title": "Identificação",
+            "questions": [{
+                "text": f"Campo {kind}", "type": kind, "required": True,
+                "negative_comment": False, "negative_evidence": False, "options": [],
+            } for kind in kinds],
+        }]
+        clean = validar_estrutura(json.dumps(definition))
+        form = MultiDict([
+            ("q_0_0", "08:30"), ("q_0_1", "Texto curto"),
+            ("q_0_2", "Texto longo"), ("q_0_3", "1"),
+            ("q_0_4", "1"), ("q_0_4", "2"), ("q_0_5", "7"),
+        ])
+        people = [
+            {"id": 1, "nome": "Pessoa A", "matricula": "001"},
+            {"id": 2, "nome": "Pessoa B", "matricula": "002"},
+        ]
+        answers, errors = _validar_respostas(
+            clean, form, pessoas=people, setores=[{"id": 7, "nome": "Operação"}]
+        )
+        self.assertEqual(errors, [])
+        self.assertEqual(answers["q_0_3"]["value"]["name"], "Pessoa A")
+        self.assertEqual(len(answers["q_0_4"]["value"]), 2)
+        self.assertEqual(answers["q_0_5"]["value"]["name"], "Operação")
+
+        javascript = (ROOT / "app" / "static" / "js" / "checklist-builder.js").read_text(encoding="utf-8")
+        for label in ("Hora", "Texto curto", "Texto longo", "Uma pessoa", "Várias pessoas", "Setor / Área"):
+            self.assertIn(label, javascript)
+
 
 if __name__ == "__main__":
     unittest.main()
