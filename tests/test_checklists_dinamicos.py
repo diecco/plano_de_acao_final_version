@@ -223,6 +223,31 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         for label in ("Hora", "Texto curto", "Texto longo", "Uma pessoa", "Várias pessoas", "Setor / Área"):
             self.assertIn(label, javascript)
 
+    def test_header_layout_is_compact_and_people_use_scoped_autocomplete(self):
+        from app.views.checklists_dinamicos import validar_estrutura
+
+        definition = [{
+            "title": "Dados Gerais",
+            "questions": [{
+                "text": "Auditados", "type": "people", "required": True,
+                "negative_comment": False, "negative_evidence": False, "options": [],
+            }],
+        }]
+        clean = validar_estrutura(json.dumps(definition))
+        self.assertEqual(clean[0]["layout"], "header")
+
+        builder = (ROOT / "app" / "static" / "js" / "checklist-builder.js").read_text(encoding="utf-8")
+        template = (ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html").read_text(encoding="utf-8")
+        runner = (ROOT / "app" / "static" / "js" / "checklist-run.js").read_text(encoding="utf-8")
+        self.assertIn("Cabeçalho · campos compactos", builder)
+        self.assertIn("checklist-header-card", template)
+        self.assertIn("data-person-picker", template)
+        self.assertIn("checklist-people-data", template)
+        self.assertIn("person-selected", runner)
+        source = (ROOT / "app" / "views" / "checklists_dinamicos.py").read_text(encoding="utf-8")
+        self.assertIn("cmc.centro_custos_id = u.centro_custos_id", source)
+        self.assertIn("AND u.ativo = 1", source)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,4 +10,14 @@
 .negative-details[hidden] { display: none !important; }
 .checklist-date { max-width: 260px; }
 .matrix-table th:first-child { min-width: 220px; }
+.checklist-header-card .checklist-question { height: 100%; padding: 0; border-top: 0; }
+.checklist-header-card .question-title { color: #4b5563; font-size: .88rem; }
+.checklist-header-card .checklist-date { max-width: none; }
+.checklist-person-picker { position: relative; }
+.person-results { position: absolute; z-index: 1060; top: calc(100% + 4px); left: 0; right: 0; max-height: 260px; overflow-y: auto; background: #fff; border: 1px solid #dee2e6; border-radius: .4rem; }
+.person-result { display: flex; align-items: center; gap: .6rem; padding: .6rem .75rem; cursor: pointer; margin: 0; font-size: .9rem; }
+.person-result:hover { background: #fff4eb; }
+.person-result input { accent-color: #f26722; }
+.person-empty { padding: .75rem; color: #6c757d; }
+.person-selected { margin-top: .4rem; color: #6c757d; font-size: .82rem; line-height: 1.4; }
 @media (max-width: 767px) { .answer-chip span { padding: .45rem .65rem; } }
