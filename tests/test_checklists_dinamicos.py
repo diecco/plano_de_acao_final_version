@@ -177,6 +177,18 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn('name="abrangencia"', editor)
         self.assertIn("Salvar alterações", editor)
 
+    def test_section_reordering_controls_are_visible_in_the_section_header(self):
+        javascript = (
+            ROOT / "app" / "static" / "js" / "checklist-builder.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn("checklist-section-summary-actions", javascript)
+        self.assertIn("actions(sections, sectionIndex, 'seção')", javascript)
+        self.assertIn("event.stopPropagation()", javascript)
+        css = (
+            ROOT / "app" / "static" / "css" / "checklist-builder.css"
+        ).read_text(encoding="utf-8")
+        self.assertIn(".checklist-section-summary-actions", css)
+
 
 if __name__ == "__main__":
     unittest.main()

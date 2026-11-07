@@ -146,9 +146,14 @@
         sections.forEach((section, sectionIndex) => {
             section.questions = Array.isArray(section.questions) ? section.questions : [];
             const wrapper = element('details', 'checklist-section'); wrapper.open = opened[sectionIndex] !== false;
-            const summary = element('summary', '', `${section.title || 'Nova seção'} · ${section.questions.length} item(ns)`);
+            const summary = element('summary', 'checklist-section-summary');
+            const summaryTitle = element('span', 'checklist-section-summary-title', `${section.title || 'Nova seção'} · ${section.questions.length} item(ns)`);
+            const summaryActions = actions(sections, sectionIndex, 'seção');
+            summaryActions.classList.add('checklist-section-summary-actions');
+            summaryActions.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); });
+            summary.append(summaryTitle, summaryActions);
             const heading = element('div', 'checklist-section-heading');
-            heading.append(field('Nome da seção', input(section.title || '', 120, value => { section.title = value; summary.firstChild.textContent = `${value || 'Nova seção'} · ${section.questions.length} item(ns)`; sync(); })), actions(sections, sectionIndex, 'seção'));
+            heading.append(field('Nome da seção', input(section.title || '', 120, value => { section.title = value; summaryTitle.textContent = `${value || 'Nova seção'} · ${section.questions.length} item(ns)`; sync(); })));
             wrapper.append(summary, heading);
 
             section.questions.forEach((question, questionIndex) => {
