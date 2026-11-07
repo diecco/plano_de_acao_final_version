@@ -1,0 +1,30 @@
+.checklist-editor-card .card-body { padding: 1.5rem; }
+.checklist-builder { display: grid; gap: 1rem; }
+.checklist-section { border: 1px solid #dee2e6; border-radius: .65rem; overflow: hidden; background: #fff; }
+.checklist-section > summary { cursor: pointer; list-style: none; padding: .8rem 1rem; background: #fff5ef; color: #d95614; font-weight: 600; }
+.checklist-section > summary::-webkit-details-marker { display: none; }
+.checklist-section > summary::after { content: "⌄"; float: right; }
+.checklist-section:not([open]) > summary::after { content: "›"; }
+.checklist-section-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; align-items: end; padding: 1rem; }
+.checklist-question { border-top: 1px solid #eceff1; padding: 1rem; display: grid; gap: .8rem; }
+.checklist-question-row { display: grid; grid-template-columns: minmax(240px, 2fr) minmax(210px, 1fr) auto; gap: .75rem; align-items: end; }
+.checklist-field label { display: block; margin-bottom: .35rem; font-size: .82rem; font-weight: 600; color: #4b5563; }
+.checklist-editor-actions { display: flex; align-items: center; gap: .35rem; }
+.checklist-editor-action { width: 34px; height: 34px; border: 1px solid #d7dde2; background: #fff; color: #535b61; border-radius: .4rem; padding: 0; }
+.checklist-editor-action:hover:not(:disabled) { border-color: #f26722; color: #f26722; }
+.checklist-editor-action:disabled { opacity: .35; cursor: default; }
+.checklist-rules { display: flex; flex-wrap: wrap; gap: .65rem 1.4rem; }
+.checklist-rule { display: inline-flex; align-items: center; gap: .45rem; font-size: .82rem; color: #536472; }
+.checklist-rule input { accent-color: #f26722; width: 16px; height: 16px; }
+.checklist-item-settings { border-top: 1px dashed #d7dde2; padding-top: .65rem; }
+.checklist-item-settings > summary { cursor: pointer; color: #d95614; font-size: .82rem; }
+.checklist-item-settings-body { display: grid; gap: .75rem; margin-top: .75rem; }
+.checklist-special-settings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+.checklist-special-settings.checklist-matrix { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.checklist-add-item { margin: 0 1rem 1rem; }
+.checklist-add-section { justify-self: start; }
+.checklist-builder [hidden] { display: none !important; }
+@media (max-width: 850px) {
+    .checklist-question-row, .checklist-section-heading { grid-template-columns: 1fr; }
+    .checklist-special-settings, .checklist-special-settings.checklist-matrix { grid-template-columns: 1fr; }
+}

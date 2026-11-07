@@ -111,11 +111,24 @@
                 </td>
                 <td class="text-center">
                     <div class="d-flex justify-content-center gap-2">
+                        {% if checklist.status == 'rascunho' %}
+                        <a class="btn-acao-icon"
+                           href="{{ url_for('main.editar_checklist_dinamico', checklist_id=checklist.id) }}"
+                           title="Configurar itens" aria-label="Configurar itens">
+                            <i class="bi bi-pencil-square"></i>
+                        </a>
                         <form method="post" action="{{ url_for('main.publicar_checklist_dinamico', checklist_id=checklist.id) }}">
-                            <button class="btn-acao-icon" type="submit" title="{{ 'Retirar publicação' if checklist.status == 'publicado' else 'Publicar' }}">
-                                <i class="bi {{ 'bi-cloud-slash' if checklist.status == 'publicado' else 'bi-cloud-upload' }}"></i>
+                            <button class="btn-acao-icon" type="submit" title="Publicar" aria-label="Publicar">
+                                <i class="bi bi-cloud-upload"></i>
                             </button>
                         </form>
+                        {% else %}
+                        <a class="btn-acao-icon"
+                           href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id) }}"
+                           title="Visualizar" aria-label="Visualizar">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        {% endif %}
                         <form method="post" action="{{ url_for('main.alternar_checklist_dinamico', checklist_id=checklist.id) }}">
                             <button class="btn-acao-icon" type="submit" title="{{ 'Inativar' if checklist.ativo else 'Ativar' }}">
                                 <i class="bi {{ 'bi-eye-slash' if checklist.ativo else 'bi-eye' }}"></i>

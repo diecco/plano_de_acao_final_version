@@ -13,7 +13,7 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 265)
+        self.assertEqual(len(self.routes), 266)
 
     def test_configurable_checklist_routes_are_registered(self):
         expected = {
@@ -25,6 +25,8 @@ class RouteStructureTests(unittest.TestCase):
                 "main.alternar_checklist_dinamico",
             ("/checklists/<int:checklist_id>", ("GET",)):
                 "main.abrir_checklist_dinamico",
+            ("/admin/checklists/<int:checklist_id>/editar", ("GET", "POST")):
+                "main.editar_checklist_dinamico",
         }
         for route_contract, endpoint in expected.items():
             self.assertEqual(self.routes.get(route_contract), endpoint)
