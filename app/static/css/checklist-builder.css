@@ -1,11 +1,16 @@
 .checklist-editor-card .card-body { padding: 1.5rem; }
 .checklist-builder { display: grid; gap: 1rem; }
 .checklist-section { border: 1px solid #dee2e6; border-radius: .65rem; overflow: hidden; background: #fff; }
-.checklist-section > summary { cursor: pointer; list-style: none; padding: .8rem 1rem; background: #fff5ef; color: #d95614; font-weight: 600; }
+.checklist-section > summary { cursor: pointer; list-style: none; padding: .65rem 1rem; background: #fff5ef; color: #d95614; font-weight: 600; }
 .checklist-section > summary::-webkit-details-marker { display: none; }
-.checklist-section > summary::after { content: "⌄"; float: right; }
-.checklist-section:not([open]) > summary::after { content: "›"; }
-.checklist-section-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; align-items: end; padding: 1rem; }
+.checklist-section-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: .75rem; align-items: center; }
+.checklist-section-summary::after { content: "⌄"; font-size: 1.15rem; }
+.checklist-section:not([open]) > .checklist-section-summary::after { content: "›"; }
+.checklist-section-summary-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.checklist-section-summary-actions { display: inline-flex; opacity: 1; }
+.checklist-section-summary-actions .checklist-editor-action { background: #fff; border-color: #f4b08c; color: #d95614; }
+.checklist-section-summary-actions .checklist-editor-action:hover:not(:disabled) { background: #f26722; border-color: #f26722; color: #fff; }
+.checklist-section-heading { display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; align-items: end; padding: 1rem; }
 .checklist-question { border-top: 1px solid #eceff1; padding: 1rem; display: grid; gap: .8rem; }
 .checklist-question-row { display: grid; grid-template-columns: minmax(240px, 2fr) minmax(210px, 1fr) auto; gap: .75rem; align-items: end; }
 .checklist-field label { display: block; margin-bottom: .35rem; font-size: .82rem; font-weight: 600; color: #4b5563; }
@@ -27,6 +32,8 @@
 @media (max-width: 850px) {
     .checklist-question-row, .checklist-section-heading { grid-template-columns: 1fr; }
     .checklist-special-settings, .checklist-special-settings.checklist-matrix { grid-template-columns: 1fr; }
+    .checklist-section-summary { grid-template-columns: minmax(0, 1fr) auto; }
+    .checklist-section-summary::after { display: none; }
 }
 .checklist-sidebar-switch .form-check-input:checked { background-color: #f26722; border-color: #f26722; }
 .checklist-sidebar-switch .form-check-input:focus { border-color: #f26722; box-shadow: 0 0 0 .2rem rgba(242, 103, 34, .18); }
