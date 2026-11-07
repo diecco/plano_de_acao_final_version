@@ -258,6 +258,9 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn("Desvio / evidência", template)
         self.assertIn("data-result-select", template)
         self.assertIn('select[name="${name}"]', runner)
+        css = (ROOT / "app" / "static" / "css" / "checklist-run.css").read_text(encoding="utf-8")
+        self.assertIn(".verification-result-column { width: 14%; }", css)
+        self.assertIn(".verification-deviation-column { width: 42%; }", css)
 
     def test_execution_does_not_add_a_fixed_general_observations_field(self):
         template = (ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html").read_text(encoding="utf-8")
