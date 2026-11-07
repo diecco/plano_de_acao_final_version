@@ -14,7 +14,9 @@
         ['matrix', 'Matriz de avaliação'],
         ['ranking', 'Ordem de prioridade'],
         ['rating', 'Avaliação por nota'],
-        ['text', 'Texto'], ['number', 'Número'], ['counter', 'Contador'], ['date', 'Data']
+        ['text', 'Texto curto'], ['textarea', 'Texto longo'],
+        ['person', 'Uma pessoa'], ['people', 'Várias pessoas'], ['sector', 'Setor / Área'],
+        ['number', 'Número'], ['counter', 'Contador'], ['date', 'Data'], ['time', 'Hora']
     ];
     let uid = 0;
     let sections = parse(hidden.value);
