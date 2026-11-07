@@ -22,7 +22,7 @@
 
 {% block conteudo %}
 {% macro lista_url(pagina=1, ordenacao=None, direcao=None) -%}
-{{ url_for('main.etiquetas_nfc', busca=filtros.busca, abrangencia=filtros.abrangencia, status=filtros.status, centro_custos_id=filtros.centro_custos_id, per_page=filtros.per_page, sort=ordenacao or filtros.sort, order=direcao or filtros.order, page=pagina) }}
+{{ url_for('main.etiquetas_nfc', busca=filtros.busca, abrangencia=filtros.abrangencia, status=filtros.status, centro_custos_id=filtros.centro_custos_id, sort=ordenacao or filtros.sort, order=direcao or filtros.order, page=pagina) }}
 {%- endmacro %}
 
 <div class="d-flex align-items-center justify-content-between mb-4">
@@ -70,13 +70,7 @@
             {% for centro in centros_custos %}<option value="{{ centro.id }}" {{ 'selected' if filtros.centro_custos_id == centro.id|string }}>{{ centro.codigo }} - {{ centro.descricao }}</option>{% endfor %}
           </select>
         </div>
-        <div class="col-6 col-lg-2">
-          <label class="form-label" for="porPagina">Por página</label>
-          <select class="form-select" id="porPagina" name="per_page">
-            {% for quantidade in (20, 50, 100) %}<option value="{{ quantidade }}" {{ 'selected' if filtros.per_page == quantidade }}>{{ quantidade }}</option>{% endfor %}
-          </select>
-        </div>
-        <div class="col-6 col-lg-10">
+        <div class="col-12">
           <div class="d-flex justify-content-end gap-2 nfc-actions">
             <button class="btn btn-laranja" type="submit" title="Aplicar filtros" aria-label="Aplicar filtros"><i class="bi bi-funnel"></i></button>
             <a class="btn btn-cinza" href="{{ url_for('main.etiquetas_nfc') }}" title="Limpar filtros" aria-label="Limpar filtros"><i class="bi bi-arrow-clockwise"></i></a>

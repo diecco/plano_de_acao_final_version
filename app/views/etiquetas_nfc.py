@@ -102,9 +102,7 @@ def register_etiquetas_nfc_routes(blueprint):
             status_filtro = request.args.get("status") or ""
             centro_filtro = request.args.get("centro_custos_id", type=int)
             pagina = max(request.args.get("page", 1, type=int), 1)
-            por_pagina = request.args.get("per_page", 20, type=int)
-            if por_pagina not in {20, 50, 100}:
-                por_pagina = 20
+            por_pagina = 30
             ordenar = request.args.get("sort") or "numero"
             direcao = "desc" if request.args.get("order") == "desc" else "asc"
             colunas_ordenacao = {
@@ -187,7 +185,7 @@ def register_etiquetas_nfc_routes(blueprint):
                 "busca": busca, "abrangencia": abrangencia_filtro,
                 "status": status_filtro,
                 "centro_custos_id": str(centro_filtro or ""),
-                "sort": ordenar, "order": direcao, "per_page": por_pagina,
+                "sort": ordenar, "order": direcao,
             }
             return render_template(
                 "etiquetas_nfc.html", etiquetas=etiquetas,

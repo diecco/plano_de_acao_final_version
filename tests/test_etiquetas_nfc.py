@@ -39,6 +39,8 @@ class EtiquetasNfcTest(unittest.TestCase):
         self.assertIn("total_paginas", template)
         self.assertIn("colunas_ordenacao", source)
         self.assertIn("LIMIT %s OFFSET %s", source)
+        self.assertIn("por_pagina = 30", source)
+        self.assertNotIn("Por página", template)
 
 
 if __name__ == "__main__":
