@@ -685,6 +685,15 @@ def register_checklists_dinamicos_routes(blueprint):
             parametros.append(data_fim.isoformat())
             escopo = " AND ".join(condicoes) or "1 = 1"
             cursor.execute(f"""
+                SELECT COUNT(*) AS total_preenchimentos,
+                       COUNT(DISTINCT ce.executor_id) AS total_responsaveis,
+                       COUNT(DISTINCT DATE(ce.concluido_em)) AS dias_com_atividade,
+                       MAX(ce.concluido_em) AS ultimo_preenchimento
+                  FROM checklist_execucoes ce
+                 WHERE ce.checklist_id = %s AND ({escopo})
+            """, parametros)
+            indicadores = cursor.fetchone() or {}
+            cursor.execute(f"""
                 SELECT ce.id, ce.concluido_em, ce.executor_id,
                        u.nome AS executor_nome,
                        cc.codigo AS centro_codigo
@@ -726,6 +735,7 @@ def register_checklists_dinamicos_routes(blueprint):
             estrutura=estrutura,
             tipos_resposta=TIPOS_RESPOSTA,
             execucoes=execucoes,
+            indicadores=indicadores,
             usuarios_filtro=usuarios_filtro,
             executor_selecionado=executor_selecionado,
             opcoes_periodo=_opcoes_periodo_listagem(),

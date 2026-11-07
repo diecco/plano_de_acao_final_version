@@ -12,7 +12,7 @@
         <form method="get" action="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id) }}">
             <div class="bloco-filtros">
                 <div class="row g-3 align-items-end">
-                    <div class="col-12 col-md-6 col-xl-4">
+                    <div class="col-12 col-md-6 col-xl-3">
                         <label for="periodo" class="form-label">Período do preenchimento</label>
                         <select class="form-select" id="periodo" name="periodo">
                             {% for opcao in opcoes_periodo %}<option value="{{ opcao.valor }}" {% if filtros.periodo == opcao.valor %}selected{% endif %}>{{ opcao.rotulo }}</option>{% endfor %}
@@ -20,15 +20,15 @@
                             <option value="personalizado" {% if filtros.periodo == 'personalizado' %}selected{% endif %}>Período personalizado</option>
                         </select>
                     </div>
-                    <div class="col-12 col-md-6 col-xl-3 d-none" id="campo_mes_referencia">
+                    <div class="col-12 col-md-6 col-xl-2 d-none" id="campo_mes_referencia">
                         <label for="mes_referencia" class="form-label">Mês e ano</label>
                         <input class="form-control" type="month" id="mes_referencia" name="mes_referencia" value="{{ filtros.mes_referencia }}">
                     </div>
-                    <div class="col-12 col-md-6 col-xl-3 d-none" id="campo_data_inicio">
+                    <div class="col-12 col-md-6 col-xl-2 d-none" id="campo_data_inicio">
                         <label for="data_inicio" class="form-label">Data inicial</label>
                         <input class="form-control" type="date" name="data_inicio" id="data_inicio" value="{{ filtros.data_inicio }}">
                     </div>
-                    <div class="col-12 col-md-6 col-xl-3 d-none" id="campo_data_fim">
+                    <div class="col-12 col-md-6 col-xl-2 d-none" id="campo_data_fim">
                         <label for="data_fim" class="form-label">Data final</label>
                         <input class="form-control" type="date" name="data_fim" id="data_fim" value="{{ filtros.data_fim }}">
                     </div>
@@ -38,7 +38,7 @@
                         <input type="hidden" name="executor_id" id="executor_id" value="{{ filtros.executor_id }}">
                         <div id="executor_resultados" class="autocomplete-list shadow-sm d-none"></div>
                     </div>
-                    <div class="col-12 col-xl-auto ms-xl-auto">
+                    <div class="col-12 col-xl-2">
                         <div class="d-flex gap-2 justify-content-end">
                             <button class="btn btn-laranja" type="submit" title="Filtrar" aria-label="Filtrar"><i class="bi bi-funnel"></i></button>
                             <a class="btn btn-cinza" href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id) }}" title="Limpar filtros" aria-label="Limpar filtros"><i class="bi bi-arrow-clockwise"></i></a>
@@ -48,6 +48,20 @@
                 </div>
             </div>
         </form>
+    </div>
+</div>
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 metric-card card-accent-primary"><div class="card-body d-flex align-items-center gap-3"><div class="metric-icon"><i class="bi bi-ui-checks-grid"></i></div><div><div class="text-muted small">Preenchimentos</div><div class="fs-3 fw-bold">{{ indicadores.total_preenchimentos or 0 }}</div></div></div></div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 metric-card card-accent-success"><div class="card-body d-flex align-items-center gap-3"><div class="metric-icon"><i class="bi bi-people"></i></div><div><div class="text-muted small">Responsáveis</div><div class="fs-3 fw-bold">{{ indicadores.total_responsaveis or 0 }}</div></div></div></div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 metric-card card-accent-warning"><div class="card-body d-flex align-items-center gap-3"><div class="metric-icon"><i class="bi bi-calendar-check"></i></div><div><div class="text-muted small">Dias com atividade</div><div class="fs-3 fw-bold">{{ indicadores.dias_com_atividade or 0 }}</div></div></div></div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 metric-card card-accent-neutral"><div class="card-body d-flex align-items-center gap-3"><div class="metric-icon"><i class="bi bi-clock-history"></i></div><div><div class="text-muted small">Último preenchimento</div><div class="fw-bold">{% if indicadores.ultimo_preenchimento %}{{ indicadores.ultimo_preenchimento.strftime('%d/%m/%Y %H:%M') }}{% else %}-{% endif %}</div></div></div></div>
     </div>
 </div>
 <div class="card border-0 shadow-sm">
@@ -142,5 +156,11 @@ document.addEventListener('DOMContentLoaded', function () {
 .autocomplete-item { width:100%; border:0; background:#fff; padding:.65rem .85rem; display:flex; flex-direction:column; align-items:flex-start; text-align:left; }
 .autocomplete-item:hover,.autocomplete-item:focus { background:#fff4eb; }
 .autocomplete-empty { padding:.75rem .85rem; color:#6c757d; }
+.metric-card { border-left:4px solid #adb5bd !important; }
+.card-accent-primary { border-left-color:#0d6efd !important; }
+.card-accent-success { border-left-color:#198754 !important; }
+.card-accent-warning { border-left-color:#ffc107 !important; }
+.card-accent-neutral { border-left-color:#6c757d !important; }
+.metric-icon { width:42px; height:42px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:#f8f9fa; color:#ea6a23; font-size:1.25rem; flex:0 0 auto; }
 </style>
 {% endblock %}
