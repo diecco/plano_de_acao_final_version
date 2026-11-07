@@ -6,15 +6,19 @@
 <div class="page-header"><h2 class="page-title text-center mb-0"><i class="bi bi-ui-checks-grid me-2"></i>{{ checklist.nome }}</h2></div>
 <hr>
 <form method="post" class="checklist-run" novalidate>
+{% set section_counter = namespace(value=0) %}
 {% for secao in estrutura %}
     {% set si = loop.index0 %}
-    <section class="card border-0 shadow-sm mb-4">
+    {% if secao.layout != 'header' %}{% set section_counter.value = section_counter.value + 1 %}{% endif %}
+    <section class="card border-0 shadow-sm mb-4 {% if secao.layout == 'header' %}checklist-header-card{% endif %}">
         <div class="card-body p-4">
-            <h5 class="text-laranja mb-4">{{ loop.index }}. {{ secao.title }}</h5>
+            <h5 class="text-laranja mb-4">{% if secao.layout != 'header' %}{{ section_counter.value }}. {% endif %}{{ secao.title }}</h5>
+            <div class="{% if secao.layout == 'header' %}row g-3{% endif %}">
             {% for item in secao.questions %}
                 {% set ii = loop.index0 %}{% set key = 'q_' ~ si ~ '_' ~ ii %}{% set current = valores.get(key, [''])[0] %}
+                <div class="{% if secao.layout == 'header' %}{% if item.type in ['textarea', 'people', 'matrix', 'ranking'] %}col-12{% elif item.type in ['date', 'time'] %}col-12 col-md-3{% else %}col-12 col-md-6 col-xl-4{% endif %}{% endif %}">
                 <div class="checklist-question" data-type="{{ item.type }}">
-                    <label class="question-title">{{ loop.index }}. {{ item.text }}{% if item.required %} <span class="text-danger">*</span>{% endif %}</label>
+                    <label class="question-title">{% if secao.layout != 'header' %}{{ loop.index }}. {% endif %}{{ item.text }}{% if item.required %} <span class="text-danger">*</span>{% endif %}</label>
                     {% if item.help %}<small class="d-block text-muted mb-2">{{ item.help }}</small>{% endif %}
 
                     {% if item.type == 'text' %}
@@ -28,9 +32,9 @@
                     {% elif item.type == 'time' %}
                         <input class="form-control checklist-date" type="time" name="{{ key }}" value="{{ current }}">
                     {% elif item.type == 'person' %}
-                        <select class="form-select" name="{{ key }}"><option value="">Selecione uma pessoa</option>{% for pessoa in pessoas %}<option value="{{ pessoa.id }}" {% if current == pessoa.id|string %}selected{% endif %}>{{ pessoa.nome }}{% if pessoa.matricula %} — {{ pessoa.matricula }}{% endif %}</option>{% endfor %}</select>
+                        <div class="checklist-person-picker" data-person-picker data-mode="single" data-name="{{ key }}"><input class="form-control person-search" autocomplete="off" placeholder="Digite o nome ou a matrícula" value="{% for pessoa in pessoas %}{% if current == pessoa.id|string %}{{ pessoa.nome }}{% if pessoa.matricula %} — {{ pessoa.matricula }}{% endif %}{% endif %}{% endfor %}"><input type="hidden" name="{{ key }}" value="{{ current }}" data-person-value><div class="person-results shadow-sm" hidden></div></div>
                     {% elif item.type == 'people' %}
-                        <select class="form-select" name="{{ key }}" multiple size="6">{% for pessoa in pessoas %}<option value="{{ pessoa.id }}" {% if pessoa.id|string in valores.get(key, []) %}selected{% endif %}>{{ pessoa.nome }}{% if pessoa.matricula %} — {{ pessoa.matricula }}{% endif %}</option>{% endfor %}</select><small class="form-text">Use Ctrl para selecionar mais de uma pessoa.</small>
+                        <div class="checklist-person-picker" data-person-picker data-mode="multiple" data-name="{{ key }}"><input class="form-control person-search" autocomplete="off" placeholder="Buscar por nome ou matrícula"><div data-person-values>{% for pessoa_id in valores.get(key, []) %}<input type="hidden" name="{{ key }}" value="{{ pessoa_id }}">{% endfor %}</div><div class="person-results shadow-sm" hidden></div><div class="person-selected" data-person-selected></div></div>
                     {% elif item.type == 'sector' %}
                         <select class="form-select" name="{{ key }}"><option value="">Selecione o setor ou área</option>{% for setor in setores %}<option value="{{ setor.id }}" {% if current == setor.id|string %}selected{% endif %}>{{ setor.nome }}</option>{% endfor %}</select>
                     {% elif item.type in ['conformity', 'yes_no'] %}
@@ -60,12 +64,15 @@
                     </div>
                     {% endif %}
                 </div>
+                </div>
             {% endfor %}
+            </div>
         </div>
     </section>
 {% endfor %}
 <div class="card border-0 shadow-sm mb-4"><div class="card-body p-4"><label class="form-label text-laranja">Observações gerais</label><textarea class="form-control" name="observacoes" rows="3" maxlength="2000">{{ valores.get('observacoes', [''])[0] }}</textarea></div></div>
 <div class="d-flex justify-content-between gap-2"><a class="btn btn-secondary" href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id) }}">Voltar</a><button class="btn btn-laranja" type="submit">Concluir checklist</button></div>
 </form>
+<script id="checklist-people-data" type="application/json">{{ pessoas|tojson }}</script>
 <script src="{{ url_for('static', filename='js/checklist-run.js') }}" defer></script>
 {% endblock %}

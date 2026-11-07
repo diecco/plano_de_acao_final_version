@@ -75,7 +75,7 @@ def validar_estrutura(raw):
 
     limpas = []
     total = 0
-    for secao in secoes:
+    for secao_indice, secao in enumerate(secoes):
         if not isinstance(secao, dict):
             raise ValueError("Seção inválida.")
         titulo = secao.get("title")
@@ -167,7 +167,16 @@ def validar_estrutura(raw):
                     raise ValueError("O valor inicial do contador deve estar entre o mínimo e o máximo.")
                 item.update(minimum=minimo, maximum=maximo, counter_initial=inicial, counted=contado)
             itens.append(item)
-        limpas.append({"title": titulo.strip(), "questions": itens})
+        layout = secao.get("layout")
+        if layout is None:
+            layout = (
+                "header" if secao_indice == 0 and _normalizar_texto(titulo) in {
+                    "dados gerais", "identificacao", "cabecalho"
+                } else "standard"
+            )
+        if layout not in {"standard", "header"}:
+            raise ValueError("Confira a apresentação de cada seção.")
+        limpas.append({"title": titulo.strip(), "layout": layout, "questions": itens})
     return limpas
 
 
@@ -276,7 +285,19 @@ def _ler_estrutura(valor):
         estrutura = json.loads(valor or "[]")
     except (TypeError, ValueError):
         return []
-    return estrutura if isinstance(estrutura, list) else []
+    if not isinstance(estrutura, list):
+        return []
+    for indice, secao in enumerate(estrutura):
+        if not isinstance(secao, dict):
+            continue
+        if "layout" not in secao:
+            titulo = _normalizar_texto(secao.get("title"))
+            secao["layout"] = (
+                "header" if indice == 0 and titulo in {
+                    "dados gerais", "identificacao", "cabecalho"
+                } else "standard"
+            )
+    return estrutura
 
 
 def _chave_resposta(secao_indice, item_indice):
@@ -654,9 +675,9 @@ def register_checklists_dinamicos_routes(blueprint):
                     flash("Checklist atualizado com sucesso.", "success")
                     return redirect(url_for("main.editar_checklist_dinamico", checklist_id=checklist_id))
 
-            estrutura = checklist.get("estrutura_json") or "[]"
-            if not isinstance(estrutura, str):
-                estrutura = json.dumps(estrutura, ensure_ascii=False)
+            estrutura = json.dumps(
+                _ler_estrutura(checklist.get("estrutura_json")), ensure_ascii=False
+            )
         finally:
             cursor.close()
             conn.close()
@@ -855,7 +876,18 @@ def register_checklists_dinamicos_routes(blueprint):
                 flash("Este checklist não possui itens publicados.", "danger")
                 return redirect(url_for("main.abrir_checklist_dinamico", checklist_id=checklist_id))
 
-            if (session.get("perfil") or "").lower() == "administrador":
+            if ((session.get("perfil") or "").lower() == "administrador"
+                    and checklist.get("abrangencia") == "centros"):
+                cursor.execute("""
+                    SELECT DISTINCT u.id, u.nome, u.matricula
+                      FROM usuarios u
+                      JOIN checklist_modelos_centros cmc
+                        ON cmc.centro_custos_id = u.centro_custos_id
+                     WHERE cmc.checklist_id = %s
+                       AND u.ativo = 1
+                     ORDER BY u.nome
+                """, (checklist_id,))
+            elif (session.get("perfil") or "").lower() == "administrador":
                 cursor.execute("""
                     SELECT id, nome, matricula FROM usuarios
                      WHERE ativo = 1 ORDER BY nome

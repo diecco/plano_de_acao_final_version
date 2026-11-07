@@ -155,7 +155,13 @@
             summaryActions.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); });
             summary.append(summaryTitle, summaryActions);
             const heading = element('div', 'checklist-section-heading');
-            heading.append(field('Nome da seção', input(section.title || '', 120, value => { section.title = value; summaryTitle.textContent = `${value || 'Nova seção'} · ${section.questions.length} item(ns)`; sync(); })));
+            heading.append(
+                field('Nome da seção', input(section.title || '', 120, value => { section.title = value; summaryTitle.textContent = `${value || 'Nova seção'} · ${section.questions.length} item(ns)`; sync(); })),
+                field('Apresentação', select([
+                    ['standard', 'Seção de verificação'],
+                    ['header', 'Cabeçalho · campos compactos']
+                ], section.layout || 'standard', value => { section.layout = value; sync(); }))
+            );
             wrapper.append(summary, heading);
 
             section.questions.forEach((question, questionIndex) => {
@@ -198,7 +204,7 @@
 
     addSection.addEventListener('click', () => {
         if (sections.length >= 30) return;
-        sections.push({title: '', questions: [newQuestion()]}); sync(); render();
+        sections.push({title: '', layout: 'standard', questions: [newQuestion()]}); sync(); render();
         host.lastElementChild.open = true;
     });
     render();
