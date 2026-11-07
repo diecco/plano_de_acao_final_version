@@ -28,3 +28,6 @@
     .checklist-question-row, .checklist-section-heading { grid-template-columns: 1fr; }
     .checklist-special-settings, .checklist-special-settings.checklist-matrix { grid-template-columns: 1fr; }
 }
+.checklist-sidebar-switch .form-check-input:checked { background-color: #f26722; border-color: #f26722; }
+.checklist-sidebar-switch .form-check-input:focus { border-color: #f26722; box-shadow: 0 0 0 .2rem rgba(242, 103, 34, .18); }
+.checklist-sidebar-options { border-left: 3px solid #f26722; padding-left: 1rem; }

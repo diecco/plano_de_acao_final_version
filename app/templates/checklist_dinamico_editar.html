@@ -21,11 +21,47 @@
                 <h5 class="mb-1">Itens de verificação</h5>
                 <p class="text-muted mb-0">Organize as seções, perguntas e regras de preenchimento.</p>
             </div>
-            <span class="badge bg-secondary">Rascunho</span>
+            <span class="badge {{ 'bg-success' if checklist.status == 'publicado' else 'bg-secondary' }}">{{ checklist.status|capitalize }}</span>
         </div>
 
         <form method="post" id="checklistBuilderForm">
             <input type="hidden" id="estrutura_json" name="estrutura_json" value='{{ estrutura|e }}'>
+            <div class="row g-3 mb-4">
+                <div class="col-12 col-lg-7">
+                    <label class="form-label" for="nome">Nome do checklist</label>
+                    <input class="form-control" id="nome" name="nome" maxlength="150" value="{{ checklist.nome }}" required>
+                </div>
+                <div class="col-12 col-lg-5">
+                    <label class="form-label" for="abrangencia">Abrangência</label>
+                    <select class="form-select" id="abrangencia" name="abrangencia">
+                        <option value="global" {% if checklist.abrangencia == 'global' %}selected{% endif %}>Global</option>
+                        <option value="centros" {% if checklist.abrangencia == 'centros' %}selected{% endif %}>Centros de custos selecionados</option>
+                    </select>
+                </div>
+                <div class="col-12" id="blocoCentros" {% if checklist.abrangencia != 'centros' %}hidden{% endif %}>
+                    <label class="form-label" for="centro_custos_ids">Centros de custos</label>
+                    <select class="form-select" id="centro_custos_ids" name="centro_custos_ids" multiple size="5">
+                        {% for centro in centros_custos %}<option value="{{ centro.id }}" {% if centro.id|string in centro_ids_selecionados %}selected{% endif %}>{{ centro.codigo }} - {{ centro.descricao }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="descricao">Descrição</label>
+                    <textarea class="form-control" id="descricao" name="descricao" rows="2" maxlength="2000">{{ checklist.descricao or '' }}</textarea>
+                </div>
+                <div class="col-12">
+                    <div class="form-check form-switch checklist-sidebar-switch">
+                        <input class="form-check-input" id="exibir_menu" name="exibir_menu" type="checkbox" value="1" {% if checklist.exibir_menu %}checked{% endif %}>
+                        <label class="form-check-label" for="exibir_menu">Exibir na sidebar</label>
+                    </div>
+                </div>
+                <div class="col-12 checklist-sidebar-options" id="blocoSidebar" {% if not checklist.exibir_menu %}hidden{% endif %}>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-9"><label class="form-label" for="modulo_menu">Local na sidebar</label><select class="form-select" id="modulo_menu" name="modulo_menu">{% for valor, rotulo in modulos_menu.items() %}<option value="{{ valor }}" {% if checklist.modulo_menu == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}</select></div>
+                        <div class="col-12 col-md-3"><label class="form-label" for="ordem_menu">Ordem</label><input class="form-control" id="ordem_menu" name="ordem_menu" type="number" min="0" value="{{ checklist.ordem_menu or 0 }}"></div>
+                    </div>
+                </div>
+            </div>
+            <hr>
             <div class="checklist-builder" data-checklist-builder>
                 <div data-sections></div>
                 <button class="btn btn-outline-secondary checklist-add-section" type="button" data-add-section>
@@ -35,7 +71,7 @@
             </div>
             <div class="d-flex justify-content-between align-items-center gap-3 mt-4 pt-3 border-top">
                 <a class="btn btn-secondary" href="{{ url_for('main.checklists_dinamicos') }}">Voltar</a>
-                <button class="btn btn-laranja" type="submit">Salvar itens</button>
+                <button class="btn btn-laranja" type="submit">Salvar alterações</button>
             </div>
         </form>
     </div>
@@ -44,4 +80,18 @@
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/checklist-builder.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const abrangencia = document.getElementById('abrangencia');
+    const blocoCentros = document.getElementById('blocoCentros');
+    const centros = document.getElementById('centro_custos_ids');
+    const exibirMenu = document.getElementById('exibir_menu');
+    const blocoSidebar = document.getElementById('blocoSidebar');
+    function atualizarAbrangencia() { const direcionado = abrangencia.value === 'centros'; blocoCentros.hidden = !direcionado; centros.required = direcionado; }
+    function atualizarSidebar() { blocoSidebar.hidden = !exibirMenu.checked; }
+    abrangencia.addEventListener('change', atualizarAbrangencia);
+    exibirMenu.addEventListener('change', atualizarSidebar);
+    atualizarAbrangencia(); atualizarSidebar();
+});
+</script>
 {% endblock %}

@@ -545,12 +545,56 @@ def register_checklists_dinamicos_routes(blueprint):
             checklist = cursor.fetchone()
             if not checklist:
                 abort(404)
-            if checklist["status"] == "publicado":
-                flash("A versão publicada é somente leitura.", "info")
-                return redirect(url_for("main.checklists_dinamicos"))
+
+            cursor.execute("""
+                SELECT id, codigo, descricao FROM centros_custos
+                 WHERE ativo = 1 ORDER BY codigo, descricao
+            """)
+            centros_custos = cursor.fetchall()
+            cursor.execute(
+                "SELECT centro_custos_id FROM checklist_modelos_centros WHERE checklist_id = %s",
+                (checklist_id,),
+            )
+            centro_ids_selecionados = [str(item["centro_custos_id"]) for item in cursor.fetchall()]
 
             if request.method == "POST":
+                nome = (request.form.get("nome") or "").strip()
+                descricao = (request.form.get("descricao") or "").strip()
+                abrangencia = request.form.get("abrangencia") or "global"
+                centro_ids_selecionados = list(dict.fromkeys(request.form.getlist("centro_custos_ids")))
+                modulo_menu = request.form.get("modulo_menu") or "ssma"
+                exibir_menu = 1 if request.form.get("exibir_menu") == "1" else 0
+                ordem_menu = _inteiro_nao_negativo(request.form.get("ordem_menu"))
+                checklist.update(
+                    nome=nome, descricao=descricao, abrangencia=abrangencia,
+                    modulo_menu=modulo_menu, exibir_menu=exibir_menu,
+                    ordem_menu=ordem_menu,
+                )
                 try:
+                    if not nome:
+                        raise ValueError("Informe o nome do checklist.")
+                    if abrangencia not in {"global", "centros"}:
+                        raise ValueError("Selecione uma abrangência válida.")
+                    if abrangencia == "centros" and not centro_ids_selecionados:
+                        raise ValueError("Selecione ao menos um centro de custos.")
+                    if modulo_menu not in MODULOS_MENU:
+                        raise ValueError("Selecione um módulo válido para a sidebar.")
+                    cursor.execute("""
+                        SELECT id FROM checklist_modelos
+                         WHERE LOWER(TRIM(nome)) = LOWER(TRIM(%s)) AND id <> %s
+                         LIMIT 1
+                    """, (nome, checklist_id))
+                    if cursor.fetchone():
+                        raise ValueError("Já existe outro checklist com esse nome.")
+                    if abrangencia == "centros":
+                        cursor.execute(
+                            "SELECT id FROM centros_custos WHERE ativo = 1 AND id IN ({})".format(
+                                ",".join(["%s"] * len(centro_ids_selecionados))
+                            ),
+                            centro_ids_selecionados,
+                        )
+                        if {str(item["id"]) for item in cursor.fetchall()} != set(centro_ids_selecionados):
+                            raise ValueError("Um dos centros de custos selecionados é inválido.")
                     estrutura = validar_estrutura(request.form.get("estrutura_json"))
                 except ValueError as erro:
                     flash(str(erro), "danger")
@@ -559,11 +603,23 @@ def register_checklists_dinamicos_routes(blueprint):
                     estrutura_json = json.dumps(estrutura, ensure_ascii=False)
                     cursor.execute("""
                         UPDATE checklist_modelos
-                           SET estrutura_json = %s
-                         WHERE id = %s AND status = 'rascunho'
-                    """, (estrutura_json, checklist_id))
+                           SET nome = %s, descricao = %s, abrangencia = %s,
+                               exibir_menu = %s, modulo_menu = %s, ordem_menu = %s,
+                               estrutura_json = %s,
+                               publicado_em = CASE WHEN status = 'publicado' THEN CURRENT_TIMESTAMP ELSE publicado_em END
+                         WHERE id = %s
+                    """, (
+                        nome, descricao or None, abrangencia, exibir_menu,
+                        modulo_menu, ordem_menu, estrutura_json, checklist_id,
+                    ))
+                    cursor.execute("DELETE FROM checklist_modelos_centros WHERE checklist_id = %s", (checklist_id,))
+                    if abrangencia == "centros":
+                        cursor.executemany("""
+                            INSERT INTO checklist_modelos_centros (checklist_id, centro_custos_id)
+                            VALUES (%s, %s)
+                        """, [(checklist_id, centro_id) for centro_id in centro_ids_selecionados])
                     conn.commit()
-                    flash("Itens de verificação salvos.", "success")
+                    flash("Checklist atualizado com sucesso.", "success")
                     return redirect(url_for("main.editar_checklist_dinamico", checklist_id=checklist_id))
 
             estrutura = checklist.get("estrutura_json") or "[]"
@@ -578,6 +634,9 @@ def register_checklists_dinamicos_routes(blueprint):
             checklist=checklist,
             estrutura=estrutura,
             tipos_resposta=TIPOS_RESPOSTA,
+            centros_custos=centros_custos,
+            centro_ids_selecionados=centro_ids_selecionados,
+            modulos_menu=MODULOS_MENU,
         )
 
     @blueprint.post("/admin/checklists/<int:checklist_id>/publicar")

@@ -155,6 +155,28 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn("Último preenchimento", template)
         self.assertNotIn("Total de desvios", template)
 
+    def test_published_checklist_can_be_edited_without_changing_history(self):
+        source = (
+            ROOT / "app" / "views" / "checklists_dinamicos.py"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("A versão publicada é somente leitura", source)
+        self.assertIn("DELETE FROM checklist_modelos_centros", source)
+        self.assertIn("Checklist atualizado com sucesso", source)
+
+        listing = (
+            ROOT / "app" / "templates" / "checklists_dinamicos.html"
+        ).read_text(encoding="utf-8")
+        published_branch = listing.split("{% else %}", 1)[1]
+        self.assertIn("main.editar_checklist_dinamico", published_branch)
+        self.assertIn('title="Editar"', published_branch)
+
+        editor = (
+            ROOT / "app" / "templates" / "checklist_dinamico_editar.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn('name="nome"', editor)
+        self.assertIn('name="abrangencia"', editor)
+        self.assertIn("Salvar alterações", editor)
+
 
 if __name__ == "__main__":
     unittest.main()
