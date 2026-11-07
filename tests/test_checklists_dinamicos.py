@@ -109,6 +109,18 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn("Concluir checklist", template)
         self.assertIn("negative-details", template)
 
+    def test_listing_uses_the_standard_filter_and_new_record_toolbar(self):
+        template = (
+            ROOT / "app" / "templates" / "checklist_dinamico_esboco.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn('name="executor_id"', template)
+        self.assertIn('name="data_inicio"', template)
+        self.assertIn('name="data_fim"', template)
+        self.assertIn("bi-funnel", template)
+        self.assertIn("bi-arrow-clockwise", template)
+        self.assertIn("bi-plus-circle", template)
+        self.assertNotIn("Novo preenchimento", template)
+
 
 if __name__ == "__main__":
     unittest.main()

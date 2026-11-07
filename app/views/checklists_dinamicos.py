@@ -602,16 +602,42 @@ def register_checklists_dinamicos_routes(blueprint):
             if not _pode_acessar_modulo(checklist["modulo_menu"]):
                 abort(403)
             estrutura = _ler_estrutura(checklist.get("estrutura_json"))
+            perfil_admin = (session.get("perfil") or "").lower() == "administrador"
+            centro_id = session.get("centro_custos_id")
+            executor_id = (request.args.get("executor_id") or "").strip()
+            data_inicio = (request.args.get("data_inicio") or "").strip()
+            data_fim = (request.args.get("data_fim") or "").strip()
+            for nome, valor in (("data_inicio", data_inicio), ("data_fim", data_fim)):
+                if valor:
+                    try:
+                        date.fromisoformat(valor)
+                    except ValueError:
+                        if nome == "data_inicio":
+                            data_inicio = ""
+                        else:
+                            data_fim = ""
+            if executor_id and not executor_id.isdigit():
+                executor_id = ""
+
             parametros = [checklist_id]
-            escopo = "1 = 1"
-            if (session.get("perfil") or "").lower() != "administrador":
-                centro_id = session.get("centro_custos_id")
+            condicoes = []
+            if not perfil_admin:
                 if centro_id:
-                    escopo = "ce.centro_custos_id = %s"
+                    condicoes.append("ce.centro_custos_id = %s")
                     parametros.append(centro_id)
                 else:
-                    escopo = "ce.executor_id = %s"
+                    condicoes.append("ce.executor_id = %s")
                     parametros.append(session.get("usuario_id"))
+            if executor_id:
+                condicoes.append("ce.executor_id = %s")
+                parametros.append(int(executor_id))
+            if data_inicio:
+                condicoes.append("DATE(ce.concluido_em) >= %s")
+                parametros.append(data_inicio)
+            if data_fim:
+                condicoes.append("DATE(ce.concluido_em) <= %s")
+                parametros.append(data_fim)
+            escopo = " AND ".join(condicoes) or "1 = 1"
             cursor.execute(f"""
                 SELECT ce.id, ce.concluido_em, ce.executor_id,
                        u.nome AS executor_nome,
@@ -624,6 +650,21 @@ def register_checklists_dinamicos_routes(blueprint):
                  LIMIT 50
             """, parametros)
             execucoes = cursor.fetchall()
+
+            if perfil_admin:
+                cursor.execute("SELECT id, nome, matricula FROM usuarios ORDER BY nome")
+            elif centro_id:
+                cursor.execute("""
+                    SELECT id, nome, matricula
+                      FROM usuarios
+                     WHERE centro_custos_id = %s
+                     ORDER BY nome
+                """, (centro_id,))
+            else:
+                cursor.execute("""
+                    SELECT id, nome, matricula FROM usuarios WHERE id = %s
+                """, (session.get("usuario_id"),))
+            usuarios_filtro = cursor.fetchall()
         finally:
             cursor.close()
             conn.close()
@@ -633,6 +674,12 @@ def register_checklists_dinamicos_routes(blueprint):
             estrutura=estrutura,
             tipos_resposta=TIPOS_RESPOSTA,
             execucoes=execucoes,
+            usuarios_filtro=usuarios_filtro,
+            filtros={
+                "executor_id": executor_id,
+                "data_inicio": data_inicio,
+                "data_fim": data_fim,
+            },
         )
 
     @blueprint.route("/checklists/<int:checklist_id>/aplicar", methods=["GET", "POST"])
