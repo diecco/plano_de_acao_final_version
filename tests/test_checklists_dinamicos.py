@@ -225,6 +225,37 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         for label in ("Hora", "Texto curto", "Texto longo", "Uma pessoa", "Várias pessoas", "Setor / Área"):
             self.assertIn(label, javascript)
 
+    def test_nfc_tag_field_uses_scoped_catalog_and_keeps_a_snapshot(self):
+        from werkzeug.datastructures import MultiDict
+        from app.views.checklists_dinamicos import _validar_respostas, validar_estrutura
+
+        definition = [{
+            "title": "Identificação", "layout": "header",
+            "questions": [{
+                "text": "Ponto verificado", "type": "nfc_tag", "required": True,
+                "negative_comment": False, "negative_evidence": False, "options": [],
+            }],
+        }]
+        clean = validar_estrutura(json.dumps(definition))
+        answers, errors = _validar_respostas(
+            clean, MultiDict([("q_0_0", "12")]),
+            etiquetas_nfc=[{
+                "id": 12, "numero": "NFC-001", "descricao": "Extintor da recepção"
+            }],
+        )
+        self.assertEqual(errors, [])
+        self.assertEqual(answers["q_0_0"]["value"], {
+            "id": 12, "number": "NFC-001", "description": "Extintor da recepção"
+        })
+
+        source = (ROOT / "app" / "views" / "checklists_dinamicos.py").read_text(encoding="utf-8")
+        builder = (ROOT / "app" / "static" / "js" / "checklist-builder.js").read_text(encoding="utf-8")
+        execution = (ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html").read_text(encoding="utf-8")
+        self.assertIn("Etiqueta NFC", builder)
+        self.assertIn("nfc_etiquetas_centros", source)
+        self.assertIn("e.abrangencia = 'global'", source)
+        self.assertIn("Selecione a etiqueta NFC", execution)
+
     def test_header_layout_is_compact_and_people_use_scoped_autocomplete(self):
         from app.views.checklists_dinamicos import validar_estrutura
 

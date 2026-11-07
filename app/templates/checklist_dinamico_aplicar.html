@@ -71,6 +71,12 @@
                         <div class="checklist-person-picker" data-person-picker data-mode="multiple" data-name="{{ key }}"><input class="form-control person-search" autocomplete="off" placeholder="Buscar por nome ou matrícula"><div data-person-values>{% for pessoa_id in valores.get(key, []) %}<input type="hidden" name="{{ key }}" value="{{ pessoa_id }}">{% endfor %}</div><div class="person-results shadow-sm" hidden></div><div class="person-selected" data-person-selected></div></div>
                     {% elif item.type == 'sector' %}
                         <select class="form-select" name="{{ key }}"><option value="">Selecione o setor ou área</option>{% for setor in setores %}<option value="{{ setor.id }}" {% if current == setor.id|string %}selected{% endif %}>{{ setor.nome }}</option>{% endfor %}</select>
+                    {% elif item.type == 'nfc_tag' %}
+                        <select class="form-select" name="{{ key }}">
+                            <option value="">Selecione a etiqueta NFC</option>
+                            {% for etiqueta in etiquetas_nfc %}<option value="{{ etiqueta.id }}" {% if current == etiqueta.id|string %}selected{% endif %}>{{ etiqueta.numero }} — {{ etiqueta.descricao }}</option>{% endfor %}
+                        </select>
+                        {% if not etiquetas_nfc %}<small class="d-block text-muted mt-1">Nenhuma etiqueta ativa está disponível para este centro de custos.</small>{% endif %}
                     {% elif item.type in ['conformity', 'yes_no'] %}
                         {% if item.type == 'conformity' %}{% set options = [('conforme','Conforme'),('nao_conforme','Não conforme'),('nao_aplicavel','Não aplicável')] %}
                         {% else %}{% set options = [('sim','Sim'),('nao','Não'),('nao_aplicavel','Não aplicável')] %}{% endif %}

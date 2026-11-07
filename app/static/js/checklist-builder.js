@@ -16,6 +16,7 @@
         ['rating', 'Avaliação por nota'],
         ['text', 'Texto curto'], ['textarea', 'Texto longo'],
         ['person', 'Uma pessoa'], ['people', 'Várias pessoas'], ['sector', 'Setor / Área'],
+        ['nfc_tag', 'Etiqueta NFC'],
         ['number', 'Número'], ['counter', 'Contador'], ['date', 'Data'], ['time', 'Hora']
     ];
     let uid = 0;
