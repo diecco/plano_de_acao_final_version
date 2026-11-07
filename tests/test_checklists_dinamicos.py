@@ -257,6 +257,10 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn("data-result-select", template)
         self.assertIn('select[name="${name}"]', runner)
 
+    def test_execution_does_not_add_a_fixed_general_observations_field(self):
+        template = (ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html").read_text(encoding="utf-8")
+        self.assertNotIn('name="observacoes"', template)
+
 
 if __name__ == "__main__":
     unittest.main()
