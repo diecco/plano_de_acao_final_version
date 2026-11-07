@@ -479,10 +479,12 @@
                 'main.pcpm_checklist_modelos',
                 'main.comunicados_visuais',
                 'main.checklists_dinamicos',
-                'main.editar_checklist_dinamico'
+                'main.editar_checklist_dinamico',
+                'main.etiquetas_nfc',
+                'main.alterar_status_etiqueta_nfc'
             ] %}
             <section class="sidebar-module"
-                     data-search-label="administração estrutura superintendências centros custos usuários comunicados origens causas recusa temas hs tipos documentos cargos funções setores instrutores matriz empresas equipamentos checklist">
+                     data-search-label="administração estrutura superintendências centros custos usuários comunicados origens causas recusa temas hs tipos documentos cargos funções setores instrutores matriz empresas equipamentos checklist nfc etiquetas">
                 <button class="sidebar-module-toggle {% if request.endpoint in endpoints_admin %}active{% endif %}"
                         type="button"
                         data-bs-toggle="collapse"
@@ -517,6 +519,10 @@
                     <a href="{{ url_for('main.checklists_dinamicos') }}"
                        class="sidebar-link {% if request.endpoint in endpoints_admin_checklists %}active{% endif %}">
                         <i class="bi bi-ui-checks-grid"></i><span>Checklists configuráveis</span>
+                    </a>
+                    <a href="{{ url_for('main.etiquetas_nfc') }}"
+                       class="sidebar-link {% if request.endpoint in ['main.etiquetas_nfc', 'main.alterar_status_etiqueta_nfc'] %}active{% endif %}">
+                        <i class="bi bi-broadcast-pin"></i><span>Etiquetas NFC</span>
                     </a>
                     <a href="{{ url_for('main.origens') }}"
                        class="sidebar-link {% if request.endpoint == 'main.origens' %}active{% endif %}">
