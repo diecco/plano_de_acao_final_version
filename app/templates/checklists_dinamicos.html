@@ -1,0 +1,133 @@
+{% extends "layout.html" %}
+
+{% block titulo %}Checklists configuráveis{% endblock %}
+
+{% block conteudo %}
+<div class="page-header">
+    <h2 class="page-title text-center mb-0">
+        <i class="bi bi-ui-checks-grid me-2"></i>Checklists configuráveis
+    </h2>
+</div>
+<hr>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+            <div>
+                <h5 class="mb-1">Novo checklist</h5>
+                <p class="text-muted mb-0">Defina a abrangência e onde o checklist será encontrado.</p>
+            </div>
+            <span class="badge bg-light text-dark border">Primeiro esboço</span>
+        </div>
+        <form method="post">
+            <div class="row g-3">
+                <div class="col-12 col-lg-5">
+                    <label class="form-label" for="nome">Nome do checklist</label>
+                    <input class="form-control" id="nome" name="nome" maxlength="150" required>
+                </div>
+                <div class="col-12 col-lg-3">
+                    <label class="form-label" for="abrangencia">Abrangência</label>
+                    <select class="form-select" id="abrangencia" name="abrangencia">
+                        <option value="global">Global</option>
+                        <option value="centros">Centros de custos selecionados</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-7 col-lg-3">
+                    <label class="form-label" for="modulo_menu">Local na sidebar</label>
+                    <select class="form-select" id="modulo_menu" name="modulo_menu">
+                        {% for valor, rotulo in modulos_menu.items() %}
+                        <option value="{{ valor }}">{{ rotulo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-5 col-lg-1">
+                    <label class="form-label" for="ordem_menu">Ordem</label>
+                    <input class="form-control" id="ordem_menu" name="ordem_menu" type="number" min="0" value="0">
+                </div>
+                <div class="col-12 col-lg-6">
+                    <label class="form-label" for="descricao">Descrição</label>
+                    <textarea class="form-control" id="descricao" name="descricao" rows="4" maxlength="2000"></textarea>
+                </div>
+                <div class="col-12 col-lg-6" id="blocoCentros" hidden>
+                    <label class="form-label" for="centro_custos_ids">Centros de custos</label>
+                    <select class="form-select" id="centro_custos_ids" name="centro_custos_ids" multiple size="5">
+                        {% for centro in centros_custos %}
+                        <option value="{{ centro.id }}">{{ centro.codigo }} - {{ centro.descricao }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">Selecione todos os centros alcançados pelo checklist.</div>
+                </div>
+                <div class="col-12">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" id="exibir_menu" name="exibir_menu" type="checkbox" value="1" checked>
+                        <label class="form-check-label" for="exibir_menu">Exibir na sidebar depois da publicação</label>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex justify-content-end mt-4">
+                <button class="btn btn-laranja" type="submit">Criar rascunho</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead><tr>
+            <th>Checklist</th><th>Abrangência</th><th>Sidebar</th>
+            <th class="text-center">Status</th><th class="text-center">Ações</th>
+        </tr></thead>
+        <tbody>
+        {% for checklist in checklists %}
+            <tr>
+                <td><strong>{{ checklist.nome }}</strong>{% if checklist.descricao %}<small class="d-block text-muted">{{ checklist.descricao }}</small>{% endif %}</td>
+                <td>{{ 'Global' if checklist.abrangencia == 'global' else (checklist.centros_custos or '-') }}</td>
+                <td>
+                    {{ modulos_menu.get(checklist.modulo_menu, checklist.modulo_menu) }}
+                    {% if checklist.exibir_menu %}<small class="d-block text-muted">Ordem {{ checklist.ordem_menu }}</small>{% else %}<small class="d-block text-muted">Oculto</small>{% endif %}
+                </td>
+                <td class="text-center">
+                    <span class="badge {{ 'bg-success' if checklist.status == 'publicado' and checklist.ativo else 'bg-secondary' }}">
+                        {{ 'Inativo' if not checklist.ativo else checklist.status|capitalize }}
+                    </span>
+                </td>
+                <td class="text-center">
+                    <div class="d-flex justify-content-center gap-2">
+                        <form method="post" action="{{ url_for('main.publicar_checklist_dinamico', checklist_id=checklist.id) }}">
+                            <button class="btn-acao-icon" type="submit" title="{{ 'Retirar publicação' if checklist.status == 'publicado' else 'Publicar' }}">
+                                <i class="bi {{ 'bi-cloud-slash' if checklist.status == 'publicado' else 'bi-cloud-upload' }}"></i>
+                            </button>
+                        </form>
+                        <form method="post" action="{{ url_for('main.alternar_checklist_dinamico', checklist_id=checklist.id) }}">
+                            <button class="btn-acao-icon" type="submit" title="{{ 'Inativar' if checklist.ativo else 'Ativar' }}">
+                                <i class="bi {{ 'bi-eye-slash' if checklist.ativo else 'bi-eye' }}"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="5" class="text-center text-muted py-4">Nenhum checklist configurável cadastrado.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const abrangencia = document.getElementById('abrangencia');
+    const bloco = document.getElementById('blocoCentros');
+    const centros = document.getElementById('centro_custos_ids');
+    function atualizarAbrangencia() {
+        const direcionado = abrangencia.value === 'centros';
+        bloco.hidden = !direcionado;
+        centros.disabled = !direcionado;
+        if (!direcionado) Array.from(centros.options).forEach(o => o.selected = false);
+    }
+    abrangencia.addEventListener('change', atualizarAbrangencia);
+    atualizarAbrangencia();
+});
+</script>
+{% endblock %}

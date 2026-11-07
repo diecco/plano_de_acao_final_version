@@ -7,6 +7,7 @@ from app.views.apr import register_apr_routes
 from app.views.auditoria_padrao import register_auditoria_padrao_routes
 from app.views.autenticacao import register_autenticacao_routes
 from app.views.centros_custos import register_centros_custos_routes
+from app.views.checklists_dinamicos import register_checklists_dinamicos_routes
 from app.views.cargos import register_cargos_routes
 from app.views.detectores_gas import register_detectores_gas_routes
 from app.views.desvios import register_desvios_routes
@@ -44,6 +45,7 @@ register_apr_routes(main_routes)
 register_auditoria_padrao_routes(main_routes)
 register_autenticacao_routes(main_routes)
 register_centros_custos_routes(main_routes)
+register_checklists_dinamicos_routes(main_routes)
 register_detectores_gas_routes(main_routes)
 register_desvios_routes(main_routes)
 register_superintendencias_routes(main_routes)
