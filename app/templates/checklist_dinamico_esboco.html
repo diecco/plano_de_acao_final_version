@@ -38,7 +38,7 @@
                         <input type="hidden" name="executor_id" id="executor_id" value="{{ filtros.executor_id }}">
                         <div id="executor_resultados" class="autocomplete-list shadow-sm d-none"></div>
                     </div>
-                    <div class="col-12 col-xl-2">
+                    <div class="col-12 col-xl-auto ms-xl-auto">
                         <div class="d-flex gap-2 justify-content-end">
                             <button class="btn btn-laranja" type="submit" title="Filtrar" aria-label="Filtrar"><i class="bi bi-funnel"></i></button>
                             <a class="btn btn-cinza" href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id) }}" title="Limpar filtros" aria-label="Limpar filtros"><i class="bi bi-arrow-clockwise"></i></a>
