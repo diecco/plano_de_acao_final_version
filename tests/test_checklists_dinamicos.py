@@ -124,6 +124,7 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn("bi-arrow-clockwise", template)
         self.assertIn("bi-plus-circle", template)
         self.assertNotIn("Novo preenchimento", template)
+        self.assertIn("col-xl-auto ms-xl-auto", template)
 
     def test_period_filter_matches_adherence_report_options(self):
         from datetime import date
