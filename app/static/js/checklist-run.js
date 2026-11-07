@@ -20,10 +20,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const peopleNode = document.getElementById('checklist-people-data');
   const people = peopleNode ? JSON.parse(peopleNode.textContent || '[]') : [];
+  const actionPeopleNode = document.getElementById('checklist-action-people-data');
+  const actionPeople = actionPeopleNode ? JSON.parse(actionPeopleNode.textContent || '[]') : [];
   const normalize = (value) => (value || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   const labelFor = (person) => person.nome + (person.matricula ? ` — ${person.matricula}` : '');
 
   document.querySelectorAll('[data-person-picker]').forEach((picker) => {
+    const availablePeople = picker.dataset.source === 'actions' ? actionPeople : people;
     const mode = picker.dataset.mode;
     const name = picker.dataset.name;
     const search = picker.querySelector('.person-search');
@@ -38,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const updateSelected = () => {
       if (!selectedHost) return;
       const ids = selectedIds();
-      const labels = ids.map((id) => people.find((person) => String(person.id) === id)).filter(Boolean).map(labelFor);
+      const labels = ids.map((id) => availablePeople.find((person) => String(person.id) === id)).filter(Boolean).map(labelFor);
       selectedHost.textContent = labels.length ? labels.join(', ') : 'Nenhuma pessoa selecionada.';
     };
     const setMultiple = (person, checked) => {
@@ -51,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const render = () => {
       const term = normalize(search.value);
-      const found = people.filter((person) => !term || normalize(person.nome).includes(term) || normalize(person.matricula).includes(term)).slice(0, 20);
+      const found = availablePeople.filter((person) => !term || normalize(person.nome).includes(term) || normalize(person.matricula).includes(term)).slice(0, 20);
       results.replaceChildren();
       if (!found.length) {
         const empty = document.createElement('div'); empty.className = 'person-empty'; empty.textContent = 'Nenhum colaborador encontrado.'; results.appendChild(empty);
@@ -73,5 +76,9 @@ document.addEventListener('DOMContentLoaded', () => {
     search.addEventListener('focus', render);
     document.addEventListener('click', (event) => { if (!picker.contains(event.target)) close(); });
     updateSelected();
+    if (mode === 'single' && singleValue.value) {
+      const selected = availablePeople.find((person) => String(person.id) === singleValue.value);
+      if (selected) search.value = labelFor(selected);
+    }
   });
 });

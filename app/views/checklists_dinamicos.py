@@ -117,6 +117,8 @@ def validar_estrutura(raw):
             for chave in ("required", "negative_comment", "negative_evidence"):
                 if type(pergunta.get(chave)) is not bool:
                     raise ValueError("Confira as regras de preenchimento dos itens.")
+            if type(pergunta.get("negative_action", False)) is not bool:
+                raise ValueError("Confira a integração com o plano de ação.")
 
             negativo = tipo in {"conformity", "yes_no"}
             item = {
@@ -125,6 +127,7 @@ def validar_estrutura(raw):
                 "required": pergunta["required"],
                 "negative_comment": pergunta["negative_comment"] if negativo else False,
                 "negative_evidence": pergunta["negative_evidence"] if negativo else False,
+                "negative_action": pergunta.get("negative_action", False) if negativo else False,
                 "options": [],
             }
             ajuda = pergunta.get("help", "")
@@ -475,6 +478,100 @@ def _validar_respostas(estrutura, formulario, pessoas=None, setores=None):
                 "evidence": evidencia or None,
             }
     return respostas, erros
+
+
+def _validar_acoes_checklist(estrutura, formulario, responsaveis=None):
+    """Valida as ações exigidas pelos itens negativos antes de abrir a transação."""
+    responsaveis = {str(item["id"]): item for item in (responsaveis or [])}
+    propostas = {}
+    erros = []
+    pode_criar = (
+        (session.get("perfil") or "").lower() == "administrador"
+        or bool(session.get("acesso_plano_acao"))
+    )
+    for secao_indice, secao in enumerate(estrutura):
+        for item_indice, item in enumerate(secao.get("questions", [])):
+            if not item.get("negative_action"):
+                continue
+            chave = _chave_resposta(secao_indice, item_indice)
+            resposta = (formulario.get(chave) or "").strip()
+            negativo = (
+                (item.get("type") == "conformity" and resposta == "nao_conforme")
+                or (item.get("type") == "yes_no" and resposta == "nao")
+            )
+            if not negativo:
+                continue
+            if not pode_criar:
+                erros.append(
+                    f"Seu perfil não permite criar a ação exigida em: {item.get('text')}"
+                )
+                continue
+            descricao = (formulario.get(f"{chave}_action_description") or "").strip()
+            responsavel_id = (formulario.get(f"{chave}_action_responsible") or "").strip()
+            prazo_texto = (formulario.get(f"{chave}_action_due") or "").strip()
+            if not 1 <= len(descricao) <= 3000:
+                erros.append(f"Descreva a ação necessária em: {item.get('text')}")
+            responsavel = responsaveis.get(responsavel_id)
+            if not responsavel:
+                erros.append(f"Selecione um responsável válido para: {item.get('text')}")
+            try:
+                prazo = date.fromisoformat(prazo_texto)
+            except ValueError:
+                prazo = None
+                erros.append(f"Informe um prazo válido para: {item.get('text')}")
+            if prazo and prazo < date.today():
+                erros.append(f"O prazo da ação não pode estar vencido em: {item.get('text')}")
+            if descricao and responsavel and prazo and prazo >= date.today():
+                propostas[chave] = {
+                    "description": descricao,
+                    "responsible_id": responsavel["id"],
+                    "due_date": prazo,
+                }
+    return propostas, erros
+
+
+def _obter_origem_checklist(cursor, checklist, centro_custos_id):
+    nome = f"CHK-{checklist['id']}-CC-{centro_custos_id or 0}"
+    descricao = f"Checklist - {checklist['nome']}"[:160]
+    cursor.execute("SELECT id, ativo FROM origens WHERE nome = %s LIMIT 1", (nome,))
+    origem = cursor.fetchone()
+    if origem:
+        if not origem.get("ativo"):
+            cursor.execute(
+                "UPDATE origens SET ativo = 1, descricao = %s WHERE id = %s",
+                (descricao, origem["id"]),
+            )
+        return origem["id"]
+    cursor.execute("""
+        INSERT INTO origens (nome, descricao, centro_custos_id, ativo)
+        VALUES (%s, %s, %s, 1)
+    """, (nome, descricao, centro_custos_id))
+    return cursor.lastrowid
+
+
+def _criar_acoes_checklist(cursor, checklist, execucao_id, propostas):
+    if not propostas:
+        return {}
+    centro_custos_id = session.get("centro_custos_id")
+    origem_id = _obter_origem_checklist(cursor, checklist, centro_custos_id)
+    criadas = {}
+    for chave, proposta in propostas.items():
+        cursor.execute("""
+            INSERT INTO acoes (
+                origem_id, responsavel_id, centro_custos_id, descricao,
+                prazo, status, criado_por
+            ) VALUES (%s, %s, %s, %s, %s, 'Não iniciada', %s)
+        """, (
+            origem_id, proposta["responsible_id"], centro_custos_id,
+            proposta["description"], proposta["due_date"], session.get("usuario_id"),
+        ))
+        acao_id = cursor.lastrowid
+        cursor.execute("""
+            INSERT INTO checklist_execucao_acoes (execucao_id, item_chave, acao_id)
+            VALUES (%s, %s, %s)
+        """, (execucao_id, chave, acao_id))
+        criadas[chave] = acao_id
+    return criadas
 
 
 def _execucao_visivel(cursor, execucao_id):
@@ -924,6 +1021,34 @@ def register_checklists_dinamicos_routes(blueprint):
                      WHERE ativo = 1 AND id = %s
                 """, (session.get("usuario_id"),))
             pessoas = cursor.fetchall()
+            if ((session.get("perfil") or "").lower() == "administrador"
+                    and checklist.get("abrangencia") == "centros"):
+                cursor.execute("""
+                    SELECT DISTINCT u.id, u.nome, u.matricula
+                      FROM usuarios u
+                      JOIN checklist_modelos_centros cmc
+                        ON cmc.centro_custos_id = u.centro_custos_id
+                     WHERE cmc.checklist_id = %s AND u.ativo = 1
+                       AND u.acesso_plano_acao = 1
+                     ORDER BY u.nome
+                """, (checklist_id,))
+            elif (session.get("perfil") or "").lower() == "administrador":
+                cursor.execute("""
+                    SELECT id, nome, matricula FROM usuarios
+                     WHERE ativo = 1 AND acesso_plano_acao = 1 ORDER BY nome
+                """)
+            elif session.get("centro_custos_id"):
+                cursor.execute("""
+                    SELECT id, nome, matricula FROM usuarios
+                     WHERE ativo = 1 AND acesso_plano_acao = 1
+                       AND centro_custos_id = %s ORDER BY nome
+                """, (session.get("centro_custos_id"),))
+            else:
+                cursor.execute("""
+                    SELECT id, nome, matricula FROM usuarios
+                     WHERE ativo = 1 AND acesso_plano_acao = 1 AND id = %s
+                """, (session.get("usuario_id"),))
+            responsaveis_acao = cursor.fetchall()
             cursor.execute("SELECT id, nome FROM setores WHERE ativo = 1 ORDER BY nome")
             setores = cursor.fetchall()
 
@@ -932,6 +1057,10 @@ def register_checklists_dinamicos_routes(blueprint):
                 respostas, erros = _validar_respostas(
                     estrutura, request.form, pessoas=pessoas, setores=setores
                 )
+                propostas_acoes, erros_acoes = _validar_acoes_checklist(
+                    estrutura, request.form, responsaveis=responsaveis_acao
+                )
+                erros.extend(erros_acoes)
                 observacoes = (request.form.get("observacoes") or "").strip()
                 if len(observacoes) > 2000:
                     erros.append("Use até 2.000 caracteres nas observações gerais.")
@@ -953,6 +1082,16 @@ def register_checklists_dinamicos_routes(blueprint):
                         observacoes or None,
                     ))
                     execucao_id = cursor.lastrowid
+                    acoes_criadas = _criar_acoes_checklist(
+                        cursor, checklist, execucao_id, propostas_acoes
+                    )
+                    if acoes_criadas:
+                        for chave, acao_id in acoes_criadas.items():
+                            respostas[chave]["action_id"] = acao_id
+                        cursor.execute(
+                            "UPDATE checklist_execucoes SET respostas_json = %s WHERE id = %s",
+                            (json.dumps(respostas, ensure_ascii=False), execucao_id),
+                        )
                     conn.commit()
                     flash("Checklist concluído com sucesso.", "success")
                     return redirect(url_for("main.visualizar_execucao_checklist", execucao_id=execucao_id))
@@ -966,7 +1105,9 @@ def register_checklists_dinamicos_routes(blueprint):
             estrutura=estrutura,
             valores=valores,
             pessoas=pessoas,
+            responsaveis_acao=responsaveis_acao,
             setores=setores,
+            hoje_iso=date.today().isoformat(),
         )
 
     @blueprint.get("/checklists/execucoes/<int:execucao_id>")

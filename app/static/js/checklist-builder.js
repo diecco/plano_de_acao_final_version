@@ -86,7 +86,7 @@
         sync(); render();
     }
     function newQuestion() {
-        return {text: '', type: 'conformity', required: true, negative_comment: false, negative_evidence: false, options: []};
+        return {text: '', type: 'conformity', required: true, negative_comment: false, negative_evidence: false, negative_action: false, options: []};
     }
     function sync() {
         hidden.value = JSON.stringify(sections);
@@ -170,7 +170,7 @@
                 const row = element('div', 'checklist-question-row');
                 row.append(
                     field(`Item ${sectionIndex + 1}.${questionIndex + 1}`, input(question.text || '', 500, value => { question.text = value; sync(); })),
-                    field('Tipo de resposta', select(types, question.type || 'conformity', value => { question.type = value; if (!['conformity','yes_no'].includes(value)) { question.negative_comment = false; question.negative_evidence = false; } sync(); render(); })),
+                    field('Tipo de resposta', select(types, question.type || 'conformity', value => { question.type = value; if (!['conformity','yes_no'].includes(value)) { question.negative_comment = false; question.negative_evidence = false; question.negative_action = false; } sync(); render(); })),
                     actions(section.questions, questionIndex, 'item')
                 );
                 item.append(row);
@@ -187,7 +187,8 @@
                 if (['conformity','yes_no'].includes(question.type)) {
                     rules.append(
                         rule('Exigir descrição do desvio', question.negative_comment === true, value => { question.negative_comment = value; sync(); }),
-                        rule('Exigir evidência', question.negative_evidence === true, value => { question.negative_evidence = value; sync(); })
+                        rule('Exigir evidência', question.negative_evidence === true, value => { question.negative_evidence = value; sync(); }),
+                        rule('Gerar ação para resposta negativa', question.negative_action === true, value => { question.negative_action = value; sync(); })
                     );
                 }
                 item.append(rules); wrapper.append(item);
