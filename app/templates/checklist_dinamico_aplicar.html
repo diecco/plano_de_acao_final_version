@@ -27,10 +27,17 @@
                             <td>{{ item.text }}{% if item.required %} <span class="text-danger">*</span>{% endif %}{% if item.help %}<small class="d-block text-muted mt-1">{{ item.help }}</small>{% endif %}</td>
                             <td><select class="form-select" name="{{ key }}" data-result-select><option value="">Selecione</option><option value="conforme" {% if current == 'conforme' %}selected{% endif %}>Conforme</option><option value="nao_conforme" {% if current == 'nao_conforme' %}selected{% endif %}>Não conforme</option><option value="nao_aplicavel" {% if current == 'nao_aplicavel' %}selected{% endif %}>Não aplicável</option></select></td>
                             <td>
-                                {% if item.negative_comment or item.negative_evidence %}
+                                {% if item.negative_comment or item.negative_evidence or item.negative_action %}
                                 <div class="negative-details" data-negative-for="{{ key }}">
                                     {% if item.negative_comment %}<textarea class="form-control mb-2" name="{{ key }}_comment" rows="2" placeholder="Descreva o desvio">{{ valores.get(key ~ '_comment', [''])[0] }}</textarea>{% endif %}
                                     {% if item.negative_evidence %}<input class="form-control" name="{{ key }}_evidence" value="{{ valores.get(key ~ '_evidence', [''])[0] }}" placeholder="Evidência / referência">{% endif %}
+                                    {% if item.negative_action %}
+                                    <div class="checklist-action-fields mt-2">
+                                        <div class="small fw-semibold text-laranja mb-2">Ação vinculada ao desvio</div>
+                                        <textarea class="form-control mb-2" name="{{ key }}_action_description" rows="2" maxlength="3000" placeholder="O que deverá ser feito?">{{ valores.get(key ~ '_action_description', [''])[0] }}</textarea>
+                                        <div class="row g-2"><div class="col-12 col-lg-7"><div class="checklist-person-picker" data-person-picker data-mode="single" data-source="actions" data-name="{{ key }}_action_responsible"><input class="form-control person-search" autocomplete="off" placeholder="Responsável pela ação" value=""><input type="hidden" name="{{ key }}_action_responsible" value="{{ valores.get(key ~ '_action_responsible', [''])[0] }}" data-person-value><div class="person-results shadow-sm" hidden></div></div></div><div class="col-12 col-lg-5"><input class="form-control" type="date" name="{{ key }}_action_due" value="{{ valores.get(key ~ '_action_due', [''])[0] }}" min="{{ hoje_iso }}" aria-label="Prazo da ação"></div></div>
+                                    </div>
+                                    {% endif %}
                                 </div>
                                 {% else %}<span class="text-muted">—</span>{% endif %}
                             </td>
@@ -80,10 +87,11 @@
                         <div class="row g-2">{% for position in item.options %}<div class="col-md-6"><label class="form-label small">{{ loop.index }}ª posição</label><select class="form-select ranking-select" name="{{ key }}_rank_{{ loop.index0 }}"><option value="">Selecione</option>{% for option in item.options %}<option value="{{ option }}" {% if valores.get(key ~ '_rank_' ~ loop.index0, [''])[0] == option %}selected{% endif %}>{{ option }}</option>{% endfor %}</select></div>{% endfor %}</div>
                     {% endif %}
 
-                    {% if item.negative_comment or item.negative_evidence %}
+                    {% if item.negative_comment or item.negative_evidence or item.negative_action %}
                     <div class="negative-details mt-3" data-negative-for="{{ key }}">
                         {% if item.negative_comment %}<label class="form-label">Comentário do resultado negativo</label><textarea class="form-control mb-2" name="{{ key }}_comment" rows="2">{{ valores.get(key ~ '_comment', [''])[0] }}</textarea>{% endif %}
                         {% if item.negative_evidence %}<label class="form-label">Evidência / referência</label><input class="form-control" name="{{ key }}_evidence" value="{{ valores.get(key ~ '_evidence', [''])[0] }}" placeholder="Descreva ou informe a referência da evidência">{% endif %}
+                        {% if item.negative_action %}<div class="checklist-action-fields mt-3"><div class="fw-semibold text-laranja mb-2">Ação vinculada ao desvio</div><textarea class="form-control mb-2" name="{{ key }}_action_description" rows="2" maxlength="3000" placeholder="O que deverá ser feito?">{{ valores.get(key ~ '_action_description', [''])[0] }}</textarea><div class="row g-2"><div class="col-md-7"><div class="checklist-person-picker" data-person-picker data-mode="single" data-source="actions" data-name="{{ key }}_action_responsible"><input class="form-control person-search" autocomplete="off" placeholder="Responsável pela ação"><input type="hidden" name="{{ key }}_action_responsible" value="{{ valores.get(key ~ '_action_responsible', [''])[0] }}" data-person-value><div class="person-results shadow-sm" hidden></div></div></div><div class="col-md-5"><input class="form-control" type="date" name="{{ key }}_action_due" value="{{ valores.get(key ~ '_action_due', [''])[0] }}" min="{{ hoje_iso }}" aria-label="Prazo da ação"></div></div></div>{% endif %}
                     </div>
                     {% endif %}
                 </div>
@@ -97,5 +105,6 @@
 <div class="d-flex justify-content-between gap-2"><a class="btn btn-secondary" href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id) }}">Voltar</a><button class="btn btn-laranja" type="submit">Concluir checklist</button></div>
 </form>
 <script id="checklist-people-data" type="application/json">{{ pessoas|tojson }}</script>
+<script id="checklist-action-people-data" type="application/json">{{ responsaveis_acao|default([])|tojson }}</script>
 <script src="{{ url_for('static', filename='js/checklist-run.js') }}" defer></script>
 {% endblock %}

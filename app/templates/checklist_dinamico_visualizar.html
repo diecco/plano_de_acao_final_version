@@ -17,7 +17,7 @@
 {% elif value is sequence and value is not string %}{{ value|join(', ') }}
 {% elif value == 'nao_conforme' %}Não conforme{% elif value == 'nao_aplicavel' %}Não aplicável{% elif value == 'conforme' %}Conforme{% elif value == 'sim' %}Sim{% elif value == 'nao' %}Não{% else %}{{ value if value not in [none, ''] else '-' }}{% endif %}
 {% if item.measurement_unit and value not in [none, ''] %} {{ item.measurement_unit }}{% endif %}
-</td><td>{% if answer.get('comment') %}<div><small class="text-muted">Comentário:</small> {{ answer.comment }}</div>{% endif %}{% if answer.get('evidence') %}<div><small class="text-muted">Evidência:</small> {{ answer.evidence }}</div>{% endif %}{% if not answer.get('comment') and not answer.get('evidence') %}-{% endif %}</td></tr>
+</td><td>{% if answer.get('comment') %}<div><small class="text-muted">Comentário:</small> {{ answer.comment }}</div>{% endif %}{% if answer.get('evidence') %}<div><small class="text-muted">Evidência:</small> {{ answer.evidence }}</div>{% endif %}{% if answer.get('action_id') %}<div class="mt-1"><a class="text-laranja" href="{{ url_for('main.editar_acao', id=answer.action_id) }}">Abrir ação #{{ answer.action_id }}</a></div>{% endif %}{% if not answer.get('comment') and not answer.get('evidence') and not answer.get('action_id') %}-{% endif %}</td></tr>
 {% endfor %}
 </tbody></table></div></div></section>
 {% endfor %}

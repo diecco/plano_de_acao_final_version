@@ -1,5 +1,6 @@
 import json
 import unittest
+from datetime import date, timedelta
 from pathlib import Path
 
 
@@ -261,6 +262,55 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
     def test_execution_does_not_add_a_fixed_general_observations_field(self):
         template = (ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html").read_text(encoding="utf-8")
         self.assertNotIn('name="observacoes"', template)
+
+    def test_negative_items_can_require_a_linked_action(self):
+        from app import create_app
+        from app.views.checklists_dinamicos import (
+            _validar_acoes_checklist,
+            validar_estrutura,
+        )
+
+        definition = [{
+            "title": "Verificação", "layout": "standard",
+            "questions": [{
+                "text": "A condição está adequada?", "type": "conformity",
+                "required": True, "negative_comment": True,
+                "negative_evidence": False, "negative_action": True, "options": [],
+            }],
+        }]
+        clean = validar_estrutura(json.dumps(definition))
+        self.assertTrue(clean[0]["questions"][0]["negative_action"])
+
+        due = (date.today() + timedelta(days=5)).isoformat()
+        app = create_app()
+        with app.test_request_context("/", method="POST", data={
+            "q_0_0": "nao_conforme",
+            "q_0_0_action_description": "Corrigir a proteção do equipamento.",
+            "q_0_0_action_responsible": "7",
+            "q_0_0_action_due": due,
+        }):
+            from flask import session
+            session["usuario_id"] = 1
+            session["acesso_plano_acao"] = 1
+            proposals, errors = _validar_acoes_checklist(
+                clean, __import__("flask").request.form,
+                responsaveis=[{"id": 7, "nome": "Responsável", "matricula": "007"}],
+            )
+        self.assertEqual(errors, [])
+        self.assertEqual(proposals["q_0_0"]["responsible_id"], 7)
+
+        builder = (ROOT / "app" / "static" / "js" / "checklist-builder.js").read_text(encoding="utf-8")
+        execution = (ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html").read_text(encoding="utf-8")
+        self.assertIn("Gerar ação para resposta negativa", builder)
+        self.assertIn("Ação vinculada ao desvio", execution)
+
+    def test_action_link_migration_is_reexecutable_and_auditable(self):
+        sql = (ROOT / "docs" / "integrar_checklists_plano_acao.sql").read_text(encoding="utf-8")
+        self.assertIn("CREATE TABLE IF NOT EXISTS checklist_execucao_acoes", sql)
+        self.assertIn("UNIQUE KEY uk_checklist_execucao_item_acao", sql)
+        source = (ROOT / "app" / "views" / "checklists_dinamicos.py").read_text(encoding="utf-8")
+        self.assertIn("INSERT INTO checklist_execucao_acoes", source)
+        self.assertIn("INSERT INTO acoes", source)
 
 
 if __name__ == "__main__":
