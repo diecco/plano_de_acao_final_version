@@ -6,7 +6,8 @@ definição validada dos itens de verificação.
 
 import json
 import unicodedata
-from datetime import date
+import calendar
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
 from flask import abort, flash, redirect, render_template, request, session, url_for
@@ -275,6 +276,50 @@ def _ler_estrutura(valor):
 
 def _chave_resposta(secao_indice, item_indice):
     return f"q_{secao_indice}_{item_indice}"
+
+
+def _resolver_periodo_listagem(periodo, mes_referencia=None, data_inicio=None,
+                               data_fim=None, hoje=None):
+    """Replica as opções de período consolidadas no relatório de aderência."""
+    hoje = hoje or date.today()
+    periodo = (periodo or "mes_atual").strip()
+    if periodo not in {"mes_atual", "mes_anterior", "mes_proximo", "mes_ano", "personalizado"}:
+        raise ValueError("Período informado inválido.")
+    if periodo == "personalizado":
+        try:
+            inicio = datetime.strptime((data_inicio or "").strip(), "%Y-%m-%d").date()
+            fim = datetime.strptime((data_fim or "").strip(), "%Y-%m-%d").date()
+        except (TypeError, ValueError):
+            raise ValueError("Informe as datas inicial e final do período personalizado.")
+        if inicio > fim:
+            raise ValueError("A data inicial não pode ser posterior à data final.")
+        if (inicio.year, inicio.month) != (fim.year, fim.month):
+            raise ValueError("O período personalizado deve permanecer dentro do mesmo mês.")
+        return inicio, fim, inicio.strftime("%Y-%m")
+    if periodo == "mes_ano":
+        try:
+            referencia = datetime.strptime((mes_referencia or "").strip(), "%Y-%m").date()
+        except (TypeError, ValueError):
+            raise ValueError("Selecione um mês e ano válidos.")
+    else:
+        deslocamento = {"mes_anterior": -1, "mes_atual": 0, "mes_proximo": 1}[periodo]
+        indice = hoje.year * 12 + hoje.month - 1 + deslocamento
+        referencia = date(indice // 12, indice % 12 + 1, 1)
+    inicio = date(referencia.year, referencia.month, 1)
+    fim = date(referencia.year, referencia.month, calendar.monthrange(referencia.year, referencia.month)[1])
+    return inicio, fim, inicio.strftime("%Y-%m")
+
+
+def _opcoes_periodo_listagem(hoje=None):
+    hoje = hoje or date.today()
+    meses = ("Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+             "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro")
+    opcoes = []
+    for valor, prefixo in (("mes_atual", "Este mês"), ("mes_anterior", "Mês anterior"),
+                           ("mes_proximo", "Próximo mês")):
+        inicio, _, _ = _resolver_periodo_listagem(valor, hoje=hoje)
+        opcoes.append({"valor": valor, "rotulo": f"{prefixo} — {meses[inicio.month - 1]}/{inicio.year}"})
+    return opcoes
 
 
 def _validar_respostas(estrutura, formulario):
@@ -605,19 +650,22 @@ def register_checklists_dinamicos_routes(blueprint):
             perfil_admin = (session.get("perfil") or "").lower() == "administrador"
             centro_id = session.get("centro_custos_id")
             executor_id = (request.args.get("executor_id") or "").strip()
-            data_inicio = (request.args.get("data_inicio") or "").strip()
-            data_fim = (request.args.get("data_fim") or "").strip()
-            for nome, valor in (("data_inicio", data_inicio), ("data_fim", data_fim)):
-                if valor:
-                    try:
-                        date.fromisoformat(valor)
-                    except ValueError:
-                        if nome == "data_inicio":
-                            data_inicio = ""
-                        else:
-                            data_fim = ""
             if executor_id and not executor_id.isdigit():
                 executor_id = ""
+            periodo_selecionado = (request.args.get("periodo") or "mes_atual").strip()
+            mes_referencia = (request.args.get("mes_referencia") or date.today().strftime("%Y-%m")).strip()
+            data_inicio_informada = (request.args.get("data_inicio") or "").strip()
+            data_fim_informada = (request.args.get("data_fim") or "").strip()
+            try:
+                data_inicio, data_fim, mes_referencia_calculado = _resolver_periodo_listagem(
+                    periodo_selecionado, mes_referencia, data_inicio_informada, data_fim_informada
+                )
+                if periodo_selecionado != "mes_ano":
+                    mes_referencia = mes_referencia_calculado
+            except ValueError as erro:
+                flash(str(erro), "warning")
+                periodo_selecionado = "mes_atual"
+                data_inicio, data_fim, mes_referencia = _resolver_periodo_listagem("mes_atual")
 
             parametros = [checklist_id]
             condicoes = []
@@ -631,12 +679,10 @@ def register_checklists_dinamicos_routes(blueprint):
             if executor_id:
                 condicoes.append("ce.executor_id = %s")
                 parametros.append(int(executor_id))
-            if data_inicio:
-                condicoes.append("DATE(ce.concluido_em) >= %s")
-                parametros.append(data_inicio)
-            if data_fim:
-                condicoes.append("DATE(ce.concluido_em) <= %s")
-                parametros.append(data_fim)
+            condicoes.append("DATE(ce.concluido_em) >= %s")
+            parametros.append(data_inicio.isoformat())
+            condicoes.append("DATE(ce.concluido_em) <= %s")
+            parametros.append(data_fim.isoformat())
             escopo = " AND ".join(condicoes) or "1 = 1"
             cursor.execute(f"""
                 SELECT ce.id, ce.concluido_em, ce.executor_id,
@@ -665,6 +711,12 @@ def register_checklists_dinamicos_routes(blueprint):
                     SELECT id, nome, matricula FROM usuarios WHERE id = %s
                 """, (session.get("usuario_id"),))
             usuarios_filtro = cursor.fetchall()
+            executor_selecionado = next(
+                (usuario for usuario in usuarios_filtro if str(usuario["id"]) == executor_id),
+                None,
+            )
+            if executor_id and not executor_selecionado:
+                executor_id = ""
         finally:
             cursor.close()
             conn.close()
@@ -675,10 +727,14 @@ def register_checklists_dinamicos_routes(blueprint):
             tipos_resposta=TIPOS_RESPOSTA,
             execucoes=execucoes,
             usuarios_filtro=usuarios_filtro,
+            executor_selecionado=executor_selecionado,
+            opcoes_periodo=_opcoes_periodo_listagem(),
             filtros={
                 "executor_id": executor_id,
-                "data_inicio": data_inicio,
-                "data_fim": data_fim,
+                "periodo": periodo_selecionado,
+                "mes_referencia": mes_referencia,
+                "data_inicio": data_inicio.isoformat(),
+                "data_fim": data_fim.isoformat(),
             },
         )
 
