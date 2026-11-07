@@ -1,0 +1,61 @@
+{% extends "layout.html" %}
+{% block titulo %}Preencher {{ checklist.nome }}{% endblock %}
+
+{% block conteudo %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/checklist-run.css') }}">
+<div class="page-header"><h2 class="page-title text-center mb-0"><i class="bi bi-ui-checks-grid me-2"></i>{{ checklist.nome }}</h2></div>
+<hr>
+<form method="post" class="checklist-run" novalidate>
+{% for secao in estrutura %}
+    {% set si = loop.index0 %}
+    <section class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <h5 class="text-laranja mb-4">{{ loop.index }}. {{ secao.title }}</h5>
+            {% for item in secao.questions %}
+                {% set ii = loop.index0 %}{% set key = 'q_' ~ si ~ '_' ~ ii %}{% set current = valores.get(key, [''])[0] %}
+                <div class="checklist-question" data-type="{{ item.type }}">
+                    <label class="question-title">{{ loop.index }}. {{ item.text }}{% if item.required %} <span class="text-danger">*</span>{% endif %}</label>
+                    {% if item.help %}<small class="d-block text-muted mb-2">{{ item.help }}</small>{% endif %}
+
+                    {% if item.type == 'text' %}
+                        <textarea class="form-control" name="{{ key }}" rows="3">{{ current }}</textarea>
+                    {% elif item.type in ['number', 'counter'] %}
+                        <div class="input-group"><input class="form-control" type="number" name="{{ key }}" value="{{ current }}" {% if item.type == 'number' %}step="{% if item.decimal_places is none %}any{% elif item.decimal_places == 0 %}1{% else %}0.{{ '0' * (item.decimal_places - 1) }}1{% endif %}"{% else %}min="{{ item.minimum }}" max="{{ item.maximum }}" step="1"{% endif %}>{% if item.measurement_unit %}<span class="input-group-text">{{ item.measurement_unit }}</span>{% endif %}</div>
+                    {% elif item.type == 'date' %}
+                        <input class="form-control checklist-date" type="date" name="{{ key }}" value="{{ current }}">
+                    {% elif item.type in ['conformity', 'yes_no'] %}
+                        <div class="answer-options">
+                        {% if item.type == 'conformity' %}{% set options = [('conforme','Conforme'),('nao_conforme','Não conforme'),('nao_aplicavel','Não aplicável')] %}
+                        {% else %}{% set options = [('sim','Sim'),('nao','Não'),('nao_aplicavel','Não aplicável')] %}{% endif %}
+                        {% for oval, olabel in options %}
+                            <label class="answer-chip"><input type="radio" name="{{ key }}" value="{{ oval }}" {% if current == oval %}checked{% endif %}> <span>{{ olabel }}</span></label>
+                        {% endfor %}
+                        </div>
+                    {% elif item.type == 'choice' %}
+                        <div class="answer-options">{% for option in item.options %}<label class="answer-chip"><input type="radio" name="{{ key }}" value="{{ option }}" {% if current == option %}checked{% endif %}> <span>{{ option }}</span></label>{% endfor %}</div>
+                    {% elif item.type == 'rating' %}
+                        <div class="answer-options">{% for option in range(item.rating_min, item.rating_max + 1) %}<label class="answer-chip"><input type="radio" name="{{ key }}" value="{{ option }}" {% if current|string == option|string %}checked{% endif %}> <span>{% if item.rating_style == 'stars' %}★{% else %}{{ option }}{% endif %}</span></label>{% endfor %}</div>
+                    {% elif item.type == 'multichoice' %}
+                        <div class="answer-options">{% for option in item.options %}<label class="answer-chip"><input type="checkbox" name="{{ key }}" value="{{ option }}" {% if option in valores.get(key, []) %}checked{% endif %}> <span>{{ option }}</span></label>{% endfor %}</div>
+                    {% elif item.type == 'matrix' %}
+                        <div class="table-responsive"><table class="table table-sm matrix-table"><thead><tr><th></th>{% for column in item.matrix_columns %}<th class="text-center">{{ column }}</th>{% endfor %}</tr></thead><tbody>{% for row in item.matrix_rows %}{% set ri = loop.index0 %}<tr><td>{{ row }}</td>{% for column in item.matrix_columns %}<td class="text-center"><input type="radio" name="{{ key }}_matrix_{{ ri }}" value="{{ column }}" {% if valores.get(key ~ '_matrix_' ~ ri, [''])[0] == column %}checked{% endif %}></td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+                    {% elif item.type == 'ranking' %}
+                        <div class="row g-2">{% for position in item.options %}<div class="col-md-6"><label class="form-label small">{{ loop.index }}ª posição</label><select class="form-select ranking-select" name="{{ key }}_rank_{{ loop.index0 }}"><option value="">Selecione</option>{% for option in item.options %}<option value="{{ option }}" {% if valores.get(key ~ '_rank_' ~ loop.index0, [''])[0] == option %}selected{% endif %}>{{ option }}</option>{% endfor %}</select></div>{% endfor %}</div>
+                    {% endif %}
+
+                    {% if item.negative_comment or item.negative_evidence %}
+                    <div class="negative-details mt-3" data-negative-for="{{ key }}">
+                        {% if item.negative_comment %}<label class="form-label">Comentário do resultado negativo</label><textarea class="form-control mb-2" name="{{ key }}_comment" rows="2">{{ valores.get(key ~ '_comment', [''])[0] }}</textarea>{% endif %}
+                        {% if item.negative_evidence %}<label class="form-label">Evidência / referência</label><input class="form-control" name="{{ key }}_evidence" value="{{ valores.get(key ~ '_evidence', [''])[0] }}" placeholder="Descreva ou informe a referência da evidência">{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+{% endfor %}
+<div class="card border-0 shadow-sm mb-4"><div class="card-body p-4"><label class="form-label text-laranja">Observações gerais</label><textarea class="form-control" name="observacoes" rows="3" maxlength="2000">{{ valores.get('observacoes', [''])[0] }}</textarea></div></div>
+<div class="d-flex justify-content-between gap-2"><a class="btn btn-secondary" href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id) }}">Voltar</a><button class="btn btn-laranja" type="submit">Concluir checklist</button></div>
+</form>
+<script src="{{ url_for('static', filename='js/checklist-run.js') }}" defer></script>
+{% endblock %}

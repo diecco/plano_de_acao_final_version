@@ -4,35 +4,39 @@
 
 {% block conteudo %}
 <div class="page-header">
-    <h2 class="page-title text-center mb-0">
-        <i class="bi bi-ui-checks-grid me-2"></i>{{ checklist.nome }}
-    </h2>
+    <h2 class="page-title text-center mb-0"><i class="bi bi-ui-checks-grid me-2"></i>{{ checklist.nome }}</h2>
 </div>
 <hr>
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+        <div>
+            {% if checklist.descricao %}<p class="mb-1">{{ checklist.descricao }}</p>{% endif %}
+            <small class="text-muted">Checklist publicado e disponível para preenchimento.</small>
+        </div>
+        <a class="btn btn-laranja" href="{{ url_for('main.aplicar_checklist_dinamico', checklist_id=checklist.id) }}">Novo preenchimento</a>
+    </div>
+</div>
 <div class="card border-0 shadow-sm">
     <div class="card-body p-4">
-        {% if checklist.descricao %}<p class="text-muted mb-4">{{ checklist.descricao }}</p>{% endif %}
-        {% for secao in estrutura %}
-        <section class="mb-4">
-            <h5 class="text-laranja">{{ loop.index }}. {{ secao.title }}</h5>
-            <div class="table-responsive">
-                <table class="table align-middle mb-0">
-                    <thead><tr><th style="width: 70px;">Item</th><th>Verificação</th><th style="width: 280px;">Tipo de resposta</th></tr></thead>
-                    <tbody>
-                    {% for item in secao.questions %}
+        <h5 class="text-laranja mb-3">Histórico de preenchimentos</h5>
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead><tr><th style="width:100px">Registro</th><th>Data</th><th>Responsável</th><th>Centro de custos</th><th class="text-center" style="width:100px">Ações</th></tr></thead>
+                <tbody>
+                {% for execucao in execucoes %}
                     <tr>
-                        <td>{{ loop.index }}</td>
-                        <td><strong>{{ item.text }}</strong>{% if item.help %}<small class="d-block text-muted mt-1">{{ item.help }}</small>{% endif %}</td>
-                        <td>{{ tipos_resposta.get(item.type, item.type) }}{% if item.required %}<small class="d-block text-muted">Obrigatório</small>{% endif %}</td>
+                        <td>#{{ execucao.id }}</td>
+                        <td>{{ execucao.concluido_em.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td>{{ execucao.executor_nome }}</td>
+                        <td>{{ execucao.centro_codigo or '-' }}</td>
+                        <td class="text-center"><a class="btn btn-sm btn-link text-laranja" title="Visualizar" href="{{ url_for('main.visualizar_execucao_checklist', execucao_id=execucao.id) }}"><i class="bi bi-eye"></i></a></td>
                     </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </section>
-        {% else %}
-        <p class="text-muted text-center mb-0">Nenhum item de verificação configurado.</p>
-        {% endfor %}
+                {% else %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">Nenhum preenchimento concluído.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}
