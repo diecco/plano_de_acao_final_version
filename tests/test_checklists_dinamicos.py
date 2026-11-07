@@ -140,6 +140,21 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
                 "personalizado", data_inicio="2026-01-31", data_fim="2026-02-01"
             )
 
+    def test_listing_has_period_statistics_without_deviation_metrics(self):
+        source = (
+            ROOT / "app" / "views" / "checklists_dinamicos.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("COUNT(*) AS total_preenchimentos", source)
+        self.assertIn("COUNT(DISTINCT ce.executor_id) AS total_responsaveis", source)
+        template = (
+            ROOT / "app" / "templates" / "checklist_dinamico_esboco.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Preenchimentos", template)
+        self.assertIn("Responsáveis", template)
+        self.assertIn("Dias com atividade", template)
+        self.assertIn("Último preenchimento", template)
+        self.assertNotIn("Total de desvios", template)
+
 
 if __name__ == "__main__":
     unittest.main()
