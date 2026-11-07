@@ -13,7 +13,21 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 260)
+        self.assertEqual(len(self.routes), 265)
+
+    def test_configurable_checklist_routes_are_registered(self):
+        expected = {
+            ("/admin/checklists", ("GET", "POST")):
+                "main.checklists_dinamicos",
+            ("/admin/checklists/<int:checklist_id>/publicar", ("POST",)):
+                "main.publicar_checklist_dinamico",
+            ("/admin/checklists/<int:checklist_id>/situacao", ("POST",)):
+                "main.alternar_checklist_dinamico",
+            ("/checklists/<int:checklist_id>", ("GET",)):
+                "main.abrir_checklist_dinamico",
+        }
+        for route_contract, endpoint in expected.items():
+            self.assertEqual(self.routes.get(route_contract), endpoint)
 
     def test_observacao_comportamental_routes_are_registered(self):
         expected = {

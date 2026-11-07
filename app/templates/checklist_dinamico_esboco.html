@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+
+{% block titulo %}{{ checklist.nome }}{% endblock %}
+
+{% block conteudo %}
+<div class="page-header">
+    <h2 class="page-title text-center mb-0">
+        <i class="bi bi-ui-checks-grid me-2"></i>{{ checklist.nome }}
+    </h2>
+</div>
+<hr>
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-4 p-lg-5 text-center">
+        <span class="badge bg-light text-dark border mb-3">Checklist publicado</span>
+        <h4>Estrutura inicial disponível</h4>
+        <p class="text-muted mx-auto" style="max-width: 720px;">
+            {{ checklist.descricao or 'Este checklist está pronto para receber suas seções e perguntas na próxima etapa do construtor.' }}
+        </p>
+    </div>
+</div>
+{% endblock %}

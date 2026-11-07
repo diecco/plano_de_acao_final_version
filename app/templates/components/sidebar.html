@@ -1,4 +1,7 @@
 {% set is_admin = session.get('perfil') == 'administrador' %}
+{% set checklist_aberto_id = request.view_args.get('checklist_id') if request.view_args else none %}
+{% set checklist_ssma_ativo = (checklists_sidebar_ssma | selectattr('id', 'equalto', checklist_aberto_id) | list | length) > 0 %}
+{% set checklist_gestao_ativo = (checklists_sidebar_gestao | selectattr('id', 'equalto', checklist_aberto_id) | list | length) > 0 %}
 
 <aside class="app-sidebar" id="appSidebar" aria-label="Navegação principal">
     <div class="sidebar-brand">
@@ -101,18 +104,18 @@
             ] %}
             <section class="sidebar-module"
                      data-search-label="ssma meu calendário horas segurança recusa tarefa apr auditoria padrão ifs">
-                <button class="sidebar-module-toggle {% if request.endpoint in endpoints_ssma %}active{% endif %}"
+                <button class="sidebar-module-toggle {% if request.endpoint in endpoints_ssma or checklist_ssma_ativo %}active{% endif %}"
                         type="button"
                         data-bs-toggle="collapse"
                         data-bs-target="#menuSsma"
-                        aria-expanded="{{ 'true' if request.endpoint in endpoints_ssma else 'false' }}"
+                        aria-expanded="{{ 'true' if request.endpoint in endpoints_ssma or checklist_ssma_ativo else 'false' }}"
                         aria-controls="menuSsma"
                         title="SSMA">
                     <i class="bi bi-shield-check"></i>
                     <span class="sidebar-label">SSMA</span>
                     <i class="bi bi-chevron-down sidebar-chevron"></i>
                 </button>
-                <div class="collapse sidebar-submenu {% if request.endpoint in endpoints_ssma %}show{% endif %}"
+                <div class="collapse sidebar-submenu {% if request.endpoint in endpoints_ssma or checklist_ssma_ativo %}show{% endif %}"
                      id="menuSsma"
                      data-bs-parent="#sidebarMenuAccordion">
                     {% if session.get('pode_ser_lider_ssma') or is_admin %}
@@ -154,6 +157,12 @@
                            class="sidebar-link {% if request.endpoint == 'main.listar_ifs' %}active{% endif %}">
                             <i class="bi bi-shield-exclamation"></i><span>IFS</span>
                         </a>
+                        {% for checklist in checklists_sidebar_ssma %}
+                            <a href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id) }}"
+                               class="sidebar-link {% if checklist_aberto_id == checklist.id %}active{% endif %}">
+                                <i class="bi bi-ui-checks-grid"></i><span>{{ checklist.nome }}</span>
+                            </a>
+                        {% endfor %}
                     {% endif %}
                 </div>
             </section>
@@ -170,18 +179,18 @@
             ] %}
             <section class="sidebar-module"
                      data-search-label="gestão ssma buffer desvios criar agendamento relatório aderência análise crítica">
-                <button class="sidebar-module-toggle {% if request.endpoint in endpoints_gestao_ssma %}active{% endif %}"
+                <button class="sidebar-module-toggle {% if request.endpoint in endpoints_gestao_ssma or checklist_gestao_ativo %}active{% endif %}"
                         type="button"
                         data-bs-toggle="collapse"
                         data-bs-target="#menuGestaoSsma"
-                        aria-expanded="{{ 'true' if request.endpoint in endpoints_gestao_ssma else 'false' }}"
+                        aria-expanded="{{ 'true' if request.endpoint in endpoints_gestao_ssma or checklist_gestao_ativo else 'false' }}"
                         aria-controls="menuGestaoSsma"
                         title="Gestão SSMA">
                     <i class="bi bi-gear"></i>
                     <span class="sidebar-label">Gestão SSMA</span>
                     <i class="bi bi-chevron-down sidebar-chevron"></i>
                 </button>
-                <div class="collapse sidebar-submenu {% if request.endpoint in endpoints_gestao_ssma %}show{% endif %}"
+                <div class="collapse sidebar-submenu {% if request.endpoint in endpoints_gestao_ssma or checklist_gestao_ativo %}show{% endif %}"
                      id="menuGestaoSsma"
                      data-bs-parent="#sidebarMenuAccordion">
                     {% if feature_relato_desvios_enabled and (is_admin or session.get('gestor_ssma') or session.get('pode_direcionar_desvios')) %}
@@ -207,6 +216,12 @@
                            class="sidebar-link {% if request.endpoint == 'main.analise_critica_hs' %}active{% endif %}">
                             <i class="bi bi-graph-up-arrow"></i><span>Análise crítica HS</span>
                         </a>
+                        {% for checklist in checklists_sidebar_gestao %}
+                            <a href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id) }}"
+                               class="sidebar-link {% if checklist_aberto_id == checklist.id %}active{% endif %}">
+                                <i class="bi bi-ui-checks-grid"></i><span>{{ checklist.nome }}</span>
+                            </a>
+                        {% endfor %}
                     {% endif %}
                 </div>
             </section>
@@ -515,7 +530,8 @@
                 'main.tipos_equipamento',
                 'main.tipos_documento',
                 'main.pcpm_checklist_modelos',
-                'main.comunicados_visuais'
+                'main.comunicados_visuais',
+                'main.checklists_dinamicos'
             ] %}
             <section class="sidebar-module"
                      data-search-label="administração estrutura superintendências centros custos usuários comunicados origens causas recusa temas hs tipos documentos cargos funções setores instrutores matriz empresas equipamentos checklist">
@@ -549,6 +565,10 @@
                     <a href="{{ url_for('main.comunicados_visuais') }}"
                        class="sidebar-link {% if request.endpoint == 'main.comunicados_visuais' %}active{% endif %}">
                         <i class="bi bi-images"></i><span>Comunicados visuais</span>
+                    </a>
+                    <a href="{{ url_for('main.checklists_dinamicos') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.checklists_dinamicos' %}active{% endif %}">
+                        <i class="bi bi-ui-checks-grid"></i><span>Checklists configuráveis</span>
                     </a>
                     <a href="{{ url_for('main.origens') }}"
                        class="sidebar-link {% if request.endpoint == 'main.origens' %}active{% endif %}">

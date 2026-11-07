@@ -41,6 +41,10 @@ def create_app():
     from app.routes import main_routes
     app.register_blueprint(main_routes)
 
+    # Checklists publicados podem ocupar posições dinâmicas na sidebar.
+    from app.views.checklists_dinamicos import carregar_checklists_sidebar
+    app.context_processor(carregar_checklists_sidebar)
+
     # Funcionalidades reversíveis controladas por variáveis de ambiente.
     from app.feature_flags import register_feature_flags
     register_feature_flags(app)
