@@ -22,6 +22,14 @@
 .person-selected { margin-top: .4rem; color: #6c757d; font-size: .82rem; line-height: 1.4; }
 .nfc-checkpoint.is-valid .nfc-read-status { color: #198754 !important; font-weight: 600; }
 .nfc-checkpoint.is-invalid .nfc-read-status { color: #dc3545 !important; }
+.nfc-signature-person { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .7rem .8rem; border: 1px solid #e2e5e9; border-radius: .5rem; background: #fff; }
+.nfc-signature-person.is-signed { border-color: #b9dfc8; background: #f5fbf7; }
+.nfc-signature-identity { min-width: 0; display: flex; align-items: center; gap: .55rem; font-size: .86rem; color: #4b5563; }
+.nfc-signature-identity i { flex: 0 0 auto; color: #f26722; }
+.nfc-signature-person.is-signed .nfc-signature-identity i { color: #198754; }
+.nfc-signature-identity span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nfc-signature-reader { display: flex; align-items: flex-end; gap: .5rem; max-width: 760px; }
+.nfc-mobile-button { flex: 0 0 auto; min-height: 38px; white-space: nowrap; }
 .checklist-nfc-locked { opacity: .48; pointer-events: none; }
 .checklist-verification-table thead th { background: #f26722; color: #fff; text-align: center; vertical-align: middle; }
 .checklist-verification-table .verification-item-column { width: 44%; }
@@ -42,4 +50,4 @@
 .checklist-repeatable .repeatable-actions { width: 72px; }
 .checklist-repeatable td { min-width: 180px; }
 .checklist-repeatable td:first-child, .checklist-repeatable td:last-child { min-width: 0; }
-@media (max-width: 767px) { .answer-chip span { padding: .45rem .65rem; } }
+@media (max-width: 767px) { .answer-chip span { padding: .45rem .65rem; } .nfc-signature-reader { align-items: stretch; } .nfc-mobile-button { align-self: flex-end; } }

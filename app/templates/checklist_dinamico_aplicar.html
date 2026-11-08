@@ -20,10 +20,10 @@
 {% macro render_nfc_signature(item, key, valores) %}
 <div class="nfc-checkpoint nfc-signature" data-nfc-signature data-signature-url="{{ url_for('main.validar_assinatura_nfc', checklist_id=checklist.id) }}" data-signature-source="{{ item._signature_source_key|default('') }}" data-signature-source-type="{{ item._signature_source_type|default('') }}" data-signature-required="{{ '1' if item.required else '0' }}">
     <input type="hidden" name="{{ key }}_nfc_signatures" value="{{ valores.get(key ~ '_nfc_signatures', ['[]'])[0] }}" data-nfc-signatures>
-    <div class="nfc-signature-people mb-2" data-signature-people></div>
-    <div class="row g-2 align-items-end">
-        <div class="col-12 col-lg-8"><label class="form-label small mb-1">Leitor USB no computador</label><input class="form-control" type="text" autocomplete="off" data-nfc-usb-input placeholder="Clique aqui e aproxime o crachá do leitor USB"></div>
-        <div class="col-12 col-lg-4"><button class="btn btn-outline-secondary w-100" type="button" data-nfc-read><i class="bi bi-phone me-1"></i>Ler crachá no celular</button></div>
+    <div class="row g-2 nfc-signature-people mb-3" data-signature-people></div>
+    <div class="nfc-signature-reader">
+        <div class="flex-grow-1"><label class="form-label small mb-1">Leitor USB no computador</label><input class="form-control" type="text" autocomplete="off" data-nfc-usb-input placeholder="Clique aqui e aproxime o crachá do leitor USB"></div>
+        <button class="btn btn-outline-secondary nfc-mobile-button" type="button" data-nfc-read title="Ler crachá no celular" aria-label="Ler crachá no celular"><i class="bi bi-phone"></i><span class="d-none d-sm-inline ms-1">Ler no celular</span></button>
     </div>
     <span class="nfc-read-status text-muted small d-block mt-2" data-nfc-status>Aguardando leitura física do crachá.</span>
 </div>
@@ -108,7 +108,7 @@
             <div class="{% if secao.layout == 'header' %}row g-3{% elif secao.layout == 'evidence' %}row g-3 checklist-evidence-grid{% endif %}">
             {% for item in secao.questions %}
                 {% set ii = loop.index0 %}{% set key = 'q_' ~ si ~ '_' ~ ii %}{% set current = valores.get(key, [''])[0] %}
-                <div class="{% if secao.layout == 'header' %}{% if item.type in ['textarea', 'matrix', 'ranking'] %}col-12{% else %}col-12 col-md-6 col-xl-4{% endif %}{% elif secao.layout == 'evidence' %}col-12 col-lg-6{% endif %}">
+                <div class="{% if secao.layout == 'header' %}{% if item.type in ['textarea', 'matrix', 'ranking', 'nfc_signature'] %}col-12{% else %}col-12 col-md-6 col-xl-4{% endif %}{% elif secao.layout == 'evidence' %}col-12 col-lg-6{% endif %}">
                 <div class="checklist-question" data-type="{{ item.type }}">
                     <label class="question-title">{% if secao.layout != 'header' %}{{ loop.index }}. {% endif %}{{ item.text }}{% if item.required %} <span class="text-danger">*</span>{% endif %}</label>
                     {% if item.help %}<small class="d-block text-muted mb-2">{{ item.help }}</small>{% endif %}
