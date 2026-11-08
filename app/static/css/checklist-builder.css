@@ -10,9 +10,9 @@
 .checklist-section-summary-actions { display: inline-flex; opacity: 1; }
 .checklist-section-summary-actions .checklist-editor-action { background: #fff; border-color: #f4b08c; color: #d95614; }
 .checklist-section-summary-actions .checklist-editor-action:hover:not(:disabled) { background: #f26722; border-color: #f26722; color: #fff; }
-.checklist-section-heading { display: grid; grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr); gap: .75rem; align-items: end; padding: 1rem; }
+.checklist-section-heading { display: grid; grid-template-columns: minmax(210px, 1fr) minmax(0, 2fr); gap: .75rem; align-items: end; padding: 1rem; }
 .checklist-question { border-top: 1px solid #eceff1; padding: 1rem; display: grid; gap: .8rem; }
-.checklist-question-row { display: grid; grid-template-columns: minmax(240px, 2fr) minmax(210px, 1fr) auto; gap: .75rem; align-items: end; }
+.checklist-question-row { display: grid; grid-template-columns: minmax(210px, 1fr) minmax(0, 2fr) auto; gap: .75rem; align-items: end; }
 .checklist-field label { display: block; margin-bottom: .35rem; font-size: .82rem; font-weight: 600; color: #4b5563; }
 .checklist-editor-actions { display: flex; align-items: center; gap: .35rem; }
 .checklist-editor-action { width: 34px; height: 34px; border: 1px solid #d7dde2; background: #fff; color: #535b61; border-radius: .4rem; padding: 0; }
