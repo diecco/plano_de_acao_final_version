@@ -1281,7 +1281,10 @@ def register_checklists_dinamicos_routes(blueprint):
                         )
                     conn.commit()
                     flash("Checklist concluído com sucesso.", "success")
-                    return redirect(url_for("main.visualizar_execucao_checklist", execucao_id=execucao_id))
+                    return redirect(url_for(
+                        "main.abrir_checklist_dinamico",
+                        checklist_id=checklist_id,
+                    ))
         finally:
             cursor.close()
             conn.close()

@@ -110,6 +110,17 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn("Concluir checklist", template)
         self.assertIn("negative-details", template)
 
+    def test_completed_execution_returns_to_checklist_listing(self):
+        source = (
+            ROOT / "app" / "views" / "checklists_dinamicos.py"
+        ).read_text(encoding="utf-8")
+        success_flow = source.split(
+            'flash("Checklist concluído com sucesso.", "success")', 1
+        )[1].split("@blueprint.get", 1)[0]
+        self.assertIn('"main.abrir_checklist_dinamico"', success_flow)
+        self.assertIn("checklist_id=checklist_id", success_flow)
+        self.assertNotIn('"main.visualizar_execucao_checklist"', success_flow)
+
     def test_listing_uses_the_standard_filter_and_new_record_toolbar(self):
         template = (
             ROOT / "app" / "templates" / "checklist_dinamico_esboco.html"
