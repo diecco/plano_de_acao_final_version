@@ -471,7 +471,9 @@ def _validar_respostas(estrutura, formulario, pessoas=None, setores=None, etique
             elif tipo == "nfc_tag":
                 etiqueta = etiquetas_nfc.get(str(valor))
                 metodo_leitura = (formulario.get(f"{chave}_nfc_method") or "").strip()
-                if etiqueta and item.get("nfc_physical_required") and metodo_leitura != "physical":
+                canal_leitura = (formulario.get(f"{chave}_nfc_channel") or "").strip()
+                leitura_valida = metodo_leitura == "physical" and canal_leitura in {"usb", "web_nfc"}
+                if etiqueta and item.get("nfc_physical_required") and not leitura_valida:
                     erros.append(f"Faça a leitura física da etiqueta em: {item.get('text')}")
                     etiqueta = None
                 valor = ({
@@ -479,6 +481,7 @@ def _validar_respostas(estrutura, formulario, pessoas=None, setores=None, etique
                     "number": etiqueta["numero"],
                     "description": etiqueta["descricao"],
                     "read_method": metodo_leitura or "selection",
+                    "read_channel": canal_leitura or None,
                     "read_at": datetime.now().astimezone().isoformat(timespec="seconds"),
                 } if etiqueta else {})
             elif tipo == "matrix":

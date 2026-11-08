@@ -75,11 +75,18 @@
                         <div class="nfc-checkpoint" data-nfc-checkpoint data-name="{{ key }}" data-physical-required="{{ '1' if item.nfc_physical_required else '0' }}" data-unlock-section="{{ '1' if item.nfc_unlock_section else '0' }}">
                             <input type="hidden" name="{{ key }}" value="{{ current }}" data-nfc-value>
                             <input type="hidden" name="{{ key }}_nfc_method" value="{{ valores.get(key ~ '_nfc_method', [''])[0] }}" data-nfc-method>
+                            <input type="hidden" name="{{ key }}_nfc_channel" value="{{ valores.get(key ~ '_nfc_channel', [''])[0] }}" data-nfc-channel>
                             <input type="hidden" name="{{ key }}_nfc_read_at" value="{{ valores.get(key ~ '_nfc_read_at', [''])[0] }}" data-nfc-read-at>
-                            <div class="d-flex flex-wrap align-items-center gap-2">
-                                <button class="btn btn-outline-secondary" type="button" data-nfc-read><i class="bi bi-broadcast-pin me-1"></i>Ler etiqueta NFC</button>
-                                <span class="nfc-read-status text-muted small" data-nfc-status>{% if current %}Etiqueta selecionada.{% else %}Aguardando leitura.{% endif %}</span>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-12 col-lg-8">
+                                    <label class="form-label small mb-1">Leitor USB no computador</label>
+                                    <input class="form-control" type="text" autocomplete="off" data-nfc-usb-input placeholder="Clique aqui e aproxime a etiqueta do leitor USB">
+                                </div>
+                                <div class="col-12 col-lg-4">
+                                    <button class="btn btn-outline-secondary w-100" type="button" data-nfc-read><i class="bi bi-phone me-1"></i>Ler NFC no celular</button>
+                                </div>
                             </div>
+                            <span class="nfc-read-status text-muted small d-block mt-2" data-nfc-status>{% if current %}Etiqueta validada.{% else %}Aguardando leitura física.{% endif %}</span>
                         </div>
                         {% if not etiquetas_nfc %}<small class="d-block text-muted mt-1">Nenhuma etiqueta ativa está disponível para este centro de custos.</small>{% endif %}
                     {% elif item.type in ['conformity', 'yes_no'] %}

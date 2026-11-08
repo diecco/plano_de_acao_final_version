@@ -120,18 +120,45 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('[data-nfc-checkpoint]').forEach((checkpoint) => {
     const value = checkpoint.querySelector('[data-nfc-value]');
     const method = checkpoint.querySelector('[data-nfc-method]');
+    const channel = checkpoint.querySelector('[data-nfc-channel]');
     const readAt = checkpoint.querySelector('[data-nfc-read-at]');
     const status = checkpoint.querySelector('[data-nfc-status]');
+    const usbInput = checkpoint.querySelector('[data-nfc-usb-input]');
     const button = checkpoint.querySelector('[data-nfc-read]');
     const section = checkpoint.closest('section');
-    const setTag = (tag, readMethod) => {
+    const setTag = (tag, readChannel) => {
       value.value = tag.id;
-      method.value = readMethod;
+      method.value = 'physical';
+      channel.value = readChannel;
       readAt.value = new Date().toISOString();
-      status.textContent = `${nfcText(tag)} · ${readMethod === 'physical' ? 'leitura física validada' : 'seleção manual'}`;
+      usbInput.value = '';
+      const channelLabel = readChannel === 'usb' ? 'leitor USB' : 'NFC do celular';
+      status.textContent = `${nfcText(tag)} · leitura validada por ${channelLabel}`;
       checkpoint.classList.remove('is-invalid'); checkpoint.classList.add('is-valid');
       refreshNfcSection(section);
     };
+    const validateCapture = (raw, readChannel) => {
+      const candidates = (Array.isArray(raw) ? raw : [raw]).flatMap(nfcCandidates);
+      const tag = nfcTags.find((item) => candidates.includes(String(item.token)) || candidates.includes(String(item.numero)));
+      if (!tag) {
+        checkpoint.classList.remove('is-valid'); checkpoint.classList.add('is-invalid');
+        status.textContent = 'Etiqueta não cadastrada, inativa ou fora da abrangência deste checklist.';
+        value.value = ''; method.value = ''; channel.value = ''; readAt.value = '';
+        refreshNfcSection(section);
+        return false;
+      }
+      setTag(tag, readChannel); return true;
+    };
+    usbInput.addEventListener('focus', () => {
+      usbInput.value = '';
+      status.textContent = 'Aguardando a leitura do dispositivo USB…';
+    });
+    usbInput.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      validateCapture(usbInput.value.trim(), 'usb');
+      if (checkpoint.classList.contains('is-invalid')) usbInput.select();
+    });
     button.addEventListener('click', async () => {
       if (!('NDEFReader' in window)) {
         checkpoint.classList.add('is-invalid');
@@ -144,14 +171,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const reader = new NDEFReader();
         await reader.scan();
         reader.addEventListener('reading', (event) => {
-          const candidates = decodedNfcRecords(event.message).flatMap(nfcCandidates);
-          const tag = nfcTags.find((item) => candidates.includes(String(item.token)) || candidates.includes(String(item.numero)));
-          if (!tag) {
-            checkpoint.classList.add('is-invalid');
-            status.textContent = 'Etiqueta não cadastrada, inativa ou fora da abrangência deste checklist.';
-            return;
-          }
-          setTag(tag, 'physical');
+          const records = decodedNfcRecords(event.message);
+          validateCapture(records, 'web_nfc');
           button.disabled = false;
         }, {once: true});
       } catch (error) {
@@ -164,7 +185,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     const selected = nfcTags.find((item) => String(item.id) === value.value);
     if (selected && method.value) {
-      status.textContent = `${nfcText(selected)} · ${method.value === 'physical' ? 'leitura física validada' : 'seleção manual'}`;
+      const channelLabel = channel.value === 'usb' ? 'leitor USB' : 'NFC do celular';
+      status.textContent = `${nfcText(selected)} · leitura validada por ${channelLabel}`;
       checkpoint.classList.add('is-valid');
     }
     refreshNfcSection(section);
