@@ -8,7 +8,14 @@
 
 {% for secao in estrutura %}
 {% set si = loop.index0 %}
-<section class="card border-0 shadow-sm mb-4"><div class="card-body p-4"><h5 class="text-laranja mb-3">{{ loop.index }}. {{ secao.title }}</h5><div class="table-responsive"><table class="table align-middle"><thead><tr><th style="width:55%">Item</th><th>Resposta</th><th>Complemento</th></tr></thead><tbody>
+<section class="card border-0 shadow-sm mb-4"><div class="card-body p-4"><h5 class="text-laranja mb-3">{{ loop.index }}. {{ secao.title }}</h5>
+{% if secao.layout == 'repeatable' %}
+{% set first_key = 'q_' ~ si ~ '_0' %}{% set row_count = respostas.get(first_key, {}).get('value', [])|length %}
+<div class="table-responsive"><table class="table table-bordered align-middle"><thead><tr><th style="width:52px">#</th>{% for item in secao.questions %}<th>{{ item.text }}</th>{% endfor %}</tr></thead><tbody>
+{% for row_index in range(row_count) %}<tr><td class="text-center">{{ loop.index }}</td>{% for item in secao.questions %}{% set key = 'q_' ~ si ~ '_' ~ loop.index0 %}{% set values = respostas.get(key, {}).get('value', []) %}{% set value = values[row_index] if row_index < values|length else '' %}<td>{% if value is mapping %}{{ value.get('name', '-') }}{% else %}{{ value if value else '-' }}{% endif %}{% if item.measurement_unit and value %} {{ item.measurement_unit }}{% endif %}</td>{% endfor %}</tr>{% else %}<tr><td colspan="{{ secao.questions|length + 1 }}" class="text-center text-muted">Nenhum registro informado.</td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}
+<div class="table-responsive"><table class="table align-middle"><thead><tr><th style="width:55%">Item</th><th>Resposta</th><th>Complemento</th></tr></thead><tbody>
 {% for item in secao.questions %}{% set key = 'q_' ~ si ~ '_' ~ loop.index0 %}{% set answer = respostas.get(key, {}) %}{% set value = answer.get('value') %}
 <tr><td><strong>{{ item.text }}</strong>{% if item.help %}<small class="d-block text-muted">{{ item.help }}</small>{% endif %}</td><td>
 {% if item.type in ['person', 'sector'] and value is mapping %}{{ value.get('name', '-') }}{% if value.get('registration') %} — {{ value.registration }}{% endif %}
@@ -20,7 +27,9 @@
 {% if item.measurement_unit and value not in [none, ''] %} {{ item.measurement_unit }}{% endif %}
 </td><td>{% if answer.get('comment') %}<div><small class="text-muted">Comentário:</small> {{ answer.comment }}</div>{% endif %}{% if answer.get('evidence') %}<div><small class="text-muted">Evidência:</small> {{ answer.evidence }}</div>{% endif %}{% if answer.get('action_id') %}<div class="mt-1"><a class="text-laranja" href="{{ url_for('main.editar_acao', id=answer.action_id) }}">Abrir ação #{{ answer.action_id }}</a></div>{% endif %}{% if not answer.get('comment') and not answer.get('evidence') and not answer.get('action_id') %}-{% endif %}</td></tr>
 {% endfor %}
-</tbody></table></div></div></section>
+</tbody></table></div>
+{% endif %}
+</div></section>
 {% endfor %}
 {% if execucao.observacoes %}<div class="card border-0 shadow-sm mb-4"><div class="card-body p-4"><h5 class="text-laranja">Observações gerais</h5><p class="mb-0">{{ execucao.observacoes }}</p></div></div>{% endif %}
 <a class="btn btn-secondary" href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=execucao.checklist_id) }}">Voltar</a>

@@ -1,4 +1,47 @@
 document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.checklist-layout-grouped .checklist-section-title').forEach((title) => {
+    title.setAttribute('role', 'button');
+    title.setAttribute('tabindex', '0');
+    title.setAttribute('aria-expanded', 'true');
+    const toggle = () => {
+      const section = title.closest('.checklist-layout-grouped');
+      const collapsed = section.classList.toggle('is-collapsed');
+      title.setAttribute('aria-expanded', String(!collapsed));
+    };
+    title.addEventListener('click', toggle);
+    title.addEventListener('keydown', (event) => {
+      if (!['Enter', ' '].includes(event.key)) return;
+      event.preventDefault(); toggle();
+    });
+  });
+
+  document.querySelectorAll('[data-repeatable-section]').forEach((section) => {
+    const host = section.querySelector('[data-repeatable-rows]');
+    const refresh = () => {
+      const rows = [...host.querySelectorAll('[data-repeatable-row]')];
+      rows.forEach((row, index) => {
+        row.querySelector('[data-repeatable-index]').textContent = index + 1;
+        const remove = row.querySelector('[data-remove-repeatable]');
+        remove.disabled = rows.length === 1;
+      });
+    };
+    const clearRow = (row) => row.querySelectorAll('input, select, textarea').forEach((control) => {
+      if (control.type === 'checkbox' || control.type === 'radio') control.checked = false;
+      else control.value = '';
+    });
+    section.querySelector('[data-add-repeatable]').addEventListener('click', () => {
+      const source = host.querySelector('[data-repeatable-row]:last-child');
+      const row = source.cloneNode(true);
+      clearRow(row); host.appendChild(row); refresh();
+    });
+    host.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-remove-repeatable]');
+      if (!button || button.disabled) return;
+      button.closest('[data-repeatable-row]').remove(); refresh();
+    });
+    refresh();
+  });
+
   const refreshNegative = (name) => {
     const box = document.querySelector(`[data-negative-for="${name}"]`);
     if (!box) return;

@@ -41,6 +41,15 @@ TIPOS_RESPOSTA = {
     "nfc_tag": "Etiqueta NFC",
 }
 
+LAYOUTS_SECAO = {
+    "header": "Cabeçalho / grade de campos",
+    "verification": "Itens de verificação",
+    "narrative": "Texto / conclusão",
+    "grouped": "Verificação agrupada",
+    "repeatable": "Lista repetível",
+    "evidence": "Evidências / galeria",
+}
+
 
 def _normalizar_texto(valor):
     valor = unicodedata.normalize("NFKD", valor or "")
@@ -231,13 +240,23 @@ def validar_estrutura(raw):
             layout = (
                 "header" if secao_indice == 0 and _normalizar_texto(titulo) in {
                     "dados gerais", "identificacao", "cabecalho"
-                } else "standard"
+                } else "verification"
             )
-        if layout not in {"standard", "header"}:
+        # Compatibilidade com as definições publicadas antes de o layout ser
+        # uma escolha explícita no construtor.
+        if layout == "standard":
+            layout = "verification"
+        if layout not in LAYOUTS_SECAO:
             raise ValueError("Confira a apresentação de cada seção.")
         if layout == "header":
             for item in itens:
                 _ajustar_campo_pessoa_do_cabecalho(item)
+        if layout == "repeatable":
+            permitidos = {"text", "textarea", "number", "date", "time", "choice", "sector"}
+            if any(item["type"] not in permitidos for item in itens):
+                raise ValueError(
+                    "Listas repetíveis aceitam texto, número, data, hora, seleção ou setor."
+                )
         limpas.append({"title": titulo.strip(), "layout": layout, "questions": itens})
     return limpas
 
@@ -357,8 +376,10 @@ def _ler_estrutura(valor):
             secao["layout"] = (
                 "header" if indice == 0 and titulo in {
                     "dados gerais", "identificacao", "cabecalho"
-                } else "standard"
+                } else "verification"
             )
+        elif secao.get("layout") == "standard":
+            secao["layout"] = "verification"
         for item in secao.get("questions", []):
             if not isinstance(item, dict):
                 continue
@@ -443,6 +464,49 @@ def _validar_respostas(estrutura, formulario, pessoas=None, setores=None, etique
         for item_indice, item in enumerate(secao.get("questions", [])):
             chave = _chave_resposta(secao_indice, item_indice)
             tipo = item.get("type")
+            if secao.get("layout") == "repeatable":
+                valores_linha = [
+                    str(valor).strip() for valor in formulario.getlist(chave)
+                ]
+                if tipo == "choice":
+                    valores_linha = [
+                        valor if valor in item.get("options", []) else ""
+                        for valor in valores_linha
+                    ]
+                elif tipo == "sector":
+                    valores_linha = [
+                        ({"id": setores[valor]["id"], "name": setores[valor]["nome"]}
+                         if valor in setores else {})
+                        for valor in valores_linha
+                    ]
+                elif tipo == "number":
+                    normalizados = []
+                    for valor in valores_linha:
+                        try:
+                            normalizados.append(str(Decimal(valor.replace(",", "."))) if valor else "")
+                        except (InvalidOperation, ValueError):
+                            normalizados.append("")
+                    valores_linha = normalizados
+                elif tipo in {"date", "time"}:
+                    formato = "%Y-%m-%d" if tipo == "date" else "%H:%M"
+                    for indice_valor, valor in enumerate(valores_linha):
+                        if not valor:
+                            continue
+                        try:
+                            datetime.strptime(valor, formato)
+                        except ValueError:
+                            valores_linha[indice_valor] = ""
+                elif tipo in {"text", "textarea"}:
+                    limite = item.get("max_length", 255 if tipo == "text" else 3000)
+                    valores_linha = [valor if len(valor) <= limite else "" for valor in valores_linha]
+                if item.get("required") and not any(valor not in ("", {}) for valor in valores_linha):
+                    erros.append(f"Preencha ao menos um registro em: {item.get('text')}")
+                respostas[chave] = {
+                    "value": valores_linha,
+                    "comment": None,
+                    "evidence": None,
+                }
+                continue
             bruto = formulario.get(chave, "")
             valor = bruto.strip() if isinstance(bruto, str) else bruto
 

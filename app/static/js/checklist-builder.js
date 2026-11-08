@@ -19,6 +19,23 @@
         ['nfc_tag', 'Etiqueta NFC'],
         ['number', 'Número'], ['counter', 'Contador'], ['date', 'Data'], ['time', 'Hora']
     ];
+    const layouts = [
+        ['header', 'Cabeçalho / grade de campos'],
+        ['verification', 'Itens de verificação'],
+        ['narrative', 'Texto / conclusão'],
+        ['grouped', 'Verificação agrupada'],
+        ['repeatable', 'Lista repetível'],
+        ['evidence', 'Evidências / galeria']
+    ];
+    const layoutHelp = {
+        header: 'Distribui os campos em uma grade responsiva de três colunas.',
+        verification: 'Apresenta conformidades em tabela com resultado e desvio/evidência.',
+        narrative: 'Prioriza textos longos, pareceres e conclusões em largura total.',
+        grouped: 'Exibe a seção recolhível, adequada para checklists extensos por assunto.',
+        repeatable: 'Organiza os campos como colunas de uma lista na qual o usuário adiciona registros.',
+        evidence: 'Exibe os campos como cartões de evidência, adequados para registros e referências.'
+    };
+    const repeatableTypes = new Set(['text', 'textarea', 'number', 'date', 'time', 'choice', 'sector']);
     let uid = 0;
     let sections = parse(hidden.value);
 
@@ -191,18 +208,37 @@
             section.questions = Array.isArray(section.questions) ? section.questions : [];
             const wrapper = element('details', 'checklist-section'); wrapper.open = opened[sectionIndex] !== false;
             const summary = element('summary', 'checklist-section-summary');
+            if (section.layout === 'standard') section.layout = 'verification';
             const summaryTitle = element('span', 'checklist-section-summary-title', `${section.title || 'Nova seção'} · ${section.questions.length} item(ns)`);
             const summaryActions = actions(sections, sectionIndex, 'seção');
             summaryActions.classList.add('checklist-section-summary-actions');
             summaryActions.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); });
             summary.append(summaryTitle, summaryActions);
             const heading = element('div', 'checklist-section-heading');
+            const layoutControl = select(layouts, section.layout || 'verification', value => {
+                if (value === 'repeatable') {
+                    const incompatible = section.questions.filter(question => !repeatableTypes.has(question.type));
+                    if (incompatible.length && !window.confirm('A lista repetível aceita campos simples. Converter os itens incompatíveis para texto curto?')) {
+                        layoutControl.value = section.layout || 'verification';
+                        return;
+                    }
+                    incompatible.forEach(question => {
+                        question.type = 'text';
+                        question.negative_comment = false;
+                        question.negative_evidence = false;
+                        question.negative_action = false;
+                    });
+                }
+                section.layout = value;
+                layoutDescription.textContent = layoutHelp[value] || '';
+                sync(); render();
+            });
+            const layoutBox = field('Layout da seção', layoutControl);
+            const layoutDescription = element('div', 'form-text', layoutHelp[section.layout || 'verification']);
+            layoutBox.append(layoutDescription);
             heading.append(
                 field('Nome da seção', input(section.title || '', 120, value => { section.title = value; summaryTitle.textContent = `${value || 'Nova seção'} · ${section.questions.length} item(ns)`; sync(); })),
-                field('Apresentação', select([
-                    ['standard', 'Seção de verificação'],
-                    ['header', 'Cabeçalho · campos compactos']
-                ], section.layout || 'standard', value => { section.layout = value; sync(); }))
+                layoutBox
             );
             wrapper.append(summary, heading);
 
@@ -210,9 +246,12 @@
                 Object.assign(question, {options: Array.isArray(question.options) ? question.options : []});
                 const item = element('div', 'checklist-question');
                 const row = element('div', 'checklist-question-row');
+                const availableTypes = section.layout === 'repeatable'
+                    ? types.filter(([value]) => repeatableTypes.has(value))
+                    : types;
                 row.append(
                     field(`Item ${sectionIndex + 1}.${questionIndex + 1}`, input(question.text || '', 500, value => { question.text = value; sync(); })),
-                    field('Tipo de resposta', select(types, question.type || 'conformity', value => { question.type = value; if (!['conformity','yes_no'].includes(value)) { question.negative_comment = false; question.negative_evidence = false; question.negative_action = false; } sync(); render(); })),
+                    field('Tipo de resposta', select(availableTypes, question.type || 'conformity', value => { question.type = value; if (!['conformity','yes_no'].includes(value)) { question.negative_comment = false; question.negative_evidence = false; question.negative_action = false; } sync(); render(); })),
                     actions(section.questions, questionIndex, 'item')
                 );
                 item.append(row);
@@ -247,7 +286,7 @@
 
     addSection.addEventListener('click', () => {
         if (sections.length >= 30) return;
-        sections.push({title: '', layout: 'standard', questions: [newQuestion()]}); sync(); render();
+        sections.push({title: '', layout: 'verification', questions: [newQuestion()]}); sync(); render();
         host.lastElementChild.open = true;
     });
     render();
