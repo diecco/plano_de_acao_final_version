@@ -264,8 +264,11 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertNotIn("Selecione a etiqueta NFC", execution)
         self.assertIn("data-nfc-read", execution)
         self.assertIn("data-nfc-usb-input", execution)
-        self.assertIn("Bloquear os demais campos da seção", builder)
+        self.assertIn("Bloquear os itens e etapas seguintes", builder)
         self.assertIn("exclusivamente pela leitura física", builder)
+        runner = (ROOT / "app" / "static" / "js" / "checklist-run.js").read_text(encoding="utf-8")
+        self.assertIn("compareDocumentPosition", runner)
+        self.assertIn("DOCUMENT_POSITION_FOLLOWING", runner)
 
     def test_field_specific_validation_rules_are_preserved(self):
         from app.views.checklists_dinamicos import validar_estrutura
