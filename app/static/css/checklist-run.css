@@ -28,4 +28,18 @@
 .checklist-verification-table .verification-result-column { width: 14%; }
 .checklist-verification-table .verification-deviation-column { width: 42%; }
 .checklist-verification-table .negative-details { margin: 0; }
+.checklist-layout-narrative .checklist-question { padding: 1rem 0; }
+.checklist-layout-narrative textarea { min-height: 130px; }
+.checklist-layout-grouped .checklist-section-title { cursor: pointer; user-select: none; padding-right: 2rem; position: relative; }
+.checklist-layout-grouped .checklist-section-title::after { content: "⌃"; position: absolute; right: .25rem; }
+.checklist-layout-grouped.is-collapsed .checklist-section-title { margin-bottom: 0 !important; }
+.checklist-layout-grouped.is-collapsed .checklist-section-title::after { content: "⌄"; }
+.checklist-layout-grouped.is-collapsed .checklist-section-title ~ * { display: none !important; }
+.checklist-evidence-grid > div > .checklist-question { height: 100%; border: 1px solid #e4e7eb; border-radius: .65rem; padding: 1rem; background: #fff; }
+.checklist-evidence-grid > div > .checklist-question:first-of-type { padding-top: 1rem; }
+.checklist-repeatable thead th { background: #f26722; color: #fff; text-align: center; vertical-align: middle; }
+.checklist-repeatable .repeatable-index { width: 52px; }
+.checklist-repeatable .repeatable-actions { width: 72px; }
+.checklist-repeatable td { min-width: 180px; }
+.checklist-repeatable td:first-child, .checklist-repeatable td:last-child { min-width: 0; }
 @media (max-width: 767px) { .answer-chip span { padding: .45rem .65rem; } }

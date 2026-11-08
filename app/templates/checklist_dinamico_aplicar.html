@@ -24,13 +24,37 @@
 {% for secao in estrutura %}
     {% set si = loop.index0 %}
     {% if secao.layout != 'header' %}{% set section_counter.value = section_counter.value + 1 %}{% endif %}
-    <section class="card border-0 shadow-sm mb-4 {% if secao.layout == 'header' %}checklist-header-card{% endif %}">
+    <section class="card border-0 shadow-sm mb-4 checklist-layout-{{ secao.layout }} {% if secao.layout == 'header' %}checklist-header-card{% endif %}">
         <div class="card-body p-4">
-            <h5 class="text-laranja mb-4">{% if secao.layout != 'header' %}{{ section_counter.value }}. {% endif %}{{ secao.title }}</h5>
+            <h5 class="text-laranja mb-4 checklist-section-title">{% if secao.layout != 'header' %}{{ section_counter.value }}. {% endif %}{{ secao.title }}</h5>
             {% set conformity_items = secao.questions|selectattr('type', 'equalto', 'conformity')|list %}
             {% set nfc_items = secao.questions|selectattr('type', 'equalto', 'nfc_tag')|list %}
-            {% set conformity_table = secao.layout != 'header' and conformity_items|length > 0 and conformity_items|length + nfc_items|length == secao.questions|length %}
-            {% if conformity_table %}
+            {% set conformity_table = secao.layout in ['verification', 'grouped'] and conformity_items|length > 0 and conformity_items|length + nfc_items|length == secao.questions|length %}
+            {% if secao.layout == 'repeatable' %}
+            {% set first_key = 'q_' ~ si ~ '_0' %}
+            {% set row_count = [valores.get(first_key, [''])|length, 1]|max %}
+            <div class="table-responsive checklist-repeatable" data-repeatable-section>
+                <table class="table table-bordered align-middle mb-2">
+                    <thead><tr><th class="repeatable-index">#</th>{% for item in secao.questions %}<th>{{ item.text }}{% if item.required %} <span class="text-danger">*</span>{% endif %}</th>{% endfor %}<th class="repeatable-actions">Ações</th></tr></thead>
+                    <tbody data-repeatable-rows>
+                    {% for row_index in range(row_count) %}
+                        <tr data-repeatable-row><td class="text-center" data-repeatable-index>{{ loop.index }}</td>
+                        {% for item in secao.questions %}{% set ii = loop.index0 %}{% set key = 'q_' ~ si ~ '_' ~ ii %}{% set current = valores.get(key, [''])[row_index] if row_index < valores.get(key, [''])|length else '' %}
+                        <td>
+                            {% if item.type == 'textarea' %}<textarea class="form-control" name="{{ key }}" rows="2" maxlength="{{ item.max_length|default(3000) }}">{{ current }}</textarea>
+                            {% elif item.type == 'number' %}<input class="form-control" type="number" name="{{ key }}" value="{{ current }}" step="{% if item.decimal_places is none %}any{% elif item.decimal_places == 0 %}1{% else %}0.{{ '0' * (item.decimal_places - 1) }}1{% endif %}">
+                            {% elif item.type in ['date', 'time'] %}<input class="form-control" type="{{ item.type }}" name="{{ key }}" value="{{ current }}">
+                            {% elif item.type == 'choice' %}<select class="form-select" name="{{ key }}"><option value="">Selecione</option>{% for option in item.options %}<option value="{{ option }}" {% if current == option %}selected{% endif %}>{{ option }}</option>{% endfor %}</select>
+                            {% elif item.type == 'sector' %}<select class="form-select" name="{{ key }}"><option value="">Selecione</option>{% for setor in setores %}<option value="{{ setor.id }}" {% if current == setor.id|string %}selected{% endif %}>{{ setor.nome }}</option>{% endfor %}</select>
+                            {% else %}<input class="form-control" type="text" name="{{ key }}" value="{{ current }}" maxlength="{{ item.max_length|default(255) }}">{% endif %}
+                        </td>{% endfor %}
+                        <td class="text-center"><button class="btn-acao-icon" type="button" data-remove-repeatable title="Remover registro" aria-label="Remover registro"><i class="bi bi-trash"></i></button></td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                <button class="btn btn-outline-secondary btn-sm" type="button" data-add-repeatable>Adicionar registro</button>
+            </div>
+            {% elif conformity_table %}
             {% if nfc_items %}<div class="mb-4 pb-3 border-bottom">
                 {% for item in secao.questions %}{% if item.type == 'nfc_tag' %}{% set ii = loop.index0 %}{% set key = 'q_' ~ si ~ '_' ~ ii %}{% set current = valores.get(key, [''])[0] %}
                 <div class="checklist-question" data-type="nfc_tag"><label class="question-title">{{ item.text }}{% if item.required %} <span class="text-danger">*</span>{% endif %}</label>{% if item.help %}<small class="d-block text-muted mb-2">{{ item.help }}</small>{% endif %}{{ render_nfc_checkpoint(item, key, current, valores, etiquetas_nfc) }}</div>
@@ -69,10 +93,10 @@
                 </table>
             </div>
             {% else %}
-            <div class="{% if secao.layout == 'header' %}row g-3{% endif %}">
+            <div class="{% if secao.layout == 'header' %}row g-3{% elif secao.layout == 'evidence' %}row g-3 checklist-evidence-grid{% endif %}">
             {% for item in secao.questions %}
                 {% set ii = loop.index0 %}{% set key = 'q_' ~ si ~ '_' ~ ii %}{% set current = valores.get(key, [''])[0] %}
-                <div class="{% if secao.layout == 'header' %}{% if item.type in ['textarea', 'matrix', 'ranking'] %}col-12{% else %}col-12 col-md-6 col-xl-4{% endif %}{% endif %}">
+                <div class="{% if secao.layout == 'header' %}{% if item.type in ['textarea', 'matrix', 'ranking'] %}col-12{% else %}col-12 col-md-6 col-xl-4{% endif %}{% elif secao.layout == 'evidence' %}col-12 col-lg-6{% endif %}">
                 <div class="checklist-question" data-type="{{ item.type }}">
                     <label class="question-title">{% if secao.layout != 'header' %}{{ loop.index }}. {% endif %}{{ item.text }}{% if item.required %} <span class="text-danger">*</span>{% endif %}</label>
                     {% if item.help %}<small class="d-block text-muted mb-2">{{ item.help }}</small>{% endif %}

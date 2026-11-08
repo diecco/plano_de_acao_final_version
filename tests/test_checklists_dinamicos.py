@@ -306,7 +306,7 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         builder = (ROOT / "app" / "static" / "js" / "checklist-builder.js").read_text(encoding="utf-8")
         template = (ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html").read_text(encoding="utf-8")
         runner = (ROOT / "app" / "static" / "js" / "checklist-run.js").read_text(encoding="utf-8")
-        self.assertIn("Cabeçalho · campos compactos", builder)
+        self.assertIn("Cabeçalho / grade de campos", builder)
         self.assertIn("checklist-header-card", template)
         self.assertIn("data-person-picker", template)
         self.assertIn("checklist-people-data", template)
@@ -331,6 +331,44 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn("render_nfc_checkpoint", template)
         self.assertIn("conformity_items|length + nfc_items|length", template)
         self.assertIn("{% if item.type == 'conformity' %}", template)
+
+    def test_builder_offers_all_section_layouts(self):
+        from app.views.checklists_dinamicos import LAYOUTS_SECAO, validar_estrutura
+
+        self.assertEqual(set(LAYOUTS_SECAO), {
+            "header", "verification", "narrative", "grouped", "repeatable", "evidence",
+        })
+        builder = (ROOT / "app" / "static" / "js" / "checklist-builder.js").read_text(encoding="utf-8")
+        for label in (
+            "Cabeçalho / grade de campos", "Itens de verificação", "Texto / conclusão",
+            "Verificação agrupada", "Lista repetível", "Evidências / galeria",
+        ):
+            self.assertIn(label, builder)
+
+        definition = [{
+            "title": "Conclusão", "layout": "narrative",
+            "questions": [{"text": "Parecer", "type": "textarea", "required": True,
+                           "negative_comment": False, "negative_evidence": False,
+                           "negative_action": False, "options": []}],
+        }]
+        self.assertEqual(validar_estrutura(json.dumps(definition))[0]["layout"], "narrative")
+
+    def test_repeatable_layout_preserves_multiple_rows(self):
+        from werkzeug.datastructures import MultiDict
+        from app.views.checklists_dinamicos import _validar_respostas, validar_estrutura
+
+        definition = [{
+            "title": "Ocorrências", "layout": "repeatable",
+            "questions": [{"text": "Descrição", "type": "text", "required": True,
+                           "negative_comment": False, "negative_evidence": False,
+                           "negative_action": False, "options": [], "max_length": 255}],
+        }]
+        clean = validar_estrutura(definition)
+        answers, errors = _validar_respostas(
+            clean, MultiDict([("q_0_0", "Primeira"), ("q_0_0", "Segunda")])
+        )
+        self.assertEqual(errors, [])
+        self.assertEqual(answers["q_0_0"]["value"], ["Primeira", "Segunda"])
 
     def test_execution_does_not_add_a_fixed_general_observations_field(self):
         template = (ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html").read_text(encoding="utf-8")
