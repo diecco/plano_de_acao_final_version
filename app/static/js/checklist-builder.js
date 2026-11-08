@@ -27,14 +27,6 @@
         ['repeatable', 'Lista repetível'],
         ['evidence', 'Evidências / galeria']
     ];
-    const layoutHelp = {
-        header: 'Distribui os campos em uma grade responsiva de três colunas.',
-        verification: 'Apresenta conformidades em tabela com resultado e desvio/evidência.',
-        narrative: 'Prioriza textos longos, pareceres e conclusões em largura total.',
-        grouped: 'Exibe a seção recolhível, adequada para checklists extensos por assunto.',
-        repeatable: 'Organiza os campos como colunas de uma lista na qual o usuário adiciona registros.',
-        evidence: 'Exibe os campos como cartões de evidência, adequados para registros e referências.'
-    };
     const repeatableTypes = new Set(['text', 'textarea', 'number', 'date', 'time', 'choice', 'sector']);
     let uid = 0;
     let sections = parse(hidden.value);
@@ -230,15 +222,12 @@
                     });
                 }
                 section.layout = value;
-                layoutDescription.textContent = layoutHelp[value] || '';
                 sync(); render();
             });
             const layoutBox = field('Layout da seção', layoutControl);
-            const layoutDescription = element('div', 'form-text', layoutHelp[section.layout || 'verification']);
-            layoutBox.append(layoutDescription);
             heading.append(
-                field('Nome da seção', input(section.title || '', 120, value => { section.title = value; summaryTitle.textContent = `${value || 'Nova seção'} · ${section.questions.length} item(ns)`; sync(); })),
-                layoutBox
+                layoutBox,
+                field('Nome da seção', input(section.title || '', 120, value => { section.title = value; summaryTitle.textContent = `${value || 'Nova seção'} · ${section.questions.length} item(ns)`; sync(); }))
             );
             wrapper.append(summary, heading);
 
@@ -250,8 +239,8 @@
                     ? types.filter(([value]) => repeatableTypes.has(value))
                     : types;
                 row.append(
-                    field(`Item ${sectionIndex + 1}.${questionIndex + 1}`, input(question.text || '', 500, value => { question.text = value; sync(); })),
                     field('Tipo de resposta', select(availableTypes, question.type || 'conformity', value => { question.type = value; if (!['conformity','yes_no'].includes(value)) { question.negative_comment = false; question.negative_evidence = false; question.negative_action = false; } sync(); render(); })),
+                    field(`Item ${sectionIndex + 1}.${questionIndex + 1}`, input(question.text || '', 500, value => { question.text = value; sync(); })),
                     actions(section.questions, questionIndex, 'item')
                 );
                 item.append(row);
