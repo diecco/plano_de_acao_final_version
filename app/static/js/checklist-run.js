@@ -286,13 +286,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const rows = sourceName ? expected : signatures.map(item => people.find(person => String(person.id) === String(item.user_id))).filter(Boolean);
       rows.forEach(person => {
         const signed = signatures.some(item => String(item.user_id) === String(person.id));
-        const row = document.createElement('div'); row.className = 'd-flex justify-content-between align-items-center small py-1';
+        const column = document.createElement('div'); column.className = 'col-12 col-md-6 col-xl-4';
+        const row = document.createElement('div'); row.className = `nfc-signature-person ${signed ? 'is-signed' : 'is-pending'}`;
+        const identity = document.createElement('div'); identity.className = 'nfc-signature-identity';
+        const icon = document.createElement('i'); icon.className = `bi ${signed ? 'bi-check-circle-fill' : 'bi-person-badge'}`;
         const name = document.createElement('span'); name.textContent = labelFor(person);
         const badge = document.createElement('span'); badge.className = `badge ${signed ? 'bg-success' : 'bg-secondary'}`;
-        badge.textContent = signed ? 'Assinado' : 'Pendente'; row.append(name, badge); peopleHost.append(row);
+        badge.textContent = signed ? 'Assinado' : 'Pendente';
+        identity.append(icon, name); row.append(identity, badge); column.append(row); peopleHost.append(column);
       });
       if (sourceName && !expected.length) {
-        const empty = document.createElement('small'); empty.className = 'text-muted';
+        const empty = document.createElement('small'); empty.className = 'text-muted col-12';
         empty.textContent = 'Selecione a(s) pessoa(s) no campo vinculado para coletar as assinaturas.'; peopleHost.append(empty);
       }
       const complete = sourceName
