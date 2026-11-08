@@ -94,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const input = document.createElement('input'); input.type = 'hidden'; input.name = name; input.value = person.id; valuesHost.appendChild(input);
       } else if (!checked && existing) existing.remove();
       updateSelected();
+      document.dispatchEvent(new CustomEvent('checklist:people-change', {detail: {name}}));
     };
     const render = () => {
       const term = normalize(search.value);
@@ -110,12 +111,21 @@ document.addEventListener('DOMContentLoaded', () => {
           checkbox.addEventListener('change', () => setMultiple(person, checkbox.checked)); row.appendChild(checkbox);
         }
         const text = document.createElement('span'); text.textContent = labelFor(person); row.appendChild(text);
-        if (mode === 'single') row.addEventListener('click', () => { singleValue.value = person.id; search.value = labelFor(person); close(); });
+        if (mode === 'single') row.addEventListener('click', () => {
+          singleValue.value = person.id; search.value = labelFor(person); close();
+          document.dispatchEvent(new CustomEvent('checklist:people-change', {detail: {name}}));
+        });
         results.appendChild(row);
       });
       results.hidden = false;
     };
-    search.addEventListener('input', () => { if (mode === 'single') singleValue.value = ''; render(); });
+    search.addEventListener('input', () => {
+      if (mode === 'single') {
+        singleValue.value = '';
+        document.dispatchEvent(new CustomEvent('checklist:people-change', {detail: {name}}));
+      }
+      render();
+    });
     search.addEventListener('focus', render);
     document.addEventListener('click', (event) => { if (!picker.contains(event.target)) close(); });
     updateSelected();
@@ -251,21 +261,50 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.querySelectorAll('[data-nfc-signature]').forEach((signature) => {
-    const value = signature.querySelector('[data-nfc-value]');
-    const uid = signature.querySelector('[data-nfc-uid]');
-    const method = signature.querySelector('[data-nfc-method]');
-    const channel = signature.querySelector('[data-nfc-channel]');
-    const readAt = signature.querySelector('[data-nfc-read-at]');
+    const state = signature.querySelector('[data-nfc-signatures]');
+    const peopleHost = signature.querySelector('[data-signature-people]');
     const status = signature.querySelector('[data-nfc-status]');
     const usbInput = signature.querySelector('[data-nfc-usb-input]');
     const button = signature.querySelector('[data-nfc-read]');
-    const clear = () => {
-      value.value = ''; uid.value = ''; method.value = ''; channel.value = ''; readAt.value = '';
-      signature.classList.remove('is-valid');
+    const sourceName = signature.dataset.signatureSource;
+    let signatures = [];
+    try { signatures = JSON.parse(state.value || '[]'); } catch (_) { signatures = []; }
+    if (!Array.isArray(signatures)) signatures = [];
+    const selectedSourceIds = () => sourceName
+      ? [...document.querySelectorAll(`[name="${CSS.escape(sourceName)}"]`)].map(control => control.value).filter(Boolean)
+      : [];
+    const expectedPeople = () => selectedSourceIds()
+      .map(id => people.find(person => String(person.id) === String(id))).filter(Boolean);
+    const save = () => { state.value = JSON.stringify(signatures); };
+    const renderSignatures = () => {
+      const expected = expectedPeople();
+      if (sourceName) {
+        const allowed = new Set(expected.map(person => String(person.id)));
+        signatures = signatures.filter(item => allowed.has(String(item.user_id)));
+      } else if (signatures.length > 1) signatures = signatures.slice(-1);
+      save(); peopleHost.replaceChildren();
+      const rows = sourceName ? expected : signatures.map(item => people.find(person => String(person.id) === String(item.user_id))).filter(Boolean);
+      rows.forEach(person => {
+        const signed = signatures.some(item => String(item.user_id) === String(person.id));
+        const row = document.createElement('div'); row.className = 'd-flex justify-content-between align-items-center small py-1';
+        const name = document.createElement('span'); name.textContent = labelFor(person);
+        const badge = document.createElement('span'); badge.className = `badge ${signed ? 'bg-success' : 'bg-secondary'}`;
+        badge.textContent = signed ? 'Assinado' : 'Pendente'; row.append(name, badge); peopleHost.append(row);
+      });
+      if (sourceName && !expected.length) {
+        const empty = document.createElement('small'); empty.className = 'text-muted';
+        empty.textContent = 'Selecione a(s) pessoa(s) no campo vinculado para coletar as assinaturas.'; peopleHost.append(empty);
+      }
+      const complete = sourceName
+        ? expected.length > 0 && expected.every(person => signatures.some(item => String(item.user_id) === String(person.id)))
+        : signatures.length === 1;
+      signature.classList.toggle('is-valid', complete);
+      if (!signatures.length) status.textContent = 'Aguardando leitura física do crachá.';
+      else if (complete) status.textContent = sourceName ? 'Todas as assinaturas foram coletadas.' : 'Assinatura NFC validada.';
+      else status.textContent = `${signatures.length} assinatura(s) coletada(s); ainda há pessoa(s) pendente(s).`;
     };
     const validateCapture = async (raw, readChannel) => {
       const candidates = [...new Set((Array.isArray(raw) ? raw : [raw]).flatMap(nfcCandidates))];
-      clear();
       for (const candidate of candidates) {
         try {
           const response = await fetch(signature.dataset.signatureUrl, {
@@ -276,15 +315,19 @@ document.addEventListener('DOMContentLoaded', () => {
           const result = await response.json();
           if (!response.ok || !result.sucesso) continue;
           const person = result.usuario;
-          value.value = person.id;
-          uid.value = candidate;
-          method.value = 'physical';
-          channel.value = readChannel;
-          readAt.value = new Date().toISOString();
+          const expected = expectedPeople();
+          if (sourceName && !expected.some(item => String(item.id) === String(person.id))) {
+            signature.classList.add('is-invalid');
+            status.textContent = 'Este crachá não pertence a uma das pessoas selecionadas no campo vinculado.';
+            return false;
+          }
+          signatures = signatures.filter(item => String(item.user_id) !== String(person.id));
+          if (!sourceName) signatures = [];
+          signatures.push({user_id: person.id, uid: candidate, channel: readChannel});
           usbInput.value = '';
           const channelLabel = readChannel === 'usb' ? 'leitor USB' : 'NFC do celular';
           status.textContent = `${labelFor(person)} · assinatura validada por ${channelLabel}`;
-          signature.classList.remove('is-invalid'); signature.classList.add('is-valid');
+          signature.classList.remove('is-invalid'); renderSignatures();
           return true;
         } catch (_) { /* Tenta o próximo conteúdo lido do crachá. */ }
       }
@@ -327,6 +370,9 @@ document.addEventListener('DOMContentLoaded', () => {
         button.disabled = false;
       }
     });
-    if (value.value && method.value) signature.classList.add('is-valid');
+    document.addEventListener('checklist:people-change', event => {
+      if (event.detail && event.detail.name === sourceName) renderSignatures();
+    });
+    renderSignatures();
   });
 });

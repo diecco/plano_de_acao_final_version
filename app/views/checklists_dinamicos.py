@@ -5,6 +5,7 @@ definição validada dos itens de verificação.
 """
 
 import json
+import re
 import unicodedata
 import calendar
 from datetime import date, datetime
@@ -99,6 +100,7 @@ def validar_estrutura(raw):
         raise ValueError("Inclua de 1 a 30 seções.")
 
     limpas = []
+    referencias = set()
     total = 0
     for secao_indice, secao in enumerate(secoes):
         if not isinstance(secao, dict):
@@ -111,7 +113,7 @@ def validar_estrutura(raw):
             raise ValueError("Cada seção precisa ter ao menos um item de verificação.")
 
         itens = []
-        for pergunta in perguntas:
+        for pergunta_indice, pergunta in enumerate(perguntas):
             total += 1
             if total > 200:
                 raise ValueError("O limite é de 200 itens por checklist.")
@@ -132,7 +134,13 @@ def validar_estrutura(raw):
                 raise ValueError("Confira a integração com o plano de ação.")
 
             negativo = tipo in {"conformity", "yes_no"}
+            referencia = pergunta.get("ref") or f"q_{secao_indice}_{pergunta_indice}"
+            if (not isinstance(referencia, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", referencia)
+                    or referencia in referencias):
+                raise ValueError("Confira os vínculos entre os itens do checklist.")
+            referencias.add(referencia)
             item = {
+                "ref": referencia,
                 "text": texto.strip(),
                 "type": tipo,
                 "required": pergunta["required"],
@@ -211,6 +219,10 @@ def validar_estrutura(raw):
                 )
             elif tipo == "nfc_signature":
                 item["nfc_physical_required"] = True
+                origem = pergunta.get("signature_source_ref", "")
+                if not isinstance(origem, str) or len(origem) > 80:
+                    raise ValueError("Confira o campo de pessoas vinculado à assinatura.")
+                item["signature_source_ref"] = origem.strip()
             elif tipo in {"text", "textarea"}:
                 limite_padrao = 255 if tipo == "text" else 3000
                 limite_maximo = 1000 if tipo == "text" else 10000
@@ -261,6 +273,17 @@ def validar_estrutura(raw):
                     "Listas repetíveis aceitam texto, número, data, hora, seleção ou setor."
                 )
         limpas.append({"title": titulo.strip(), "layout": layout, "questions": itens})
+
+    itens_por_referencia = {
+        item["ref"]: item for secao in limpas for item in secao["questions"]
+    }
+    for secao in limpas:
+        for item in secao["questions"]:
+            if item["type"] != "nfc_signature" or not item.get("signature_source_ref"):
+                continue
+            origem = itens_por_referencia.get(item["signature_source_ref"])
+            if not origem or origem["type"] not in {"person", "people"}:
+                raise ValueError("A assinatura deve ser vinculada a um campo de pessoa ou várias pessoas.")
     return limpas
 
 
@@ -364,11 +387,12 @@ def _buscar_modelo_visivel(cursor, checklist_id):
 
 def _ler_estrutura(valor):
     if isinstance(valor, list):
-        return valor
-    try:
-        estrutura = json.loads(valor or "[]")
-    except (TypeError, ValueError):
-        return []
+        estrutura = valor
+    else:
+        try:
+            estrutura = json.loads(valor or "[]")
+        except (TypeError, ValueError):
+            return []
     if not isinstance(estrutura, list):
         return []
     for indice, secao in enumerate(estrutura):
@@ -383,9 +407,10 @@ def _ler_estrutura(valor):
             )
         elif secao.get("layout") == "standard":
             secao["layout"] = "verification"
-        for item in secao.get("questions", []):
+        for item_indice, item in enumerate(secao.get("questions", [])):
             if not isinstance(item, dict):
                 continue
+            item.setdefault("ref", f"q_{indice}_{item_indice}")
             tipo = item.get("type")
             if tipo == "nfc_tag":
                 item["nfc_physical_required"] = True
@@ -407,6 +432,24 @@ def _ler_estrutura(valor):
                 item.setdefault("maximum_selections", len(item.get("options", [])))
             if secao.get("layout") == "header":
                 _ajustar_campo_pessoa_do_cabecalho(item)
+    chaves_por_referencia = {
+        item.get("ref"): _chave_resposta(secao_indice, item_indice)
+        for secao_indice, secao in enumerate(estrutura)
+        for item_indice, item in enumerate(secao.get("questions", []))
+        if isinstance(item, dict) and item.get("ref")
+    }
+    tipos_por_referencia = {
+        item.get("ref"): item.get("type")
+        for secao in estrutura for item in secao.get("questions", [])
+        if isinstance(item, dict) and item.get("ref")
+    }
+    for secao in estrutura:
+        for item in secao.get("questions", []):
+            if not isinstance(item, dict) or item.get("type") != "nfc_signature":
+                continue
+            origem = item.get("signature_source_ref")
+            item["_signature_source_key"] = chaves_por_referencia.get(origem, "")
+            item["_signature_source_type"] = tipos_por_referencia.get(origem, "")
     return estrutura
 
 
@@ -559,26 +602,53 @@ def _validar_respostas(estrutura, formulario, pessoas=None, setores=None,
                     "read_at": datetime.now().astimezone().isoformat(timespec="seconds"),
                 } if etiqueta else {})
             elif tipo == "nfc_signature":
-                uid_lido = (formulario.get(f"{chave}_nfc_uid") or "").strip()
-                assinante = assinantes_nfc.get(uid_lido)
-                metodo_leitura = (formulario.get(f"{chave}_nfc_method") or "").strip()
-                canal_leitura = (formulario.get(f"{chave}_nfc_channel") or "").strip()
-                leitura_valida = (
-                    assinante
-                    and str(assinante["id"]) == str(valor)
-                    and metodo_leitura == "physical"
-                    and canal_leitura in {"usb", "web_nfc"}
-                )
-                if valor and not leitura_valida:
-                    erros.append(f"Faça a leitura do crachá NFC para assinar: {item.get('text')}")
-                valor = ({
-                    "id": assinante["id"],
-                    "name": assinante["nome"],
-                    "registration": assinante.get("matricula"),
-                    "read_method": "physical",
-                    "read_channel": canal_leitura,
-                    "read_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-                } if leitura_valida else {})
+                try:
+                    leituras = json.loads(formulario.get(f"{chave}_nfc_signatures") or "[]")
+                except (TypeError, ValueError):
+                    leituras = []
+                if not isinstance(leituras, list):
+                    leituras = []
+                origem_chave = item.get("_signature_source_key")
+                origem_tipo = item.get("_signature_source_type")
+                if origem_tipo == "people":
+                    esperados = list(dict.fromkeys(formulario.getlist(origem_chave)))
+                elif origem_tipo == "person":
+                    selecionado = (formulario.get(origem_chave) or "").strip()
+                    esperados = [selecionado] if selecionado else []
+                else:
+                    esperados = []
+                esperados = [item_id for item_id in esperados if item_id in pessoas]
+                assinaturas = []
+                ids_assinados = set()
+                leitura_invalida = False
+                for leitura in leituras:
+                    if not isinstance(leitura, dict):
+                        leitura_invalida = True
+                        continue
+                    uid_lido = str(leitura.get("uid") or "").strip()
+                    canal_leitura = str(leitura.get("channel") or "").strip()
+                    usuario_id = str(leitura.get("user_id") or "").strip()
+                    assinante = assinantes_nfc.get(uid_lido)
+                    if (not assinante or str(assinante["id"]) != usuario_id
+                            or canal_leitura not in {"usb", "web_nfc"}
+                            or (origem_chave and usuario_id not in esperados)
+                            or usuario_id in ids_assinados):
+                        leitura_invalida = True
+                        continue
+                    ids_assinados.add(usuario_id)
+                    assinaturas.append({
+                        "id": assinante["id"], "name": assinante["nome"],
+                        "registration": assinante.get("matricula"),
+                        "read_method": "physical", "read_channel": canal_leitura,
+                        "read_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+                    })
+                if leitura_invalida:
+                    erros.append(f"Confira as assinaturas NFC em: {item.get('text')}")
+                if item.get("required"):
+                    completo = (set(esperados) == ids_assinados) if origem_chave else len(assinaturas) == 1
+                    if not completo:
+                        erros.append(f"Colete todas as assinaturas obrigatórias em: {item.get('text')}")
+                valor = assinaturas
             elif tipo == "matrix":
                 valor = {}
                 colunas = item.get("matrix_columns", [])
@@ -644,7 +714,7 @@ def _validar_respostas(estrutura, formulario, pessoas=None, setores=None,
                 erros.append(f"Use até {item.get('max_length', 3000)} caracteres em: {item.get('text')}")
 
             vazio = valor in ("", [], {})
-            if item.get("required") and vazio:
+            if item.get("required") and vazio and tipo != "nfc_signature":
                 erros.append(f"Responda: {item.get('text')}" )
 
             negativo = (
