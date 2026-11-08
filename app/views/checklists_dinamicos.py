@@ -1041,6 +1041,20 @@ def register_checklists_dinamicos_routes(blueprint):
             mes_referencia = (request.args.get("mes_referencia") or date.today().strftime("%Y-%m")).strip()
             data_inicio_informada = (request.args.get("data_inicio") or "").strip()
             data_fim_informada = (request.args.get("data_fim") or "").strip()
+            ordenacoes = {
+                "id": "ce.id",
+                "data": "ce.concluido_em",
+                "responsavel": "u.nome",
+                "centro": "cc.codigo",
+            }
+            sort = (request.args.get("sort") or "data").strip().lower()
+            if sort not in ordenacoes:
+                sort = "data"
+            order = (request.args.get("order") or "desc").strip().lower()
+            if order not in {"asc", "desc"}:
+                order = "desc"
+            coluna_ordenacao = ordenacoes[sort]
+            direcao_ordenacao = order.upper()
             try:
                 data_inicio, data_fim, mes_referencia_calculado = _resolver_periodo_listagem(
                     periodo_selecionado, mes_referencia, data_inicio_informada, data_fim_informada
@@ -1086,7 +1100,7 @@ def register_checklists_dinamicos_routes(blueprint):
                   JOIN usuarios u ON u.id = ce.executor_id
              LEFT JOIN centros_custos cc ON cc.id = ce.centro_custos_id
                  WHERE ce.checklist_id = %s AND ({escopo})
-                 ORDER BY ce.concluido_em DESC, ce.id DESC
+                  ORDER BY {coluna_ordenacao} {direcao_ordenacao}, ce.id DESC
                  LIMIT 50
             """, parametros)
             execucoes = cursor.fetchall()
@@ -1130,6 +1144,8 @@ def register_checklists_dinamicos_routes(blueprint):
                 "mes_referencia": mes_referencia,
                 "data_inicio": data_inicio.isoformat(),
                 "data_fim": data_fim.isoformat(),
+                "sort": sort,
+                "order": order,
             },
         )
 

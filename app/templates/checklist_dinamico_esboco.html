@@ -3,6 +3,23 @@
 {% block titulo %}{{ checklist.nome }}{% endblock %}
 
 {% block conteudo %}
+{% macro cabecalho_ordenavel(rotulo, campo, largura='') %}
+<th{% if largura %} style="width:{{ largura }}"{% endif %}>
+    <div class="d-flex justify-content-between align-items-center gap-2">
+        <span class="th-label">{{ rotulo }}</span>
+        <span class="btn-group btn-group-sm">
+            <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente"
+               href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id, periodo=filtros.periodo, mes_referencia=filtros.mes_referencia, data_inicio=filtros.data_inicio, data_fim=filtros.data_fim, executor_id=filtros.executor_id, sort=campo, order='asc') }}">
+                <i class="bi bi-caret-up-fill"></i>
+            </a>
+            <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente"
+               href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id, periodo=filtros.periodo, mes_referencia=filtros.mes_referencia, data_inicio=filtros.data_inicio, data_fim=filtros.data_fim, executor_id=filtros.executor_id, sort=campo, order='desc') }}">
+                <i class="bi bi-caret-down-fill"></i>
+            </a>
+        </span>
+    </div>
+</th>
+{% endmacro %}
 <div class="page-header">
     <h2 class="page-title text-center mb-0"><i class="bi bi-ui-checks-grid me-2"></i>{{ checklist.nome }}</h2>
 </div>
@@ -68,7 +85,7 @@
     <div class="card-body p-4">
         <div class="table-responsive">
             <table class="table table-bordered align-middle mb-0">
-                <thead><tr><th style="width:100px">Registro</th><th>Data</th><th>Responsável</th><th>Centro de custos</th><th class="text-center" style="width:100px">Ações</th></tr></thead>
+                <thead><tr>{{ cabecalho_ordenavel('Registro', 'id', '120px') }}{{ cabecalho_ordenavel('Data', 'data') }}{{ cabecalho_ordenavel('Responsável', 'responsavel') }}{{ cabecalho_ordenavel('Centro de custos', 'centro') }}<th class="text-center" style="width:100px">Ações</th></tr></thead>
                 <tbody>
                 {% for execucao in execucoes %}
                     <tr>
