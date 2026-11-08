@@ -17,6 +17,7 @@
         ['text', 'Texto curto'], ['textarea', 'Texto longo'],
         ['person', 'Uma pessoa'], ['people', 'Várias pessoas'], ['sector', 'Setor / Área'],
         ['nfc_tag', 'Etiqueta NFC'],
+        ['nfc_signature', 'Assinatura por crachá NFC'],
         ['number', 'Número'], ['counter', 'Contador'], ['date', 'Data'], ['time', 'Hora']
     ];
     const layouts = [

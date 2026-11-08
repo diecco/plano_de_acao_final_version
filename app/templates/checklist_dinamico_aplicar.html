@@ -17,6 +17,20 @@
 </div>
 {% if not etiquetas_nfc %}<small class="d-block text-muted mt-1">Nenhuma etiqueta ativa está disponível para este centro de custos.</small>{% endif %}
 {% endmacro %}
+{% macro render_nfc_signature(key, current, valores) %}
+<div class="nfc-checkpoint nfc-signature" data-nfc-signature data-signature-url="{{ url_for('main.validar_assinatura_nfc', checklist_id=checklist.id) }}">
+    <input type="hidden" name="{{ key }}" value="{{ current }}" data-nfc-value>
+    <input type="hidden" name="{{ key }}_nfc_uid" value="{{ valores.get(key ~ '_nfc_uid', [''])[0] }}" data-nfc-uid>
+    <input type="hidden" name="{{ key }}_nfc_method" value="{{ valores.get(key ~ '_nfc_method', [''])[0] }}" data-nfc-method>
+    <input type="hidden" name="{{ key }}_nfc_channel" value="{{ valores.get(key ~ '_nfc_channel', [''])[0] }}" data-nfc-channel>
+    <input type="hidden" name="{{ key }}_nfc_read_at" value="{{ valores.get(key ~ '_nfc_read_at', [''])[0] }}" data-nfc-read-at>
+    <div class="row g-2 align-items-end">
+        <div class="col-12 col-lg-8"><label class="form-label small mb-1">Leitor USB no computador</label><input class="form-control" type="text" autocomplete="off" data-nfc-usb-input placeholder="Clique aqui e aproxime o crachá do leitor USB"></div>
+        <div class="col-12 col-lg-4"><button class="btn btn-outline-secondary w-100" type="button" data-nfc-read><i class="bi bi-phone me-1"></i>Ler crachá no celular</button></div>
+    </div>
+    <span class="nfc-read-status text-muted small d-block mt-2" data-nfc-status>{% if current %}Assinatura NFC validada.{% else %}Aguardando leitura física do crachá.{% endif %}</span>
+</div>
+{% endmacro %}
 <div class="page-header"><h2 class="page-title text-center mb-0"><i class="bi bi-ui-checks-grid me-2"></i>{{ checklist.nome }}</h2></div>
 <hr>
 <form method="post" class="checklist-run" novalidate>
@@ -29,7 +43,8 @@
             <h5 class="text-laranja mb-4 checklist-section-title">{% if secao.layout != 'header' %}{{ section_counter.value }}. {% endif %}{{ secao.title }}</h5>
             {% set conformity_items = secao.questions|selectattr('type', 'equalto', 'conformity')|list %}
             {% set nfc_items = secao.questions|selectattr('type', 'equalto', 'nfc_tag')|list %}
-            {% set conformity_table = secao.layout in ['verification', 'grouped'] and conformity_items|length > 0 and conformity_items|length + nfc_items|length == secao.questions|length %}
+            {% set signature_items = secao.questions|selectattr('type', 'equalto', 'nfc_signature')|list %}
+            {% set conformity_table = secao.layout in ['verification', 'grouped'] and conformity_items|length > 0 and conformity_items|length + nfc_items|length + signature_items|length == secao.questions|length %}
             {% if secao.layout == 'repeatable' %}
             {% set first_key = 'q_' ~ si ~ '_0' %}
             {% set row_count = [valores.get(first_key, [''])|length, 1]|max %}
@@ -55,9 +70,9 @@
                 <button class="btn btn-outline-secondary btn-sm" type="button" data-add-repeatable>Adicionar registro</button>
             </div>
             {% elif conformity_table %}
-            {% if nfc_items %}<div class="mb-4 pb-3 border-bottom">
-                {% for item in secao.questions %}{% if item.type == 'nfc_tag' %}{% set ii = loop.index0 %}{% set key = 'q_' ~ si ~ '_' ~ ii %}{% set current = valores.get(key, [''])[0] %}
-                <div class="checklist-question" data-type="nfc_tag"><label class="question-title">{{ item.text }}{% if item.required %} <span class="text-danger">*</span>{% endif %}</label>{% if item.help %}<small class="d-block text-muted mb-2">{{ item.help }}</small>{% endif %}{{ render_nfc_checkpoint(item, key, current, valores, etiquetas_nfc) }}</div>
+            {% if nfc_items or signature_items %}<div class="mb-4 pb-3 border-bottom">
+                {% for item in secao.questions %}{% if item.type in ['nfc_tag', 'nfc_signature'] %}{% set ii = loop.index0 %}{% set key = 'q_' ~ si ~ '_' ~ ii %}{% set current = valores.get(key, [''])[0] %}
+                <div class="checklist-question" data-type="{{ item.type }}"><label class="question-title">{{ item.text }}{% if item.required %} <span class="text-danger">*</span>{% endif %}</label>{% if item.help %}<small class="d-block text-muted mb-2">{{ item.help }}</small>{% endif %}{% if item.type == 'nfc_tag' %}{{ render_nfc_checkpoint(item, key, current, valores, etiquetas_nfc) }}{% else %}{{ render_nfc_signature(key, current, valores) }}{% endif %}</div>
                 {% endif %}{% endfor %}
             </div>{% endif %}
             <div class="table-responsive">
@@ -119,6 +134,8 @@
                         <select class="form-select" name="{{ key }}"><option value="">Selecione o setor ou área</option>{% for setor in setores %}<option value="{{ setor.id }}" {% if current == setor.id|string %}selected{% endif %}>{{ setor.nome }}</option>{% endfor %}</select>
                     {% elif item.type == 'nfc_tag' %}
                         {{ render_nfc_checkpoint(item, key, current, valores, etiquetas_nfc) }}
+                    {% elif item.type == 'nfc_signature' %}
+                        {{ render_nfc_signature(key, current, valores) }}
                     {% elif item.type in ['conformity', 'yes_no'] %}
                         {% if item.type == 'conformity' %}{% set options = [('conforme','Conforme'),('nao_conforme','Não conforme'),('nao_aplicavel','Não aplicável')] %}
                         {% else %}{% set options = [('sim','Sim'),('nao','Não'),('nao_aplicavel','Não aplicável')] %}{% endif %}
