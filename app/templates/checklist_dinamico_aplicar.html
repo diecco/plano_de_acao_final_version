@@ -56,15 +56,15 @@
                     {% if item.help %}<small class="d-block text-muted mb-2">{{ item.help }}</small>{% endif %}
 
                     {% if item.type == 'text' %}
-                        <input class="form-control" type="text" name="{{ key }}" value="{{ current }}" maxlength="255">
+                        <input class="form-control" type="text" name="{{ key }}" value="{{ current }}" maxlength="{{ item.max_length|default(255) }}">
                     {% elif item.type == 'textarea' %}
-                        <textarea class="form-control" name="{{ key }}" rows="4" maxlength="3000">{{ current }}</textarea>
+                        <textarea class="form-control" name="{{ key }}" rows="4" maxlength="{{ item.max_length|default(3000) }}">{{ current }}</textarea>
                     {% elif item.type in ['number', 'counter'] %}
                         <div class="input-group"><input class="form-control" type="number" name="{{ key }}" value="{{ current }}" {% if item.type == 'number' %}step="{% if item.decimal_places is none %}any{% elif item.decimal_places == 0 %}1{% else %}0.{{ '0' * (item.decimal_places - 1) }}1{% endif %}"{% else %}min="{{ item.minimum }}" max="{{ item.maximum }}" step="1"{% endif %}>{% if item.measurement_unit %}<span class="input-group-text">{{ item.measurement_unit }}</span>{% endif %}</div>
                     {% elif item.type == 'date' %}
-                        <input class="form-control checklist-date" type="date" name="{{ key }}" value="{{ current }}">
+                        <input class="form-control checklist-date" type="date" name="{{ key }}" value="{{ current }}" {% if item.minimum_value %}min="{{ item.minimum_value }}"{% endif %} {% if item.maximum_value %}max="{{ item.maximum_value }}"{% endif %}>
                     {% elif item.type == 'time' %}
-                        <input class="form-control checklist-date" type="time" name="{{ key }}" value="{{ current }}">
+                        <input class="form-control checklist-date" type="time" name="{{ key }}" value="{{ current }}" {% if item.minimum_value %}min="{{ item.minimum_value }}"{% endif %} {% if item.maximum_value %}max="{{ item.maximum_value }}"{% endif %}>
                     {% elif item.type == 'person' %}
                         <div class="checklist-person-picker" data-person-picker data-mode="single" data-name="{{ key }}"><input class="form-control person-search" autocomplete="off" placeholder="Digite o nome ou a matrícula" value="{% for pessoa in pessoas %}{% if current == pessoa.id|string %}{{ pessoa.nome }}{% if pessoa.matricula %} — {{ pessoa.matricula }}{% endif %}{% endif %}{% endfor %}"><input type="hidden" name="{{ key }}" value="{{ current }}" data-person-value><div class="person-results shadow-sm" hidden></div></div>
                     {% elif item.type == 'people' %}
@@ -72,10 +72,15 @@
                     {% elif item.type == 'sector' %}
                         <select class="form-select" name="{{ key }}"><option value="">Selecione o setor ou área</option>{% for setor in setores %}<option value="{{ setor.id }}" {% if current == setor.id|string %}selected{% endif %}>{{ setor.nome }}</option>{% endfor %}</select>
                     {% elif item.type == 'nfc_tag' %}
-                        <select class="form-select" name="{{ key }}">
-                            <option value="">Selecione a etiqueta NFC</option>
-                            {% for etiqueta in etiquetas_nfc %}<option value="{{ etiqueta.id }}" {% if current == etiqueta.id|string %}selected{% endif %}>{{ etiqueta.numero }} — {{ etiqueta.descricao }}</option>{% endfor %}
-                        </select>
+                        <div class="nfc-checkpoint" data-nfc-checkpoint data-name="{{ key }}" data-physical-required="{{ '1' if item.nfc_physical_required else '0' }}" data-unlock-section="{{ '1' if item.nfc_unlock_section else '0' }}">
+                            <input type="hidden" name="{{ key }}" value="{{ current }}" data-nfc-value>
+                            <input type="hidden" name="{{ key }}_nfc_method" value="{{ valores.get(key ~ '_nfc_method', [''])[0] }}" data-nfc-method>
+                            <input type="hidden" name="{{ key }}_nfc_read_at" value="{{ valores.get(key ~ '_nfc_read_at', [''])[0] }}" data-nfc-read-at>
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <button class="btn btn-outline-secondary" type="button" data-nfc-read><i class="bi bi-broadcast-pin me-1"></i>Ler etiqueta NFC</button>
+                                <span class="nfc-read-status text-muted small" data-nfc-status>{% if current %}Etiqueta selecionada.{% else %}Aguardando leitura.{% endif %}</span>
+                            </div>
+                        </div>
                         {% if not etiquetas_nfc %}<small class="d-block text-muted mt-1">Nenhuma etiqueta ativa está disponível para este centro de custos.</small>{% endif %}
                     {% elif item.type in ['conformity', 'yes_no'] %}
                         {% if item.type == 'conformity' %}{% set options = [('conforme','Conforme'),('nao_conforme','Não conforme'),('nao_aplicavel','Não aplicável')] %}
@@ -112,5 +117,6 @@
 </form>
 <script id="checklist-people-data" type="application/json">{{ pessoas|tojson }}</script>
 <script id="checklist-action-people-data" type="application/json">{{ responsaveis_acao|default([])|tojson }}</script>
+<script id="checklist-nfc-data" type="application/json">{{ etiquetas_nfc|default([])|tojson }}</script>
 <script src="{{ url_for('static', filename='js/checklist-run.js') }}" defer></script>
 {% endblock %}

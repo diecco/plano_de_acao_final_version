@@ -12,7 +12,7 @@
 {% for item in secao.questions %}{% set key = 'q_' ~ si ~ '_' ~ loop.index0 %}{% set answer = respostas.get(key, {}) %}{% set value = answer.get('value') %}
 <tr><td><strong>{{ item.text }}</strong>{% if item.help %}<small class="d-block text-muted">{{ item.help }}</small>{% endif %}</td><td>
 {% if item.type in ['person', 'sector'] and value is mapping %}{{ value.get('name', '-') }}{% if value.get('registration') %} — {{ value.registration }}{% endif %}
-{% elif item.type == 'nfc_tag' and value is mapping %}<strong>{{ value.get('number', '-') }}</strong>{% if value.get('description') %} — {{ value.description }}{% endif %}
+{% elif item.type == 'nfc_tag' and value is mapping %}<strong>{{ value.get('number', '-') }}</strong>{% if value.get('description') %} — {{ value.description }}{% endif %}{% if value.get('read_method') == 'physical' %}<span class="badge bg-success ms-2">Leitura física</span>{% else %}<span class="badge bg-secondary ms-2">Seleção manual</span>{% endif %}{% if value.get('read_at') %}<small class="d-block text-muted">Validada em {{ value.read_at }}</small>{% endif %}
 {% elif item.type == 'people' and value is sequence %}{% for person in value %}{{ person.get('name', '-') }}{% if person.get('registration') %} — {{ person.registration }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
 {% elif value is mapping %}{% for row, column in value.items() %}<span class="d-block">{{ row }}: <strong>{{ column }}</strong></span>{% endfor %}
 {% elif value is sequence and value is not string %}{{ value|join(', ') }}

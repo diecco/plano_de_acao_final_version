@@ -238,15 +238,20 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         }]
         clean = validar_estrutura(json.dumps(definition))
         answers, errors = _validar_respostas(
-            clean, MultiDict([("q_0_0", "12")]),
+            clean, MultiDict([
+                ("q_0_0", "12"), ("q_0_0_nfc_method", "physical"),
+                ("q_0_0_nfc_read_at", "2026-11-07T18:30:00.000Z"),
+            ]),
             etiquetas_nfc=[{
                 "id": 12, "numero": "NFC-001", "descricao": "Extintor da recepção"
             }],
         )
         self.assertEqual(errors, [])
         self.assertEqual(answers["q_0_0"]["value"], {
-            "id": 12, "number": "NFC-001", "description": "Extintor da recepção"
+            "id": 12, "number": "NFC-001", "description": "Extintor da recepção",
+            "read_method": "physical", "read_at": answers["q_0_0"]["value"]["read_at"],
         })
+        self.assertRegex(answers["q_0_0"]["value"]["read_at"], r"^\d{4}-\d{2}-\d{2}T")
 
         source = (ROOT / "app" / "views" / "checklists_dinamicos.py").read_text(encoding="utf-8")
         builder = (ROOT / "app" / "static" / "js" / "checklist-builder.js").read_text(encoding="utf-8")
@@ -254,7 +259,29 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn("Etiqueta NFC", builder)
         self.assertIn("nfc_etiquetas_centros", source)
         self.assertIn("e.abrangencia = 'global'", source)
-        self.assertIn("Selecione a etiqueta NFC", execution)
+        self.assertNotIn("Selecione a etiqueta NFC", execution)
+        self.assertIn("data-nfc-read", execution)
+        self.assertIn("Bloquear os demais campos da seção", builder)
+        self.assertIn("exclusivamente pela leitura física", builder)
+
+    def test_field_specific_validation_rules_are_preserved(self):
+        from app.views.checklists_dinamicos import validar_estrutura
+
+        definition = [{"title": "Dados", "questions": [
+            {"text": "Resumo", "type": "text", "required": False,
+             "negative_comment": False, "negative_evidence": False, "options": [],
+             "max_length": 80},
+            {"text": "Horário", "type": "time", "required": False,
+             "negative_comment": False, "negative_evidence": False, "options": [],
+             "minimum_value": "07:00", "maximum_value": "18:00"},
+            {"text": "Equipe", "type": "people", "required": False,
+             "negative_comment": False, "negative_evidence": False, "options": [],
+             "minimum_selections": 1, "maximum_selections": 4},
+        ]}]
+        clean = validar_estrutura(json.dumps(definition))[0]["questions"]
+        self.assertEqual(clean[0]["max_length"], 80)
+        self.assertEqual(clean[1]["minimum_value"], "07:00")
+        self.assertEqual(clean[2]["maximum_selections"], 4)
 
     def test_header_layout_is_compact_and_people_use_scoped_autocomplete(self):
         from app.views.checklists_dinamicos import validar_estrutura
