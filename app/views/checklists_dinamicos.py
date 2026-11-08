@@ -10,7 +10,7 @@ import calendar
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
-from flask import abort, flash, redirect, render_template, request, session, url_for
+from flask import abort, flash, jsonify, redirect, render_template, request, session, url_for
 
 from app.decorators import admin_required, login_required
 from app.utils.db import get_db_connection
@@ -39,6 +39,7 @@ TIPOS_RESPOSTA = {
     "people": "Várias pessoas",
     "sector": "Setor / Área",
     "nfc_tag": "Etiqueta NFC",
+    "nfc_signature": "Assinatura por crachá NFC",
 }
 
 LAYOUTS_SECAO = {
@@ -208,6 +209,8 @@ def validar_estrutura(raw):
                     nfc_physical_required=True,
                     nfc_unlock_section=bloquear_secao,
                 )
+            elif tipo == "nfc_signature":
+                item["nfc_physical_required"] = True
             elif tipo in {"text", "textarea"}:
                 limite_padrao = 255 if tipo == "text" else 3000
                 limite_maximo = 1000 if tipo == "text" else 10000
@@ -387,6 +390,8 @@ def _ler_estrutura(valor):
             if tipo == "nfc_tag":
                 item["nfc_physical_required"] = True
                 item.setdefault("nfc_unlock_section", True)
+            elif tipo == "nfc_signature":
+                item["nfc_physical_required"] = True
             elif tipo == "text":
                 item.setdefault("max_length", 255)
             elif tipo == "textarea":
@@ -453,11 +458,16 @@ def _opcoes_periodo_listagem(hoje=None):
     return opcoes
 
 
-def _validar_respostas(estrutura, formulario, pessoas=None, setores=None, etiquetas_nfc=None):
+def _validar_respostas(estrutura, formulario, pessoas=None, setores=None,
+                       etiquetas_nfc=None, assinantes_nfc=None):
     """Converte e valida as respostas sem confiar nos valores do navegador."""
     pessoas = {str(item["id"]): item for item in (pessoas or [])}
     setores = {str(item["id"]): item for item in (setores or [])}
     etiquetas_nfc = {str(item["id"]): item for item in (etiquetas_nfc or [])}
+    assinantes_nfc = {
+        (item.get("uid_rfid") or "").strip(): item
+        for item in (assinantes_nfc or []) if (item.get("uid_rfid") or "").strip()
+    }
     respostas = {}
     erros = []
     for secao_indice, secao in enumerate(estrutura):
@@ -548,6 +558,27 @@ def _validar_respostas(estrutura, formulario, pessoas=None, setores=None, etique
                     "read_channel": canal_leitura or None,
                     "read_at": datetime.now().astimezone().isoformat(timespec="seconds"),
                 } if etiqueta else {})
+            elif tipo == "nfc_signature":
+                uid_lido = (formulario.get(f"{chave}_nfc_uid") or "").strip()
+                assinante = assinantes_nfc.get(uid_lido)
+                metodo_leitura = (formulario.get(f"{chave}_nfc_method") or "").strip()
+                canal_leitura = (formulario.get(f"{chave}_nfc_channel") or "").strip()
+                leitura_valida = (
+                    assinante
+                    and str(assinante["id"]) == str(valor)
+                    and metodo_leitura == "physical"
+                    and canal_leitura in {"usb", "web_nfc"}
+                )
+                if valor and not leitura_valida:
+                    erros.append(f"Faça a leitura do crachá NFC para assinar: {item.get('text')}")
+                valor = ({
+                    "id": assinante["id"],
+                    "name": assinante["nome"],
+                    "registration": assinante.get("matricula"),
+                    "read_method": "physical",
+                    "read_channel": canal_leitura,
+                    "read_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+                } if leitura_valida else {})
             elif tipo == "matrix":
                 valor = {}
                 colunas = item.get("matrix_columns", [])
@@ -751,6 +782,53 @@ def _execucao_visivel(cursor, execucao_id):
          LIMIT 1
     """, parametros)
     return cursor.fetchone()
+
+
+def _listar_pessoas_checklist(cursor, checklist):
+    """Lista usuários ativos no mesmo escopo em que o checklist é aplicado."""
+    perfil_admin = (session.get("perfil") or "").lower() == "administrador"
+    if perfil_admin and checklist.get("abrangencia") == "centros":
+        cursor.execute("""
+            SELECT DISTINCT u.id, u.nome, u.matricula
+              FROM usuarios u
+              JOIN checklist_modelos_centros cmc
+                ON cmc.centro_custos_id = u.centro_custos_id
+             WHERE cmc.checklist_id = %s
+               AND u.ativo = 1
+             ORDER BY u.nome
+        """, (checklist["id"],))
+    elif perfil_admin:
+        cursor.execute("""
+            SELECT id, nome, matricula FROM usuarios
+             WHERE ativo = 1 ORDER BY nome
+        """)
+    elif session.get("centro_custos_id"):
+        cursor.execute("""
+            SELECT id, nome, matricula FROM usuarios
+             WHERE ativo = 1 AND centro_custos_id = %s ORDER BY nome
+        """, (session.get("centro_custos_id"),))
+    else:
+        cursor.execute("""
+            SELECT id, nome, matricula FROM usuarios
+             WHERE ativo = 1 AND id = %s
+        """, (session.get("usuario_id"),))
+    return cursor.fetchall()
+
+
+def _listar_assinantes_nfc(cursor, pessoas):
+    ids = [int(pessoa["id"]) for pessoa in pessoas]
+    if not ids:
+        return []
+    marcadores = ", ".join(["%s"] * len(ids))
+    cursor.execute(f"""
+        SELECT id, nome, matricula, uid_rfid
+          FROM usuarios
+         WHERE ativo = 1
+           AND uid_rfid IS NOT NULL
+           AND TRIM(uid_rfid) <> ''
+           AND id IN ({marcadores})
+    """, ids)
+    return cursor.fetchall()
 
 
 def register_checklists_dinamicos_routes(blueprint):
@@ -1149,6 +1227,47 @@ def register_checklists_dinamicos_routes(blueprint):
             },
         )
 
+    @blueprint.post("/checklists/<int:checklist_id>/assinatura-nfc")
+    @login_required
+    def validar_assinatura_nfc(checklist_id):
+        dados = request.get_json(silent=True) or {}
+        uid_lido = (dados.get("uid") or "").strip()
+        if not uid_lido:
+            return jsonify(sucesso=False, mensagem="Aproxime o crachá no leitor NFC."), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            checklist = _buscar_modelo_visivel(cursor, checklist_id)
+            if not checklist:
+                abort(404)
+            if not _pode_acessar_modulo(checklist["modulo_menu"]):
+                abort(403)
+            pessoas = _listar_pessoas_checklist(cursor, checklist)
+            assinantes = _listar_assinantes_nfc(cursor, pessoas)
+            assinante = next(
+                (item for item in assinantes
+                 if (item.get("uid_rfid") or "").strip() == uid_lido),
+                None,
+            )
+        finally:
+            cursor.close()
+            conn.close()
+
+        if not assinante:
+            return jsonify(
+                sucesso=False,
+                mensagem="Crachá NFC não localizado entre os usuários ativos deste escopo.",
+            ), 404
+        return jsonify(
+            sucesso=True,
+            usuario={
+                "id": assinante["id"],
+                "nome": assinante["nome"],
+                "matricula": assinante.get("matricula"),
+            },
+        )
+
     @blueprint.route("/checklists/<int:checklist_id>/aplicar", methods=["GET", "POST"])
     @login_required
     def aplicar_checklist_dinamico(checklist_id):
@@ -1165,33 +1284,8 @@ def register_checklists_dinamicos_routes(blueprint):
                 flash("Este checklist não possui itens publicados.", "danger")
                 return redirect(url_for("main.abrir_checklist_dinamico", checklist_id=checklist_id))
 
-            if ((session.get("perfil") or "").lower() == "administrador"
-                    and checklist.get("abrangencia") == "centros"):
-                cursor.execute("""
-                    SELECT DISTINCT u.id, u.nome, u.matricula
-                      FROM usuarios u
-                      JOIN checklist_modelos_centros cmc
-                        ON cmc.centro_custos_id = u.centro_custos_id
-                     WHERE cmc.checklist_id = %s
-                       AND u.ativo = 1
-                     ORDER BY u.nome
-                """, (checklist_id,))
-            elif (session.get("perfil") or "").lower() == "administrador":
-                cursor.execute("""
-                    SELECT id, nome, matricula FROM usuarios
-                     WHERE ativo = 1 ORDER BY nome
-                """)
-            elif session.get("centro_custos_id"):
-                cursor.execute("""
-                    SELECT id, nome, matricula FROM usuarios
-                     WHERE ativo = 1 AND centro_custos_id = %s ORDER BY nome
-                """, (session.get("centro_custos_id"),))
-            else:
-                cursor.execute("""
-                    SELECT id, nome, matricula FROM usuarios
-                     WHERE ativo = 1 AND id = %s
-                """, (session.get("usuario_id"),))
-            pessoas = cursor.fetchall()
+            pessoas = _listar_pessoas_checklist(cursor, checklist)
+            assinantes_nfc = _listar_assinantes_nfc(cursor, pessoas)
             if ((session.get("perfil") or "").lower() == "administrador"
                     and checklist.get("abrangencia") == "centros"):
                 cursor.execute("""
@@ -1258,7 +1352,7 @@ def register_checklists_dinamicos_routes(blueprint):
             if request.method == "POST":
                 respostas, erros = _validar_respostas(
                     estrutura, request.form, pessoas=pessoas, setores=setores,
-                    etiquetas_nfc=etiquetas_nfc
+                    etiquetas_nfc=etiquetas_nfc, assinantes_nfc=assinantes_nfc
                 )
                 propostas_acoes, erros_acoes = _validar_acoes_checklist(
                     estrutura, request.form, responsaveis=responsaveis_acao

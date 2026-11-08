@@ -249,4 +249,84 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     refreshNfcGates();
   });
+
+  document.querySelectorAll('[data-nfc-signature]').forEach((signature) => {
+    const value = signature.querySelector('[data-nfc-value]');
+    const uid = signature.querySelector('[data-nfc-uid]');
+    const method = signature.querySelector('[data-nfc-method]');
+    const channel = signature.querySelector('[data-nfc-channel]');
+    const readAt = signature.querySelector('[data-nfc-read-at]');
+    const status = signature.querySelector('[data-nfc-status]');
+    const usbInput = signature.querySelector('[data-nfc-usb-input]');
+    const button = signature.querySelector('[data-nfc-read]');
+    const clear = () => {
+      value.value = ''; uid.value = ''; method.value = ''; channel.value = ''; readAt.value = '';
+      signature.classList.remove('is-valid');
+    };
+    const validateCapture = async (raw, readChannel) => {
+      const candidates = [...new Set((Array.isArray(raw) ? raw : [raw]).flatMap(nfcCandidates))];
+      clear();
+      for (const candidate of candidates) {
+        try {
+          const response = await fetch(signature.dataset.signatureUrl, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({uid: candidate}),
+          });
+          const result = await response.json();
+          if (!response.ok || !result.sucesso) continue;
+          const person = result.usuario;
+          value.value = person.id;
+          uid.value = candidate;
+          method.value = 'physical';
+          channel.value = readChannel;
+          readAt.value = new Date().toISOString();
+          usbInput.value = '';
+          const channelLabel = readChannel === 'usb' ? 'leitor USB' : 'NFC do celular';
+          status.textContent = `${labelFor(person)} · assinatura validada por ${channelLabel}`;
+          signature.classList.remove('is-invalid'); signature.classList.add('is-valid');
+          return true;
+        } catch (_) { /* Tenta o próximo conteúdo lido do crachá. */ }
+      }
+      signature.classList.remove('is-valid'); signature.classList.add('is-invalid');
+      status.textContent = 'Crachá NFC não localizado entre os usuários ativos deste escopo.';
+      return false;
+    };
+    usbInput.addEventListener('focus', () => {
+      usbInput.value = '';
+      status.textContent = 'Aguardando a leitura do crachá no dispositivo USB…';
+    });
+    usbInput.addEventListener('keydown', async (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      const valid = await validateCapture(usbInput.value.trim(), 'usb');
+      if (!valid) usbInput.select();
+    });
+    button.addEventListener('click', async () => {
+      if (!('NDEFReader' in window)) {
+        signature.classList.add('is-invalid');
+        status.textContent = 'Este navegador não oferece leitura NFC. Use um celular Android com Chrome e conexão HTTPS.';
+        return;
+      }
+      button.disabled = true;
+      status.textContent = 'Aproxime o aparelho do crachá NFC…';
+      try {
+        const reader = new NDEFReader();
+        await reader.scan();
+        reader.addEventListener('reading', async (event) => {
+          const records = decodedNfcRecords(event.message);
+          if (event.serialNumber) records.push(event.serialNumber);
+          await validateCapture(records, 'web_nfc');
+          button.disabled = false;
+        }, {once: true});
+      } catch (error) {
+        signature.classList.add('is-invalid');
+        status.textContent = error && error.name === 'NotAllowedError'
+          ? 'A leitura NFC não foi autorizada no aparelho.'
+          : 'Não foi possível iniciar a leitura NFC.';
+        button.disabled = false;
+      }
+    });
+    if (value.value && method.value) signature.classList.add('is-valid');
+  });
 });

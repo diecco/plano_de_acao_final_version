@@ -296,6 +296,53 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn("compareDocumentPosition", runner)
         self.assertIn("DOCUMENT_POSITION_FOLLOWING", runner)
 
+    def test_nfc_signature_validates_active_scoped_user_and_keeps_identity_snapshot(self):
+        from werkzeug.datastructures import MultiDict
+        from app.views.checklists_dinamicos import _validar_respostas, validar_estrutura
+
+        definition = [{
+            "title": "Assinaturas", "layout": "header",
+            "questions": [{
+                "text": "Assinatura do responsável", "type": "nfc_signature",
+                "required": True, "negative_comment": False,
+                "negative_evidence": False, "options": [],
+            }],
+        }]
+        clean = validar_estrutura(json.dumps(definition))
+        form = MultiDict([
+            ("q_0_0", "15"), ("q_0_0_nfc_uid", "0001234567"),
+            ("q_0_0_nfc_method", "physical"), ("q_0_0_nfc_channel", "usb"),
+        ])
+        signers = [{
+            "id": 15, "nome": "Maria Auditora", "matricula": "0015",
+            "uid_rfid": "0001234567",
+        }]
+        answers, errors = _validar_respostas(clean, form, assinantes_nfc=signers)
+        self.assertEqual(errors, [])
+        self.assertEqual(answers["q_0_0"]["value"]["id"], 15)
+        self.assertEqual(answers["q_0_0"]["value"]["name"], "Maria Auditora")
+        self.assertEqual(answers["q_0_0"]["value"]["registration"], "0015")
+        self.assertNotIn("uid_rfid", answers["q_0_0"]["value"])
+
+        forged = MultiDict([
+            ("q_0_0", "99"), ("q_0_0_nfc_uid", "0001234567"),
+            ("q_0_0_nfc_method", "physical"), ("q_0_0_nfc_channel", "usb"),
+        ])
+        answers, errors = _validar_respostas(clean, forged, assinantes_nfc=signers)
+        self.assertTrue(errors)
+        self.assertEqual(answers["q_0_0"]["value"], {})
+
+        builder = (ROOT / "app" / "static" / "js" / "checklist-builder.js").read_text(encoding="utf-8")
+        execution = (ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html").read_text(encoding="utf-8")
+        runner = (ROOT / "app" / "static" / "js" / "checklist-run.js").read_text(encoding="utf-8")
+        source = (ROOT / "app" / "views" / "checklists_dinamicos.py").read_text(encoding="utf-8")
+        self.assertIn("Assinatura por crachá NFC", builder)
+        self.assertIn("data-nfc-signature", execution)
+        self.assertIn("data-signature-url", execution)
+        self.assertIn("Crachá NFC não localizado", runner)
+        self.assertIn("def validar_assinatura_nfc", source)
+        self.assertIn("uid_rfid", source)
+
     def test_field_specific_validation_rules_are_preserved(self):
         from app.views.checklists_dinamicos import validar_estrutura
 
