@@ -240,6 +240,7 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         answers, errors = _validar_respostas(
             clean, MultiDict([
                 ("q_0_0", "12"), ("q_0_0_nfc_method", "physical"),
+                ("q_0_0_nfc_channel", "usb"),
                 ("q_0_0_nfc_read_at", "2026-11-07T18:30:00.000Z"),
             ]),
             etiquetas_nfc=[{
@@ -250,6 +251,7 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertEqual(answers["q_0_0"]["value"], {
             "id": 12, "number": "NFC-001", "description": "Extintor da recepção",
             "read_method": "physical", "read_at": answers["q_0_0"]["value"]["read_at"],
+            "read_channel": "usb",
         })
         self.assertRegex(answers["q_0_0"]["value"]["read_at"], r"^\d{4}-\d{2}-\d{2}T")
 
@@ -261,6 +263,7 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn("e.abrangencia = 'global'", source)
         self.assertNotIn("Selecione a etiqueta NFC", execution)
         self.assertIn("data-nfc-read", execution)
+        self.assertIn("data-nfc-usb-input", execution)
         self.assertIn("Bloquear os demais campos da seção", builder)
         self.assertIn("exclusivamente pela leitura física", builder)
 
