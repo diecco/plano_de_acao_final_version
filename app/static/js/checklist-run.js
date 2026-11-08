@@ -85,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const nfcNode = document.getElementById('checklist-nfc-data');
   const nfcTags = nfcNode ? JSON.parse(nfcNode.textContent || '[]') : [];
   const nfcText = (tag) => `${tag.numero} — ${tag.descricao}`;
+  const canonicalTagCode = (value) => String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
   const nfcCandidates = (raw) => {
     const candidates = [String(raw || '').trim()];
     try {
@@ -139,7 +140,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const validateCapture = (raw, readChannel) => {
       const candidates = (Array.isArray(raw) ? raw : [raw]).flatMap(nfcCandidates);
-      const tag = nfcTags.find((item) => candidates.includes(String(item.token)) || candidates.includes(String(item.numero)));
+      const canonicalCandidates = candidates.map(canonicalTagCode).filter(Boolean);
+      const tag = nfcTags.find((item) =>
+        candidates.includes(String(item.token)) || candidates.includes(String(item.numero)) ||
+        canonicalCandidates.includes(canonicalTagCode(item.token)) ||
+        canonicalCandidates.includes(canonicalTagCode(item.numero))
+      );
       if (!tag) {
         checkpoint.classList.remove('is-valid'); checkpoint.classList.add('is-invalid');
         status.textContent = 'Etiqueta não cadastrada, inativa ou fora da abrangência deste checklist.';
@@ -172,6 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await reader.scan();
         reader.addEventListener('reading', (event) => {
           const records = decodedNfcRecords(event.message);
+          if (event.serialNumber) records.push(event.serialNumber);
           validateCapture(records, 'web_nfc');
           button.disabled = false;
         }, {once: true});
