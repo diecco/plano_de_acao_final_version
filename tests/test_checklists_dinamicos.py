@@ -138,6 +138,21 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertNotIn("Novo preenchimento", template)
         self.assertIn("col-xl-auto ms-xl-auto", template)
 
+    def test_listing_has_standard_server_side_sorting_controls(self):
+        template = (
+            ROOT / "app" / "templates" / "checklist_dinamico_esboco.html"
+        ).read_text(encoding="utf-8")
+        source = (
+            ROOT / "app" / "views" / "checklists_dinamicos.py"
+        ).read_text(encoding="utf-8")
+        for field in ("id", "data", "responsavel", "centro"):
+            self.assertIn(f"'{field}'", template)
+        self.assertIn("bi-caret-up-fill", template)
+        self.assertIn("bi-caret-down-fill", template)
+        self.assertIn('"responsavel": "u.nome"', source)
+        self.assertIn('"centro": "cc.codigo"', source)
+        self.assertIn("ORDER BY {coluna_ordenacao} {direcao_ordenacao}", source)
+
     def test_period_filter_matches_adherence_report_options(self):
         from datetime import date
         from app.views.checklists_dinamicos import _resolver_periodo_listagem
