@@ -22,7 +22,7 @@
 .person-selected { margin-top: .4rem; color: #6c757d; font-size: .82rem; line-height: 1.4; }
 .nfc-checkpoint.is-valid .nfc-read-status { color: #198754 !important; font-weight: 600; }
 .nfc-checkpoint.is-invalid .nfc-read-status { color: #dc3545 !important; }
-.checklist-nfc-locked { opacity: .55; }
+.checklist-nfc-locked { opacity: .48; pointer-events: none; }
 .checklist-verification-table thead th { background: #f26722; color: #fff; text-align: center; vertical-align: middle; }
 .checklist-verification-table .verification-item-column { width: 44%; }
 .checklist-verification-table .verification-result-column { width: 14%; }

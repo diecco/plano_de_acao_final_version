@@ -104,17 +104,26 @@ document.addEventListener('DOMContentLoaded', () => {
       try { return decoder.decode(record.data); } catch (_) { return ''; }
     }).filter(Boolean);
   };
-  const refreshNfcSection = (section) => {
-    const checkpoints = [...section.querySelectorAll('[data-nfc-checkpoint][data-unlock-section="1"]')];
-    if (!checkpoints.length) return;
-    const unlocked = checkpoints.every((checkpoint) => {
+  const refreshNfcGates = () => {
+    const form = document.querySelector('form.checklist-run');
+    if (!form) return;
+    const checkpoints = [...form.querySelectorAll('[data-nfc-checkpoint][data-unlock-section="1"]')];
+    const targets = [...form.querySelectorAll('.checklist-question, .checklist-verification-table tr[data-type]')];
+    const checkpointIsValid = (checkpoint) => {
       const value = checkpoint.querySelector('[data-nfc-value]').value;
       const method = checkpoint.querySelector('[data-nfc-method]').value;
       return value && (checkpoint.dataset.physicalRequired !== '1' || method === 'physical');
-    });
-    section.classList.toggle('checklist-nfc-locked', !unlocked);
-    section.querySelectorAll('input, select, textarea, button').forEach((control) => {
-      if (!control.closest('[data-nfc-checkpoint]')) control.disabled = !unlocked;
+    };
+    targets.forEach((target) => {
+      const locked = checkpoints.some((checkpoint) => {
+        const checkpointQuestion = checkpoint.closest('.checklist-question');
+        if (!checkpointQuestion || checkpointQuestion === target || checkpointIsValid(checkpoint)) return false;
+        return Boolean(checkpointQuestion.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING);
+      });
+      target.classList.toggle('checklist-nfc-locked', locked);
+      target.querySelectorAll('input, select, textarea, button').forEach((control) => {
+        if (!control.closest('[data-nfc-checkpoint]')) control.disabled = locked;
+      });
     });
   };
 
@@ -126,7 +135,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const status = checkpoint.querySelector('[data-nfc-status]');
     const usbInput = checkpoint.querySelector('[data-nfc-usb-input]');
     const button = checkpoint.querySelector('[data-nfc-read]');
-    const section = checkpoint.closest('section');
     const setTag = (tag, readChannel) => {
       value.value = tag.id;
       method.value = 'physical';
@@ -136,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const channelLabel = readChannel === 'usb' ? 'leitor USB' : 'NFC do celular';
       status.textContent = `${nfcText(tag)} · leitura validada por ${channelLabel}`;
       checkpoint.classList.remove('is-invalid'); checkpoint.classList.add('is-valid');
-      refreshNfcSection(section);
+      refreshNfcGates();
     };
     const validateCapture = (raw, readChannel) => {
       const candidates = (Array.isArray(raw) ? raw : [raw]).flatMap(nfcCandidates);
@@ -150,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
         checkpoint.classList.remove('is-valid'); checkpoint.classList.add('is-invalid');
         status.textContent = 'Etiqueta não cadastrada, inativa ou fora da abrangência deste checklist.';
         value.value = ''; method.value = ''; channel.value = ''; readAt.value = '';
-        refreshNfcSection(section);
+        refreshNfcGates();
         return false;
       }
       setTag(tag, readChannel); return true;
@@ -196,6 +204,6 @@ document.addEventListener('DOMContentLoaded', () => {
       status.textContent = `${nfcText(selected)} · leitura validada por ${channelLabel}`;
       checkpoint.classList.add('is-valid');
     }
-    refreshNfcSection(section);
+    refreshNfcGates();
   });
 });

@@ -174,7 +174,7 @@
         if (question.type === 'nfc_tag') {
             const box = element('div', 'checklist-special-settings');
             box.append(
-                rule('Bloquear os demais campos da seção até validar a etiqueta', question.nfc_unlock_section !== false, value => {
+                rule('Bloquear os itens e etapas seguintes até validar a etiqueta', question.nfc_unlock_section !== false, value => {
                     question.nfc_unlock_section = value; sync();
                 }),
                 element('p', 'form-text mb-0', 'O preenchimento será feito exclusivamente pela leitura física da etiqueta NFC. O cadastro administrativo será usado para validar número, status e abrangência.')
