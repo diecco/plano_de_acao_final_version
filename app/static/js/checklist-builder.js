@@ -102,7 +102,15 @@
         if (['choice', 'multichoice', 'ranking'].includes(question.type)) {
             const control = textarea(lines(question.options), value => setLines(question, 'options', value), 3);
             control.placeholder = 'Uma alternativa por linha';
-            return field('Alternativas · de 2 a 20', control);
+            const alternatives = field('Alternativas · de 2 a 20', control);
+            if (question.type !== 'multichoice') return alternatives;
+            const box = element('div', 'checklist-special-settings');
+            const maximumDefault = Math.max((question.options || []).length, 1);
+            const minimum = input(question.minimum_selections ?? 0, null, value => { question.minimum_selections = Number(value); sync(); }, 'number');
+            const maximum = input(question.maximum_selections ?? maximumDefault, null, value => { question.maximum_selections = Number(value); sync(); }, 'number');
+            minimum.min = '0'; maximum.min = '1'; maximum.max = String(maximumDefault);
+            box.append(alternatives, field('Quantidade mínima', minimum), field('Quantidade máxima', maximum));
+            return box;
         }
         if (question.type === 'matrix') {
             const box = element('div', 'checklist-special-settings checklist-matrix');
@@ -138,6 +146,39 @@
                 control.min = '0'; control.max = '1000000'; box.append(field(label, control));
             });
             box.append(rule('Incluir nos totais', question.counted !== false, value => { question.counted = value; sync(); }));
+            return box;
+        }
+        if (['text', 'textarea'].includes(question.type)) {
+            const fallback = question.type === 'text' ? 255 : 3000;
+            const box = element('div', 'checklist-special-settings');
+            const control = input(question.max_length ?? fallback, null, value => { question.max_length = Number(value); sync(); }, 'number');
+            control.min = '1'; control.max = question.type === 'text' ? '1000' : '10000';
+            box.append(field('Limite de caracteres', control)); return box;
+        }
+        if (['date', 'time'].includes(question.type)) {
+            const box = element('div', 'checklist-special-settings');
+            const htmlType = question.type === 'date' ? 'date' : 'time';
+            box.append(
+                field('Valor mínimo (opcional)', input(question.minimum_value || '', null, value => { question.minimum_value = value; sync(); }, htmlType)),
+                field('Valor máximo (opcional)', input(question.maximum_value || '', null, value => { question.maximum_value = value; sync(); }, htmlType))
+            ); return box;
+        }
+        if (question.type === 'people') {
+            const box = element('div', 'checklist-special-settings');
+            const maximumDefault = 50;
+            const minimum = input(question.minimum_selections ?? 0, null, value => { question.minimum_selections = Number(value); sync(); }, 'number');
+            const maximum = input(question.maximum_selections ?? maximumDefault, null, value => { question.maximum_selections = Number(value); sync(); }, 'number');
+            minimum.min = '0'; maximum.min = '1'; maximum.max = '200';
+            box.append(field('Quantidade mínima', minimum), field('Quantidade máxima', maximum)); return box;
+        }
+        if (question.type === 'nfc_tag') {
+            const box = element('div', 'checklist-special-settings');
+            box.append(
+                rule('Bloquear os demais campos da seção até validar a etiqueta', question.nfc_unlock_section !== false, value => {
+                    question.nfc_unlock_section = value; sync();
+                }),
+                element('p', 'form-text mb-0', 'O preenchimento será feito exclusivamente pela leitura física da etiqueta NFC. O cadastro administrativo será usado para validar número, status e abrangência.')
+            );
             return box;
         }
         return null;

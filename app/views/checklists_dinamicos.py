@@ -142,6 +142,13 @@ def validar_estrutura(raw):
                     pergunta.get("options"), 2, 20,
                     "Itens de seleção precisam ter de 2 a 20 alternativas.",
                 )
+                if tipo == "multichoice":
+                    minimo = pergunta.get("minimum_selections", 0)
+                    maximo = pergunta.get("maximum_selections", len(item["options"]))
+                    if (type(minimo) is not int or type(maximo) is not int
+                            or not 0 <= minimo <= maximo <= len(item["options"])):
+                        raise ValueError("Confira a quantidade permitida na múltipla escolha.")
+                    item.update(minimum_selections=minimo, maximum_selections=maximo)
             elif tipo == "matrix":
                 item["matrix_rows"] = _lista_textos(
                     pergunta.get("matrix_rows"), 1, 20,
@@ -184,6 +191,40 @@ def validar_estrutura(raw):
                 if minimo > maximo or not minimo <= inicial <= maximo or type(contado) is not bool:
                     raise ValueError("O valor inicial do contador deve estar entre o mínimo e o máximo.")
                 item.update(minimum=minimo, maximum=maximo, counter_initial=inicial, counted=contado)
+            elif tipo == "nfc_tag":
+                bloquear_secao = pergunta.get("nfc_unlock_section", True)
+                if type(bloquear_secao) is not bool:
+                    raise ValueError("Confira as regras de validação da etiqueta NFC.")
+                item.update(
+                    nfc_physical_required=True,
+                    nfc_unlock_section=bloquear_secao,
+                )
+            elif tipo in {"text", "textarea"}:
+                limite_padrao = 255 if tipo == "text" else 3000
+                limite_maximo = 1000 if tipo == "text" else 10000
+                limite = pergunta.get("max_length", limite_padrao)
+                if type(limite) is not int or not 1 <= limite <= limite_maximo:
+                    raise ValueError("Confira o limite de caracteres do campo de texto.")
+                item["max_length"] = limite
+            elif tipo in {"date", "time"}:
+                minimo = (pergunta.get("minimum_value") or "").strip()
+                maximo = (pergunta.get("maximum_value") or "").strip()
+                try:
+                    if minimo:
+                        date.fromisoformat(minimo) if tipo == "date" else datetime.strptime(minimo, "%H:%M")
+                    if maximo:
+                        date.fromisoformat(maximo) if tipo == "date" else datetime.strptime(maximo, "%H:%M")
+                except (TypeError, ValueError):
+                    raise ValueError("Confira o intervalo configurado para data ou hora.")
+                if minimo and maximo and minimo > maximo:
+                    raise ValueError("O início do intervalo não pode ser posterior ao fim.")
+                item.update(minimum_value=minimo, maximum_value=maximo)
+            elif tipo == "people":
+                minimo = pergunta.get("minimum_selections", 0)
+                maximo = pergunta.get("maximum_selections", 50)
+                if type(minimo) is not int or type(maximo) is not int or not 0 <= minimo <= maximo <= 200:
+                    raise ValueError("Confira a quantidade permitida de pessoas.")
+                item.update(minimum_selections=minimo, maximum_selections=maximo)
             itens.append(item)
         layout = secao.get("layout")
         if layout is None:
@@ -318,10 +359,28 @@ def _ler_estrutura(valor):
                     "dados gerais", "identificacao", "cabecalho"
                 } else "standard"
             )
-        if secao.get("layout") == "header":
-            for item in secao.get("questions", []):
-                if isinstance(item, dict):
-                    _ajustar_campo_pessoa_do_cabecalho(item)
+        for item in secao.get("questions", []):
+            if not isinstance(item, dict):
+                continue
+            tipo = item.get("type")
+            if tipo == "nfc_tag":
+                item["nfc_physical_required"] = True
+                item.setdefault("nfc_unlock_section", True)
+            elif tipo == "text":
+                item.setdefault("max_length", 255)
+            elif tipo == "textarea":
+                item.setdefault("max_length", 3000)
+            elif tipo in {"date", "time"}:
+                item.setdefault("minimum_value", "")
+                item.setdefault("maximum_value", "")
+            elif tipo == "people":
+                item.setdefault("minimum_selections", 0)
+                item.setdefault("maximum_selections", 50)
+            elif tipo == "multichoice":
+                item.setdefault("minimum_selections", 0)
+                item.setdefault("maximum_selections", len(item.get("options", [])))
+            if secao.get("layout") == "header":
+                _ajustar_campo_pessoa_do_cabecalho(item)
     return estrutura
 
 
@@ -389,6 +448,9 @@ def _validar_respostas(estrutura, formulario, pessoas=None, setores=None, etique
 
             if tipo == "multichoice":
                 valor = [v for v in formulario.getlist(chave) if v in item.get("options", [])]
+                if not item.get("minimum_selections", 0) <= len(valor) <= item.get("maximum_selections", len(item.get("options", []))):
+                    erros.append(f"Confira a quantidade de opções selecionadas em: {item.get('text')}")
+                    valor = []
             elif tipo == "people":
                 ids = list(dict.fromkeys(formulario.getlist(chave)))
                 valor = [
@@ -396,6 +458,9 @@ def _validar_respostas(estrutura, formulario, pessoas=None, setores=None, etique
                      "registration": pessoas[item_id].get("matricula")}
                     for item_id in ids if item_id in pessoas
                 ]
+                if not item.get("minimum_selections", 0) <= len(valor) <= item.get("maximum_selections", 50):
+                    erros.append(f"Confira a quantidade de pessoas selecionadas em: {item.get('text')}")
+                    valor = []
             elif tipo == "person":
                 pessoa = pessoas.get(str(valor))
                 valor = ({"id": pessoa["id"], "name": pessoa["nome"],
@@ -405,10 +470,16 @@ def _validar_respostas(estrutura, formulario, pessoas=None, setores=None, etique
                 valor = ({"id": setor["id"], "name": setor["nome"]} if setor else {})
             elif tipo == "nfc_tag":
                 etiqueta = etiquetas_nfc.get(str(valor))
+                metodo_leitura = (formulario.get(f"{chave}_nfc_method") or "").strip()
+                if etiqueta and item.get("nfc_physical_required") and metodo_leitura != "physical":
+                    erros.append(f"Faça a leitura física da etiqueta em: {item.get('text')}")
+                    etiqueta = None
                 valor = ({
                     "id": etiqueta["id"],
                     "number": etiqueta["numero"],
                     "description": etiqueta["descricao"],
+                    "read_method": metodo_leitura or "selection",
+                    "read_at": datetime.now().astimezone().isoformat(timespec="seconds"),
                 } if etiqueta else {})
             elif tipo == "matrix":
                 valor = {}
@@ -454,17 +525,25 @@ def _validar_respostas(estrutura, formulario, pessoas=None, setores=None, etique
                     date.fromisoformat(valor)
                 except ValueError:
                     valor = ""
+                if valor and ((item.get("minimum_value") and valor < item["minimum_value"])
+                              or (item.get("maximum_value") and valor > item["maximum_value"])):
+                    valor = ""
+                    erros.append(f"A data está fora do intervalo permitido em: {item.get('text')}")
             elif tipo == "time" and valor:
                 try:
                     datetime.strptime(valor, "%H:%M")
                 except ValueError:
                     valor = ""
-            elif tipo == "text" and len(valor) > 255:
+                if valor and ((item.get("minimum_value") and valor < item["minimum_value"])
+                              or (item.get("maximum_value") and valor > item["maximum_value"])):
+                    valor = ""
+                    erros.append(f"A hora está fora do intervalo permitido em: {item.get('text')}")
+            elif tipo == "text" and len(valor) > item.get("max_length", 255):
                 valor = ""
-                erros.append(f"Use até 255 caracteres em: {item.get('text')}")
-            elif tipo == "textarea" and len(valor) > 3000:
+                erros.append(f"Use até {item.get('max_length', 255)} caracteres em: {item.get('text')}")
+            elif tipo == "textarea" and len(valor) > item.get("max_length", 3000):
                 valor = ""
-                erros.append(f"Use até 3.000 caracteres em: {item.get('text')}")
+                erros.append(f"Use até {item.get('max_length', 3000)} caracteres em: {item.get('text')}")
 
             vazio = valor in ("", [], {})
             if item.get("required") and vazio:
@@ -1064,7 +1143,7 @@ def register_checklists_dinamicos_routes(blueprint):
             centro_custos_id = session.get("centro_custos_id")
             if centro_custos_id:
                 cursor.execute("""
-                    SELECT DISTINCT e.id, e.numero, e.descricao
+                    SELECT DISTINCT e.id, e.numero, e.descricao, e.token
                       FROM nfc_etiquetas e
                       LEFT JOIN nfc_etiquetas_centros ec ON ec.etiqueta_id = e.id
                      WHERE e.ativo = 1
@@ -1074,7 +1153,7 @@ def register_checklists_dinamicos_routes(blueprint):
             elif ((session.get("perfil") or "").lower() == "administrador"
                   and checklist.get("abrangencia") == "centros"):
                 cursor.execute("""
-                    SELECT DISTINCT e.id, e.numero, e.descricao
+                    SELECT DISTINCT e.id, e.numero, e.descricao, e.token
                       FROM nfc_etiquetas e
                       LEFT JOIN nfc_etiquetas_centros ec ON ec.etiqueta_id = e.id
                       LEFT JOIN checklist_modelos_centros cmc
@@ -1085,7 +1164,7 @@ def register_checklists_dinamicos_routes(blueprint):
                 """, (checklist_id,))
             else:
                 cursor.execute("""
-                    SELECT e.id, e.numero, e.descricao
+                    SELECT e.id, e.numero, e.descricao, e.token
                       FROM nfc_etiquetas e
                      WHERE e.ativo = 1 AND e.abrangencia = 'global'
                      ORDER BY e.descricao, e.numero

@@ -81,4 +81,92 @@ document.addEventListener('DOMContentLoaded', () => {
       if (selected) search.value = labelFor(selected);
     }
   });
+
+  const nfcNode = document.getElementById('checklist-nfc-data');
+  const nfcTags = nfcNode ? JSON.parse(nfcNode.textContent || '[]') : [];
+  const nfcText = (tag) => `${tag.numero} — ${tag.descricao}`;
+  const nfcCandidates = (raw) => {
+    const candidates = [String(raw || '').trim()];
+    try {
+      const url = new URL(candidates[0]);
+      ['token', 'nfc', 'tag', 'etiqueta'].forEach((key) => {
+        if (url.searchParams.get(key)) candidates.push(url.searchParams.get(key));
+      });
+      const last = url.pathname.split('/').filter(Boolean).pop();
+      if (last) candidates.push(decodeURIComponent(last));
+    } catch (_) { /* O conteúdo também pode ser apenas o número ou token. */ }
+    return candidates.map((value) => value.trim()).filter(Boolean);
+  };
+  const decodedNfcRecords = (message) => {
+    const decoder = new TextDecoder();
+    return [...(message.records || [])].map((record) => {
+      try { return decoder.decode(record.data); } catch (_) { return ''; }
+    }).filter(Boolean);
+  };
+  const refreshNfcSection = (section) => {
+    const checkpoints = [...section.querySelectorAll('[data-nfc-checkpoint][data-unlock-section="1"]')];
+    if (!checkpoints.length) return;
+    const unlocked = checkpoints.every((checkpoint) => {
+      const value = checkpoint.querySelector('[data-nfc-value]').value;
+      const method = checkpoint.querySelector('[data-nfc-method]').value;
+      return value && (checkpoint.dataset.physicalRequired !== '1' || method === 'physical');
+    });
+    section.classList.toggle('checklist-nfc-locked', !unlocked);
+    section.querySelectorAll('input, select, textarea, button').forEach((control) => {
+      if (!control.closest('[data-nfc-checkpoint]')) control.disabled = !unlocked;
+    });
+  };
+
+  document.querySelectorAll('[data-nfc-checkpoint]').forEach((checkpoint) => {
+    const value = checkpoint.querySelector('[data-nfc-value]');
+    const method = checkpoint.querySelector('[data-nfc-method]');
+    const readAt = checkpoint.querySelector('[data-nfc-read-at]');
+    const status = checkpoint.querySelector('[data-nfc-status]');
+    const button = checkpoint.querySelector('[data-nfc-read]');
+    const section = checkpoint.closest('section');
+    const setTag = (tag, readMethod) => {
+      value.value = tag.id;
+      method.value = readMethod;
+      readAt.value = new Date().toISOString();
+      status.textContent = `${nfcText(tag)} · ${readMethod === 'physical' ? 'leitura física validada' : 'seleção manual'}`;
+      checkpoint.classList.remove('is-invalid'); checkpoint.classList.add('is-valid');
+      refreshNfcSection(section);
+    };
+    button.addEventListener('click', async () => {
+      if (!('NDEFReader' in window)) {
+        checkpoint.classList.add('is-invalid');
+        status.textContent = 'Este navegador não oferece leitura NFC. Use um celular Android com Chrome e conexão HTTPS.';
+        return;
+      }
+      button.disabled = true;
+      status.textContent = 'Aproxime o aparelho da etiqueta NFC…';
+      try {
+        const reader = new NDEFReader();
+        await reader.scan();
+        reader.addEventListener('reading', (event) => {
+          const candidates = decodedNfcRecords(event.message).flatMap(nfcCandidates);
+          const tag = nfcTags.find((item) => candidates.includes(String(item.token)) || candidates.includes(String(item.numero)));
+          if (!tag) {
+            checkpoint.classList.add('is-invalid');
+            status.textContent = 'Etiqueta não cadastrada, inativa ou fora da abrangência deste checklist.';
+            return;
+          }
+          setTag(tag, 'physical');
+          button.disabled = false;
+        }, {once: true});
+      } catch (error) {
+        checkpoint.classList.add('is-invalid');
+        status.textContent = error && error.name === 'NotAllowedError'
+          ? 'A leitura NFC não foi autorizada no aparelho.'
+          : 'Não foi possível iniciar a leitura NFC.';
+        button.disabled = false;
+      }
+    });
+    const selected = nfcTags.find((item) => String(item.id) === value.value);
+    if (selected && method.value) {
+      status.textContent = `${nfcText(selected)} · ${method.value === 'physical' ? 'leitura física validada' : 'seleção manual'}`;
+      checkpoint.classList.add('is-valid');
+    }
+    refreshNfcSection(section);
+  });
 });
