@@ -326,6 +326,12 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn(".verification-result-column { width: 14%; }", css)
         self.assertIn(".verification-deviation-column { width: 42%; }", css)
 
+    def test_nfc_checkpoint_keeps_conformity_items_in_standard_table(self):
+        template = (ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html").read_text(encoding="utf-8")
+        self.assertIn("render_nfc_checkpoint", template)
+        self.assertIn("conformity_items|length + nfc_items|length", template)
+        self.assertIn("{% if item.type == 'conformity' %}", template)
+
     def test_execution_does_not_add_a_fixed_general_observations_field(self):
         template = (ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html").read_text(encoding="utf-8")
         self.assertNotIn('name="observacoes"', template)
