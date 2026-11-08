@@ -32,6 +32,18 @@
     let uid = 0;
     let sections = parse(hidden.value);
 
+    function newRef() {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+            return `item_${window.crypto.randomUUID().replaceAll('-', '_')}`;
+        }
+        return `item_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+    }
+    const usedRefs = new Set();
+    sections.forEach(section => (section.questions || []).forEach(question => {
+        if (!question.ref || usedRefs.has(question.ref)) question.ref = newRef();
+        usedRefs.add(question.ref);
+    }));
+
     function parse(raw) {
         try {
             const value = JSON.parse(raw || '[]');
@@ -97,7 +109,7 @@
         sync(); render();
     }
     function newQuestion() {
-        return {text: '', type: 'conformity', required: true, negative_comment: false, negative_evidence: false, negative_action: false, options: []};
+        return {ref: newRef(), text: '', type: 'conformity', required: true, negative_comment: false, negative_evidence: false, negative_action: false, options: []};
     }
     function sync() {
         hidden.value = JSON.stringify(sections);
@@ -189,6 +201,22 @@
                 }),
                 element('p', 'form-text mb-0', 'O preenchimento será feito exclusivamente pela leitura física da etiqueta NFC. O cadastro administrativo será usado para validar número, status e abrangência.')
             );
+            return box;
+        }
+        if (question.type === 'nfc_signature') {
+            const fontes = [['', 'Assinatura livre (uma pessoa)']];
+            sections.forEach(section => (section.questions || []).forEach(candidate => {
+                if (candidate.ref !== question.ref && ['person', 'people'].includes(candidate.type)) {
+                    const tipo = candidate.type === 'people' ? 'várias pessoas' : 'uma pessoa';
+                    fontes.push([candidate.ref, `${section.title || 'Seção'} — ${candidate.text || 'Campo sem nome'} (${tipo})`]);
+                }
+            }));
+            const box = element('div', 'checklist-special-settings');
+            box.append(field('Assinaturas vinculadas a', select(
+                fontes, question.signature_source_ref || '', value => {
+                    question.signature_source_ref = value; sync();
+                }
+            )));
             return box;
         }
         return null;

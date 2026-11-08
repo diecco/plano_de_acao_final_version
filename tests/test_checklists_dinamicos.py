@@ -310,8 +310,9 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         }]
         clean = validar_estrutura(json.dumps(definition))
         form = MultiDict([
-            ("q_0_0", "15"), ("q_0_0_nfc_uid", "0001234567"),
-            ("q_0_0_nfc_method", "physical"), ("q_0_0_nfc_channel", "usb"),
+            ("q_0_0_nfc_signatures", json.dumps([
+                {"user_id": 15, "uid": "0001234567", "channel": "usb"},
+            ])),
         ])
         signers = [{
             "id": 15, "nome": "Maria Auditora", "matricula": "0015",
@@ -319,18 +320,19 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         }]
         answers, errors = _validar_respostas(clean, form, assinantes_nfc=signers)
         self.assertEqual(errors, [])
-        self.assertEqual(answers["q_0_0"]["value"]["id"], 15)
-        self.assertEqual(answers["q_0_0"]["value"]["name"], "Maria Auditora")
-        self.assertEqual(answers["q_0_0"]["value"]["registration"], "0015")
-        self.assertNotIn("uid_rfid", answers["q_0_0"]["value"])
+        self.assertEqual(answers["q_0_0"]["value"][0]["id"], 15)
+        self.assertEqual(answers["q_0_0"]["value"][0]["name"], "Maria Auditora")
+        self.assertEqual(answers["q_0_0"]["value"][0]["registration"], "0015")
+        self.assertNotIn("uid_rfid", answers["q_0_0"]["value"][0])
 
         forged = MultiDict([
-            ("q_0_0", "99"), ("q_0_0_nfc_uid", "0001234567"),
-            ("q_0_0_nfc_method", "physical"), ("q_0_0_nfc_channel", "usb"),
+            ("q_0_0_nfc_signatures", json.dumps([
+                {"user_id": 99, "uid": "0001234567", "channel": "usb"},
+            ])),
         ])
         answers, errors = _validar_respostas(clean, forged, assinantes_nfc=signers)
         self.assertTrue(errors)
-        self.assertEqual(answers["q_0_0"]["value"], {})
+        self.assertEqual(answers["q_0_0"]["value"], [])
 
         builder = (ROOT / "app" / "static" / "js" / "checklist-builder.js").read_text(encoding="utf-8")
         execution = (ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html").read_text(encoding="utf-8")
@@ -342,6 +344,46 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn("Crachá NFC não localizado", runner)
         self.assertIn("def validar_assinatura_nfc", source)
         self.assertIn("uid_rfid", source)
+
+    def test_nfc_signature_can_require_every_person_selected_in_linked_field(self):
+        from werkzeug.datastructures import MultiDict
+        from app.views.checklists_dinamicos import _ler_estrutura, _validar_respostas, validar_estrutura
+
+        definition = [{"title": "Equipe", "layout": "header", "questions": [
+            {"ref": "participants", "text": "Participantes", "type": "people",
+             "required": True, "negative_comment": False, "negative_evidence": False,
+             "options": [], "minimum_selections": 1, "maximum_selections": 10},
+            {"ref": "signatures", "text": "Assinaturas", "type": "nfc_signature",
+             "signature_source_ref": "participants", "required": True,
+             "negative_comment": False, "negative_evidence": False, "options": []},
+        ]}]
+        clean = _ler_estrutura(validar_estrutura(json.dumps(definition)))
+        people = [
+            {"id": 15, "nome": "Maria", "matricula": "0015"},
+            {"id": 16, "nome": "João", "matricula": "0016"},
+        ]
+        signers = [
+            {**people[0], "uid_rfid": "UID15"},
+            {**people[1], "uid_rfid": "UID16"},
+        ]
+        signatures = [
+            {"user_id": 15, "uid": "UID15", "channel": "usb"},
+            {"user_id": 16, "uid": "UID16", "channel": "web_nfc"},
+        ]
+        form = MultiDict([
+            ("q_0_0", "15"), ("q_0_0", "16"),
+            ("q_0_1_nfc_signatures", json.dumps(signatures)),
+        ])
+        answers, errors = _validar_respostas(clean, form, pessoas=people, assinantes_nfc=signers)
+        self.assertEqual(errors, [])
+        self.assertEqual({item["id"] for item in answers["q_0_1"]["value"]}, {15, 16})
+
+        incomplete = MultiDict([
+            ("q_0_0", "15"), ("q_0_0", "16"),
+            ("q_0_1_nfc_signatures", json.dumps(signatures[:1])),
+        ])
+        _, errors = _validar_respostas(clean, incomplete, pessoas=people, assinantes_nfc=signers)
+        self.assertTrue(any("todas as assinaturas" in error.lower() for error in errors))
 
     def test_field_specific_validation_rules_are_preserved(self):
         from app.views.checklists_dinamicos import validar_estrutura
