@@ -4,11 +4,11 @@
 
 {% block extra_css %}
 <style>
-    .checklist-sidebar-switch .form-check-input:checked {
+    .checklist-option-switch .form-check-input:checked {
         background-color: #f26722;
         border-color: #f26722;
     }
-    .checklist-sidebar-switch .form-check-input:focus {
+    .checklist-option-switch .form-check-input:focus {
         border-color: #f26722;
         box-shadow: 0 0 0 .2rem rgba(242, 103, 34, .18);
     }
@@ -59,10 +59,16 @@
                     <label class="form-label" for="descricao">Descrição</label>
                     <textarea class="form-control" id="descricao" name="descricao" rows="3" maxlength="2000"></textarea>
                 </div>
-                <div class="col-12">
-                    <div class="form-check form-switch checklist-sidebar-switch">
+                <div class="col-12 col-md-6">
+                    <div class="form-check form-switch checklist-option-switch">
                         <input class="form-check-input" id="exibir_menu" name="exibir_menu" type="checkbox" value="1">
                         <label class="form-check-label" for="exibir_menu">Exibir na sidebar depois da publicação</label>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="form-check form-switch checklist-option-switch">
+                        <input class="form-check-input" id="disponivel_agendamento" name="disponivel_agendamento" type="checkbox" value="1">
+                        <label class="form-check-label" for="disponivel_agendamento">Disponibilizar para agendamento SSMA depois da publicação</label>
                     </div>
                 </div>
                 <div class="col-12 checklist-sidebar-options" id="blocoSidebar" hidden>
@@ -92,7 +98,7 @@
 <div class="table-responsive">
     <table class="table table-hover align-middle">
         <thead><tr>
-            <th>Checklist</th><th>Abrangência</th><th>Sidebar</th>
+            <th>Checklist</th><th>Abrangência</th><th>Sidebar</th><th>Agendamento</th>
             <th class="text-center">Status</th><th class="text-center">Ações</th>
         </tr></thead>
         <tbody>
@@ -104,6 +110,7 @@
                     {{ modulos_menu.get(checklist.modulo_menu, checklist.modulo_menu) }}
                     {% if checklist.exibir_menu %}<small class="d-block text-muted">Ordem {{ checklist.ordem_menu }}</small>{% else %}<small class="d-block text-muted">Oculto</small>{% endif %}
                 </td>
+                <td>{{ 'Disponível' if checklist.disponivel_agendamento else 'Indisponível' }}</td>
                 <td class="text-center">
                     <span class="badge {{ 'bg-success' if checklist.status == 'publicado' and checklist.ativo else 'bg-secondary' }}">
                         {{ 'Inativo' if not checklist.ativo else checklist.status|capitalize }}
@@ -143,7 +150,7 @@
                 </td>
             </tr>
         {% else %}
-            <tr><td colspan="5" class="text-center text-muted py-4">Nenhum checklist configurável cadastrado.</td></tr>
+            <tr><td colspan="6" class="text-center text-muted py-4">Nenhum checklist configurável cadastrado.</td></tr>
         {% endfor %}
         </tbody>
     </table>

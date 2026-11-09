@@ -370,6 +370,9 @@ def _validar_configuracao_modelo(cursor, formulario, checklist_id=None):
     centro_ids = list(dict.fromkeys(formulario.getlist("centro_custos_ids")))
     modulo_menu = (formulario.get("modulo_menu") or "ssma").strip()
     exibir_menu = 1 if formulario.get("exibir_menu") == "1" else 0
+    disponivel_agendamento = (
+        1 if formulario.get("disponivel_agendamento") == "1" else 0
+    )
     ordem_menu = _inteiro_nao_negativo(formulario.get("ordem_menu"))
 
     if not 1 <= len(nome) <= MAX_NOME_CHECKLIST:
@@ -417,6 +420,7 @@ def _validar_configuracao_modelo(cursor, formulario, checklist_id=None):
         "centro_ids": centro_ids,
         "modulo_menu": modulo_menu,
         "exibir_menu": exibir_menu,
+        "disponivel_agendamento": disponivel_agendamento,
         "ordem_menu": ordem_menu,
     }
 
@@ -1084,11 +1088,13 @@ def register_checklists_dinamicos_routes(blueprint):
                 cursor.execute("""
                     INSERT INTO checklist_modelos (
                         nome, descricao, abrangencia, status, ativo,
-                        exibir_menu, modulo_menu, ordem_menu, criado_por
-                    ) VALUES (%s, %s, %s, 'rascunho', 1, %s, %s, %s, %s)
+                        exibir_menu, disponivel_agendamento,
+                        modulo_menu, ordem_menu, criado_por
+                    ) VALUES (%s, %s, %s, 'rascunho', 1, %s, %s, %s, %s, %s)
                 """, (
                     config["nome"], config["descricao"] or None,
                     config["abrangencia"], config["exibir_menu"],
+                    config["disponivel_agendamento"],
                     config["modulo_menu"], config["ordem_menu"],
                     session.get("usuario_id"),
                 ))
@@ -1169,6 +1175,9 @@ def register_checklists_dinamicos_routes(blueprint):
                     abrangencia=request.form.get("abrangencia") or "global",
                     modulo_menu=request.form.get("modulo_menu") or "ssma",
                     exibir_menu=1 if request.form.get("exibir_menu") == "1" else 0,
+                    disponivel_agendamento=(
+                        1 if request.form.get("disponivel_agendamento") == "1" else 0
+                    ),
                     ordem_menu=_inteiro_nao_negativo(request.form.get("ordem_menu")),
                 )
                 try:
@@ -1186,6 +1195,7 @@ def register_checklists_dinamicos_routes(blueprint):
                         UPDATE checklist_modelos
                            SET nome = %s, descricao = %s, abrangencia = %s,
                                exibir_menu = %s, modulo_menu = %s, ordem_menu = %s,
+                               disponivel_agendamento = %s,
                                estrutura_json = %s,
                                publicado_em = CASE WHEN status = 'publicado' THEN CURRENT_TIMESTAMP ELSE publicado_em END
                          WHERE id = %s
@@ -1193,6 +1203,7 @@ def register_checklists_dinamicos_routes(blueprint):
                         config["nome"], config["descricao"] or None,
                         config["abrangencia"], config["exibir_menu"],
                         config["modulo_menu"], config["ordem_menu"],
+                        config["disponivel_agendamento"],
                         estrutura_json, checklist_id,
                     ))
                     _sincronizar_centros_modelo(
@@ -1283,7 +1294,14 @@ def register_checklists_dinamicos_routes(blueprint):
             checklist = _buscar_modelo_visivel(cursor, checklist_id)
             if not checklist:
                 abort(404)
-            if not _pode_acessar_modulo(checklist["modulo_menu"]):
+            agendamento_id = request.values.get("agendamento_id", type=int)
+            next_recebido = (request.values.get("next") or "").strip()
+            next_url = (
+                next_recebido
+                if next_recebido.startswith("/") and not next_recebido.startswith("//")
+                else ""
+            )
+            if not _pode_acessar_modulo(checklist["modulo_menu"]) and not agendamento_id:
                 abort(403)
             estrutura = _ler_estrutura(checklist.get("estrutura_json"))
             perfil_admin = (session.get("perfil") or "").lower() == "administrador"
@@ -1460,13 +1478,6 @@ def register_checklists_dinamicos_routes(blueprint):
                 flash("Este checklist não possui itens publicados.", "danger")
                 return redirect(url_for("main.abrir_checklist_dinamico", checklist_id=checklist_id))
 
-            agendamento_id = request.values.get("agendamento_id", type=int)
-            next_recebido = (request.values.get("next") or "").strip()
-            next_url = (
-                next_recebido
-                if next_recebido.startswith("/") and not next_recebido.startswith("//")
-                else ""
-            )
             agendamento = None
 
             if agendamento_id:

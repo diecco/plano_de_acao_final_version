@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS checklist_modelos (
     status ENUM('rascunho', 'publicado') NOT NULL DEFAULT 'rascunho',
     ativo TINYINT(1) NOT NULL DEFAULT 1,
     exibir_menu TINYINT(1) NOT NULL DEFAULT 1,
+    disponivel_agendamento TINYINT(1) NOT NULL DEFAULT 0,
     modulo_menu ENUM('ssma', 'gestao_ssma') NOT NULL DEFAULT 'ssma',
     ordem_menu INT NOT NULL DEFAULT 0,
     criado_por INT NULL,

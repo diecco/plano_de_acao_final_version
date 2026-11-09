@@ -48,10 +48,16 @@
                     <label class="form-label" for="descricao">Descrição</label>
                     <textarea class="form-control" id="descricao" name="descricao" rows="2" maxlength="2000">{{ checklist.descricao or '' }}</textarea>
                 </div>
-                <div class="col-12">
+                <div class="col-12 col-md-6">
                     <div class="form-check form-switch checklist-sidebar-switch">
                         <input class="form-check-input" id="exibir_menu" name="exibir_menu" type="checkbox" value="1" {% if checklist.exibir_menu %}checked{% endif %}>
                         <label class="form-check-label" for="exibir_menu">Exibir na sidebar</label>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="form-check form-switch checklist-sidebar-switch">
+                        <input class="form-check-input" id="disponivel_agendamento" name="disponivel_agendamento" type="checkbox" value="1" {% if checklist.disponivel_agendamento %}checked{% endif %}>
+                        <label class="form-check-label" for="disponivel_agendamento">Disponibilizar para agendamento SSMA</label>
                     </div>
                 </div>
                 <div class="col-12 checklist-sidebar-options" id="blocoSidebar" {% if not checklist.exibir_menu %}hidden{% endif %}>
