@@ -88,6 +88,22 @@ class ChecklistAgendamentoSsmaTests(unittest.TestCase):
         self.assertIn("Checklist previsto", template)
         self.assertIn("agendamento=agendamento", fonte)
 
+    def test_relatorio_aderencia_inclui_checklists_agendados(self):
+        fonte = (
+            ROOT / "app" / "views" / "agenda_ssma.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "relatorio_aderencia_ssma.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("checklist_execucoes checklist_execucao", fonte)
+        self.assertIn("checklist_modelo.nome AS checklist_nome", fonte)
+        self.assertIn("checklist_data_realizada", fonte)
+        self.assertIn("checklists_relatorio=checklists_relatorio", fonte)
+        self.assertIn("'checklist_configuravel:' ~ checklist.id", template)
+        self.assertIn('value="{{ valor_checklist }}"', template)
+        self.assertIn("registro.pratica_nome", template)
+
 
 if __name__ == "__main__":
     unittest.main()

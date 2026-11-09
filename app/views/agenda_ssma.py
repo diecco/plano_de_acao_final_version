@@ -1,4 +1,5 @@
 import calendar
+import json
 import os
 from calendar import monthrange
 from datetime import date, datetime
@@ -77,7 +78,8 @@ def _carregar_desvios_execucao(cursor, registros):
     por_pratica = {
         'hora_seguranca': [],
         'auditoria_padrao': [],
-        'ifs': []
+        'ifs': [],
+        'checklist_configuravel': []
     }
 
     for registro in registros:
@@ -166,6 +168,38 @@ def _carregar_desvios_execucao(cursor, registros):
                 item['registro_id'],
                 item['descricao']
             )
+
+    ids_checklists = sorted(set(por_pratica['checklist_configuravel']))
+    if ids_checklists:
+        marcadores = ', '.join(['%s'] * len(ids_checklists))
+        cursor.execute(f"""
+            SELECT id, respostas_json
+            FROM checklist_execucoes
+            WHERE id IN ({marcadores})
+            ORDER BY id
+        """, tuple(ids_checklists))
+        for execucao in cursor.fetchall() or []:
+            respostas = execucao.get('respostas_json') or {}
+            if isinstance(respostas, str):
+                try:
+                    respostas = json.loads(respostas)
+                except (TypeError, ValueError):
+                    respostas = {}
+            for resposta in respostas.values() if isinstance(respostas, dict) else []:
+                if not isinstance(resposta, dict):
+                    continue
+                if resposta.get('value') not in {'nao_conforme', 'nao'}:
+                    continue
+                descricao = (
+                    resposta.get('comment')
+                    or resposta.get('evidence')
+                    or 'Resposta não conforme'
+                )
+                adicionar_desvio(
+                    'checklist_configuravel',
+                    execucao['id'],
+                    str(descricao).strip()
+                )
 
     for registro in registros:
         chave = (
@@ -2693,6 +2727,13 @@ def register_agenda_ssma_routes(blueprint):
             request.args.get('pratica')
             or ''
         ).strip()
+        checklist_filtro_id = None
+        if pratica.startswith('checklist_configuravel:'):
+            _, checklist_filtro_valor = pratica.split(':', 1)
+            try:
+                checklist_filtro_id = int(checklist_filtro_valor)
+            except (TypeError, ValueError):
+                pratica = ''
 
         lider_id = request.args.get(
             'lider_id',
@@ -2804,7 +2845,13 @@ def register_agenda_ssma_routes(blueprint):
                 centro_custo_usuario_id
             ]
 
-            if pratica:
+            if checklist_filtro_id:
+                condicoes.extend([
+                    "vw.pratica = 'checklist_configuravel'",
+                    'ag_rel.checklist_modelo_id = %s'
+                ])
+                parametros.append(checklist_filtro_id)
+            elif pratica:
                 condicoes.append(
                     'vw.pratica = %s'
                 )
@@ -2825,6 +2872,37 @@ def register_agenda_ssma_routes(blueprint):
             where_sql = ' AND '.join(
                 condicoes
             )
+
+            joins_checklist_sql = """
+                LEFT JOIN agendamentos_ssma ag_rel
+                    ON ag_rel.id = vw.agendamento_id
+                LEFT JOIN checklist_modelos checklist_modelo
+                    ON checklist_modelo.id = ag_rel.checklist_modelo_id
+                LEFT JOIN checklist_execucoes checklist_execucao
+                    ON checklist_execucao.id = vw.registro_executado_id
+                   AND vw.pratica = 'checklist_configuravel'
+            """
+
+            resultado_programacao_sql = """
+                CASE
+                    WHEN vw.pratica <> 'checklist_configuravel'
+                        THEN vw.resultado_programacao
+                    WHEN vw.status_agendamento = 'cancelada'
+                        THEN 'Cancelada'
+                    WHEN vw.registro_executado_id IS NULL
+                         AND vw.data_programada >= CURDATE()
+                        THEN 'Pendente'
+                    WHEN vw.registro_executado_id IS NULL
+                        THEN 'Não cumprida'
+                    WHEN DATE(checklist_execucao.concluido_em) = vw.data_programada
+                        THEN 'Cumprida na data programada'
+                    WHEN DATE(checklist_execucao.concluido_em) < vw.data_programada
+                        THEN 'Cumprida antecipadamente'
+                    WHEN DATE(checklist_execucao.concluido_em) > vw.data_programada
+                        THEN 'Cumprida com atraso'
+                    ELSE 'Situação não identificada'
+                END
+            """
 
             # =====================================================
             # 1. INDICADORES GERAIS
@@ -2849,7 +2927,7 @@ def register_agenda_ssma_routes(blueprint):
                     COALESCE(
                         SUM(
                             CASE
-                                WHEN vw.resultado_programacao IN (
+                                WHEN ({resultado_programacao_sql}) IN (
                                     'Cumprida na data programada',
                                     'Cumprida antecipadamente'
                                 )
@@ -2863,7 +2941,7 @@ def register_agenda_ssma_routes(blueprint):
                     COALESCE(
                         SUM(
                             CASE
-                                WHEN vw.resultado_programacao =
+                                WHEN ({resultado_programacao_sql}) =
                                      'Cumprida com atraso'
                                     THEN 1
                                 ELSE 0
@@ -2995,6 +3073,8 @@ def register_agenda_ssma_routes(blueprint):
                 INNER JOIN usuarios lider
                     ON lider.id = vw.lider_id
 
+                {joins_checklist_sql}
+
                 WHERE {where_sql}
             """, tuple(parametros))
 
@@ -3101,6 +3181,9 @@ def register_agenda_ssma_routes(blueprint):
                             THEN 'IFS'
                         WHEN vw.pratica = 'observacao_comportamental'
                             THEN 'Observação Comportamental'
+
+                        WHEN vw.pratica = 'checklist_configuravel'
+                            THEN COALESCE(checklist_modelo.nome, 'Checklist configurável')
 
                         ELSE vw.pratica
                     END AS pratica_nome,
@@ -3215,10 +3298,14 @@ def register_agenda_ssma_routes(blueprint):
                 INNER JOIN usuarios lider
                     ON lider.id = vw.lider_id
 
+                {joins_checklist_sql}
+
                 WHERE {where_sql}
 
                 GROUP BY
-                    vw.pratica
+                    vw.pratica,
+                    checklist_modelo.id,
+                    checklist_modelo.nome
 
                 ORDER BY
                     pratica_nome
@@ -3283,6 +3370,8 @@ def register_agenda_ssma_routes(blueprint):
                 INNER JOIN usuarios lider
                     ON lider.id = vw.lider_id
 
+                {joins_checklist_sql}
+
                 WHERE {where_sql}
             """, tuple(parametros))
 
@@ -3330,6 +3419,19 @@ def register_agenda_ssma_routes(blueprint):
                 SELECT
                     vw.*,
 
+                    ({resultado_programacao_sql})
+                        AS resultado_programacao_efetivo,
+
+                    checklist_modelo.nome AS checklist_nome,
+                    DATE(checklist_execucao.concluido_em)
+                        AS checklist_data_realizada,
+                    checklist_execucao.executor_id
+                        AS checklist_executor_id,
+                    executor_checklist.nome
+                        AS checklist_executor_nome,
+                    executor_checklist.matricula
+                        AS checklist_executor_matricula,
+
                     lider.nome AS lider_nome,
                     lider.matricula AS lider_matricula,
 
@@ -3359,8 +3461,13 @@ def register_agenda_ssma_routes(blueprint):
                 INNER JOIN usuarios lider
                     ON lider.id = vw.lider_id
 
+                {joins_checklist_sql}
+
                 LEFT JOIN usuarios executor
                     ON executor.id = vw.executor_id
+
+                LEFT JOIN usuarios executor_checklist
+                    ON executor_checklist.id = checklist_execucao.executor_id
 
                 LEFT JOIN hs_temas tema_programado
                     ON tema_programado.id =
@@ -3401,6 +3508,35 @@ def register_agenda_ssma_routes(blueprint):
                 or []
             )
 
+            for registro in registros:
+                registro['resultado_programacao'] = (
+                    registro.get('resultado_programacao_efetivo')
+                    or registro.get('resultado_programacao')
+                )
+                if registro.get('pratica') == 'checklist_configuravel':
+                    registro['pratica_nome'] = (
+                        registro.get('checklist_nome')
+                        or 'Checklist configurável'
+                    )
+                    registro['data_realizada'] = registro.get(
+                        'checklist_data_realizada'
+                    )
+                    registro['executor_id'] = registro.get(
+                        'checklist_executor_id'
+                    )
+                    registro['executor_nome'] = registro.get(
+                        'checklist_executor_nome'
+                    )
+                    registro['executor_matricula'] = registro.get(
+                        'checklist_executor_matricula'
+                    )
+                    if (registro.get('data_realizada')
+                            and registro.get('data_programada')):
+                        registro['dias_desvio_data'] = (
+                            registro['data_realizada']
+                            - registro['data_programada']
+                        ).days
+
             _carregar_desvios_execucao(
                 cursor,
                 registros
@@ -3428,6 +3564,21 @@ def register_agenda_ssma_routes(blueprint):
                 cursor.fetchall()
                 or []
             )
+
+            cursor.execute("""
+                SELECT DISTINCT
+                    checklist_modelo.id,
+                    checklist_modelo.nome
+                FROM agendamentos_ssma agendamento
+                INNER JOIN usuarios lider_agendamento
+                    ON lider_agendamento.id = agendamento.lider_id
+                INNER JOIN checklist_modelos checklist_modelo
+                    ON checklist_modelo.id = agendamento.checklist_modelo_id
+                WHERE agendamento.pratica = 'checklist_configuravel'
+                  AND lider_agendamento.centro_custos_id = %s
+                ORDER BY checklist_modelo.nome
+            """, (centro_custo_usuario_id,))
+            checklists_relatorio = cursor.fetchall() or []
 
             # Garante que o ID recebido pertence ao CC e é líder SSMA.
             lider_selecionado = None
@@ -3502,6 +3653,7 @@ def register_agenda_ssma_routes(blueprint):
                 data_fim_selecionada=data_fim,
                 pratica_selecionada=pratica,
                 lider_id_selecionado=lider_id,
+                checklists_relatorio=checklists_relatorio,
 
                 ordenar_por=ordenar_por,
                 direcao=direcao
