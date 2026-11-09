@@ -69,10 +69,10 @@
 </div>
 <div class="row g-3 mb-4">
     <div class="col-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100 metric-card card-accent-primary"><div class="card-body d-flex align-items-center gap-3"><div class="metric-icon"><i class="bi bi-ui-checks-grid"></i></div><div><div class="text-muted small">{{ 'Registros' if checklist.tipo_fluxo == 'formulario_ssma' else 'Preenchimentos' }}</div><div class="fs-3 fw-bold">{{ indicadores.total_preenchimentos or 0 }}</div></div></div></div>
+        <div class="card border-0 shadow-sm h-100 metric-card card-accent-primary"><div class="card-body d-flex align-items-center gap-3"><div class="metric-icon"><i class="bi bi-ui-checks-grid"></i></div><div><div class="text-muted small">Preenchimentos</div><div class="fs-3 fw-bold">{{ indicadores.total_preenchimentos or 0 }}</div></div></div></div>
     </div>
     <div class="col-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100 metric-card card-accent-success"><div class="card-body d-flex align-items-center gap-3"><div class="metric-icon"><i class="bi bi-people"></i></div><div><div class="text-muted small">{{ 'Autores' if checklist.tipo_fluxo == 'formulario_ssma' else 'Responsáveis' }}</div><div class="fs-3 fw-bold">{{ indicadores.total_responsaveis or 0 }}</div></div></div></div>
+        <div class="card border-0 shadow-sm h-100 metric-card card-accent-success"><div class="card-body d-flex align-items-center gap-3"><div class="metric-icon"><i class="bi bi-people"></i></div><div><div class="text-muted small">Responsáveis</div><div class="fs-3 fw-bold">{{ indicadores.total_responsaveis or 0 }}</div></div></div></div>
     </div>
     <div class="col-6 col-xl-3">
         <div class="card border-0 shadow-sm h-100 metric-card card-accent-warning"><div class="card-body d-flex align-items-center gap-3"><div class="metric-icon"><i class="bi bi-calendar-check"></i></div><div><div class="text-muted small">Dias com atividade</div><div class="fs-3 fw-bold">{{ indicadores.dias_com_atividade or 0 }}</div></div></div></div>
@@ -96,7 +96,7 @@
                         <td class="text-center"><a class="btn btn-sm btn-link text-laranja" title="Visualizar" href="{{ url_for('main.visualizar_execucao_checklist', execucao_id=execucao.id) }}"><i class="bi bi-eye"></i></a></td>
                     </tr>
                 {% else %}
-                    <tr><td colspan="5" class="text-center text-muted py-4">Nenhum {{ 'registro encontrado' if checklist.tipo_fluxo == 'formulario_ssma' else 'preenchimento concluído' }}.</td></tr>
+                    <tr><td colspan="5" class="text-center text-muted py-4">Nenhum preenchimento concluído.</td></tr>
                 {% endfor %}
                 </tbody>
             </table>
