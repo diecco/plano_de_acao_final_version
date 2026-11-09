@@ -366,6 +366,7 @@ def _validar_configuracao_modelo(cursor, formulario, checklist_id=None):
     """Valida, em um único ponto, os dados administrativos do checklist."""
     nome = (formulario.get("nome") or "").strip()
     descricao = (formulario.get("descricao") or "").strip()
+    tipo_fluxo = (formulario.get("tipo_fluxo") or "checklist").strip()
     abrangencia = (formulario.get("abrangencia") or "global").strip()
     centro_ids = list(dict.fromkeys(formulario.getlist("centro_custos_ids")))
     modulo_menu = (formulario.get("modulo_menu") or "ssma").strip()
@@ -379,6 +380,8 @@ def _validar_configuracao_modelo(cursor, formulario, checklist_id=None):
         raise ValueError(f"Informe o nome do checklist, com até {MAX_NOME_CHECKLIST} caracteres.")
     if len(descricao) > MAX_DESCRICAO_CHECKLIST:
         raise ValueError(f"Use até {MAX_DESCRICAO_CHECKLIST} caracteres na descrição.")
+    if tipo_fluxo not in {"checklist", "formulario_ssma"}:
+        raise ValueError("Selecione um tipo de formulário válido.")
     if abrangencia not in {"global", "centros"}:
         raise ValueError("Selecione uma abrangência válida.")
     if abrangencia == "centros" and not centro_ids:
@@ -416,6 +419,7 @@ def _validar_configuracao_modelo(cursor, formulario, checklist_id=None):
     return {
         "nome": nome,
         "descricao": descricao,
+        "tipo_fluxo": tipo_fluxo,
         "abrangencia": abrangencia,
         "centro_ids": centro_ids,
         "modulo_menu": modulo_menu,
@@ -1087,13 +1091,13 @@ def register_checklists_dinamicos_routes(blueprint):
 
                 cursor.execute("""
                     INSERT INTO checklist_modelos (
-                        nome, descricao, abrangencia, status, ativo,
+                        nome, descricao, tipo_fluxo, abrangencia, status, ativo,
                         exibir_menu, disponivel_agendamento,
                         modulo_menu, ordem_menu, criado_por
-                    ) VALUES (%s, %s, %s, 'rascunho', 1, %s, %s, %s, %s, %s)
+                    ) VALUES (%s, %s, %s, %s, 'rascunho', 1, %s, %s, %s, %s, %s)
                 """, (
                     config["nome"], config["descricao"] or None,
-                    config["abrangencia"], config["exibir_menu"],
+                    config["tipo_fluxo"], config["abrangencia"], config["exibir_menu"],
                     config["disponivel_agendamento"],
                     config["modulo_menu"], config["ordem_menu"],
                     session.get("usuario_id"),
@@ -1102,7 +1106,7 @@ def register_checklists_dinamicos_routes(blueprint):
                 _sincronizar_centros_modelo(cursor, checklist_id, config["centro_ids"])
                 conn.commit()
                 flash(
-                    "Esboço do checklist criado como rascunho. "
+                    "Modelo configurável criado como rascunho. "
                     "Publique quando estiver pronto para disponibilizá-lo.",
                     "success",
                 )
@@ -1172,6 +1176,7 @@ def register_checklists_dinamicos_routes(blueprint):
                 checklist.update(
                     nome=(request.form.get("nome") or "").strip(),
                     descricao=(request.form.get("descricao") or "").strip(),
+                    tipo_fluxo=request.form.get("tipo_fluxo") or "checklist",
                     abrangencia=request.form.get("abrangencia") or "global",
                     modulo_menu=request.form.get("modulo_menu") or "ssma",
                     exibir_menu=1 if request.form.get("exibir_menu") == "1" else 0,
@@ -1193,7 +1198,7 @@ def register_checklists_dinamicos_routes(blueprint):
                     estrutura_json = json.dumps(estrutura, ensure_ascii=False)
                     cursor.execute("""
                         UPDATE checklist_modelos
-                           SET nome = %s, descricao = %s, abrangencia = %s,
+                           SET nome = %s, descricao = %s, tipo_fluxo = %s, abrangencia = %s,
                                exibir_menu = %s, modulo_menu = %s, ordem_menu = %s,
                                disponivel_agendamento = %s,
                                estrutura_json = %s,
@@ -1201,7 +1206,7 @@ def register_checklists_dinamicos_routes(blueprint):
                          WHERE id = %s
                     """, (
                         config["nome"], config["descricao"] or None,
-                        config["abrangencia"], config["exibir_menu"],
+                        config["tipo_fluxo"], config["abrangencia"], config["exibir_menu"],
                         config["modulo_menu"], config["ordem_menu"],
                         config["disponivel_agendamento"],
                         estrutura_json, checklist_id,
@@ -1493,7 +1498,7 @@ def register_checklists_dinamicos_routes(blueprint):
                 abort(403)
             estrutura = _ler_estrutura(checklist.get("estrutura_json"))
             if not estrutura:
-                flash("Este checklist não possui itens publicados.", "danger")
+                flash("Este modelo não possui campos publicados.", "danger")
                 return redirect(url_for("main.abrir_checklist_dinamico", checklist_id=checklist_id))
 
             agendamento = None
@@ -1517,7 +1522,7 @@ def register_checklists_dinamicos_routes(blueprint):
                 if not agendamento:
                     abort(404)
                 if agendamento.get("registro_executado_id"):
-                    flash("Este checklist agendado já foi executado.", "warning")
+                    flash("Este modelo agendado já foi executado.", "warning")
                     return redirect(next_url or url_for(
                         "main.abrir_checklist_dinamico", checklist_id=checklist_id
                     ))
@@ -1605,7 +1610,10 @@ def register_checklists_dinamicos_routes(blueprint):
                                 "O agendamento não pôde ser vinculado à execução."
                             )
                     conn.commit()
-                    flash("Checklist concluído com sucesso.", "success")
+                    if checklist.get("tipo_fluxo") == "formulario_ssma":
+                        flash("Formulário registrado com sucesso.", "success")
+                    else:
+                        flash("Checklist concluído com sucesso.", "success")
                     if next_url:
                         return redirect(next_url)
                     return redirect(url_for(
