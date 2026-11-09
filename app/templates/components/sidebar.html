@@ -543,6 +543,8 @@
                 'main.comunicados_visuais',
                 'main.checklists_dinamicos',
                 'main.editar_checklist_dinamico',
+                'main.formularios_configuraveis',
+                'main.editar_formulario_configuravel',
                 'main.etiquetas_nfc',
                 'main.alterar_status_etiqueta_nfc'
             ] %}
@@ -582,6 +584,10 @@
                     <a href="{{ url_for('main.checklists_dinamicos') }}"
                        class="sidebar-link {% if request.endpoint in endpoints_admin_checklists %}active{% endif %}">
                         <i class="bi bi-ui-checks-grid"></i><span>Checklists configuráveis</span>
+                    </a>
+                    <a href="{{ url_for('main.formularios_configuraveis') }}"
+                       class="sidebar-link {% if request.endpoint in ['main.formularios_configuraveis', 'main.editar_formulario_configuravel'] %}active{% endif %}">
+                        <i class="bi bi-file-earmark-text"></i><span>Formulários configuráveis</span>
                     </a>
                     <a href="{{ url_for('main.etiquetas_nfc') }}"
                        class="sidebar-link {% if request.endpoint in ['main.etiquetas_nfc', 'main.alterar_status_etiqueta_nfc'] %}active{% endif %}">
