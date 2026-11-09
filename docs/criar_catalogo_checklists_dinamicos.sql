@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS checklist_modelos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(150) NOT NULL,
     descricao TEXT NULL,
+    tipo_fluxo ENUM('checklist', 'formulario_ssma') NOT NULL DEFAULT 'checklist',
     abrangencia ENUM('global', 'centros') NOT NULL DEFAULT 'global',
     status ENUM('rascunho', 'publicado') NOT NULL DEFAULT 'rascunho',
     ativo TINYINT(1) NOT NULL DEFAULT 1,

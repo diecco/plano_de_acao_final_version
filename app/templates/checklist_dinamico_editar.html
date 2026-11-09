@@ -18,8 +18,8 @@
     <div class="card-body">
         <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
             <div>
-                <h5 class="mb-1">Itens de verificação</h5>
-                <p class="text-muted mb-0">Organize as seções, perguntas e regras de preenchimento.</p>
+                <h5 class="mb-1">Estrutura do {{ 'formulário' if checklist.tipo_fluxo == 'formulario_ssma' else 'checklist' }}</h5>
+                <p class="text-muted mb-0">Organize as seções, campos e regras de preenchimento.</p>
             </div>
             <span class="badge {{ 'bg-success' if checklist.status == 'publicado' else 'bg-secondary' }}">{{ checklist.status|capitalize }}</span>
         </div>
@@ -27,11 +27,18 @@
         <form method="post" id="checklistBuilderForm">
             <input type="hidden" id="estrutura_json" name="estrutura_json" value='{{ estrutura|e }}'>
             <div class="row g-3 mb-4">
-                <div class="col-12 col-lg-7">
-                    <label class="form-label" for="nome">Nome do checklist</label>
+                <div class="col-12 col-lg-5">
+                    <label class="form-label" for="nome">Nome do modelo</label>
                     <input class="form-control" id="nome" name="nome" maxlength="150" value="{{ checklist.nome }}" required>
                 </div>
-                <div class="col-12 col-lg-5">
+                <div class="col-12 col-lg-4">
+                    <label class="form-label" for="tipo_fluxo">Tipo</label>
+                    <select class="form-select" id="tipo_fluxo" name="tipo_fluxo">
+                        <option value="checklist" {% if checklist.tipo_fluxo != 'formulario_ssma' %}selected{% endif %}>Checklist de verificação</option>
+                        <option value="formulario_ssma" {% if checklist.tipo_fluxo == 'formulario_ssma' %}selected{% endif %}>Formulário de SSMA</option>
+                    </select>
+                </div>
+                <div class="col-12 col-lg-3">
                     <label class="form-label" for="abrangencia">Abrangência</label>
                     <select class="form-select" id="abrangencia" name="abrangencia">
                         <option value="global" {% if checklist.abrangencia == 'global' %}selected{% endif %}>Global</option>
@@ -68,7 +75,7 @@
                 </div>
             </div>
             <hr>
-            <div class="checklist-builder" data-checklist-builder>
+            <div class="checklist-builder" data-checklist-builder data-model-type="{{ checklist.tipo_fluxo or 'checklist' }}">
                 <div data-sections></div>
                 <button class="btn btn-outline-secondary checklist-add-section" type="button" data-add-section>
                     Adicionar seção
