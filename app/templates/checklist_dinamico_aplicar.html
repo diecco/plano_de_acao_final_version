@@ -164,7 +164,7 @@
         </div>
     </section>
 {% endfor %}
-<div class="d-flex justify-content-between gap-2"><a class="btn btn-secondary" href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id) }}">Voltar</a><button class="btn btn-laranja" type="submit">Concluir checklist</button></div>
+<div class="d-flex justify-content-between gap-2"><a class="btn btn-cinza" href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id) }}">Voltar</a><button class="btn btn-laranja" type="submit">Salvar</button></div>
 </form>
 <script id="checklist-people-data" type="application/json">{{ pessoas|tojson }}</script>
 <script id="checklist-action-people-data" type="application/json">{{ responsaveis_acao|default([])|tojson }}</script>

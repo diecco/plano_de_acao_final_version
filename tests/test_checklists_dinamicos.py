@@ -107,7 +107,8 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         template = (
             ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html"
         ).read_text(encoding="utf-8")
-        self.assertIn("Concluir checklist", template)
+        self.assertIn(">Salvar</button>", template)
+        self.assertIn("btn btn-cinza", template)
         self.assertIn("negative-details", template)
 
     def test_completed_execution_returns_to_checklist_listing(self):
