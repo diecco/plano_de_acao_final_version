@@ -47,6 +47,10 @@
                             <option value="hora_seguranca" {% if pratica_selecionada == 'hora_seguranca' %}selected{% endif %}>Hora de Segurança</option>
                             <option value="auditoria_padrao" {% if pratica_selecionada == 'auditoria_padrao' %}selected{% endif %}>Auditoria de Padrão</option>
                             <option value="ifs" {% if pratica_selecionada == 'ifs' %}selected{% endif %}>IFS</option>
+                            {% for checklist in checklists_relatorio %}
+                                {% set valor_checklist = 'checklist_configuravel:' ~ checklist.id %}
+                                <option value="{{ valor_checklist }}" {% if pratica_selecionada == valor_checklist %}selected{% endif %}>Checklist — {{ checklist.nome }}</option>
+                            {% endfor %}
                         </select>
                     </div>
 
@@ -482,6 +486,10 @@
 
                                     IFS
 
+                                {% elif registro.pratica == 'checklist_configuravel' %}
+
+                                    {{ registro.pratica_nome or 'Checklist configurável' }}
+
                                 {% else %}
 
                                     {{ registro.pratica or '—' }}
@@ -700,6 +708,17 @@
                                                             {{ registro.procedimento_programado_nome or '—' }}
                                                         </dd>
 
+                                                    {% elif registro.pratica ==
+                                                            'checklist_configuravel' %}
+
+                                                        <dt class="col-5">
+                                                            Checklist
+                                                        </dt>
+
+                                                        <dd class="col-7">
+                                                            {{ registro.pratica_nome or 'Checklist configurável' }}
+                                                        </dd>
+
                                                     {% endif %}
 
 
@@ -837,6 +856,14 @@
                                                         </dt>
                                                         <dd class="col-7">
                                                             {{ registro.total_nao_conformidades or 0 }}
+                                                        </dd>
+                                                    {% elif registro.pratica ==
+                                                            'checklist_configuravel' %}
+                                                        <dt class="col-5">
+                                                            Checklist
+                                                        </dt>
+                                                        <dd class="col-7">
+                                                            {{ registro.pratica_nome or 'Checklist configurável' }}
                                                         </dd>
                                                     {% endif %}
                                                 </dl>
