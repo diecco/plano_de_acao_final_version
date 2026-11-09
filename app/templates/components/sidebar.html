@@ -3,10 +3,6 @@
     'main.checklists_dinamicos',
     'main.editar_checklist_dinamico'
 ] %}
-{% set endpoints_admin_formularios = [
-    'main.formularios_configuraveis',
-    'main.editar_formulario_configuravel'
-] %}
 {% set endpoints_uso_checklist = [
     'main.abrir_checklist_dinamico',
     'main.aplicar_checklist_dinamico',
@@ -496,7 +492,7 @@
                 'main.alterar_status_etiqueta_nfc'
             ] %}
             <section class="sidebar-module"
-                     data-search-label="administração estrutura superintendências centros custos usuários comunicados formulários formularios configuráveis configuraveis origens causas recusa temas hs tipos documentos cargos funções setores instrutores matriz empresas equipamentos checklist nfc etiquetas">
+                     data-search-label="administração estrutura superintendências centros custos usuários comunicados origens causas recusa temas hs tipos documentos cargos funções setores instrutores matriz empresas equipamentos checklist nfc etiquetas">
                 <button class="sidebar-module-toggle {% if request.endpoint in endpoints_admin %}active{% endif %}"
                         type="button"
                         data-bs-toggle="collapse"
@@ -533,8 +529,7 @@
                         <i class="bi bi-ui-checks-grid"></i><span>Checklists configuráveis</span>
                     </a>
                     <a href="{{ url_for('main.formularios_configuraveis') }}"
-                       class="sidebar-link {% if request.endpoint in endpoints_admin_formularios %}active{% endif %}"
-                       data-search-label="formulários formularios configuráveis configuraveis criar formulário">
+                       class="sidebar-link {% if request.endpoint in ['main.formularios_configuraveis', 'main.editar_formulario_configuravel'] %}active{% endif %}">
                         <i class="bi bi-file-earmark-text"></i><span>Formulários configuráveis</span>
                     </a>
                     <a href="{{ url_for('main.etiquetas_nfc') }}"
