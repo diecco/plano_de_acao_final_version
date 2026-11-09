@@ -1460,6 +1460,44 @@ def register_checklists_dinamicos_routes(blueprint):
                 flash("Este checklist não possui itens publicados.", "danger")
                 return redirect(url_for("main.abrir_checklist_dinamico", checklist_id=checklist_id))
 
+            agendamento_id = request.values.get("agendamento_id", type=int)
+            next_recebido = (request.values.get("next") or "").strip()
+            next_url = (
+                next_recebido
+                if next_recebido.startswith("/") and not next_recebido.startswith("//")
+                else ""
+            )
+            agendamento = None
+
+            if agendamento_id:
+                cursor.execute("""
+                    SELECT id, data_programada, status, registro_executado_id
+                      FROM agendamentos_ssma
+                     WHERE id = %s
+                       AND lider_id = %s
+                       AND pratica = 'checklist_configuravel'
+                       AND checklist_modelo_id = %s
+                     FOR UPDATE
+                """, (
+                    agendamento_id,
+                    session.get("usuario_id"),
+                    checklist_id,
+                ))
+                agendamento = cursor.fetchone()
+
+                if not agendamento:
+                    abort(404)
+                if agendamento.get("registro_executado_id"):
+                    flash("Este checklist agendado já foi executado.", "warning")
+                    return redirect(next_url or url_for(
+                        "main.abrir_checklist_dinamico", checklist_id=checklist_id
+                    ))
+                if agendamento.get("status") == "cancelada":
+                    flash("Não é possível executar um agendamento cancelado.", "warning")
+                    return redirect(next_url or url_for(
+                        "main.abrir_checklist_dinamico", checklist_id=checklist_id
+                    ))
+
             pessoas = _listar_pessoas_checklist(cursor, checklist)
             assinantes_nfc = _listar_assinantes_nfc(cursor, pessoas)
             responsaveis_acao = _listar_responsaveis_acao(cursor, checklist)
@@ -1487,8 +1525,9 @@ def register_checklists_dinamicos_routes(blueprint):
                     cursor.execute("""
                         INSERT INTO checklist_execucoes (
                             checklist_id, executor_id, centro_custos_id,
-                            respostas_json, estrutura_snapshot_json, observacoes
-                        ) VALUES (%s, %s, %s, %s, %s, %s)
+                            respostas_json, estrutura_snapshot_json, observacoes,
+                            agendamento_id
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """, (
                         checklist_id,
                         session.get("usuario_id"),
@@ -1496,6 +1535,7 @@ def register_checklists_dinamicos_routes(blueprint):
                         json.dumps(respostas, ensure_ascii=False),
                         json.dumps(estrutura, ensure_ascii=False),
                         observacoes or None,
+                        agendamento_id,
                     ))
                     execucao_id = cursor.lastrowid
                     acoes_criadas = _criar_acoes_checklist(
@@ -1508,8 +1548,37 @@ def register_checklists_dinamicos_routes(blueprint):
                             "UPDATE checklist_execucoes SET respostas_json = %s WHERE id = %s",
                             (json.dumps(respostas, ensure_ascii=False), execucao_id),
                         )
+
+                    if agendamento:
+                        data_programada = agendamento.get("data_programada")
+                        hoje = date.today()
+                        status_agendamento = (
+                            "concluida_com_atraso"
+                            if data_programada and data_programada < hoje
+                            else "concluida"
+                        )
+                        cursor.execute("""
+                            UPDATE agendamentos_ssma
+                               SET registro_executado_id = %s,
+                                   status = %s,
+                                   atualizado_em = NOW()
+                             WHERE id = %s
+                               AND lider_id = %s
+                               AND registro_executado_id IS NULL
+                        """, (
+                            execucao_id,
+                            status_agendamento,
+                            agendamento_id,
+                            session.get("usuario_id"),
+                        ))
+                        if cursor.rowcount != 1:
+                            raise RuntimeError(
+                                "O agendamento não pôde ser vinculado à execução."
+                            )
                     conn.commit()
                     flash("Checklist concluído com sucesso.", "success")
+                    if next_url:
+                        return redirect(next_url)
                     return redirect(url_for(
                         "main.abrir_checklist_dinamico",
                         checklist_id=checklist_id,
@@ -1531,6 +1600,8 @@ def register_checklists_dinamicos_routes(blueprint):
             setores=setores,
             etiquetas_nfc=etiquetas_nfc,
             hoje_iso=date.today().isoformat(),
+            agendamento_id=agendamento_id,
+            next_url=next_url,
         )
 
     @blueprint.get("/checklists/execucoes/<int:execucao_id>")

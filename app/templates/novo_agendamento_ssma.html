@@ -144,6 +144,7 @@
                                                             {% elif item.pratica == 'auditoria_padrao' %}Auditoria de Padrão
                                                             {% elif item.pratica == 'ifs' %}IFS
                                                             {% elif item.pratica == 'observacao_comportamental' %}Observação Comportamental
+                                                            {% elif item.pratica == 'checklist_configuravel' %}{{ item.nome_checklist or 'Checklist configurável' }}
                                                             {% else %}{{ item.pratica }}{% endif %}
                                                         </div>
 
@@ -155,6 +156,8 @@
                                                             <div class="card-agendamento-detalhe">Colaborador: {{ item.nome_colaborador_previsto or '—' }}</div>
                                                         {% elif item.pratica == 'ifs' %}
                                                             <div class="card-agendamento-detalhe">Inspeção de Frente de Serviço</div>
+                                                        {% elif item.pratica == 'checklist_configuravel' %}
+                                                            <div class="card-agendamento-detalhe">Checklist configurável</div>
                                                         {% endif %}
 
                                                         <div class="card-agendamento-acoes">
@@ -168,6 +171,7 @@
                                                                     data-colaborador-texto="{{ ((item.nome_colaborador_previsto or '') ~ ((' — ' ~ item.matricula_colaborador_previsto) if item.matricula_colaborador_previsto else '')) | e }}"
                                                                     data-procedimento-id="{{ item.procedimento_id or '' }}"
                                                                     data-procedimento-texto="{{ (item.nome_procedimento or '') | e }}"
+                                                                    data-checklist-id="{{ item.checklist_modelo_id or '' }}"
                                                                     data-observacao="{{ (item.observacao or '') | e }}"
                                                                     data-bs-toggle="modal"
                                                                     data-bs-target="#modalAgendamento"
@@ -248,7 +252,19 @@
                                 {% if feature_observacao_comportamental_enabled %}
                                     <option value="observacao_comportamental">Observação Comportamental</option>
                                 {% endif %}
+                                <option value="checklist_configuravel">Checklist configurável</option>
                             </select>
+                        </div>
+
+                        <div class="col-12 campo-checklist d-none">
+                            <label for="checklist_modelo_id" class="form-label">Checklist</label>
+                            <select class="form-select" id="checklist_modelo_id" name="checklist_modelo_id">
+                                <option value="">Selecione</option>
+                                {% for checklist in checklists %}
+                                    <option value="{{ checklist.id }}">{{ checklist.nome }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">São exibidos somente checklists publicados no menu SSMA. A abrangência será validada conforme o centro de custos do líder.</div>
                         </div>
 
                         <div class="col-12 campo-tema d-none">
@@ -367,20 +383,26 @@ function atualizarCamposModal(){
     const campoTema=document.querySelector('.campo-tema');
     const campoColaborador=document.querySelector('.campo-colaborador');
     const campoProcedimento=document.querySelector('.campo-procedimento');
+    const campoChecklist=document.querySelector('.campo-checklist');
     const tema=document.getElementById('tema_id');
+    const checklist=document.getElementById('checklist_modelo_id');
 
     const exigeTema=pratica==='hora_seguranca';
     const exigeColaborador=pratica==='hora_seguranca'||pratica==='auditoria_padrao';
     const exigeProcedimento=pratica==='auditoria_padrao';
+    const exigeChecklist=pratica==='checklist_configuravel';
 
     campoTema.classList.toggle('d-none',!exigeTema);
     campoColaborador.classList.toggle('d-none',!exigeColaborador);
     campoProcedimento.classList.toggle('d-none',!exigeProcedimento);
+    campoChecklist.classList.toggle('d-none',!exigeChecklist);
 
     tema.required=exigeTema;
+    checklist.required=exigeChecklist;
     if(!exigeTema)tema.value='';
     if(!exigeColaborador)limparAutocomplete('colaborador_busca','colaborador_previsto_id','colaborador_resultados');
     if(!exigeProcedimento)limparAutocomplete('procedimento_busca','procedimento_id','procedimento_resultados');
+    if(!exigeChecklist)checklist.value='';
 }
 
 function formatarDataModal(dataIso){
@@ -411,6 +433,7 @@ function prepararModalNovo(dataSelecionada){
     document.getElementById('modalDataResumo').textContent=formatarDataModal(dataSelecionada);
     document.getElementById('pratica_modal').value='';
     document.getElementById('tema_id').value='';
+    document.getElementById('checklist_modelo_id').value='';
     document.getElementById('observacao').value='';
 
     limparAutocomplete('colaborador_busca','colaborador_previsto_id','colaborador_resultados');
@@ -433,6 +456,7 @@ function prepararModalEdicao(botao){
     atualizarCamposModal();
 
     document.getElementById('tema_id').value=botao.dataset.temaId||'';
+    document.getElementById('checklist_modelo_id').value=botao.dataset.checklistId||'';
     document.getElementById('observacao').value=botao.dataset.observacao||'';
 
     document.getElementById('colaborador_previsto_id').value=botao.dataset.colaboradorId||'';
@@ -474,6 +498,7 @@ document.addEventListener('DOMContentLoaded',()=>{
             const pratica=document.getElementById('pratica_modal').value;
             const temaId=document.getElementById('tema_id').value;
             const procedimentoId=document.getElementById('procedimento_id').value;
+            const checklistId=document.getElementById('checklist_modelo_id').value;
 
             if(pratica==='hora_seguranca'&&!temaId){
                 e.preventDefault();
@@ -484,6 +509,11 @@ document.addEventListener('DOMContentLoaded',()=>{
             if(pratica==='auditoria_padrao'&&!procedimentoId){
                 e.preventDefault();
                 alert('Selecione o procedimento na lista de resultados.');
+            }
+
+            if(pratica==='checklist_configuravel'&&!checklistId){
+                e.preventDefault();
+                alert('Selecione o checklist configurável.');
             }
         });
     }

@@ -116,6 +116,10 @@
                                 {% endif %}>
                             IFS
                         </option>
+                        <option value="checklist_configuravel"
+                                {% if filtros.get('pratica', '') == 'checklist_configuravel' %}selected{% endif %}>
+                            Checklist configurável
+                        </option>
                         {% if feature_observacao_comportamental_enabled %}
                             <option value="observacao_comportamental"
                                     {% if filtros.get('pratica', '') == 'observacao_comportamental' %}
@@ -339,6 +343,8 @@
                                     IFS
                                 {% elif item.pratica == 'observacao_comportamental' %}
                                     Observação Comportamental
+                                {% elif item.pratica == 'checklist_configuravel' %}
+                                    {{ item.nome_checklist or 'Checklist configurável' }}
                                 {% else %}
                                     {{ item.pratica or '-' }}
                                 {% endif %}
