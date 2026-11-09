@@ -16,44 +16,6 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn("CREATE TABLE IF NOT EXISTS checklist_modelos_centros", sql)
         self.assertIn("REFERENCES centros_custos(id)", sql)
 
-    def test_models_support_checklists_and_ssma_forms(self):
-        migration = (
-            ROOT / "docs" / "adicionar_tipo_formulario_checklists.sql"
-        ).read_text(encoding="utf-8")
-        source = (
-            ROOT / "app" / "views" / "checklists_dinamicos.py"
-        ).read_text(encoding="utf-8")
-        listing = (
-            ROOT / "app" / "templates" / "checklists_dinamicos.html"
-        ).read_text(encoding="utf-8")
-        editor = (
-            ROOT / "app" / "templates" / "checklist_dinamico_editar.html"
-        ).read_text(encoding="utf-8")
-
-        self.assertIn("COLUMN_NAME = 'tipo_fluxo'", migration)
-        self.assertIn("'formulario_ssma'", migration)
-        self.assertIn('tipo_fluxo not in {"checklist", "formulario_ssma"}', source)
-        self.assertIn('name="tipo_fluxo"', listing)
-        self.assertIn('name="tipo_fluxo"', editor)
-        self.assertIn("Formulário de SSMA", listing)
-
-    def test_ssma_forms_reuse_builder_but_render_as_capture_forms(self):
-        editor = (
-            ROOT / "app" / "templates" / "checklist_dinamico_editar.html"
-        ).read_text(encoding="utf-8")
-        builder = (
-            ROOT / "app" / "static" / "js" / "checklist-builder.js"
-        ).read_text(encoding="utf-8")
-        runtime = (
-            ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html"
-        ).read_text(encoding="utf-8")
-
-        self.assertIn('data-model-type=', editor)
-        self.assertIn("modelType === 'formulario_ssma' ? 'text' : 'conformity'", builder)
-        self.assertIn("modelType === 'formulario_ssma' ? 'header' : 'verification'", builder)
-        self.assertIn("checklist.tipo_fluxo != 'formulario_ssma'", runtime)
-        self.assertIn("Formulário previsto", runtime)
-
     def test_sidebar_contains_dynamic_slots_and_administration_link(self):
         sidebar = (
             ROOT / "app" / "templates" / "components" / "sidebar.html"

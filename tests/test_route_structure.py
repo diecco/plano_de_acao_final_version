@@ -13,7 +13,19 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 236)
+        self.assertEqual(len(self.routes), 242)
+
+    def test_configurable_form_routes_are_registered(self):
+        expected = {
+            ("/administracao/formularios", ("GET", "POST")): "main.formularios_configuraveis",
+            ("/administracao/formularios/<int:modelo_id>/editar", ("GET", "POST")): "main.editar_formulario_configuravel",
+            ("/administracao/formularios/<int:modelo_id>/publicar", ("POST",)): "main.publicar_formulario_configuravel",
+            ("/administracao/formularios/<int:modelo_id>/status", ("POST",)): "main.alternar_formulario_configuravel",
+            ("/formularios/<int:modelo_id>/novo", ("GET", "POST")): "main.preencher_formulario_configuravel",
+            ("/formularios/<int:modelo_id>/registros", ("GET",)): "main.listar_registros_formulario",
+        }
+        for route, endpoint in expected.items():
+            self.assertEqual(self.routes.get(route), endpoint)
 
     def test_configurable_checklist_routes_are_registered(self):
         expected = {

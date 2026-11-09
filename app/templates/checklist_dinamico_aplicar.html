@@ -49,7 +49,7 @@
                     <strong>{{ agendamento.data_programada.strftime('%d/%m/%Y') if agendamento.data_programada else '—' }}</strong>
                 </div>
                 <div class="checklist-schedule-summary">
-                    <small class="text-muted d-block">{{ 'Formulário previsto' if checklist.tipo_fluxo == 'formulario_ssma' else 'Checklist previsto' }}</small>
+                    <small class="text-muted d-block">Checklist previsto</small>
                     <strong>{{ checklist.nome }}</strong>
                 </div>
             </div>
@@ -67,7 +67,7 @@
             {% set conformity_items = secao.questions|selectattr('type', 'equalto', 'conformity')|list %}
             {% set nfc_items = secao.questions|selectattr('type', 'equalto', 'nfc_tag')|list %}
             {% set signature_items = secao.questions|selectattr('type', 'equalto', 'nfc_signature')|list %}
-            {% set conformity_table = checklist.tipo_fluxo != 'formulario_ssma' and secao.layout in ['verification', 'grouped'] and conformity_items|length > 0 and conformity_items|length + nfc_items|length + signature_items|length == secao.questions|length %}
+            {% set conformity_table = secao.layout in ['verification', 'grouped'] and conformity_items|length > 0 and conformity_items|length + nfc_items|length + signature_items|length == secao.questions|length %}
             {% if secao.layout == 'repeatable' %}
             {% set first_key = 'q_' ~ si ~ '_0' %}
             {% set row_count = [valores.get(first_key, [''])|length, 1]|max %}

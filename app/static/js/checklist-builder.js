@@ -6,7 +6,6 @@
     const host = root.querySelector('[data-sections]');
     const addSection = root.querySelector('[data-add-section]');
     const counter = root.querySelector('[data-builder-count]');
-    const modelType = root.dataset.modelType === 'formulario_ssma' ? 'formulario_ssma' : 'checklist';
     const types = [
         ['conformity', 'Conforme / Não conforme / Não aplicável'],
         ['yes_no', 'Sim / Não / Não aplicável'],
@@ -110,12 +109,12 @@
         sync(); render();
     }
     function newQuestion() {
-        return {ref: newRef(), text: '', type: modelType === 'formulario_ssma' ? 'text' : 'conformity', required: true, negative_comment: false, negative_evidence: false, negative_action: false, options: []};
+        return {ref: newRef(), text: '', type: 'conformity', required: true, negative_comment: false, negative_evidence: false, negative_action: false, options: []};
     }
     function sync() {
         hidden.value = JSON.stringify(sections);
         const total = sections.reduce((sum, section) => sum + section.questions.length, 0);
-        counter.textContent = `${sections.length} de 30 seções · ${total} de 200 ${modelType === 'formulario_ssma' ? 'campos' : 'itens'}`;
+        counter.textContent = `${sections.length} de 30 seções · ${total} de 200 itens`;
         addSection.disabled = sections.length >= 30;
     }
     function lines(value) { return (value || []).join('\n'); }
@@ -231,8 +230,7 @@
             const wrapper = element('details', 'checklist-section'); wrapper.open = opened[sectionIndex] !== false;
             const summary = element('summary', 'checklist-section-summary');
             if (section.layout === 'standard') section.layout = 'verification';
-            const unitLabel = modelType === 'formulario_ssma' ? 'campo(s)' : 'item(ns)';
-            const summaryTitle = element('span', 'checklist-section-summary-title', `${section.title || 'Nova seção'} · ${section.questions.length} ${unitLabel}`);
+            const summaryTitle = element('span', 'checklist-section-summary-title', `${section.title || 'Nova seção'} · ${section.questions.length} item(ns)`);
             const summaryActions = actions(sections, sectionIndex, 'seção');
             summaryActions.classList.add('checklist-section-summary-actions');
             summaryActions.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); });
@@ -258,7 +256,7 @@
             const layoutBox = field('Layout da seção', layoutControl);
             heading.append(
                 layoutBox,
-                field('Nome da seção', input(section.title || '', 120, value => { section.title = value; summaryTitle.textContent = `${value || 'Nova seção'} · ${section.questions.length} ${unitLabel}`; sync(); }))
+                field('Nome da seção', input(section.title || '', 120, value => { section.title = value; summaryTitle.textContent = `${value || 'Nova seção'} · ${section.questions.length} item(ns)`; sync(); }))
             );
             wrapper.append(summary, heading);
 
@@ -271,7 +269,7 @@
                     : types;
                 row.append(
                     field('Tipo de resposta', select(availableTypes, question.type || 'conformity', value => { question.type = value; if (!['conformity','yes_no'].includes(value)) { question.negative_comment = false; question.negative_evidence = false; question.negative_action = false; } sync(); render(); })),
-                    field(`${modelType === 'formulario_ssma' ? 'Campo' : 'Item'} ${sectionIndex + 1}.${questionIndex + 1}`, input(question.text || '', 500, value => { question.text = value; sync(); })),
+                    field(`Item ${sectionIndex + 1}.${questionIndex + 1}`, input(question.text || '', 500, value => { question.text = value; sync(); })),
                     actions(section.questions, questionIndex, 'item')
                 );
                 item.append(row);
@@ -295,7 +293,7 @@
                 item.append(rules); wrapper.append(item);
             });
 
-            const addItem = element('button', 'btn btn-outline-secondary btn-sm checklist-add-item', modelType === 'formulario_ssma' ? 'Adicionar campo' : 'Adicionar item');
+            const addItem = element('button', 'btn btn-outline-secondary btn-sm checklist-add-item', 'Adicionar item');
             addItem.type = 'button';
             addItem.disabled = sections.reduce((sum, section) => sum + section.questions.length, 0) >= 200;
             addItem.addEventListener('click', () => { section.questions.push(newQuestion()); sync(); render(); host.children[sectionIndex].open = true; });
@@ -306,7 +304,7 @@
 
     addSection.addEventListener('click', () => {
         if (sections.length >= 30) return;
-        sections.push({title: '', layout: modelType === 'formulario_ssma' ? 'header' : 'verification', questions: [newQuestion()]}); sync(); render();
+        sections.push({title: '', layout: 'verification', questions: [newQuestion()]}); sync(); render();
         host.lastElementChild.open = true;
     });
     render();

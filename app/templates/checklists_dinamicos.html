@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 
-{% block titulo %}Modelos configuráveis{% endblock %}
+{% block titulo %}Checklists configuráveis{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -22,7 +22,7 @@
 {% block conteudo %}
 <div class="page-header">
     <h2 class="page-title text-center mb-0">
-        <i class="bi bi-ui-checks-grid me-2"></i>Modelos configuráveis
+        <i class="bi bi-ui-checks-grid me-2"></i>Checklists configuráveis
     </h2>
 </div>
 <hr>
@@ -30,23 +30,16 @@
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body">
         <div class="mb-3">
-            <h5 class="mb-1">Novo modelo</h5>
-            <p class="text-muted mb-0">Crie um checklist de verificação ou um formulário de registro de SSMA.</p>
+            <h5 class="mb-1">Novo checklist</h5>
+            <p class="text-muted mb-0">Defina a identificação e a abrangência do checklist.</p>
         </div>
         <form method="post">
             <div class="row g-3">
-                <div class="col-12 col-lg-5">
-                    <label class="form-label" for="nome">Nome do modelo</label>
+                <div class="col-12 col-lg-7">
+                    <label class="form-label" for="nome">Nome do checklist</label>
                     <input class="form-control" id="nome" name="nome" maxlength="150" required>
                 </div>
-                <div class="col-12 col-lg-4">
-                    <label class="form-label" for="tipo_fluxo">Tipo</label>
-                    <select class="form-select" id="tipo_fluxo" name="tipo_fluxo">
-                        <option value="checklist">Checklist de verificação</option>
-                        <option value="formulario_ssma">Formulário de SSMA</option>
-                    </select>
-                </div>
-                <div class="col-12 col-lg-3">
+                <div class="col-12 col-lg-5">
                     <label class="form-label" for="abrangencia">Abrangência</label>
                     <select class="form-select" id="abrangencia" name="abrangencia">
                         <option value="global">Global</option>
@@ -105,14 +98,13 @@
 <div class="table-responsive">
     <table class="table table-hover align-middle">
         <thead><tr>
-            <th>Modelo</th><th>Tipo</th><th>Abrangência</th><th>Sidebar</th><th>Agendamento</th>
+            <th>Checklist</th><th>Abrangência</th><th>Sidebar</th><th>Agendamento</th>
             <th class="text-center">Status</th><th class="text-center">Ações</th>
         </tr></thead>
         <tbody>
         {% for checklist in checklists %}
             <tr>
                 <td><strong>{{ checklist.nome }}</strong>{% if checklist.descricao %}<small class="d-block text-muted">{{ checklist.descricao }}</small>{% endif %}</td>
-                <td>{{ 'Formulário de SSMA' if checklist.tipo_fluxo == 'formulario_ssma' else 'Checklist de verificação' }}</td>
                 <td>{{ 'Global' if checklist.abrangencia == 'global' else (checklist.centros_custos or '-') }}</td>
                 <td>
                     {{ modulos_menu.get(checklist.modulo_menu, checklist.modulo_menu) }}
@@ -158,7 +150,7 @@
                 </td>
             </tr>
         {% else %}
-            <tr><td colspan="7" class="text-center text-muted py-4">Nenhum modelo configurável cadastrado.</td></tr>
+            <tr><td colspan="6" class="text-center text-muted py-4">Nenhum checklist configurável cadastrado.</td></tr>
         {% endfor %}
         </tbody>
     </table>
