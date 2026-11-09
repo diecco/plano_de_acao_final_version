@@ -754,7 +754,7 @@ def register_agenda_ssma_routes(blueprint):
                  WHERE cm.id = %s
                    AND cm.ativo = 1
                    AND cm.status = 'publicado'
-                   AND cm.modulo_menu = 'ssma'
+                   AND cm.disponivel_agendamento = 1
                    AND (
                         cm.abrangencia = 'global'
                         OR EXISTS (
@@ -980,7 +980,7 @@ def register_agenda_ssma_routes(blueprint):
                     ON cmc.checklist_id = cm.id
                  WHERE cm.ativo = 1
                    AND cm.status = 'publicado'
-                   AND cm.modulo_menu = 'ssma'
+                   AND cm.disponivel_agendamento = 1
             """
             params_checklists = []
 

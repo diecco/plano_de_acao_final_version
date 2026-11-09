@@ -22,7 +22,7 @@ class ChecklistAgendamentoSsmaTests(unittest.TestCase):
         self.assertIn('"checklist_configuravel"', fonte)
         self.assertIn("buscar_checklist_agendavel", fonte)
         self.assertIn("cm.status = 'publicado'", fonte)
-        self.assertIn("cm.modulo_menu = 'ssma'", fonte)
+        self.assertIn("cm.disponivel_agendamento = 1", fonte)
         self.assertIn('"main.aplicar_checklist_dinamico"', fonte)
 
     def test_execucao_conclui_agendamento_sem_duplicidade(self):
@@ -46,6 +46,24 @@ class ChecklistAgendamentoSsmaTests(unittest.TestCase):
         self.assertIn('name="checklist_modelo_id"', novo)
         self.assertIn("item.nome_checklist", calendario)
         self.assertNotIn("35784 tokens truncated", novo)
+
+    def test_disponibilidade_e_configuracao_independente_da_sidebar(self):
+        fonte = (ROOT / "app" / "views" / "checklists_dinamicos.py").read_text(
+            encoding="utf-8"
+        )
+        cadastro = (ROOT / "app" / "templates" / "checklists_dinamicos.html").read_text(
+            encoding="utf-8"
+        )
+        edicao = (ROOT / "app" / "templates" / "checklist_dinamico_editar.html").read_text(
+            encoding="utf-8"
+        )
+        migracao = (
+            ROOT / "docs" / "adicionar_disponibilidade_agendamento_checklists.sql"
+        ).read_text(encoding="utf-8")
+        self.assertIn("disponivel_agendamento", fonte)
+        self.assertIn('name="disponivel_agendamento"', cadastro)
+        self.assertIn('name="disponivel_agendamento"', edicao)
+        self.assertIn("DEFAULT 0", migracao)
 
 
 if __name__ == "__main__":
