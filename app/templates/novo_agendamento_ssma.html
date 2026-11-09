@@ -250,19 +250,11 @@
                                 <option value="auditoria_padrao">Auditoria de Padrão</option>
                                 <option value="ifs">IFS — Inspeção de Frente de Serviço</option>
                                 <option value="observacao_comportamental">Observação Comportamental</option>
-                                <option value="checklist_configuravel">Checklist configurável</option>
-                            </select>
-                        </div>
-
-                        <div class="col-12 campo-checklist d-none">
-                            <label for="checklist_modelo_id" class="form-label">Checklist</label>
-                            <select class="form-select" id="checklist_modelo_id" name="checklist_modelo_id">
-                                <option value="">Selecione</option>
                                 {% for checklist in checklists %}
-                                    <option value="{{ checklist.id }}">{{ checklist.nome }}</option>
+                                    <option value="checklist_configuravel:{{ checklist.id }}">Checklist — {{ checklist.nome }}</option>
                                 {% endfor %}
                             </select>
-                            <div class="form-text">São exibidos somente checklists publicados e marcados como disponíveis para agendamento. A abrangência será validada conforme o centro de custos do líder.</div>
+                            <input type="hidden" id="checklist_modelo_id" name="checklist_modelo_id" value="">
                         </div>
 
                         <div class="col-12 campo-tema d-none">
@@ -377,30 +369,28 @@ function limparAutocomplete(inputId,hiddenId,resultadosId){
 }
 
 function atualizarCamposModal(){
-    const pratica=document.getElementById('pratica_modal').value;
+    const praticaSelecionada=document.getElementById('pratica_modal').value;
+    const checklistSelecionado=praticaSelecionada.startsWith('checklist_configuravel:');
+    const pratica=checklistSelecionado?'checklist_configuravel':praticaSelecionada;
     const campoTema=document.querySelector('.campo-tema');
     const campoColaborador=document.querySelector('.campo-colaborador');
     const campoProcedimento=document.querySelector('.campo-procedimento');
-    const campoChecklist=document.querySelector('.campo-checklist');
     const tema=document.getElementById('tema_id');
     const checklist=document.getElementById('checklist_modelo_id');
 
     const exigeTema=pratica==='hora_seguranca';
     const exigeColaborador=pratica==='hora_seguranca'||pratica==='auditoria_padrao';
     const exigeProcedimento=pratica==='auditoria_padrao';
-    const exigeChecklist=pratica==='checklist_configuravel';
 
     campoTema.classList.toggle('d-none',!exigeTema);
     campoColaborador.classList.toggle('d-none',!exigeColaborador);
     campoProcedimento.classList.toggle('d-none',!exigeProcedimento);
-    campoChecklist.classList.toggle('d-none',!exigeChecklist);
 
     tema.required=exigeTema;
-    checklist.required=exigeChecklist;
+    checklist.value=checklistSelecionado?praticaSelecionada.split(':',2)[1]:'';
     if(!exigeTema)tema.value='';
     if(!exigeColaborador)limparAutocomplete('colaborador_busca','colaborador_previsto_id','colaborador_resultados');
     if(!exigeProcedimento)limparAutocomplete('procedimento_busca','procedimento_id','procedimento_resultados');
-    if(!exigeChecklist)checklist.value='';
 }
 
 function formatarDataModal(dataIso){
@@ -449,12 +439,15 @@ function prepararModalEdicao(botao){
 
     document.getElementById('data_modal').value=dataSelecionada;
     document.getElementById('modalDataResumo').textContent=formatarDataModal(dataSelecionada);
-    document.getElementById('pratica_modal').value=pratica;
+    const checklistId=botao.dataset.checklistId||'';
+    document.getElementById('pratica_modal').value=(pratica==='checklist_configuravel'&&checklistId)
+        ?`checklist_configuravel:${checklistId}`
+        :pratica;
 
     atualizarCamposModal();
 
     document.getElementById('tema_id').value=botao.dataset.temaId||'';
-    document.getElementById('checklist_modelo_id').value=botao.dataset.checklistId||'';
+    document.getElementById('checklist_modelo_id').value=checklistId;
     document.getElementById('observacao').value=botao.dataset.observacao||'';
 
     document.getElementById('colaborador_previsto_id').value=botao.dataset.colaboradorId||'';
@@ -493,7 +486,10 @@ document.addEventListener('DOMContentLoaded',()=>{
     const formModal=document.getElementById('formModalAgendamento');
     if(formModal){
         formModal.addEventListener('submit',e=>{
-            const pratica=document.getElementById('pratica_modal').value;
+            const praticaSelecionada=document.getElementById('pratica_modal').value;
+            const pratica=praticaSelecionada.startsWith('checklist_configuravel:')
+                ?'checklist_configuravel'
+                :praticaSelecionada;
             const temaId=document.getElementById('tema_id').value;
             const procedimentoId=document.getElementById('procedimento_id').value;
             const checklistId=document.getElementById('checklist_modelo_id').value;

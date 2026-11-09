@@ -50,8 +50,9 @@ class ChecklistAgendamentoSsmaTests(unittest.TestCase):
         calendario = (ROOT / "app" / "templates" / "meu_calendario_ssma.html").read_text(
             encoding="utf-8"
         )
-        self.assertIn('value="checklist_configuravel"', novo)
+        self.assertIn('value="checklist_configuravel:{{ checklist.id }}"', novo)
         self.assertIn('name="checklist_modelo_id"', novo)
+        self.assertNotIn('class="col-12 campo-checklist', novo)
         self.assertIn("item.nome_checklist", calendario)
         self.assertNotIn("35784 tokens truncated", novo)
 

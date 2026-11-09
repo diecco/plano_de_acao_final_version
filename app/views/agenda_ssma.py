@@ -1280,6 +1280,11 @@ def register_agenda_ssma_routes(blueprint):
                 or None
             )
 
+            if pratica.startswith("checklist_configuravel:"):
+                _, checklist_id_pratica = pratica.split(":", 1)
+                pratica = "checklist_configuravel"
+                checklist_modelo_id = checklist_id_pratica.strip() or None
+
             observacao = (
                 request.form.get("observacao")
                 or ""
