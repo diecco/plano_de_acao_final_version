@@ -25,6 +25,14 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn("main.checklists_dinamicos", sidebar)
         self.assertIn("main.abrir_checklist_dinamico", sidebar)
 
+    def test_sidebar_keeps_builder_under_administration(self):
+        sidebar = (
+            ROOT / "app" / "templates" / "components" / "sidebar.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("endpoints_admin_checklists", sidebar)
+        self.assertIn("'main.editar_checklist_dinamico'", sidebar)
+        self.assertIn("checklist_em_uso and checklist_aberto_id == checklist.id", sidebar)
+
     def test_scope_query_accepts_global_or_selected_cost_center(self):
         source = (
             ROOT / "app" / "views" / "checklists_dinamicos.py"

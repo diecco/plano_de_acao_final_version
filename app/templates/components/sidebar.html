@@ -1,7 +1,17 @@
 {% set is_admin = session.get('perfil') == 'administrador' %}
+{% set endpoints_admin_checklists = [
+    'main.checklists_dinamicos',
+    'main.editar_checklist_dinamico'
+] %}
+{% set endpoints_uso_checklist = [
+    'main.abrir_checklist_dinamico',
+    'main.aplicar_checklist_dinamico',
+    'main.visualizar_execucao_checklist'
+] %}
 {% set checklist_aberto_id = request.view_args.get('checklist_id') if request.view_args else none %}
-{% set checklist_ssma_ativo = (checklists_sidebar_ssma | selectattr('id', 'equalto', checklist_aberto_id) | list | length) > 0 %}
-{% set checklist_gestao_ativo = (checklists_sidebar_gestao | selectattr('id', 'equalto', checklist_aberto_id) | list | length) > 0 %}
+{% set checklist_em_uso = request.endpoint in endpoints_uso_checklist %}
+{% set checklist_ssma_ativo = checklist_em_uso and (checklists_sidebar_ssma | selectattr('id', 'equalto', checklist_aberto_id) | list | length) > 0 %}
+{% set checklist_gestao_ativo = checklist_em_uso and (checklists_sidebar_gestao | selectattr('id', 'equalto', checklist_aberto_id) | list | length) > 0 %}
 
 <aside class="app-sidebar" id="appSidebar" aria-label="Navegação principal">
     <div class="sidebar-brand">
@@ -159,7 +169,7 @@
                         </a>
                         {% for checklist in checklists_sidebar_ssma %}
                             <a href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id) }}"
-                               class="sidebar-link {% if checklist_aberto_id == checklist.id %}active{% endif %}">
+                               class="sidebar-link {% if checklist_em_uso and checklist_aberto_id == checklist.id %}active{% endif %}">
                                 <i class="bi bi-ui-checks-grid"></i><span>{{ checklist.nome }}</span>
                             </a>
                         {% endfor %}
@@ -218,7 +228,7 @@
                         </a>
                         {% for checklist in checklists_sidebar_gestao %}
                             <a href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id) }}"
-                               class="sidebar-link {% if checklist_aberto_id == checklist.id %}active{% endif %}">
+                               class="sidebar-link {% if checklist_em_uso and checklist_aberto_id == checklist.id %}active{% endif %}">
                                 <i class="bi bi-ui-checks-grid"></i><span>{{ checklist.nome }}</span>
                             </a>
                         {% endfor %}
@@ -532,6 +542,7 @@
                 'main.pcpm_checklist_modelos',
                 'main.comunicados_visuais',
                 'main.checklists_dinamicos',
+                'main.editar_checklist_dinamico',
                 'main.etiquetas_nfc',
                 'main.alterar_status_etiqueta_nfc'
             ] %}
@@ -569,7 +580,7 @@
                         <i class="bi bi-images"></i><span>Comunicados visuais</span>
                     </a>
                     <a href="{{ url_for('main.checklists_dinamicos') }}"
-                       class="sidebar-link {% if request.endpoint == 'main.checklists_dinamicos' %}active{% endif %}">
+                       class="sidebar-link {% if request.endpoint in endpoints_admin_checklists %}active{% endif %}">
                         <i class="bi bi-ui-checks-grid"></i><span>Checklists configuráveis</span>
                     </a>
                     <a href="{{ url_for('main.etiquetas_nfc') }}"
