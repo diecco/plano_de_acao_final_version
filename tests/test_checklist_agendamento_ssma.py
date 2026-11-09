@@ -73,6 +73,20 @@ class ChecklistAgendamentoSsmaTests(unittest.TestCase):
         self.assertIn('name="disponivel_agendamento"', edicao)
         self.assertIn("DEFAULT 0", migracao)
 
+    def test_execucao_agendada_exibe_contexto_do_agendamento(self):
+        template = (
+            ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html"
+        ).read_text(encoding="utf-8")
+        fonte = (
+            ROOT / "app" / "views" / "checklists_dinamicos.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("Execução de prática agendada", template)
+        self.assertIn("Agendamento #{{ agendamento.id }}", template)
+        self.assertIn("Data programada", template)
+        self.assertIn("Checklist previsto", template)
+        self.assertIn("agendamento=agendamento", fonte)
+
 
 if __name__ == "__main__":
     unittest.main()

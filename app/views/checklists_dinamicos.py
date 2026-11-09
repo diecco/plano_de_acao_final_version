@@ -1630,6 +1630,7 @@ def register_checklists_dinamicos_routes(blueprint):
             etiquetas_nfc=etiquetas_nfc,
             hoje_iso=date.today().isoformat(),
             agendamento_id=agendamento_id,
+            agendamento=agendamento,
             next_url=next_url,
         )
 

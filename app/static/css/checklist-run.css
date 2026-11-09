@@ -51,3 +51,11 @@
 .checklist-repeatable td { min-width: 180px; }
 .checklist-repeatable td:first-child, .checklist-repeatable td:last-child { min-width: 0; }
 @media (max-width: 767px) { .answer-chip span { padding: .45rem .65rem; } .nfc-signature-reader { align-items: stretch; } .nfc-mobile-button { align-self: flex-end; } }
+.checklist-schedule-context {
+    border-left: 4px solid #ea6a23 !important;
+    background: #fff8f2;
+}
+
+.checklist-schedule-summary {
+    min-width: 180px;
+}
