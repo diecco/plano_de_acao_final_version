@@ -33,6 +33,30 @@
 <form method="post" class="checklist-run" data-checklist-form novalidate>
 {% if agendamento_id %}<input type="hidden" name="agendamento_id" value="{{ agendamento_id }}">{% endif %}
 {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+{% if agendamento %}
+<div class="card shadow-sm border-0 mb-4 checklist-schedule-context">
+    <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <h5 class="text-laranja mb-1">
+                    <i class="bi bi-calendar-check me-2"></i>Execução de prática agendada
+                </h5>
+                <div class="text-muted">Agendamento #{{ agendamento.id }}</div>
+            </div>
+            <div class="d-flex flex-wrap gap-3">
+                <div class="checklist-schedule-summary">
+                    <small class="text-muted d-block">Data programada</small>
+                    <strong>{{ agendamento.data_programada.strftime('%d/%m/%Y') if agendamento.data_programada else '—' }}</strong>
+                </div>
+                <div class="checklist-schedule-summary">
+                    <small class="text-muted d-block">Checklist previsto</small>
+                    <strong>{{ checklist.nome }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% set section_counter = namespace(value=0) %}
 {% for secao in estrutura %}
     {% set si = loop.index0 %}
