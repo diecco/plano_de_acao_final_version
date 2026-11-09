@@ -221,6 +221,12 @@
                            class="sidebar-link {% if request.endpoint == 'main.perfil_seguranca_colaborador' %}active{% endif %}">
                             <i class="bi bi-person-vcard"></i><span>Perfil de segurança</span>
                         </a>
+                        {% for checklist in checklists_sidebar_gestao %}
+                            <a href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id) }}"
+                               class="sidebar-link {% if checklist_em_uso and checklist_aberto_id == checklist.id %}active{% endif %}">
+                                <i class="bi bi-ui-checks-grid"></i><span>{{ checklist.nome }}</span>
+                            </a>
+                        {% endfor %}
                     {% endif %}
                 </div>
             </section>
