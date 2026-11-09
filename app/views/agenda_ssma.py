@@ -310,6 +310,7 @@ def register_agenda_ssma_routes(blueprint):
             "hora_seguranca",
             "auditoria_padrao",
             "ifs",
+            "checklist_configuravel",
         }
 
         if feature_enabled(FEATURE_OBSERVACAO_COMPORTAMENTAL):
@@ -397,6 +398,9 @@ def register_agenda_ssma_routes(blueprint):
             JOIN usuarios lider
                 ON lider.id = ag.lider_id
 
+            LEFT JOIN checklist_modelos checklist
+                ON checklist.id = ag.checklist_modelo_id
+
             WHERE 1 = 1
         """
 
@@ -473,6 +477,7 @@ def register_agenda_ssma_routes(blueprint):
                 ag.lider_id,
                 ag.data_programada,
                 ag.pratica,
+                checklist.nome AS nome_checklist,
                 lider.nome AS nome_lider
 
             {from_where}
@@ -739,6 +744,31 @@ def register_agenda_ssma_routes(blueprint):
 
             return cursor.fetchone() is not None
 
+        def buscar_checklist_agendavel(checklist_id, centro_custos_id_lider):
+            if not checklist_id:
+                return None
+
+            cursor.execute("""
+                SELECT cm.id, cm.nome
+                  FROM checklist_modelos cm
+                 WHERE cm.id = %s
+                   AND cm.ativo = 1
+                   AND cm.status = 'publicado'
+                   AND cm.modulo_menu = 'ssma'
+                   AND (
+                        cm.abrangencia = 'global'
+                        OR EXISTS (
+                            SELECT 1
+                              FROM checklist_modelos_centros cmc
+                             WHERE cmc.checklist_id = cm.id
+                               AND cmc.centro_custos_id = %s
+                        )
+                   )
+                 LIMIT 1
+            """, (checklist_id, centro_custos_id_lider))
+
+            return cursor.fetchone()
+
         def validar_mes_e_data(
             mes_selecionado,
             data_programada
@@ -776,12 +806,14 @@ def register_agenda_ssma_routes(blueprint):
             pratica,
             tema_id,
             colaborador_id,
-            procedimento_id
+            procedimento_id,
+            checklist_modelo_id
         ):
             praticas_validas = {
                 "hora_seguranca",
                 "auditoria_padrao",
                 "ifs",
+                "checklist_configuravel",
             }
 
             if feature_enabled(FEATURE_OBSERVACAO_COMPORTAMENTAL):
@@ -792,12 +824,14 @@ def register_agenda_ssma_routes(blueprint):
                     None,
                     None,
                     None,
+                    None,
                     "Selecione uma prática válida."
                 )
 
             if pratica == "hora_seguranca":
                 if not tema_id:
                     return (
+                        None,
                         None,
                         None,
                         None,
@@ -814,22 +848,37 @@ def register_agenda_ssma_routes(blueprint):
                         None,
                         None,
                         None,
+                        None,
                         "Selecione o procedimento da Auditoria "
                         "de Padrão."
                     )
 
             elif pratica in {
                 "ifs",
-                "observacao_comportamental"
+                "observacao_comportamental",
+                "checklist_configuravel"
             }:
                 tema_id = None
                 colaborador_id = None
                 procedimento_id = None
 
+            if pratica != "checklist_configuravel":
+                checklist_modelo_id = None
+
+            if pratica == "checklist_configuravel" and not checklist_modelo_id:
+                return (
+                    None,
+                    None,
+                    None,
+                    None,
+                    "Selecione o checklist configurável."
+                )
+
             return (
                 tema_id,
                 colaborador_id,
                 procedimento_id,
+                checklist_modelo_id,
                 None
             )
 
@@ -924,11 +973,37 @@ def register_agenda_ssma_routes(blueprint):
 
             temas = cursor.fetchall()
 
+            query_checklists = """
+                SELECT DISTINCT cm.id, cm.nome
+                  FROM checklist_modelos cm
+             LEFT JOIN checklist_modelos_centros cmc
+                    ON cmc.checklist_id = cm.id
+                 WHERE cm.ativo = 1
+                   AND cm.status = 'publicado'
+                   AND cm.modulo_menu = 'ssma'
+            """
+            params_checklists = []
+
+            if not possui_escopo_global:
+                query_checklists += """
+                   AND (
+                        cm.abrangencia = 'global'
+                        OR cmc.centro_custos_id = %s
+                   )
+                """
+                params_checklists.append(centro_custos_id)
+
+            query_checklists += " ORDER BY cm.nome"
+            cursor.execute(query_checklists, params_checklists)
+
+            checklists = cursor.fetchall()
+
             return (
                 lideres,
                 colaboradores,
                 procedimentos,
-                temas
+                temas,
+                checklists
             )
 
         def buscar_agendamentos_mes(
@@ -945,6 +1020,7 @@ def register_agenda_ssma_routes(blueprint):
                     ag.tema_id,
                     ag.colaborador_previsto_id,
                     ag.procedimento_id,
+                    ag.checklist_modelo_id,
                     ag.observacao,
                     ag.status,
 
@@ -962,7 +1038,9 @@ def register_agenda_ssma_routes(blueprint):
                         p.numero_documento,
                         ' - ',
                         p.titulo
-                    ) AS nome_procedimento
+                    ) AS nome_procedimento,
+
+                    checklist.nome AS nome_checklist
 
                 FROM agendamentos_ssma ag
 
@@ -978,6 +1056,9 @@ def register_agenda_ssma_routes(blueprint):
 
                 LEFT JOIN tipos_documento td
                     ON td.id = p.tipo_documento_id
+
+                LEFT JOIN checklist_modelos checklist
+                    ON checklist.id = ag.checklist_modelo_id
 
                 WHERE ag.lider_id = %s
                   AND ag.data_programada >= %s
@@ -1194,6 +1275,11 @@ def register_agenda_ssma_routes(blueprint):
                 or None
             )
 
+            checklist_modelo_id = (
+                request.form.get("checklist_modelo_id")
+                or None
+            )
+
             observacao = (
                 request.form.get("observacao")
                 or ""
@@ -1260,12 +1346,14 @@ def register_agenda_ssma_routes(blueprint):
                 tema_id,
                 colaborador_previsto_id,
                 procedimento_id,
+                checklist_modelo_id,
                 erro_pratica
             ) = aplicar_regras_pratica(
                 pratica,
                 tema_id,
                 colaborador_previsto_id,
-                procedimento_id
+                procedimento_id,
+                checklist_modelo_id
             )
 
             if erro_pratica:
@@ -1355,6 +1443,26 @@ def register_agenda_ssma_routes(blueprint):
                         lider_id
                     )
 
+                if checklist_modelo_id:
+                    checklist_agendavel = buscar_checklist_agendavel(
+                        checklist_modelo_id,
+                        lider.get("centro_custos_id")
+                    )
+
+                    if not checklist_agendavel:
+                        flash(
+                            "O checklist selecionado não está publicado, ativo "
+                            "ou disponível para o centro de custos do líder.",
+                            "warning"
+                        )
+
+                        fechar_conexao()
+
+                        return redirecionar_cronograma(
+                            mes_selecionado,
+                            lider_id
+                        )
+
                 # ---------------------------------------------
                 # UPDATE
                 # ---------------------------------------------
@@ -1426,6 +1534,7 @@ def register_agenda_ssma_routes(blueprint):
                             tema_id = %s,
                             colaborador_previsto_id = %s,
                             procedimento_id = %s,
+                            checklist_modelo_id = %s,
                             observacao = %s,
                             atualizado_em = NOW()
                         WHERE id = %s
@@ -1436,6 +1545,7 @@ def register_agenda_ssma_routes(blueprint):
                         tema_id,
                         colaborador_previsto_id,
                         procedimento_id,
+                        checklist_modelo_id,
                         observacao,
                         agendamento_id
                     ))
@@ -1457,6 +1567,7 @@ def register_agenda_ssma_routes(blueprint):
                             tema_id,
                             colaborador_previsto_id,
                             procedimento_id,
+                            checklist_modelo_id,
                             observacao,
                             status,
                             criado_por,
@@ -1464,6 +1575,7 @@ def register_agenda_ssma_routes(blueprint):
                             houve_alteracao
                         )
                         VALUES (
+                            %s,
                             %s,
                             %s,
                             %s,
@@ -1483,6 +1595,7 @@ def register_agenda_ssma_routes(blueprint):
                         tema_id,
                         colaborador_previsto_id,
                         procedimento_id,
+                        checklist_modelo_id,
                         observacao,
                         usuario_logado_id
                     ))
@@ -1523,7 +1636,8 @@ def register_agenda_ssma_routes(blueprint):
                 lideres,
                 colaboradores,
                 procedimentos,
-                temas
+                temas,
+                checklists
             ) = carregar_listas(
                 possui_escopo_global,
                 centro_custos_id_logado
@@ -1636,6 +1750,7 @@ def register_agenda_ssma_routes(blueprint):
             colaboradores = []
             procedimentos = []
             temas = []
+            checklists = []
 
             lider_selecionado = None
             agendamentos = []
@@ -1653,6 +1768,7 @@ def register_agenda_ssma_routes(blueprint):
             colaboradores=colaboradores,
             procedimentos=procedimentos,
             temas=temas,
+            checklists=checklists,
             mes_selecionado=mes_selecionado,
             mes_exibicao=mes_exibicao,
             primeiro_dia_mes=primeiro_dia_mes,
@@ -1964,6 +2080,7 @@ def register_agenda_ssma_routes(blueprint):
                     ag.tema_id,
                     ag.colaborador_previsto_id,
                     ag.procedimento_id,
+                    ag.checklist_modelo_id,
                     ag.observacao,
                     ag.status,
                     ag.registro_executado_id,
@@ -1992,7 +2109,9 @@ def register_agenda_ssma_routes(blueprint):
                             ELSE ''
                         END,
                         COALESCE(p.titulo, '')
-                    ) AS nome_procedimento
+                    ) AS nome_procedimento,
+
+                    checklist.nome AS nome_checklist
 
                 FROM agendamentos_ssma ag
 
@@ -2008,6 +2127,9 @@ def register_agenda_ssma_routes(blueprint):
 
                 LEFT JOIN tipos_documento td
                     ON td.id = p.tipo_documento_id
+
+                LEFT JOIN checklist_modelos checklist
+                    ON checklist.id = ag.checklist_modelo_id
 
                 WHERE ag.lider_id = %s
                   AND ag.data_programada >= %s
@@ -2282,6 +2404,7 @@ def register_agenda_ssma_routes(blueprint):
                     ag.tema_id,
                     ag.colaborador_previsto_id,
                     ag.procedimento_id,
+                    ag.checklist_modelo_id,
                     ag.status,
                     ag.registro_executado_id
                 FROM agendamentos_ssma ag
@@ -2429,6 +2552,29 @@ def register_agenda_ssma_routes(blueprint):
                 return redirect(
                     url_for(
                         "main.nova_observacao_comportamental",
+                        agendamento_id=agendamento["id"],
+                        next=next_url
+                    )
+                )
+
+            # =================================================
+            # CHECKLIST CONFIGURÁVEL
+            # =================================================
+
+            if pratica == "checklist_configuravel":
+                checklist_modelo_id = agendamento.get("checklist_modelo_id")
+
+                if not checklist_modelo_id:
+                    flash(
+                        "O checklist deste agendamento não foi identificado.",
+                        "danger"
+                    )
+                    return redirect(next_url)
+
+                return redirect(
+                    url_for(
+                        "main.aplicar_checklist_dinamico",
+                        checklist_id=checklist_modelo_id,
                         agendamento_id=agendamento["id"],
                         next=next_url
                     )

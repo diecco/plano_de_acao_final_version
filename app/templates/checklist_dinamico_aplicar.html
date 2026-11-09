@@ -31,6 +31,8 @@
 <div class="page-header"><h2 class="page-title text-center mb-0"><i class="bi bi-ui-checks-grid me-2"></i>{{ checklist.nome }}</h2></div>
 <hr>
 <form method="post" class="checklist-run" data-checklist-form novalidate>
+{% if agendamento_id %}<input type="hidden" name="agendamento_id" value="{{ agendamento_id }}">{% endif %}
+{% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
 {% set section_counter = namespace(value=0) %}
 {% for secao in estrutura %}
     {% set si = loop.index0 %}

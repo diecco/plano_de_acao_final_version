@@ -366,6 +366,8 @@
                                                                 IFS
                                                             {% elif item.pratica == 'observacao_comportamental' %}
                                                                 Observação Comportamental
+                                                            {% elif item.pratica == 'checklist_configuravel' %}
+                                                                {{ item.nome_checklist or 'Checklist configurável' }}
                                                             {% else %}
                                                                 {{ item.pratica }}
                                                             {% endif %}
@@ -393,6 +395,8 @@
                                                             <div class="pratica-detalhe">
                                                                 Inspeção de Frente de Serviço
                                                             </div>
+                                                        {% elif item.pratica == 'checklist_configuravel' %}
+                                                            <div class="pratica-detalhe">Checklist configurável</div>
                                                         {% endif %}
 
                                                         <div class="pratica-status">
