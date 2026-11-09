@@ -8,6 +8,7 @@ import json
 import re
 import unicodedata
 import calendar
+from copy import deepcopy
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
@@ -51,6 +52,14 @@ LAYOUTS_SECAO = {
     "repeatable": "Lista repetível",
     "evidence": "Evidências / galeria",
 }
+
+MAX_NOME_CHECKLIST = 150
+MAX_DESCRICAO_CHECKLIST = 5000
+MAX_COMENTARIO_RESPOSTA = 3000
+MAX_EVIDENCIA_RESPOSTA = 1000
+MAX_ASSINATURAS_POR_CAMPO = 200
+MAX_UID_NFC = 255
+CANAIS_NFC = frozenset({"usb", "web_nfc"})
 
 
 def _normalizar_texto(valor):
@@ -347,6 +356,83 @@ def _inteiro_nao_negativo(valor, padrao=0):
         return padrao
 
 
+def _normalizar_uid_nfc(valor):
+    """Normaliza a leitura sem aceitar payloads maiores que a coluna do banco."""
+    uid = str(valor or "").strip()
+    return uid if 0 < len(uid) <= MAX_UID_NFC else ""
+
+
+def _validar_configuracao_modelo(cursor, formulario, checklist_id=None):
+    """Valida, em um único ponto, os dados administrativos do checklist."""
+    nome = (formulario.get("nome") or "").strip()
+    descricao = (formulario.get("descricao") or "").strip()
+    abrangencia = (formulario.get("abrangencia") or "global").strip()
+    centro_ids = list(dict.fromkeys(formulario.getlist("centro_custos_ids")))
+    modulo_menu = (formulario.get("modulo_menu") or "ssma").strip()
+    exibir_menu = 1 if formulario.get("exibir_menu") == "1" else 0
+    ordem_menu = _inteiro_nao_negativo(formulario.get("ordem_menu"))
+
+    if not 1 <= len(nome) <= MAX_NOME_CHECKLIST:
+        raise ValueError(f"Informe o nome do checklist, com até {MAX_NOME_CHECKLIST} caracteres.")
+    if len(descricao) > MAX_DESCRICAO_CHECKLIST:
+        raise ValueError(f"Use até {MAX_DESCRICAO_CHECKLIST} caracteres na descrição.")
+    if abrangencia not in {"global", "centros"}:
+        raise ValueError("Selecione uma abrangência válida.")
+    if abrangencia == "centros" and not centro_ids:
+        raise ValueError("Selecione ao menos um centro de custos.")
+    if modulo_menu not in MODULOS_MENU:
+        raise ValueError("Selecione um módulo válido para a sidebar.")
+    if any(not str(centro_id).isdigit() for centro_id in centro_ids):
+        raise ValueError("Um dos centros de custos selecionados é inválido.")
+
+    parametros = [nome]
+    exclusao = ""
+    if checklist_id is not None:
+        exclusao = " AND id <> %s"
+        parametros.append(checklist_id)
+    cursor.execute(f"""
+        SELECT id FROM checklist_modelos
+         WHERE LOWER(TRIM(nome)) = LOWER(TRIM(%s)){exclusao}
+         LIMIT 1
+    """, parametros)
+    if cursor.fetchone():
+        raise ValueError("Já existe outro checklist com esse nome." if checklist_id else
+                         "Já existe um checklist com esse nome.")
+
+    if abrangencia == "centros":
+        marcadores = ",".join(["%s"] * len(centro_ids))
+        cursor.execute(
+            f"SELECT id FROM centros_custos WHERE ativo = 1 AND id IN ({marcadores})",
+            centro_ids,
+        )
+        if {str(item["id"]) for item in cursor.fetchall()} != set(centro_ids):
+            raise ValueError("Um dos centros de custos selecionados é inválido.")
+    else:
+        centro_ids = []
+
+    return {
+        "nome": nome,
+        "descricao": descricao,
+        "abrangencia": abrangencia,
+        "centro_ids": centro_ids,
+        "modulo_menu": modulo_menu,
+        "exibir_menu": exibir_menu,
+        "ordem_menu": ordem_menu,
+    }
+
+
+def _sincronizar_centros_modelo(cursor, checklist_id, centro_ids):
+    cursor.execute(
+        "DELETE FROM checklist_modelos_centros WHERE checklist_id = %s",
+        (checklist_id,),
+    )
+    if centro_ids:
+        cursor.executemany("""
+            INSERT INTO checklist_modelos_centros (checklist_id, centro_custos_id)
+            VALUES (%s, %s)
+        """, [(checklist_id, centro_id) for centro_id in centro_ids])
+
+
 def _pode_acessar_modulo(modulo_menu):
     if (session.get("perfil") or "").lower() == "administrador":
         return True
@@ -387,7 +473,7 @@ def _buscar_modelo_visivel(cursor, checklist_id):
 
 def _ler_estrutura(valor):
     if isinstance(valor, list):
-        estrutura = valor
+        estrutura = deepcopy(valor)
     else:
         try:
             estrutura = json.loads(valor or "[]")
@@ -589,7 +675,7 @@ def _validar_respostas(estrutura, formulario, pessoas=None, setores=None,
                 etiqueta = etiquetas_nfc.get(str(valor))
                 metodo_leitura = (formulario.get(f"{chave}_nfc_method") or "").strip()
                 canal_leitura = (formulario.get(f"{chave}_nfc_channel") or "").strip()
-                leitura_valida = metodo_leitura == "physical" and canal_leitura in {"usb", "web_nfc"}
+                leitura_valida = metodo_leitura == "physical" and canal_leitura in CANAIS_NFC
                 if etiqueta and item.get("nfc_physical_required") and not leitura_valida:
                     erros.append(f"Faça a leitura física da etiqueta em: {item.get('text')}")
                     etiqueta = None
@@ -602,12 +688,16 @@ def _validar_respostas(estrutura, formulario, pessoas=None, setores=None,
                     "read_at": datetime.now().astimezone().isoformat(timespec="seconds"),
                 } if etiqueta else {})
             elif tipo == "nfc_signature":
+                leituras_raw = formulario.get(f"{chave}_nfc_signatures") or "[]"
                 try:
-                    leituras = json.loads(formulario.get(f"{chave}_nfc_signatures") or "[]")
+                    leituras = json.loads(leituras_raw) if len(leituras_raw) <= 100000 else []
                 except (TypeError, ValueError):
                     leituras = []
                 if not isinstance(leituras, list):
                     leituras = []
+                if len(leituras) > MAX_ASSINATURAS_POR_CAMPO:
+                    leituras = []
+                    erros.append(f"O limite de assinaturas foi excedido em: {item.get('text')}")
                 origem_chave = item.get("_signature_source_key")
                 origem_tipo = item.get("_signature_source_type")
                 if origem_tipo == "people":
@@ -625,12 +715,12 @@ def _validar_respostas(estrutura, formulario, pessoas=None, setores=None,
                     if not isinstance(leitura, dict):
                         leitura_invalida = True
                         continue
-                    uid_lido = str(leitura.get("uid") or "").strip()
+                    uid_lido = _normalizar_uid_nfc(leitura.get("uid"))
                     canal_leitura = str(leitura.get("channel") or "").strip()
                     usuario_id = str(leitura.get("user_id") or "").strip()
                     assinante = assinantes_nfc.get(uid_lido)
                     if (not assinante or str(assinante["id"]) != usuario_id
-                            or canal_leitura not in {"usb", "web_nfc"}
+                            or canal_leitura not in CANAIS_NFC
                             or (origem_chave and usuario_id not in esperados)
                             or usuario_id in ids_assinados):
                         leitura_invalida = True
@@ -723,6 +813,16 @@ def _validar_respostas(estrutura, formulario, pessoas=None, setores=None,
             )
             comentario = (formulario.get(f"{chave}_comment") or "").strip()
             evidencia = (formulario.get(f"{chave}_evidence") or "").strip()
+            if len(comentario) > MAX_COMENTARIO_RESPOSTA:
+                comentario = ""
+                erros.append(
+                    f"Use até {MAX_COMENTARIO_RESPOSTA} caracteres no comentário: {item.get('text')}"
+                )
+            if len(evidencia) > MAX_EVIDENCIA_RESPOSTA:
+                evidencia = ""
+                erros.append(
+                    f"Use até {MAX_EVIDENCIA_RESPOSTA} caracteres na evidência: {item.get('text')}"
+                )
             if negativo and item.get("negative_comment") and not comentario:
                 erros.append(f"Informe o comentário do resultado negativo: {item.get('text')}")
             if negativo and item.get("negative_evidence") and not evidencia:
@@ -901,6 +1001,71 @@ def _listar_assinantes_nfc(cursor, pessoas):
     return cursor.fetchall()
 
 
+def _listar_responsaveis_acao(cursor, checklist):
+    """Restringe responsáveis ao mesmo escopo do checklist e ao acesso ao plano."""
+    perfil_admin = (session.get("perfil") or "").lower() == "administrador"
+    if perfil_admin and checklist.get("abrangencia") == "centros":
+        cursor.execute("""
+            SELECT DISTINCT u.id, u.nome, u.matricula
+              FROM usuarios u
+              JOIN checklist_modelos_centros cmc
+                ON cmc.centro_custos_id = u.centro_custos_id
+             WHERE cmc.checklist_id = %s AND u.ativo = 1
+               AND u.acesso_plano_acao = 1
+             ORDER BY u.nome
+        """, (checklist["id"],))
+    elif perfil_admin:
+        cursor.execute("""
+            SELECT id, nome, matricula FROM usuarios
+             WHERE ativo = 1 AND acesso_plano_acao = 1 ORDER BY nome
+        """)
+    elif session.get("centro_custos_id"):
+        cursor.execute("""
+            SELECT id, nome, matricula FROM usuarios
+             WHERE ativo = 1 AND acesso_plano_acao = 1
+               AND centro_custos_id = %s ORDER BY nome
+        """, (session.get("centro_custos_id"),))
+    else:
+        cursor.execute("""
+            SELECT id, nome, matricula FROM usuarios
+             WHERE ativo = 1 AND acesso_plano_acao = 1 AND id = %s
+        """, (session.get("usuario_id"),))
+    return cursor.fetchall()
+
+
+def _listar_etiquetas_nfc(cursor, checklist):
+    """Expõe somente etiquetas ativas e pertencentes ao escopo da execução."""
+    centro_id = session.get("centro_custos_id")
+    perfil_admin = (session.get("perfil") or "").lower() == "administrador"
+    if centro_id:
+        cursor.execute("""
+            SELECT DISTINCT e.id, e.numero, e.descricao, e.token
+              FROM nfc_etiquetas e
+         LEFT JOIN nfc_etiquetas_centros ec ON ec.etiqueta_id = e.id
+             WHERE e.ativo = 1
+               AND (e.abrangencia = 'global' OR ec.centro_custos_id = %s)
+             ORDER BY e.descricao, e.numero
+        """, (centro_id,))
+    elif perfil_admin and checklist.get("abrangencia") == "centros":
+        cursor.execute("""
+            SELECT DISTINCT e.id, e.numero, e.descricao, e.token
+              FROM nfc_etiquetas e
+         LEFT JOIN nfc_etiquetas_centros ec ON ec.etiqueta_id = e.id
+         LEFT JOIN checklist_modelos_centros cmc
+                ON cmc.centro_custos_id = ec.centro_custos_id
+             WHERE e.ativo = 1
+               AND (e.abrangencia = 'global' OR cmc.checklist_id = %s)
+             ORDER BY e.descricao, e.numero
+        """, (checklist["id"],))
+    else:
+        cursor.execute("""
+            SELECT id, numero, descricao, token FROM nfc_etiquetas
+             WHERE ativo = 1 AND abrangencia = 'global'
+             ORDER BY descricao, numero
+        """)
+    return cursor.fetchall()
+
+
 def register_checklists_dinamicos_routes(blueprint):
     @blueprint.route("/admin/checklists", methods=["GET", "POST"])
     @login_required
@@ -910,46 +1075,11 @@ def register_checklists_dinamicos_routes(blueprint):
         cursor = conn.cursor(dictionary=True)
         try:
             if request.method == "POST":
-                nome = (request.form.get("nome") or "").strip()
-                descricao = (request.form.get("descricao") or "").strip()
-                abrangencia = request.form.get("abrangencia") or "global"
-                centro_ids = list(dict.fromkeys(request.form.getlist("centro_custos_ids")))
-                modulo_menu = request.form.get("modulo_menu") or "ssma"
-                exibir_menu = 1 if request.form.get("exibir_menu") == "1" else 0
-                ordem_menu = _inteiro_nao_negativo(request.form.get("ordem_menu"))
-
-                if not nome:
-                    flash("Informe o nome do checklist.", "danger")
+                try:
+                    config = _validar_configuracao_modelo(cursor, request.form)
+                except ValueError as erro:
+                    flash(str(erro), "danger")
                     return redirect(url_for("main.checklists_dinamicos"))
-                if abrangencia not in {"global", "centros"}:
-                    flash("Selecione uma abrangência válida.", "danger")
-                    return redirect(url_for("main.checklists_dinamicos"))
-                if abrangencia == "centros" and not centro_ids:
-                    flash("Selecione ao menos um centro de custos.", "danger")
-                    return redirect(url_for("main.checklists_dinamicos"))
-                if modulo_menu not in MODULOS_MENU:
-                    flash("Selecione um módulo válido para a sidebar.", "danger")
-                    return redirect(url_for("main.checklists_dinamicos"))
-
-                cursor.execute(
-                    "SELECT id FROM checklist_modelos WHERE LOWER(TRIM(nome)) = LOWER(TRIM(%s)) LIMIT 1",
-                    (nome,),
-                )
-                if cursor.fetchone():
-                    flash("Já existe um checklist com esse nome.", "danger")
-                    return redirect(url_for("main.checklists_dinamicos"))
-
-                if abrangencia == "centros":
-                    cursor.execute(
-                        "SELECT id FROM centros_custos WHERE ativo = 1 AND id IN ({})".format(
-                            ",".join(["%s"] * len(centro_ids))
-                        ),
-                        centro_ids,
-                    )
-                    centros_validos = {str(item["id"]) for item in cursor.fetchall()}
-                    if centros_validos != set(centro_ids):
-                        flash("Um dos centros de custos selecionados é inválido.", "danger")
-                        return redirect(url_for("main.checklists_dinamicos"))
 
                 cursor.execute("""
                     INSERT INTO checklist_modelos (
@@ -957,16 +1087,13 @@ def register_checklists_dinamicos_routes(blueprint):
                         exibir_menu, modulo_menu, ordem_menu, criado_por
                     ) VALUES (%s, %s, %s, 'rascunho', 1, %s, %s, %s, %s)
                 """, (
-                    nome, descricao or None, abrangencia, exibir_menu,
-                    modulo_menu, ordem_menu, session.get("usuario_id"),
+                    config["nome"], config["descricao"] or None,
+                    config["abrangencia"], config["exibir_menu"],
+                    config["modulo_menu"], config["ordem_menu"],
+                    session.get("usuario_id"),
                 ))
                 checklist_id = cursor.lastrowid
-                if abrangencia == "centros":
-                    cursor.executemany("""
-                        INSERT INTO checklist_modelos_centros (
-                            checklist_id, centro_custos_id
-                        ) VALUES (%s, %s)
-                    """, [(checklist_id, centro_id) for centro_id in centro_ids])
+                _sincronizar_centros_modelo(cursor, checklist_id, config["centro_ids"])
                 conn.commit()
                 flash(
                     "Esboço do checklist criado como rascunho. "
@@ -1032,43 +1159,23 @@ def register_checklists_dinamicos_routes(blueprint):
             centro_ids_selecionados = [str(item["centro_custos_id"]) for item in cursor.fetchall()]
 
             if request.method == "POST":
-                nome = (request.form.get("nome") or "").strip()
-                descricao = (request.form.get("descricao") or "").strip()
-                abrangencia = request.form.get("abrangencia") or "global"
-                centro_ids_selecionados = list(dict.fromkeys(request.form.getlist("centro_custos_ids")))
-                modulo_menu = request.form.get("modulo_menu") or "ssma"
-                exibir_menu = 1 if request.form.get("exibir_menu") == "1" else 0
-                ordem_menu = _inteiro_nao_negativo(request.form.get("ordem_menu"))
+                config = None
+                centro_ids_selecionados = list(dict.fromkeys(
+                    request.form.getlist("centro_custos_ids")
+                ))
                 checklist.update(
-                    nome=nome, descricao=descricao, abrangencia=abrangencia,
-                    modulo_menu=modulo_menu, exibir_menu=exibir_menu,
-                    ordem_menu=ordem_menu,
+                    nome=(request.form.get("nome") or "").strip(),
+                    descricao=(request.form.get("descricao") or "").strip(),
+                    abrangencia=request.form.get("abrangencia") or "global",
+                    modulo_menu=request.form.get("modulo_menu") or "ssma",
+                    exibir_menu=1 if request.form.get("exibir_menu") == "1" else 0,
+                    ordem_menu=_inteiro_nao_negativo(request.form.get("ordem_menu")),
                 )
                 try:
-                    if not nome:
-                        raise ValueError("Informe o nome do checklist.")
-                    if abrangencia not in {"global", "centros"}:
-                        raise ValueError("Selecione uma abrangência válida.")
-                    if abrangencia == "centros" and not centro_ids_selecionados:
-                        raise ValueError("Selecione ao menos um centro de custos.")
-                    if modulo_menu not in MODULOS_MENU:
-                        raise ValueError("Selecione um módulo válido para a sidebar.")
-                    cursor.execute("""
-                        SELECT id FROM checklist_modelos
-                         WHERE LOWER(TRIM(nome)) = LOWER(TRIM(%s)) AND id <> %s
-                         LIMIT 1
-                    """, (nome, checklist_id))
-                    if cursor.fetchone():
-                        raise ValueError("Já existe outro checklist com esse nome.")
-                    if abrangencia == "centros":
-                        cursor.execute(
-                            "SELECT id FROM centros_custos WHERE ativo = 1 AND id IN ({})".format(
-                                ",".join(["%s"] * len(centro_ids_selecionados))
-                            ),
-                            centro_ids_selecionados,
-                        )
-                        if {str(item["id"]) for item in cursor.fetchall()} != set(centro_ids_selecionados):
-                            raise ValueError("Um dos centros de custos selecionados é inválido.")
+                    config = _validar_configuracao_modelo(
+                        cursor, request.form, checklist_id=checklist_id
+                    )
+                    centro_ids_selecionados = config["centro_ids"]
                     estrutura = validar_estrutura(request.form.get("estrutura_json"))
                 except ValueError as erro:
                     flash(str(erro), "danger")
@@ -1083,15 +1190,14 @@ def register_checklists_dinamicos_routes(blueprint):
                                publicado_em = CASE WHEN status = 'publicado' THEN CURRENT_TIMESTAMP ELSE publicado_em END
                          WHERE id = %s
                     """, (
-                        nome, descricao or None, abrangencia, exibir_menu,
-                        modulo_menu, ordem_menu, estrutura_json, checklist_id,
+                        config["nome"], config["descricao"] or None,
+                        config["abrangencia"], config["exibir_menu"],
+                        config["modulo_menu"], config["ordem_menu"],
+                        estrutura_json, checklist_id,
                     ))
-                    cursor.execute("DELETE FROM checklist_modelos_centros WHERE checklist_id = %s", (checklist_id,))
-                    if abrangencia == "centros":
-                        cursor.executemany("""
-                            INSERT INTO checklist_modelos_centros (checklist_id, centro_custos_id)
-                            VALUES (%s, %s)
-                        """, [(checklist_id, centro_id) for centro_id in centro_ids_selecionados])
+                    _sincronizar_centros_modelo(
+                        cursor, checklist_id, config["centro_ids"]
+                    )
                     conn.commit()
                     flash("Checklist atualizado com sucesso.", "success")
                     return redirect(url_for("main.editar_checklist_dinamico", checklist_id=checklist_id))
@@ -1301,7 +1407,7 @@ def register_checklists_dinamicos_routes(blueprint):
     @login_required
     def validar_assinatura_nfc(checklist_id):
         dados = request.get_json(silent=True) or {}
-        uid_lido = (dados.get("uid") or "").strip()
+        uid_lido = _normalizar_uid_nfc(dados.get("uid")) if isinstance(dados, dict) else ""
         if not uid_lido:
             return jsonify(sucesso=False, mensagem="Aproxime o crachá no leitor NFC."), 400
 
@@ -1356,67 +1462,10 @@ def register_checklists_dinamicos_routes(blueprint):
 
             pessoas = _listar_pessoas_checklist(cursor, checklist)
             assinantes_nfc = _listar_assinantes_nfc(cursor, pessoas)
-            if ((session.get("perfil") or "").lower() == "administrador"
-                    and checklist.get("abrangencia") == "centros"):
-                cursor.execute("""
-                    SELECT DISTINCT u.id, u.nome, u.matricula
-                      FROM usuarios u
-                      JOIN checklist_modelos_centros cmc
-                        ON cmc.centro_custos_id = u.centro_custos_id
-                     WHERE cmc.checklist_id = %s AND u.ativo = 1
-                       AND u.acesso_plano_acao = 1
-                     ORDER BY u.nome
-                """, (checklist_id,))
-            elif (session.get("perfil") or "").lower() == "administrador":
-                cursor.execute("""
-                    SELECT id, nome, matricula FROM usuarios
-                     WHERE ativo = 1 AND acesso_plano_acao = 1 ORDER BY nome
-                """)
-            elif session.get("centro_custos_id"):
-                cursor.execute("""
-                    SELECT id, nome, matricula FROM usuarios
-                     WHERE ativo = 1 AND acesso_plano_acao = 1
-                       AND centro_custos_id = %s ORDER BY nome
-                """, (session.get("centro_custos_id"),))
-            else:
-                cursor.execute("""
-                    SELECT id, nome, matricula FROM usuarios
-                     WHERE ativo = 1 AND acesso_plano_acao = 1 AND id = %s
-                """, (session.get("usuario_id"),))
-            responsaveis_acao = cursor.fetchall()
+            responsaveis_acao = _listar_responsaveis_acao(cursor, checklist)
             cursor.execute("SELECT id, nome FROM setores WHERE ativo = 1 ORDER BY nome")
             setores = cursor.fetchall()
-
-            centro_custos_id = session.get("centro_custos_id")
-            if centro_custos_id:
-                cursor.execute("""
-                    SELECT DISTINCT e.id, e.numero, e.descricao, e.token
-                      FROM nfc_etiquetas e
-                      LEFT JOIN nfc_etiquetas_centros ec ON ec.etiqueta_id = e.id
-                     WHERE e.ativo = 1
-                       AND (e.abrangencia = 'global' OR ec.centro_custos_id = %s)
-                     ORDER BY e.descricao, e.numero
-                """, (centro_custos_id,))
-            elif ((session.get("perfil") or "").lower() == "administrador"
-                  and checklist.get("abrangencia") == "centros"):
-                cursor.execute("""
-                    SELECT DISTINCT e.id, e.numero, e.descricao, e.token
-                      FROM nfc_etiquetas e
-                      LEFT JOIN nfc_etiquetas_centros ec ON ec.etiqueta_id = e.id
-                      LEFT JOIN checklist_modelos_centros cmc
-                        ON cmc.centro_custos_id = ec.centro_custos_id
-                     WHERE e.ativo = 1
-                       AND (e.abrangencia = 'global' OR cmc.checklist_id = %s)
-                     ORDER BY e.descricao, e.numero
-                """, (checklist_id,))
-            else:
-                cursor.execute("""
-                    SELECT e.id, e.numero, e.descricao, e.token
-                      FROM nfc_etiquetas e
-                     WHERE e.ativo = 1 AND e.abrangencia = 'global'
-                     ORDER BY e.descricao, e.numero
-                """)
-            etiquetas_nfc = cursor.fetchall()
+            etiquetas_nfc = _listar_etiquetas_nfc(cursor, checklist)
 
             valores = request.form.to_dict(flat=False) if request.method == "POST" else {}
             if request.method == "POST":
@@ -1465,6 +1514,9 @@ def register_checklists_dinamicos_routes(blueprint):
                         "main.abrir_checklist_dinamico",
                         checklist_id=checklist_id,
                     ))
+        except Exception:
+            conn.rollback()
+            raise
         finally:
             cursor.close()
             conn.close()

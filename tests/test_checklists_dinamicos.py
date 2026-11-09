@@ -539,6 +539,54 @@ class ConfigurableChecklistSketchTests(unittest.TestCase):
         self.assertIn("INSERT INTO checklist_execucao_acoes", source)
         self.assertIn("INSERT INTO acoes", source)
 
+    def test_runtime_structure_enrichment_does_not_mutate_saved_definition(self):
+        from app.views.checklists_dinamicos import _ler_estrutura
+
+        original = [{"title": "Dados", "questions": [{
+            "text": "Resumo", "type": "text", "required": False,
+        }]}]
+        runtime = _ler_estrutura(original)
+        self.assertNotIn("layout", original[0])
+        self.assertNotIn("max_length", original[0]["questions"][0])
+        self.assertEqual(runtime[0]["questions"][0]["max_length"], 255)
+
+    def test_oversized_free_text_and_signature_payloads_are_rejected(self):
+        from werkzeug.datastructures import MultiDict
+        from app.views.checklists_dinamicos import _validar_respostas, validar_estrutura
+
+        definition = [{"title": "Teste", "questions": [
+            {"text": "Condição", "type": "conformity", "required": True,
+             "negative_comment": True, "negative_evidence": True, "options": []},
+            {"text": "Assinatura", "type": "nfc_signature", "required": False,
+             "negative_comment": False, "negative_evidence": False, "options": []},
+        ]}]
+        clean = validar_estrutura(definition)
+        signatures = [
+            {"user_id": index, "uid": f"UID{index}", "channel": "usb"}
+            for index in range(201)
+        ]
+        form = MultiDict([
+            ("q_0_0", "nao_conforme"),
+            ("q_0_0_comment", "x" * 3001),
+            ("q_0_0_evidence", "x" * 1001),
+            ("q_0_1_nfc_signatures", json.dumps(signatures)),
+        ])
+        _, errors = _validar_respostas(clean, form)
+        self.assertTrue(any("comentário" in error for error in errors))
+        self.assertTrue(any("evidência" in error for error in errors))
+        self.assertTrue(any("limite de assinaturas" in error for error in errors))
+
+    def test_execution_form_prevents_accidental_double_submission(self):
+        template = (ROOT / "app" / "templates" / "checklist_dinamico_aplicar.html").read_text(
+            encoding="utf-8"
+        )
+        runner = (ROOT / "app" / "static" / "js" / "checklist-run.js").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("data-checklist-form", template)
+        self.assertIn("form.dataset.submitting", runner)
+        self.assertIn("Salvando…", runner)
+
 
 if __name__ == "__main__":
     unittest.main()

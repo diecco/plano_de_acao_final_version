@@ -1,4 +1,19 @@
 document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('[data-checklist-form]').forEach((form) => {
+    form.addEventListener('submit', (event) => {
+      if (form.dataset.submitting === '1') {
+        event.preventDefault();
+        return;
+      }
+      form.dataset.submitting = '1';
+      const submit = form.querySelector('button[type="submit"]');
+      if (submit) {
+        submit.disabled = true;
+        submit.textContent = 'Salvando…';
+      }
+    });
+  });
+
   document.querySelectorAll('.checklist-layout-grouped .checklist-section-title').forEach((title) => {
     title.setAttribute('role', 'button');
     title.setAttribute('tabindex', '0');

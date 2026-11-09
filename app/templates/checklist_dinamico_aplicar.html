@@ -30,7 +30,7 @@
 {% endmacro %}
 <div class="page-header"><h2 class="page-title text-center mb-0"><i class="bi bi-ui-checks-grid me-2"></i>{{ checklist.nome }}</h2></div>
 <hr>
-<form method="post" class="checklist-run" novalidate>
+<form method="post" class="checklist-run" data-checklist-form novalidate>
 {% set section_counter = namespace(value=0) %}
 {% for secao in estrutura %}
     {% set si = loop.index0 %}
@@ -151,8 +151,8 @@
 
                     {% if item.negative_comment or item.negative_evidence or item.negative_action %}
                     <div class="negative-details mt-3" data-negative-for="{{ key }}">
-                        {% if item.negative_comment %}<label class="form-label">Comentário do resultado negativo</label><textarea class="form-control mb-2" name="{{ key }}_comment" rows="2">{{ valores.get(key ~ '_comment', [''])[0] }}</textarea>{% endif %}
-                        {% if item.negative_evidence %}<label class="form-label">Evidência / referência</label><input class="form-control" name="{{ key }}_evidence" value="{{ valores.get(key ~ '_evidence', [''])[0] }}" placeholder="Descreva ou informe a referência da evidência">{% endif %}
+                        {% if item.negative_comment %}<label class="form-label">Comentário do resultado negativo</label><textarea class="form-control mb-2" name="{{ key }}_comment" rows="2" maxlength="3000">{{ valores.get(key ~ '_comment', [''])[0] }}</textarea>{% endif %}
+                        {% if item.negative_evidence %}<label class="form-label">Evidência / referência</label><input class="form-control" name="{{ key }}_evidence" maxlength="1000" value="{{ valores.get(key ~ '_evidence', [''])[0] }}" placeholder="Descreva ou informe a referência da evidência">{% endif %}
                         {% if item.negative_action %}<div class="checklist-action-fields mt-3"><div class="fw-semibold text-laranja mb-2">Ação vinculada ao desvio</div><textarea class="form-control mb-2" name="{{ key }}_action_description" rows="2" maxlength="3000" placeholder="O que deverá ser feito?">{{ valores.get(key ~ '_action_description', [''])[0] }}</textarea><div class="row g-2"><div class="col-md-7"><div class="checklist-person-picker" data-person-picker data-mode="single" data-source="actions" data-name="{{ key }}_action_responsible"><input class="form-control person-search" autocomplete="off" placeholder="Responsável pela ação"><input type="hidden" name="{{ key }}_action_responsible" value="{{ valores.get(key ~ '_action_responsible', [''])[0] }}" data-person-value><div class="person-results shadow-sm" hidden></div></div></div><div class="col-md-5"><input class="form-control" type="date" name="{{ key }}_action_due" value="{{ valores.get(key ~ '_action_due', [''])[0] }}" min="{{ hoje_iso }}" aria-label="Prazo da ação"></div></div></div>{% endif %}
                     </div>
                     {% endif %}
