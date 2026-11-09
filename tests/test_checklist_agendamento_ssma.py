@@ -34,6 +34,14 @@ class ChecklistAgendamentoSsmaTests(unittest.TestCase):
         self.assertIn("registro_executado_id = %s", fonte)
         self.assertIn("AND registro_executado_id IS NULL", fonte)
         self.assertIn('"concluida_com_atraso"', fonte)
+        trecho_aplicacao = fonte.split(
+            'def aplicar_checklist_dinamico(checklist_id):', 1
+        )[1]
+        inicializacao = trecho_aplicacao.index(
+            'agendamento_id = request.values.get("agendamento_id", type=int)'
+        )
+        primeiro_uso = trecho_aplicacao.index("if agendamento_id:")
+        self.assertLess(inicializacao, primeiro_uso)
 
     def test_telas_exibem_selecao_e_nome_do_checklist(self):
         novo = (ROOT / "app" / "templates" / "novo_agendamento_ssma.html").read_text(

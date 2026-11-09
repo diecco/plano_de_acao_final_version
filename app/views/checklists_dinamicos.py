@@ -1294,14 +1294,7 @@ def register_checklists_dinamicos_routes(blueprint):
             checklist = _buscar_modelo_visivel(cursor, checklist_id)
             if not checklist:
                 abort(404)
-            agendamento_id = request.values.get("agendamento_id", type=int)
-            next_recebido = (request.values.get("next") or "").strip()
-            next_url = (
-                next_recebido
-                if next_recebido.startswith("/") and not next_recebido.startswith("//")
-                else ""
-            )
-            if not _pode_acessar_modulo(checklist["modulo_menu"]) and not agendamento_id:
+            if not _pode_acessar_modulo(checklist["modulo_menu"]):
                 abort(403)
             estrutura = _ler_estrutura(checklist.get("estrutura_json"))
             perfil_admin = (session.get("perfil") or "").lower() == "administrador"
@@ -1436,7 +1429,25 @@ def register_checklists_dinamicos_routes(blueprint):
             if not checklist:
                 abort(404)
             if not _pode_acessar_modulo(checklist["modulo_menu"]):
-                abort(403)
+                agendamento_id = request.args.get("agendamento_id", type=int)
+                if not agendamento_id:
+                    abort(403)
+                cursor.execute("""
+                    SELECT id
+                      FROM agendamentos_ssma
+                     WHERE id = %s
+                       AND lider_id = %s
+                       AND pratica = 'checklist_configuravel'
+                       AND checklist_modelo_id = %s
+                       AND status <> 'cancelada'
+                     LIMIT 1
+                """, (
+                    agendamento_id,
+                    session.get("usuario_id"),
+                    checklist_id,
+                ))
+                if not cursor.fetchone():
+                    abort(403)
             pessoas = _listar_pessoas_checklist(cursor, checklist)
             assinantes = _listar_assinantes_nfc(cursor, pessoas)
             assinante = next(
@@ -1471,7 +1482,14 @@ def register_checklists_dinamicos_routes(blueprint):
             checklist = _buscar_modelo_visivel(cursor, checklist_id)
             if not checklist:
                 abort(404)
-            if not _pode_acessar_modulo(checklist["modulo_menu"]):
+            agendamento_id = request.values.get("agendamento_id", type=int)
+            next_recebido = (request.values.get("next") or "").strip()
+            next_url = (
+                next_recebido
+                if next_recebido.startswith("/") and not next_recebido.startswith("//")
+                else ""
+            )
+            if not _pode_acessar_modulo(checklist["modulo_menu"]) and not agendamento_id:
                 abort(403)
             estrutura = _ler_estrutura(checklist.get("estrutura_json"))
             if not estrutura:

@@ -18,7 +18,7 @@
 {% if not etiquetas_nfc %}<small class="d-block text-muted mt-1">Nenhuma etiqueta ativa está disponível para este centro de custos.</small>{% endif %}
 {% endmacro %}
 {% macro render_nfc_signature(item, key, valores) %}
-<div class="nfc-checkpoint nfc-signature" data-nfc-signature data-signature-url="{{ url_for('main.validar_assinatura_nfc', checklist_id=checklist.id) }}" data-signature-source="{{ item._signature_source_key|default('') }}" data-signature-source-type="{{ item._signature_source_type|default('') }}" data-signature-required="{{ '1' if item.required else '0' }}">
+<div class="nfc-checkpoint nfc-signature" data-nfc-signature data-signature-url="{{ url_for('main.validar_assinatura_nfc', checklist_id=checklist.id, agendamento_id=agendamento_id) if agendamento_id else url_for('main.validar_assinatura_nfc', checklist_id=checklist.id) }}" data-signature-source="{{ item._signature_source_key|default('') }}" data-signature-source-type="{{ item._signature_source_type|default('') }}" data-signature-required="{{ '1' if item.required else '0' }}">
     <input type="hidden" name="{{ key }}_nfc_signatures" value="{{ valores.get(key ~ '_nfc_signatures', ['[]'])[0] }}" data-nfc-signatures>
     <div class="row g-2 nfc-signature-people mb-3" data-signature-people></div>
     <div class="nfc-signature-reader">
