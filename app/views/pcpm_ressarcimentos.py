@@ -5,7 +5,7 @@ import re
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
-from flask import flash, redirect, render_template, request, send_file, send_from_directory, session, url_for
+from flask import current_app, flash, redirect, render_template, request, send_file, send_from_directory, session, url_for
 
 from app.decorators import login_required, module_required
 from app.upload_security import UploadService, UploadValidationError
@@ -92,6 +92,23 @@ def _centro_usuario_obrigatorio():
     if not _usuario_admin() and not centro_id:
         raise ValueError("O usuário não possui centro de custos configurado.")
     return centro_id
+
+
+def _garantir_processo_editavel(processo):
+    """Impede qualquer mutação depois do encerramento financeiro do processo."""
+    if processo["status_processo"] == "Cancelado":
+        raise ValueError("Reabra o processo antes de realizar alterações.")
+    if (
+        processo["status_processo"] == "Concluído"
+        or processo["status_faturamento"] == "Realizado"
+    ):
+        raise ValueError(
+            "O processo está concluído e faturado. Os dados permanecem disponíveis somente para consulta."
+        )
+
+
+def _registrar_erro_interno(mensagem, exc):
+    current_app.logger.exception("%s: %s", mensagem, exc)
 
 
 def _registrar_historico(cursor, ressarcimento_id, evento, descricao, anteriores=None, posteriores=None, etapa=None):
@@ -308,7 +325,13 @@ def register_pcpm_ressarcimentos_routes(blueprint):
                 raise ValueError("Um dos cadastros selecionados é inválido ou está fora do centro de custos.")
 
             ano = ocorrencia_em.year
-            cursor.execute("SELECT COALESCE(MAX(sequencial), 0) + 1 AS proximo FROM pcpm_ressarcimentos WHERE ano = %s FOR UPDATE", (ano,))
+            cursor.execute(
+                """INSERT INTO pcpm_ressarcimentos_sequencias (ano, ultimo)
+                   VALUES (%s, LAST_INSERT_ID(1))
+                   ON DUPLICATE KEY UPDATE ultimo=LAST_INSERT_ID(ultimo + 1)""",
+                (ano,),
+            )
+            cursor.execute("SELECT LAST_INSERT_ID() AS proximo")
             sequencial = cursor.fetchone()["proximo"]
             numero = f"RES-{sequencial:03d}/{ano}"
             equipamento_snapshot = f"{equipamento['codigo_frota']} - {equipamento['marca']} {equipamento['modelo']}"
@@ -354,7 +377,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             conn.rollback()
             for nome, diretorio in arquivos_salvos:
                 UploadService.excluir(nome, diretorio)
-            flash(f"Erro ao cadastrar o ressarcimento: {exc}", "danger")
+            _registrar_erro_interno("Erro ao cadastrar o ressarcimento", exc)
+            flash("Não foi possível cadastrar o ressarcimento. Tente novamente ou acione o suporte.", "danger")
             return redirect(url_for("main.novo_pcpm_ressarcimento"))
         finally:
             conn.close()
@@ -427,8 +451,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             processo = _buscar_processo_autorizado(cursor, ressarcimento_id, for_update=True)
             if not processo:
                 raise ValueError("Processo não encontrado ou fora do seu centro de custos.")
-            if processo["status_processo"] == "Cancelado":
-                raise ValueError("Reabra o processo antes de alterar a ocorrência.")
+            _garantir_processo_editavel(processo)
 
             equipamento_id = request.form.get("equipamento_id", type=int)
             empresa_id = request.form.get("empresa_ocorrencia_id", type=int)
@@ -520,7 +543,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             conn.rollback()
             for nome, diretorio in arquivos_salvos:
                 UploadService.excluir(nome, diretorio)
-            flash(f"Erro ao atualizar a ocorrência: {exc}", "danger")
+            _registrar_erro_interno("Erro ao atualizar a ocorrência", exc)
+            flash("Não foi possível atualizar a ocorrência. Tente novamente ou acione o suporte.", "danger")
         finally:
             conn.close()
         return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
@@ -537,8 +561,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             processo = _buscar_processo_autorizado(cursor, ressarcimento_id, for_update=True)
             if not processo:
                 raise ValueError("Processo não encontrado ou fora do seu centro de custos.")
-            if processo["status_processo"] == "Cancelado":
-                raise ValueError("Reabra o processo antes de incluir um orçamento.")
+            _garantir_processo_editavel(processo)
             if not processo["empresa_cliente_id"]:
                 raise ValueError("Conclua os dados do cliente antes de incluir o orçamento.")
 
@@ -598,7 +621,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             conn.rollback()
             for nome, diretorio in arquivos_salvos:
                 UploadService.excluir(nome, diretorio)
-            flash(f"Erro ao incluir o orçamento: {exc}", "danger")
+            _registrar_erro_interno("Erro ao incluir o orçamento", exc)
+            flash("Não foi possível incluir o orçamento. Tente novamente ou acione o suporte.", "danger")
         finally:
             conn.close()
         return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
@@ -615,8 +639,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             processo = _buscar_processo_autorizado(cursor, ressarcimento_id, for_update=True)
             if not processo:
                 raise ValueError("Processo não encontrado ou fora do seu centro de custos.")
-            if processo["status_processo"] == "Cancelado":
-                raise ValueError("Reabra o processo antes de alterar o orçamento.")
+            _garantir_processo_editavel(processo)
             cursor.execute(
                 """SELECT * FROM pcpm_ressarcimentos_orcamentos
                    WHERE id=%s AND ressarcimento_id=%s AND vigente=1 FOR UPDATE""",
@@ -675,7 +698,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             conn.rollback()
             for nome, diretorio in arquivos_salvos:
                 UploadService.excluir(nome, diretorio)
-            flash(f"Erro ao atualizar o orçamento: {exc}", "danger")
+            _registrar_erro_interno("Erro ao atualizar o orçamento", exc)
+            flash("Não foi possível atualizar o orçamento. Tente novamente ou acione o suporte.", "danger")
         finally:
             conn.close()
         return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
@@ -691,8 +715,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             processo = _buscar_processo_autorizado(cursor, ressarcimento_id, for_update=True)
             if not processo:
                 raise ValueError("Processo não encontrado ou fora do seu centro de custos.")
-            if processo["status_processo"] == "Cancelado":
-                raise ValueError("Reabra o processo antes de alterar os dados do cliente.")
+            _garantir_processo_editavel(processo)
 
             empresa_cliente_id = request.form.get("empresa_cliente_id", type=int)
             cliente_centro_custos = (request.form.get("cliente_centro_custos") or "").strip()
@@ -755,7 +778,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             flash(str(exc), "warning")
         except Exception as exc:
             conn.rollback()
-            flash(f"Erro ao atualizar os dados do cliente: {exc}", "danger")
+            _registrar_erro_interno("Erro ao atualizar os dados do cliente", exc)
+            flash("Não foi possível atualizar os dados do cliente. Tente novamente ou acione o suporte.", "danger")
         finally:
             conn.close()
         return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
@@ -772,8 +796,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             processo = _buscar_processo_autorizado(cursor, ressarcimento_id, for_update=True)
             if not processo:
                 raise ValueError("Processo não encontrado ou fora do seu centro de custos.")
-            if processo["status_processo"] == "Cancelado":
-                raise ValueError("Reabra o processo antes de incluir documentos.")
+            _garantir_processo_editavel(processo)
             documentos = [item for item in request.files.getlist("documentos") if item and item.filename]
             if not documentos:
                 raise ValueError("Selecione ao menos um documento comprobatório.")
@@ -807,7 +830,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             conn.rollback()
             for nome, diretorio in arquivos_salvos:
                 UploadService.excluir(nome, diretorio)
-            flash(f"Erro ao incluir a documentação: {exc}", "danger")
+            _registrar_erro_interno("Erro ao incluir a documentação", exc)
+            flash("Não foi possível incluir a documentação. Tente novamente ou acione o suporte.", "danger")
         finally:
             conn.close()
         return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
@@ -823,8 +847,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             processo = _buscar_processo_autorizado(cursor, ressarcimento_id, for_update=True)
             if not processo:
                 raise ValueError("Processo não encontrado ou fora do seu centro de custos.")
-            if processo["status_processo"] == "Cancelado":
-                raise ValueError("Reabra o processo antes de remover documentos.")
+            _garantir_processo_editavel(processo)
             cursor.execute(
                 """SELECT id, nome_original FROM pcpm_ressarcimentos_anexos
                    WHERE id=%s AND ressarcimento_id=%s
@@ -855,7 +878,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             flash(str(exc), "warning")
         except Exception as exc:
             conn.rollback()
-            flash(f"Erro ao remover o documento: {exc}", "danger")
+            _registrar_erro_interno("Erro ao remover o documento", exc)
+            flash("Não foi possível remover o documento. Tente novamente ou acione o suporte.", "danger")
         finally:
             conn.close()
         return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
@@ -920,7 +944,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             flash(str(exc), "warning")
         except Exception as exc:
             conn.rollback()
-            flash(f"Erro ao gerar o book de ressarcimento: {exc}", "danger")
+            _registrar_erro_interno("Erro ao gerar o book de ressarcimento", exc)
+            flash("Não foi possível gerar o book de ressarcimento. Tente novamente ou acione o suporte.", "danger")
         finally:
             conn.close()
         return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
@@ -1002,7 +1027,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             flash(str(exc), "warning")
         except Exception as exc:
             conn.rollback()
-            flash(f"Erro ao atualizar o faturamento: {exc}", "danger")
+            _registrar_erro_interno("Erro ao atualizar o faturamento", exc)
+            flash("Não foi possível atualizar o faturamento. Tente novamente ou acione o suporte.", "danger")
         finally:
             conn.close()
         return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
@@ -1068,6 +1094,10 @@ def register_pcpm_ressarcimentos_routes(blueprint):
         except ValueError as exc:
             conn.rollback()
             flash(str(exc), "warning")
+        except Exception as exc:
+            conn.rollback()
+            _registrar_erro_interno("Erro ao cancelar o ressarcimento", exc)
+            flash("Não foi possível cancelar o ressarcimento. Tente novamente ou acione o suporte.", "danger")
         finally:
             conn.close()
         return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
@@ -1102,6 +1132,10 @@ def register_pcpm_ressarcimentos_routes(blueprint):
         except ValueError as exc:
             conn.rollback()
             flash(str(exc), "warning")
+        except Exception as exc:
+            conn.rollback()
+            _registrar_erro_interno("Erro ao reabrir o ressarcimento", exc)
+            flash("Não foi possível reabrir o ressarcimento. Tente novamente ou acione o suporte.", "danger")
         finally:
             conn.close()
         return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))

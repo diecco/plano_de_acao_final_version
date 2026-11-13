@@ -1,11 +1,23 @@
 -- Módulo PCP-M / Ressarcimentos
 -- Execute no schema correto e confirme antes com SELECT DATABASE();
 
-ALTER TABLE usuarios
-    ADD COLUMN acesso_pcpm_ressarcimentos TINYINT(1) NOT NULL DEFAULT 0
-    AFTER acesso_pcpm;
+SET @coluna_ressarcimentos_existe = (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'usuarios'
+      AND COLUMN_NAME = 'acesso_pcpm_ressarcimentos'
+);
+SET @sql_coluna_ressarcimentos = IF(
+    @coluna_ressarcimentos_existe = 0,
+    'ALTER TABLE usuarios ADD COLUMN acesso_pcpm_ressarcimentos TINYINT(1) NOT NULL DEFAULT 0 AFTER acesso_pcpm',
+    'SELECT ''A coluna acesso_pcpm_ressarcimentos já existe.'' AS informacao'
+);
+PREPARE stmt_coluna_ressarcimentos FROM @sql_coluna_ressarcimentos;
+EXECUTE stmt_coluna_ressarcimentos;
+DEALLOCATE PREPARE stmt_coluna_ressarcimentos;
 
-CREATE TABLE pcpm_ressarcimentos (
+CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     ano SMALLINT NOT NULL,
     sequencial INT NOT NULL,
@@ -59,7 +71,18 @@ CREATE TABLE pcpm_ressarcimentos (
     CONSTRAINT fk_ressarcimento_reabertura FOREIGN KEY (reaberto_por) REFERENCES usuarios(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE pcpm_ressarcimentos_orcamentos (
+CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos_sequencias (
+    ano SMALLINT PRIMARY KEY,
+    ultimo INT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO pcpm_ressarcimentos_sequencias (ano, ultimo)
+SELECT ano, MAX(sequencial)
+FROM pcpm_ressarcimentos
+GROUP BY ano
+ON DUPLICATE KEY UPDATE ultimo = GREATEST(ultimo, VALUES(ultimo));
+
+CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos_orcamentos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     ressarcimento_id INT NOT NULL,
     versao INT NOT NULL,
@@ -75,7 +98,7 @@ CREATE TABLE pcpm_ressarcimentos_orcamentos (
     CONSTRAINT fk_orcamento_criador FOREIGN KEY (criado_por) REFERENCES usuarios(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE pcpm_ressarcimentos_anexos (
+CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos_anexos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     ressarcimento_id INT NOT NULL,
     orcamento_id INT NULL,
@@ -95,7 +118,7 @@ CREATE TABLE pcpm_ressarcimentos_anexos (
     CONSTRAINT fk_anexo_criador FOREIGN KEY (criado_por) REFERENCES usuarios(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE pcpm_ressarcimentos_historico (
+CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos_historico (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     ressarcimento_id INT NOT NULL,
     etapa TINYINT NULL,
