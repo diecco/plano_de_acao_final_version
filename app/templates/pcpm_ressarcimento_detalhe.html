@@ -12,6 +12,10 @@
   .ress-step-panel[hidden] { display:none !important; }
   .ress-step-summary { background:#f8f9fa; border-radius:8px; padding:10px 12px; }
   .ress-step-summary small { color:#6c757d; display:block; }
+  .ress-section-header { align-items:flex-start; display:flex; gap:1rem; justify-content:space-between; margin-bottom:1rem; min-height:58px; }
+  .ress-section-heading { flex:1 1 auto; min-width:0; text-align:left; }
+  .ress-section-heading h3 { text-align:left !important; }
+  .ress-section-actions { align-items:flex-start; display:flex; flex:0 0 auto; gap:.5rem; }
   @media (max-width:900px) {
     .ress-workflow { grid-template-columns:repeat(6,130px); overflow-x:auto; padding-bottom:4px; }
   }
@@ -42,8 +46,8 @@
                 <div class="col-md-4"><strong>Ocorrência</strong><br>{{ processo.ocorrencia_em.strftime('%d/%m/%Y %H:%M') }}</div>
                 <div class="col-md-4"><strong>Equipamento</strong><br>{{ processo.equipamento_snapshot }}</div>
                 <div class="col-md-4"><strong>Empresa</strong><br>{{ processo.empresa_ocorrencia_snapshot }}</div>
-                <div class="col-md-6"><strong>Operador</strong><br>{{ processo.operador_nome_snapshot or 'Não informado' }}{% if processo.operador_matricula_snapshot %} — {{ processo.operador_matricula_snapshot }}{% endif %}</div>
-                <div class="col-md-6"><strong>Funcionário Tradimaq</strong><br>{{ processo.funcionario_nome_snapshot }}{% if processo.funcionario_matricula_snapshot %} — {{ processo.funcionario_matricula_snapshot }}{% endif %}</div>
+                <div class="col-md-4"><strong>Operador</strong><br>{{ processo.operador_nome_snapshot or 'Não informado' }}{% if processo.operador_matricula_snapshot %} — {{ processo.operador_matricula_snapshot }}{% endif %}</div>
+                <div class="col-md-4"><strong>Funcionário Tradimaq</strong><br>{{ processo.funcionario_nome_snapshot }}{% if processo.funcionario_matricula_snapshot %} — {{ processo.funcionario_matricula_snapshot }}{% endif %}</div>
                 <div class="col-12"><strong>Descrição</strong><div class="border rounded p-3 mt-1">{{ processo.descricao_ocorrencia }}</div></div>
             </div>
             <div class="d-flex justify-content-end mt-4">
@@ -84,9 +88,11 @@
 <section id="ressEtapa2" class="ress-step-panel" data-ress-panel="2" role="tabpanel" hidden>
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
-          <div><h3 class="fs-6 fw-bold text-laranja mb-1">Dados do cliente e aprovador</h3><div class="small text-muted">Informações necessárias para encaminhamento e aprovação do ressarcimento.</div></div>
+        <div class="ress-section-header">
+          <div class="ress-section-heading"><h3 class="fs-6 fw-bold text-laranja mb-1">Dados do cliente e aprovador</h3><div class="small text-muted">Informações necessárias para encaminhamento e aprovação do ressarcimento.</div></div>
+          <div class="ress-section-actions">
           {% if processo_editavel %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalDadosCliente" title="{% if processo.empresa_cliente_id %}Editar{% else %}Cadastrar{% endif %} dados do cliente"><i class="bi bi-{% if processo.empresa_cliente_id %}pencil-square{% else %}plus-circle{% endif %}"></i></button>{% endif %}
+          </div>
         </div>
         {% if processo.empresa_cliente_id %}
         <div class="row g-3">
@@ -106,9 +112,11 @@
 <section id="ressEtapa3" class="ress-step-panel" data-ress-panel="3" role="tabpanel" hidden>
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
-          <div><h3 class="fs-6 fw-bold text-laranja mb-1">Orçamento TOTVS</h3><div class="small text-muted">Versões, envio e retorno da aprovação do cliente.</div></div>
+        <div class="ress-section-header">
+          <div class="ress-section-heading"><h3 class="fs-6 fw-bold text-laranja mb-1">Orçamento TOTVS</h3><div class="small text-muted">Versões, envio e retorno da aprovação do cliente.</div></div>
+          <div class="ress-section-actions">
           {% if processo_editavel %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalNovoOrcamento" title="Nova versão do orçamento" {% if not processo.empresa_cliente_id %}disabled{% endif %}><i class="bi bi-plus-circle"></i></button>{% endif %}
+          </div>
         </div>
         {% if not processo.empresa_cliente_id %}<div class="alert alert-secondary py-2">Cadastre os dados do cliente antes de incluir um orçamento.</div>{% endif %}
         <div class="table-responsive"><table class="table table-bordered align-middle mb-0">
@@ -128,7 +136,7 @@
 
 <section id="ressEtapa4" class="ress-step-panel" data-ress-panel="4" role="tabpanel" hidden>
     <div class="card border-0 shadow-sm mb-4"><div class="card-body">
-      <div class="d-flex justify-content-between align-items-center gap-3 mb-3"><div><h3 class="fs-6 fw-bold text-laranja mb-1">Documentação comprobatória</h3><div class="small text-muted">Notas fiscais, laudos, ordens de serviço e demais comprovantes.</div></div><div class="d-flex gap-2">{% if pode_gerar_book %}<a class="btn btn-cinza" href="{{ url_for('main.gerar_book_pcpm_ressarcimento', ressarcimento_id=processo.id) }}" title="Baixar book em PDF"><i class="bi bi-file-earmark-pdf"></i> Book</a>{% else %}<button class="btn btn-cinza" type="button" disabled title="Aprove o orçamento e inclua documentação para gerar o book"><i class="bi bi-file-earmark-pdf"></i> Book</button>{% endif %}{% if processo_editavel %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalDocumentacao" title="Adicionar documentos"><i class="bi bi-paperclip"></i></button>{% endif %}</div></div>
+      <div class="ress-section-header"><div class="ress-section-heading"><h3 class="fs-6 fw-bold text-laranja mb-1">Documentação comprobatória</h3><div class="small text-muted">Notas fiscais, laudos, ordens de serviço e demais comprovantes.</div></div><div class="ress-section-actions">{% if pode_gerar_book %}<a class="btn btn-cinza" href="{{ url_for('main.gerar_book_pcpm_ressarcimento', ressarcimento_id=processo.id) }}" title="Baixar book em PDF"><i class="bi bi-file-earmark-pdf"></i> Book</a>{% else %}<button class="btn btn-cinza" type="button" disabled title="Aprove o orçamento e inclua documentação para gerar o book"><i class="bi bi-file-earmark-pdf"></i> Book</button>{% endif %}{% if processo_editavel %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalDocumentacao" title="Adicionar documentos"><i class="bi bi-paperclip"></i></button>{% endif %}</div></div>
       <div class="row g-2">{% for item in anexos if item.categoria == 'documentacao' %}<div class="col-lg-6"><div class="border rounded d-flex align-items-center justify-content-between gap-2 p-2"><a class="text-decoration-none text-dark text-truncate" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}" title="Baixar {{ item.nome_original }}"><i class="bi bi-file-earmark-arrow-down text-laranja me-2"></i>{{ item.nome_original }}</a>{% if processo_editavel %}<form method="post" action="{{ url_for('main.remover_documento_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}" onsubmit="return confirm('Remover este documento da visualização?');"><button class="btn-acao-icon" type="submit" title="Remover"><i class="bi bi-trash"></i></button></form>{% endif %}</div></div>{% else %}<div class="text-muted">Nenhuma documentação comprobatória incluída.</div>{% endfor %}</div>
     </div></div>
     <div class="d-flex justify-content-between mb-4"><button class="btn btn-cinza ress-next-step" type="button" data-target-step="3">Voltar</button><button class="btn btn-laranja ress-next-step" type="button" data-target-step="5">Próximo</button></div>
@@ -136,7 +144,7 @@
 
 <section id="ressEtapa5" class="ress-step-panel" data-ress-panel="5" role="tabpanel" hidden>
     <div class="card border-0 shadow-sm mb-4"><div class="card-body">
-      <div class="d-flex justify-content-between align-items-center gap-3 mb-3"><div><h3 class="fs-6 fw-bold text-laranja mb-1">Faturamento</h3><div class="small text-muted">Última etapa do processo de ressarcimento.</div></div>{% if processo_editavel %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalFaturamento" title="Atualizar faturamento"><i class="bi bi-pencil-square"></i></button>{% endif %}</div>
+      <div class="ress-section-header"><div class="ress-section-heading"><h3 class="fs-6 fw-bold text-laranja mb-1">Faturamento</h3><div class="small text-muted">Última etapa do processo de ressarcimento.</div></div><div class="ress-section-actions">{% if processo_editavel %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalFaturamento" title="Atualizar faturamento"><i class="bi bi-pencil-square"></i></button>{% endif %}</div></div>
       <div class="row g-3"><div class="col-md-6"><strong>Status</strong><br><span class="badge bg-secondary">{{ processo.status_faturamento }}</span></div><div class="col-md-6"><strong>Data do faturamento</strong><br>{{ processo.data_faturamento.strftime('%d/%m/%Y') if processo.data_faturamento else '—' }}</div></div>
       {% if processo.status_faturamento == 'Realizado' %}<div class="alert alert-secondary py-2 mt-3 mb-0"><i class="bi bi-lock me-1"></i>Processo faturado e concluído. O faturamento não pode ser revertido.</div>{% endif %}
     </div></div>

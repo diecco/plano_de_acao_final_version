@@ -112,6 +112,9 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
         self.assertIn("bi bi-eye", template)
         self.assertIn('visualizar=1', template)
         self.assertIn('request.args.get("visualizar") != "1"', self.view)
+        self.assertIn("ress-section-header", template)
+        self.assertIn("ress-section-heading", template)
+        self.assertIn('class="col-md-4"><strong>Funcionário Tradimaq</strong>', template)
 
     def test_customer_and_approver_stage_is_validated_and_audited(self):
         template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")
