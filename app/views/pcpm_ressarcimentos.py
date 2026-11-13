@@ -25,6 +25,15 @@ ORDENACOES_RESSARCIMENTOS = {
     "faturamento": "r.status_faturamento",
 }
 PADRAO_EMAIL = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+TIPOS_DOCUMENTO_RESSARCIMENTO = {
+    "Nota fiscal",
+    "Orçamento",
+    "Laudo",
+    "Ordem de Serviço",
+    "Comunicação com as áreas",
+    "Tratativa de Falha",
+    "Outros",
+}
 
 
 def _diretorio_ressarcimento(ressarcimento_id):
@@ -56,7 +65,10 @@ def _normalizar_telefone(valor):
     return f"({digitos[:2]}) {digitos[2:6]}-{digitos[6:]}"
 
 
-def _salvar_anexo(cursor, ressarcimento_id, arquivo, categoria, prefixo, orcamento_id=None):
+def _salvar_anexo(
+    cursor, ressarcimento_id, arquivo, categoria, prefixo,
+    orcamento_id=None, tipo_documento=None,
+):
     tamanho = _tamanho_upload(arquivo)
     if tamanho <= 0:
         raise ValueError("Um dos arquivos selecionados está vazio.")
@@ -69,12 +81,14 @@ def _salvar_anexo(cursor, ressarcimento_id, arquivo, categoria, prefixo, orcamen
     cursor.execute(
         """
         INSERT INTO pcpm_ressarcimentos_anexos (
-            ressarcimento_id, orcamento_id, categoria, nome_original, nome_armazenado,
+            ressarcimento_id, orcamento_id, categoria, tipo_documento,
+            nome_original, nome_armazenado,
             caminho_arquivo, mime_type, tamanho_bytes, hash_sha256, criado_por
-        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """,
         (
-            ressarcimento_id, orcamento_id, categoria, nome_original, nome,
+            ressarcimento_id, orcamento_id, categoria, tipo_documento,
+            nome_original, nome,
             f"pcpm_ressarcimentos/{ressarcimento_id}/{nome}",
             (arquivo.mimetype or "application/octet-stream")[:120], tamanho,
             _hash_arquivo(caminho_absoluto), session.get("usuario_id"),
@@ -404,7 +418,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             )
             historico = cursor.fetchall()
             cursor.execute(
-                """SELECT id, orcamento_id, categoria, nome_original, tamanho_bytes, criado_em
+                """SELECT id, orcamento_id, categoria, tipo_documento,
+                          nome_original, tamanho_bytes, criado_em
                    FROM pcpm_ressarcimentos_anexos
                    WHERE ressarcimento_id = %s AND ativo = 1
                    ORDER BY criado_em, id""", (ressarcimento_id,),
@@ -803,6 +818,9 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             documentos = [item for item in request.files.getlist("documentos") if item and item.filename]
             if not documentos:
                 raise ValueError("Selecione ao menos um documento comprobatório.")
+            tipo_documento = (request.form.get("tipo_documento") or "").strip()
+            if tipo_documento not in TIPOS_DOCUMENTO_RESSARCIMENTO:
+                raise ValueError("Selecione um tipo de documento válido.")
             nomes = []
             for indice, arquivo in enumerate(documentos, start=1):
                 nomes.append(os.path.basename(arquivo.filename.replace("\\", "/"))[:255])
@@ -810,6 +828,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
                     _salvar_anexo(
                         cursor, ressarcimento_id, arquivo, "documentacao",
                         f"documentacao_{datetime.now().strftime('%Y%m%d%H%M%S')}_{indice}",
+                        tipo_documento=tipo_documento,
                     )
                 )
             cursor.execute(
@@ -820,7 +839,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             _registrar_historico(
                 cursor, ressarcimento_id, "Inclusão de documentação",
                 f"{len(nomes)} documento(s) comprobatório(s) incluído(s).",
-                posteriores={"arquivos": nomes}, etapa=4,
+                posteriores={"tipo_documento": tipo_documento, "arquivos": nomes}, etapa=4,
             )
             conn.commit()
             flash(f"{len(nomes)} documento(s) incluído(s) com sucesso.", "success")

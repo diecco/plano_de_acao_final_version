@@ -120,6 +120,7 @@ CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos_anexos (
     ressarcimento_id INT NOT NULL,
     orcamento_id INT NULL,
     categoria ENUM('foto_avaria', 'checklist', 'orcamento', 'aprovacao_cliente', 'documentacao', 'outro') NOT NULL,
+    tipo_documento VARCHAR(80) NULL,
     nome_original VARCHAR(255) NOT NULL,
     nome_armazenado VARCHAR(255) NOT NULL,
     caminho_arquivo VARCHAR(500) NOT NULL,
@@ -134,6 +135,22 @@ CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos_anexos (
     CONSTRAINT fk_anexo_orcamento FOREIGN KEY (orcamento_id) REFERENCES pcpm_ressarcimentos_orcamentos(id),
     CONSTRAINT fk_anexo_criador FOREIGN KEY (criado_por) REFERENCES usuarios(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET @coluna_tipo_documento_existe = (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'pcpm_ressarcimentos_anexos'
+      AND COLUMN_NAME = 'tipo_documento'
+);
+SET @sql_coluna_tipo_documento = IF(
+    @coluna_tipo_documento_existe = 0,
+    'ALTER TABLE pcpm_ressarcimentos_anexos ADD COLUMN tipo_documento VARCHAR(80) NULL AFTER categoria',
+    'SELECT ''A coluna tipo_documento já existe.'' AS informacao'
+);
+PREPARE stmt_coluna_tipo_documento FROM @sql_coluna_tipo_documento;
+EXECUTE stmt_coluna_tipo_documento;
+DEALLOCATE PREPARE stmt_coluna_tipo_documento;
 
 CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos_historico (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
