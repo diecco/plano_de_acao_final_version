@@ -53,7 +53,31 @@
             </div>
         </div>
     </div>
-    <div class="card border-0 shadow-sm mb-4"><div class="card-body"><h3 class="fs-6 fw-bold text-laranja mb-3">Anexos da avaria</h3><div class="row g-2">{% for item in anexos if item.categoria in ['foto_avaria', 'checklist'] %}<div class="col-md-6"><a class="btn btn-cinza w-100 text-start" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}"><i class="bi bi-paperclip"></i> {{ item.nome_original }}</a></div>{% else %}<div class="text-muted">Nenhum anexo incluído.</div>{% endfor %}</div></div></div>
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body">
+        <h3 class="fs-6 fw-bold text-laranja mb-3">Anexos da avaria</h3>
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle mb-0">
+            <thead>
+              <tr><th>Descrição</th><th>Nome do arquivo</th><th class="text-center" style="width:90px;">Ações</th></tr>
+            </thead>
+            <tbody>
+              {% for item in anexos if item.categoria in ['foto_avaria', 'checklist'] %}
+              <tr>
+                <td>{{ 'Foto da avaria' if item.categoria == 'foto_avaria' else 'Checklist de movimentação' }}</td>
+                <td>{{ item.nome_original }}</td>
+                <td class="text-center">
+                  <a class="btn-acao-icon" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id, visualizar=1) }}" target="_blank" rel="noopener" title="Visualizar {{ item.nome_original }}" aria-label="Visualizar {{ item.nome_original }}"><i class="bi bi-eye"></i></a>
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="3" class="text-center text-muted py-3">Nenhum anexo incluído.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
     <div class="d-flex justify-content-between mb-4"><a class="btn btn-cinza" href="{{ url_for('main.pcpm_ressarcimentos') }}">Voltar</a><button class="btn btn-laranja ress-next-step" type="button" data-target-step="2">Próximo</button></div>
 </section>
 
