@@ -718,14 +718,15 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             _garantir_processo_editavel(processo)
 
             empresa_cliente_id = request.form.get("empresa_cliente_id", type=int)
+            cliente_nome = (request.form.get("cliente_nome") or "").strip()
             cliente_centro_custos = (request.form.get("cliente_centro_custos") or "").strip()
             cliente_area = (request.form.get("cliente_area") or "").strip()
             aprovador_email = (request.form.get("aprovador_email") or "").strip().lower()
             aprovador_telefone_raw = (request.form.get("aprovador_telefone") or "").strip()
-            if not all((empresa_cliente_id, cliente_centro_custos, cliente_area, aprovador_email, aprovador_telefone_raw)):
+            if not all((empresa_cliente_id, cliente_nome, cliente_centro_custos, cliente_area, aprovador_email, aprovador_telefone_raw)):
                 raise ValueError("Preencha todos os dados do cliente e do aprovador.")
-            if len(cliente_centro_custos) > 150 or len(cliente_area) > 150:
-                raise ValueError("Centro de custos e área devem possuir no máximo 150 caracteres.")
+            if len(cliente_nome) > 150 or len(cliente_centro_custos) > 150 or len(cliente_area) > 150:
+                raise ValueError("Nome, centro de custos e área devem possuir no máximo 150 caracteres.")
             if len(aprovador_email) > 150 or not PADRAO_EMAIL.fullmatch(aprovador_email):
                 raise ValueError("Informe um e-mail válido para o aprovador.")
             aprovador_telefone = _normalizar_telefone(aprovador_telefone_raw)
@@ -739,6 +740,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
 
             anteriores = {
                 "empresa_cliente": processo["empresa_cliente_snapshot"],
+                "nome_cliente": processo.get("cliente_nome"),
                 "centro_custos_cliente": processo["cliente_centro_custos"],
                 "area_cliente": processo["cliente_area"],
                 "email_aprovador": processo["aprovador_email"],
@@ -746,6 +748,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             }
             posteriores = {
                 "empresa_cliente": empresa["nome"],
+                "nome_cliente": cliente_nome,
                 "centro_custos_cliente": cliente_centro_custos,
                 "area_cliente": cliente_area,
                 "email_aprovador": aprovador_email,
@@ -754,12 +757,12 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             cursor.execute(
                 """UPDATE pcpm_ressarcimentos SET
                        empresa_cliente_id=%s, empresa_cliente_snapshot=%s,
-                       cliente_centro_custos=%s, cliente_area=%s,
+                       cliente_nome=%s, cliente_centro_custos=%s, cliente_area=%s,
                        aprovador_email=%s, aprovador_telefone=%s,
                        etapa_atual=GREATEST(etapa_atual, 2), atualizado_por=%s
                    WHERE id=%s""",
                 (
-                    empresa_cliente_id, empresa["nome"], cliente_centro_custos,
+                    empresa_cliente_id, empresa["nome"], cliente_nome, cliente_centro_custos,
                     cliente_area, aprovador_email, aprovador_telefone,
                     session.get("usuario_id"), ressarcimento_id,
                 ),

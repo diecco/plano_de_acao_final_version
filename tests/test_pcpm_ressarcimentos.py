@@ -109,12 +109,19 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
 
     def test_customer_and_approver_stage_is_validated_and_audited(self):
         template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")
+        pdf_util = (ROOT / "app" / "utils" / "pcpm_ressarcimentos_pdf.py").read_text(encoding="utf-8")
         self.assertIn("atualizar_cliente_pcpm_ressarcimento", self.view)
         self.assertIn("PADRAO_EMAIL", self.view)
         self.assertIn("_normalizar_telefone", self.view)
         self.assertIn("GREATEST(etapa_atual, 2)", self.view)
         self.assertIn('id="modalDadosCliente"', template)
+        self.assertIn("modal-header modal-header-trackplan", template)
+        self.assertIn("modal-dialog-centered", template)
         self.assertIn('name="empresa_cliente_id"', template)
+        self.assertIn('name="cliente_nome"', template)
+        self.assertIn("cliente_nome=%s", self.view)
+        self.assertIn("Nome do cliente", pdf_util)
+        self.assertIn("COLUMN_NAME = 'cliente_nome'", self.migration)
         self.assertIn('name="aprovador_email"', template)
         self.assertIn('name="aprovador_telefone"', template)
 
