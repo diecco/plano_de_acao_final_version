@@ -39,9 +39,9 @@
                 </div>
 
                 <div class="col-12 col-lg-6">
-                    <label class="form-label" for="imagem">Imagem</label>
-                    <input class="form-control" id="imagem" name="imagem" type="file" accept=".png,.jpg,.jpeg" required>
-                    <div class="form-text">PNG ou JPG. A arte deve conter todo o texto do comunicado.</div>
+                    <label class="form-label" for="arquivo">Conteúdo do comunicado</label>
+                    <input class="form-control" id="arquivo" name="arquivo" type="file" accept=".png,.jpg,.jpeg,.html,text/html" required>
+                    <div class="form-text">PNG/JPG para arte estática ou HTML para convite interativo.</div>
                 </div>
                 <div class="col-12 col-lg-6" id="blocoCentros">
                     <label class="form-label" for="centro_custos_ids">Centros de custos</label>
@@ -65,7 +65,7 @@
     <table class="table table-hover align-middle">
         <thead>
             <tr>
-                <th>Imagem</th>
+                <th>Conteúdo</th>
                 <th>Identificação</th>
                 <th>Abrangência</th>
                 <th>Vigência</th>
@@ -78,9 +78,13 @@
             {% for comunicado in comunicados %}
             <tr>
                 <td>
+                    {% if comunicado.tipo == 'html' %}
+                    <span class="badge bg-dark"><i class="bi bi-code-slash me-1"></i>HTML interativo</span>
+                    {% else %}
                     <img src="{{ url_for('static', filename='comunicados/' ~ comunicado.imagem) }}"
                          alt=""
                          style="width: 96px; height: 54px; object-fit: cover; border-radius: 6px;">
+                    {% endif %}
                 </td>
                 <td>{{ comunicado.nome_interno }}</td>
                 <td>{{ 'Corporativo' if comunicado.corporativo else (comunicado.centros_custos or '-') }}</td>
@@ -97,7 +101,7 @@
                     <div class="d-flex justify-content-center gap-2">
                         <button class="btn-acao-icon"
                                 type="button"
-                                title="Editar imagem"
+                                title="Substituir conteúdo"
                                 data-bs-toggle="modal"
                                 data-bs-target="#modalEditarImagem{{ comunicado.id }}">
                             <i class="bi bi-pencil-square"></i>
@@ -127,7 +131,7 @@
         <div class="modal-content">
             <div class="modal-header modal-header-trackplan">
                 <h5 class="modal-title" id="tituloEditarImagem{{ comunicado.id }}">
-                    <i class="bi bi-image me-2"></i>Editar imagem
+                    <i class="bi bi-arrow-repeat me-2"></i>Substituir conteúdo
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
@@ -136,14 +140,14 @@
                   action="{{ url_for('main.substituir_imagem_comunicado_visual', comunicado_id=comunicado.id) }}">
                 <div class="modal-body">
                     <p class="text-muted mb-3">{{ comunicado.nome_interno }}</p>
-                    <label class="form-label" for="imagemComunicado{{ comunicado.id }}">Nova imagem</label>
+                    <label class="form-label" for="arquivoComunicado{{ comunicado.id }}">Novo conteúdo</label>
                     <input class="form-control"
-                           id="imagemComunicado{{ comunicado.id }}"
-                           name="imagem"
+                           id="arquivoComunicado{{ comunicado.id }}"
+                           name="arquivo"
                            type="file"
-                           accept=".png,.jpg,.jpeg"
+                           accept=".png,.jpg,.jpeg,.html,text/html"
                            required>
-                    <div class="form-text">PNG ou JPG. As demais configurações serão preservadas.</div>
+                    <div class="form-text">PNG, JPG ou HTML. As demais configurações serão preservadas.</div>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>

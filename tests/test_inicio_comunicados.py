@@ -24,7 +24,7 @@ class InicioComunicadosTests(unittest.TestCase):
         self.assertIn("comunicados_visuais_centros", source)
         self.assertIn("UploadService.existe", source)
 
-    def test_visual_carousel_is_image_only_and_dismissible(self):
+    def test_visual_carousel_supports_images_and_sandboxed_html(self):
         template = (ROOT / "app" / "templates" / "inicio.html").read_text(
             encoding="utf-8"
         )
@@ -33,6 +33,13 @@ class InicioComunicadosTests(unittest.TestCase):
         self.assertIn('data-bs-dismiss="modal"', template)
         self.assertIn('class="carousel slide"', template)
         self.assertIn("comunicados/' ~ comunicado.imagem", template)
+        self.assertIn('class="comunicado-html"', template)
+        self.assertIn(
+            'sandbox="allow-scripts allow-popups '
+            'allow-popups-to-escape-sandbox"',
+            template,
+        )
+        self.assertNotIn("allow-same-origin", template)
         self.assertIn(
             "calc(100dvh - var(--topbar-height) - 56px)",
             template,
@@ -44,7 +51,7 @@ class InicioComunicadosTests(unittest.TestCase):
         )
         self.assertIn('"comunicados"', upload_source)
 
-    def test_admin_can_replace_a_visual_communication_image(self):
+    def test_admin_can_upload_and_replace_visual_content(self):
         source = (ROOT / "app" / "views" / "inicio.py").read_text(
             encoding="utf-8"
         )
@@ -56,7 +63,14 @@ class InicioComunicadosTests(unittest.TestCase):
             source,
         )
         self.assertIn("substituir_imagem_comunicado_visual", template)
-        self.assertIn("Editar imagem", template)
+        self.assertIn("Substituir conteúdo", template)
+        self.assertIn(".html,text/html", template)
+
+    def test_html_upload_signature_is_validated(self):
+        upload_source = (ROOT / "app" / "upload_security.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('"html": (b"<!DOCTYPE html"', upload_source)
 
     def test_login_and_permission_denials_return_to_home(self):
         authentication = (

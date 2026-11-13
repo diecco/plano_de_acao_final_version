@@ -1,4 +1,5 @@
 from datetime import date
+from pathlib import Path
 
 from flask import flash, redirect, render_template, request, session, url_for
 
@@ -7,8 +8,12 @@ from app.upload_security import UploadService, UploadValidationError
 from app.utils.db import get_db_connection
 
 
-EXTENSOES_COMUNICADOS = {"png", "jpg", "jpeg"}
+EXTENSOES_COMUNICADOS = {"png", "jpg", "jpeg", "html"}
 DIRETORIO_COMUNICADOS = "static/comunicados"
+
+
+def _tipo_comunicado(nome_arquivo):
+    return "html" if Path(nome_arquivo or "").suffix.lower() == ".html" else "imagem"
 
 
 def register_inicio_routes(blueprint):
@@ -37,14 +42,12 @@ def register_inicio_routes(blueprint):
                   AND ({escopo})
                 ORDER BY cv.ordem ASC, cv.criado_em DESC, cv.id DESC
             """, [date.today(), date.today()] + parametros)
-            comunicados = [
-                comunicado
-                for comunicado in cursor.fetchall()
-                if UploadService.existe(
-                    comunicado.get("imagem"),
-                    DIRETORIO_COMUNICADOS,
-                )
-            ]
+            comunicados = []
+            for comunicado in cursor.fetchall():
+                arquivo = comunicado.get("imagem")
+                if UploadService.existe(arquivo, DIRETORIO_COMUNICADOS):
+                    comunicado["tipo"] = _tipo_comunicado(arquivo)
+                    comunicados.append(comunicado)
         finally:
             cursor.close()
             conn.close()
@@ -85,7 +88,7 @@ def register_inicio_routes(blueprint):
 
                 try:
                     imagem = UploadService.salvar(
-                        request.files.get("imagem"),
+                        request.files.get("arquivo") or request.files.get("imagem"),
                         EXTENSOES_COMUNICADOS,
                         "comunicado",
                         DIRETORIO_COMUNICADOS,
@@ -95,7 +98,7 @@ def register_inicio_routes(blueprint):
                     return redirect(url_for("main.comunicados_visuais"))
 
                 if not imagem:
-                    flash("Selecione a imagem do comunicado.", "danger")
+                    flash("Selecione a imagem ou o convite HTML.", "danger")
                     return redirect(url_for("main.comunicados_visuais"))
 
                 try:
@@ -165,6 +168,8 @@ def register_inicio_routes(blueprint):
                 ORDER BY cv.ativo DESC, cv.ordem ASC, cv.criado_em DESC
             """)
             comunicados = cursor.fetchall()
+            for comunicado in comunicados:
+                comunicado["tipo"] = _tipo_comunicado(comunicado.get("imagem"))
         finally:
             cursor.close()
             conn.close()
@@ -197,7 +202,7 @@ def register_inicio_routes(blueprint):
 
             try:
                 nova_imagem = UploadService.salvar(
-                    request.files.get("imagem"),
+                    request.files.get("arquivo") or request.files.get("imagem"),
                     EXTENSOES_COMUNICADOS,
                     "comunicado",
                     DIRETORIO_COMUNICADOS,
@@ -207,7 +212,7 @@ def register_inicio_routes(blueprint):
                 return redirect(url_for("main.comunicados_visuais"))
 
             if not nova_imagem:
-                flash("Selecione a nova imagem do comunicado.", "danger")
+                flash("Selecione a nova imagem ou convite HTML.", "danger")
                 return redirect(url_for("main.comunicados_visuais"))
 
             try:
@@ -225,7 +230,7 @@ def register_inicio_routes(blueprint):
                 comunicado.get("imagem"),
                 DIRETORIO_COMUNICADOS,
             )
-            flash("Imagem do comunicado atualizada com sucesso.", "success")
+            flash("Conteúdo do comunicado atualizado com sucesso.", "success")
         finally:
             cursor.close()
             conn.close()

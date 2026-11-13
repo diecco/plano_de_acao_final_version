@@ -31,6 +31,7 @@ _SIGNATURES = {
     "xls": (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",),
     "docx": (b"PK\x03\x04",),
     "xlsx": (b"PK\x03\x04",),
+    "html": (b"<!DOCTYPE html", b"<!doctype html", b"<html"),
 }
 
 
