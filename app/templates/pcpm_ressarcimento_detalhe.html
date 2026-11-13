@@ -136,7 +136,14 @@
     <div class="card border-0 shadow-sm mb-4"><div class="card-body">
       <div class="d-flex justify-content-between align-items-start gap-3"><div class="text-start"><h3 class="fs-6 fw-bold text-laranja text-start mb-1">Documentação comprobatória</h3><div class="small text-muted text-start">Notas fiscais, laudos, ordens de serviço e demais comprovantes.</div></div><div class="d-flex align-items-center gap-2">{% if pode_gerar_book %}<a class="btn btn-cinza" href="{{ url_for('main.gerar_book_pcpm_ressarcimento', ressarcimento_id=processo.id) }}" title="Baixar book em PDF"><i class="bi bi-file-earmark-pdf"></i> Book</a>{% else %}<button class="btn btn-cinza" type="button" disabled title="Aprove o orçamento e inclua documentação para gerar o book"><i class="bi bi-file-earmark-pdf"></i> Book</button>{% endif %}{% if processo_editavel %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalDocumentacao" title="Adicionar documentos"><i class="bi bi-paperclip"></i></button>{% endif %}</div></div>
       <hr>
-      <div class="row g-2">{% for item in anexos if item.categoria == 'documentacao' %}<div class="col-lg-6"><div class="border rounded d-flex align-items-center justify-content-between gap-2 p-2"><a class="text-decoration-none text-dark text-truncate" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}" title="Baixar {{ item.nome_original }}"><i class="bi bi-file-earmark-arrow-down text-laranja me-2"></i>{{ item.nome_original }}</a>{% if processo_editavel %}<form method="post" action="{{ url_for('main.remover_documento_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}" onsubmit="return confirm('Remover este documento da visualização?');"><button class="btn-acao-icon" type="submit" title="Remover"><i class="bi bi-trash"></i></button></form>{% endif %}</div></div>{% else %}<div class="text-muted">Nenhuma documentação comprobatória incluída.</div>{% endfor %}</div>
+      <div class="table-responsive"><table class="table table-bordered align-middle mb-0">
+        <thead><tr><th>Tipo do documento</th><th>Nome do arquivo</th><th class="text-center" style="width:110px;">Ações</th></tr></thead>
+        <tbody>{% for item in anexos if item.categoria == 'documentacao' %}<tr>
+          <td>{{ item.tipo_documento or 'Não informado' }}</td>
+          <td>{{ item.nome_original }}</td>
+          <td class="text-center"><a class="btn-acao-icon me-1" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id, visualizar=1) }}" target="_blank" rel="noopener" title="Visualizar {{ item.nome_original }}" aria-label="Visualizar {{ item.nome_original }}"><i class="bi bi-eye"></i></a>{% if processo_editavel %}<form method="post" action="{{ url_for('main.remover_documento_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}" class="d-inline" onsubmit="return confirm('Remover este documento da visualização?');"><button class="btn-acao-icon" type="submit" title="Remover" aria-label="Remover {{ item.nome_original }}"><i class="bi bi-trash"></i></button></form>{% endif %}</td>
+        </tr>{% else %}<tr><td colspan="3" class="text-center text-muted py-3">Nenhuma documentação comprobatória incluída.</td></tr>{% endfor %}</tbody>
+      </table></div>
     </div></div>
     <div class="d-flex justify-content-between mb-4"><button class="btn btn-cinza ress-next-step" type="button" data-target-step="3">Voltar</button><button class="btn btn-laranja ress-next-step" type="button" data-target-step="5">Próximo</button></div>
 </section>
@@ -210,7 +217,10 @@
   <div class="modal-dialog modal-lg"><div class="modal-content">
     <form method="post" enctype="multipart/form-data" action="{{ url_for('main.adicionar_documentos_pcpm_ressarcimento', ressarcimento_id=processo.id) }}">
       <div class="modal-header bg-laranja text-white"><h5 class="modal-title"><i class="bi bi-paperclip me-2"></i>Adicionar documentação</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body"><label class="form-label">Documentos comprobatórios *</label><input class="form-control" type="file" name="documentos" accept=".pdf,.jpg,.jpeg,.png" multiple required><div class="form-text">Selecione um ou mais arquivos PDF, JPG ou PNG. Limite de 10 MB por arquivo.</div></div>
+      <div class="modal-body"><div class="row g-3">
+        <div class="col-12"><label class="form-label">Tipo do documento *</label><select class="form-select" name="tipo_documento" required><option value="">Selecione</option><option>Nota fiscal</option><option>Orçamento</option><option>Laudo</option><option>Ordem de Serviço</option><option>Comunicação com as áreas</option><option>Tratativa de Falha</option><option>Outros</option></select></div>
+        <div class="col-12"><label class="form-label">Documentos comprobatórios *</label><input class="form-control" type="file" name="documentos" accept=".pdf,.jpg,.jpeg,.png" multiple required><div class="form-text">O tipo selecionado será aplicado a todos os arquivos deste envio. Limite de 10 MB por arquivo.</div></div>
+      </div></div>
       <div class="modal-footer"><button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button><button type="submit" class="btn btn-laranja">Salvar</button></div>
     </form>
   </div></div>

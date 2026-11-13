@@ -131,6 +131,10 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
         self.assertIn("cliente_nome=%s", self.view)
         self.assertIn("Nome do cliente", pdf_util)
         self.assertIn("COLUMN_NAME = 'cliente_nome'", self.migration)
+        self.assertIn("COLUMN_NAME = 'tipo_documento'", self.migration)
+        self.assertIn("TIPOS_DOCUMENTO_RESSARCIMENTO", self.view)
+        self.assertIn('name="tipo_documento"', template)
+        self.assertIn("Tipo do documento", template)
         self.assertIn('name="aprovador_email"', template)
         self.assertIn('name="aprovador_telefone"', template)
 
