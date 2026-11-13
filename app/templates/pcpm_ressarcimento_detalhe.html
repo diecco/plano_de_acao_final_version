@@ -49,8 +49,6 @@
             <div class="d-flex justify-content-end mt-4">
                 {% if processo.status_processo == 'Cancelado' %}
                 <form method="post" action="{{ url_for('main.reabrir_pcpm_ressarcimento', ressarcimento_id=processo.id) }}" class="d-flex gap-2"><input class="form-control" name="motivo" placeholder="Justificativa da reabertura" required><button class="btn btn-laranja">Reabrir</button></form>
-                {% elif processo.status_faturamento != 'Realizado' %}
-                <form method="post" action="{{ url_for('main.cancelar_pcpm_ressarcimento', ressarcimento_id=processo.id) }}" class="d-flex gap-2"><input class="form-control" name="motivo" placeholder="Justificativa do cancelamento" required><button class="btn btn-cinza">Cancelar</button></form>
                 {% endif %}
             </div>
         </div>
