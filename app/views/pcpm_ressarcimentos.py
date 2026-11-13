@@ -1059,7 +1059,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
                 return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
             return send_from_directory(
                 UploadService.resolver_diretorio(_diretorio_ressarcimento(ressarcimento_id)),
-                anexo["nome_armazenado"], as_attachment=True,
+                anexo["nome_armazenado"],
+                as_attachment=request.args.get("visualizar") != "1",
                 download_name=anexo["nome_original"],
             )
         finally:

@@ -107,6 +107,11 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
         self.assertIn("modalEditarOcorrencia", template)
         self.assertIn('name="fotos_avaria"', template)
         self.assertIn('name="checklist_movimentacao"', template)
+        self.assertIn("Foto da avaria", template)
+        self.assertIn("Checklist de movimentação", template)
+        self.assertIn("bi bi-eye", template)
+        self.assertIn('visualizar=1', template)
+        self.assertIn('request.args.get("visualizar") != "1"', self.view)
 
     def test_customer_and_approver_stage_is_validated_and_audited(self):
         template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")
