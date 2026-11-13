@@ -48,12 +48,55 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
         self.assertIn("pagination pagination-sm", template)
 
     def test_schema_preserves_budget_versions_and_history(self):
-        self.assertIn("CREATE TABLE pcpm_ressarcimentos_orcamentos", self.migration)
+        self.assertIn("CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos_orcamentos", self.migration)
         self.assertIn("UNIQUE KEY uq_ressarcimento_orcamento_versao", self.migration)
-        self.assertIn("CREATE TABLE pcpm_ressarcimentos_anexos", self.migration)
-        self.assertIn("CREATE TABLE pcpm_ressarcimentos_historico", self.migration)
+        self.assertIn("CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos_anexos", self.migration)
+        self.assertIn("CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos_historico", self.migration)
         self.assertIn("dados_anteriores JSON", self.migration)
         self.assertIn("dados_posteriores JSON", self.migration)
+
+    def test_migration_is_reexecutable_and_uses_atomic_number_sequence(self):
+        self.assertIn("information_schema.COLUMNS", self.migration)
+        self.assertGreaterEqual(self.migration.count("CREATE TABLE IF NOT EXISTS"), 5)
+        self.assertIn("CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos_sequencias", self.migration)
+        self.assertIn("ON DUPLICATE KEY UPDATE ultimo=LAST_INSERT_ID(ultimo + 1)", self.view)
+
+    def test_completed_or_billed_process_is_read_only(self):
+        from app.views.pcpm_ressarcimentos import _garantir_processo_editavel
+
+        _garantir_processo_editavel(
+            {"status_processo": "Em andamento", "status_faturamento": "Pendente"}
+        )
+        for processo in (
+            {"status_processo": "Cancelado", "status_faturamento": "Cancelado"},
+            {"status_processo": "Concluído", "status_faturamento": "Realizado"},
+            {"status_processo": "Em andamento", "status_faturamento": "Realizado"},
+        ):
+            with self.subTest(processo=processo):
+                with self.assertRaises(ValueError):
+                    _garantir_processo_editavel(processo)
+
+        self.assertGreaterEqual(self.view.count("_garantir_processo_editavel(processo)"), 6)
+
+    def test_completed_process_hides_all_mutation_controls(self):
+        template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")
+        self.assertIn("{% set processo_editavel =", template)
+        self.assertGreaterEqual(template.count("processo_editavel"), 8)
+
+    def test_detail_uses_five_step_navigable_workflow(self):
+        template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")
+        self.assertIn('class="ress-workflow', template)
+        self.assertIn("data-etapa-atual", template)
+        self.assertEqual(template.count('class="ress-step-panel"'), 5)
+        for titulo in ("Ocorrência", "Cliente", "Orçamento", "Documentação", "Faturamento"):
+            self.assertIn(titulo, template)
+        self.assertIn("abrirEtapaRessarcimento", template)
+        self.assertIn("#etapa-", template)
+
+    def test_internal_database_errors_are_not_exposed_to_the_user(self):
+        self.assertIn("current_app.logger.exception", self.view)
+        self.assertNotIn('flash(f"Erro ao cadastrar o ressarcimento: {exc}"', self.view)
+        self.assertNotIn('flash(f"Erro ao atualizar a ocorrência: {exc}"', self.view)
 
     def test_occurrence_can_be_edited_with_audit_trail(self):
         template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")

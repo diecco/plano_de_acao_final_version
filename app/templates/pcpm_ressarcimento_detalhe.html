@@ -1,13 +1,41 @@
 {% extends "layout.html" %}
+{% set processo_editavel = processo.status_processo == 'Em andamento' and processo.status_faturamento != 'Realizado' %}
 {% block titulo %}{{ processo.numero }}{% endblock %}
+{% block extra_css %}
+<style>
+  .ress-workflow { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; }
+  .ress-workflow-step { appearance:none; background:transparent; border:0; border-top:3px solid #d1d5db; color:#6b7280; cursor:pointer; font-size:.8rem; padding:8px 4px 0; text-align:center; }
+  .ress-workflow-step:hover, .ress-workflow-step:focus-visible { border-color:#f36b21; color:#f36b21; outline:0; }
+  .ress-workflow-step.active { border-color:#f36b21; color:#f36b21; font-weight:700; }
+  .ress-workflow-step.done { border-color:#6c757d; color:#6c757d; }
+  .ress-workflow-step.done.active { border-color:#f36b21; color:#f36b21; }
+  .ress-step-panel[hidden] { display:none !important; }
+  .ress-step-summary { background:#f8f9fa; border-radius:8px; padding:10px 12px; }
+  .ress-step-summary small { color:#6c757d; display:block; }
+  @media (max-width:900px) {
+    .ress-workflow { grid-template-columns:repeat(5,130px); overflow-x:auto; padding-bottom:4px; }
+  }
+</style>
+{% endblock %}
 {% block conteudo %}
 <div class="page-header"><h2 class="page-title text-center mb-0"><i class="bi bi-receipt me-2"></i>{{ processo.numero }}</h2></div>
 <hr>
+
+<div class="ress-workflow mb-4" role="tablist" aria-label="Etapas do ressarcimento" data-etapa-atual="{{ processo.etapa_atual or 1 }}">
+  {% for numero, titulo in [(1, 'Ocorrência'), (2, 'Cliente'), (3, 'Orçamento'), (4, 'Documentação'), (5, 'Faturamento')] %}
+  <button class="ress-workflow-step {% if numero < (processo.etapa_atual or 1) %}done{% endif %} {% if numero == (processo.etapa_atual or 1) %}active{% endif %}"
+          type="button" role="tab" data-ress-step="{{ numero }}" aria-controls="ressEtapa{{ numero }}" aria-selected="{{ 'true' if numero == (processo.etapa_atual or 1) else 'false' }}">
+    {{ numero }}. {{ titulo }}
+  </button>
+  {% endfor %}
+</div>
+
+<section id="ressEtapa1" class="ress-step-panel" data-ress-panel="1" role="tabpanel">
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-start gap-3">
                 <div><h3 class="fs-6 fw-bold text-laranja mb-1">Dados da ocorrência</h3><div class="text-muted">{{ processo.centro_codigo }} — {{ processo.centro_descricao }}</div></div>
-                <div class="d-flex align-items-center gap-2"><span class="badge bg-secondary">{{ processo.status_processo }}</span><span class="badge bg-secondary">Faturamento: {{ processo.status_faturamento }}</span>{% if processo.status_processo != 'Cancelado' %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalEditarOcorrencia" title="Editar ocorrência"><i class="bi bi-pencil-square"></i></button>{% endif %}</div>
+                <div class="d-flex align-items-center gap-2"><span class="badge bg-secondary">{{ processo.status_processo }}</span><span class="badge bg-secondary">Faturamento: {{ processo.status_faturamento }}</span>{% if processo_editavel %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalEditarOcorrencia" title="Editar ocorrência"><i class="bi bi-pencil-square"></i></button>{% endif %}</div>
             </div>
             <hr>
             <div class="row g-3">
@@ -28,11 +56,16 @@
             </div>
         </div>
     </div>
+    <div class="card border-0 shadow-sm mb-4"><div class="card-body"><h3 class="fs-6 fw-bold text-laranja mb-3">Anexos da avaria</h3><div class="row g-2">{% for item in anexos if item.categoria in ['foto_avaria', 'checklist'] %}<div class="col-md-6"><a class="btn btn-cinza w-100 text-start" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}"><i class="bi bi-paperclip"></i> {{ item.nome_original }}</a></div>{% else %}<div class="text-muted">Nenhum anexo incluído.</div>{% endfor %}</div></div></div>
+    <div class="d-flex justify-content-end mb-4"><button class="btn btn-laranja ress-next-step" type="button" data-target-step="2">Próximo</button></div>
+</section>
+
+<section id="ressEtapa2" class="ress-step-panel" data-ress-panel="2" role="tabpanel" hidden>
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
           <div><h3 class="fs-6 fw-bold text-laranja mb-1">Dados do cliente e aprovador</h3><div class="small text-muted">Informações necessárias para encaminhamento e aprovação do ressarcimento.</div></div>
-          {% if processo.status_processo != 'Cancelado' %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalDadosCliente" title="{% if processo.empresa_cliente_id %}Editar{% else %}Cadastrar{% endif %} dados do cliente"><i class="bi bi-{% if processo.empresa_cliente_id %}pencil-square{% else %}plus-circle{% endif %}"></i></button>{% endif %}
+          {% if processo_editavel %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalDadosCliente" title="{% if processo.empresa_cliente_id %}Editar{% else %}Cadastrar{% endif %} dados do cliente"><i class="bi bi-{% if processo.empresa_cliente_id %}pencil-square{% else %}plus-circle{% endif %}"></i></button>{% endif %}
         </div>
         {% if processo.empresa_cliente_id %}
         <div class="row g-3">
@@ -45,11 +78,15 @@
         {% else %}<p class="text-muted mb-0">Dados ainda não informados.</p>{% endif %}
       </div>
     </div>
+    <div class="d-flex justify-content-between mb-4"><button class="btn btn-cinza ress-next-step" type="button" data-target-step="1">Voltar</button><button class="btn btn-laranja ress-next-step" type="button" data-target-step="3">Próximo</button></div>
+</section>
+
+<section id="ressEtapa3" class="ress-step-panel" data-ress-panel="3" role="tabpanel" hidden>
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
           <div><h3 class="fs-6 fw-bold text-laranja mb-1">Orçamento TOTVS</h3><div class="small text-muted">Versões, envio e retorno da aprovação do cliente.</div></div>
-          {% if processo.status_processo != 'Cancelado' %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalNovoOrcamento" title="Nova versão do orçamento" {% if not processo.empresa_cliente_id %}disabled{% endif %}><i class="bi bi-plus-circle"></i></button>{% endif %}
+          {% if processo_editavel %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalNovoOrcamento" title="Nova versão do orçamento" {% if not processo.empresa_cliente_id %}disabled{% endif %}><i class="bi bi-plus-circle"></i></button>{% endif %}
         </div>
         {% if not processo.empresa_cliente_id %}<div class="alert alert-secondary py-2">Cadastre os dados do cliente antes de incluir um orçamento.</div>{% endif %}
         <div class="table-responsive"><table class="table table-bordered align-middle mb-0">
@@ -59,21 +96,31 @@
             <td>{{ item.numero_orcamento_totvs }}</td><td>R$ {{ '%.2f'|format(item.valor_orcamento)|replace('.', ',') }}</td>
             <td>{{ item.data_envio.strftime('%d/%m/%Y') if item.data_envio else '—' }}</td><td><span class="badge bg-secondary">{{ item.status }}</span></td>
             <td>{% for anexo in anexos if anexo.orcamento_id == item.id %}<a class="btn-acao-icon me-1" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=anexo.id) }}" title="{{ anexo.nome_original }}"><i class="bi bi-{% if anexo.categoria == 'aprovacao_cliente' %}envelope-check{% else %}file-earmark-arrow-down{% endif %}"></i></a>{% else %}<span class="text-muted">—</span>{% endfor %}</td>
-            <td class="text-center">{% if item.vigente and processo.status_processo != 'Cancelado' %}<button class="btn-acao-icon" type="button" data-bs-toggle="modal" data-bs-target="#modalStatusOrcamento{{ item.id }}" title="Atualizar status"><i class="bi bi-pencil-square"></i></button>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td class="text-center">{% if item.vigente and processo_editavel %}<button class="btn-acao-icon" type="button" data-bs-toggle="modal" data-bs-target="#modalStatusOrcamento{{ item.id }}" title="Atualizar status"><i class="bi bi-pencil-square"></i></button>{% else %}<span class="text-muted">—</span>{% endif %}</td>
           </tr>{% else %}<tr><td colspan="7" class="text-center text-muted py-4">Nenhum orçamento incluído.</td></tr>{% endfor %}</tbody>
         </table></div>
       </div>
     </div>
-    <div class="card border-0 shadow-sm mb-4"><div class="card-body"><h3 class="fs-6 fw-bold text-laranja mb-3">Anexos da avaria</h3><div class="row g-2">{% for item in anexos if item.categoria in ['foto_avaria', 'checklist'] %}<div class="col-md-6"><a class="btn btn-cinza w-100 text-start" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}"><i class="bi bi-paperclip"></i> {{ item.nome_original }}</a></div>{% else %}<div class="text-muted">Nenhum anexo incluído.</div>{% endfor %}</div></div></div>
+    <div class="d-flex justify-content-between mb-4"><button class="btn btn-cinza ress-next-step" type="button" data-target-step="2">Voltar</button><button class="btn btn-laranja ress-next-step" type="button" data-target-step="4">Próximo</button></div>
+</section>
+
+<section id="ressEtapa4" class="ress-step-panel" data-ress-panel="4" role="tabpanel" hidden>
     <div class="card border-0 shadow-sm mb-4"><div class="card-body">
-      <div class="d-flex justify-content-between align-items-center gap-3 mb-3"><div><h3 class="fs-6 fw-bold text-laranja mb-1">Documentação comprobatória</h3><div class="small text-muted">Notas fiscais, laudos, ordens de serviço e demais comprovantes.</div></div><div class="d-flex gap-2">{% if pode_gerar_book %}<a class="btn btn-cinza" href="{{ url_for('main.gerar_book_pcpm_ressarcimento', ressarcimento_id=processo.id) }}" title="Baixar book em PDF"><i class="bi bi-file-earmark-pdf"></i> Book</a>{% else %}<button class="btn btn-cinza" type="button" disabled title="Aprove o orçamento e inclua documentação para gerar o book"><i class="bi bi-file-earmark-pdf"></i> Book</button>{% endif %}{% if processo.status_processo != 'Cancelado' %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalDocumentacao" title="Adicionar documentos"><i class="bi bi-paperclip"></i></button>{% endif %}</div></div>
-      <div class="row g-2">{% for item in anexos if item.categoria == 'documentacao' %}<div class="col-lg-6"><div class="border rounded d-flex align-items-center justify-content-between gap-2 p-2"><a class="text-decoration-none text-dark text-truncate" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}" title="Baixar {{ item.nome_original }}"><i class="bi bi-file-earmark-arrow-down text-laranja me-2"></i>{{ item.nome_original }}</a>{% if processo.status_processo != 'Cancelado' %}<form method="post" action="{{ url_for('main.remover_documento_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}" onsubmit="return confirm('Remover este documento da visualização?');"><button class="btn-acao-icon" type="submit" title="Remover"><i class="bi bi-trash"></i></button></form>{% endif %}</div></div>{% else %}<div class="text-muted">Nenhuma documentação comprobatória incluída.</div>{% endfor %}</div>
+      <div class="d-flex justify-content-between align-items-center gap-3 mb-3"><div><h3 class="fs-6 fw-bold text-laranja mb-1">Documentação comprobatória</h3><div class="small text-muted">Notas fiscais, laudos, ordens de serviço e demais comprovantes.</div></div><div class="d-flex gap-2">{% if pode_gerar_book %}<a class="btn btn-cinza" href="{{ url_for('main.gerar_book_pcpm_ressarcimento', ressarcimento_id=processo.id) }}" title="Baixar book em PDF"><i class="bi bi-file-earmark-pdf"></i> Book</a>{% else %}<button class="btn btn-cinza" type="button" disabled title="Aprove o orçamento e inclua documentação para gerar o book"><i class="bi bi-file-earmark-pdf"></i> Book</button>{% endif %}{% if processo_editavel %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalDocumentacao" title="Adicionar documentos"><i class="bi bi-paperclip"></i></button>{% endif %}</div></div>
+      <div class="row g-2">{% for item in anexos if item.categoria == 'documentacao' %}<div class="col-lg-6"><div class="border rounded d-flex align-items-center justify-content-between gap-2 p-2"><a class="text-decoration-none text-dark text-truncate" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}" title="Baixar {{ item.nome_original }}"><i class="bi bi-file-earmark-arrow-down text-laranja me-2"></i>{{ item.nome_original }}</a>{% if processo_editavel %}<form method="post" action="{{ url_for('main.remover_documento_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}" onsubmit="return confirm('Remover este documento da visualização?');"><button class="btn-acao-icon" type="submit" title="Remover"><i class="bi bi-trash"></i></button></form>{% endif %}</div></div>{% else %}<div class="text-muted">Nenhuma documentação comprobatória incluída.</div>{% endfor %}</div>
     </div></div>
+    <div class="d-flex justify-content-between mb-4"><button class="btn btn-cinza ress-next-step" type="button" data-target-step="3">Voltar</button><button class="btn btn-laranja ress-next-step" type="button" data-target-step="5">Próximo</button></div>
+</section>
+
+<section id="ressEtapa5" class="ress-step-panel" data-ress-panel="5" role="tabpanel" hidden>
     <div class="card border-0 shadow-sm mb-4"><div class="card-body">
-      <div class="d-flex justify-content-between align-items-center gap-3 mb-3"><div><h3 class="fs-6 fw-bold text-laranja mb-1">Faturamento</h3><div class="small text-muted">Última etapa do processo de ressarcimento.</div></div>{% if processo.status_processo != 'Cancelado' and processo.status_faturamento != 'Realizado' %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalFaturamento" title="Atualizar faturamento"><i class="bi bi-pencil-square"></i></button>{% endif %}</div>
+      <div class="d-flex justify-content-between align-items-center gap-3 mb-3"><div><h3 class="fs-6 fw-bold text-laranja mb-1">Faturamento</h3><div class="small text-muted">Última etapa do processo de ressarcimento.</div></div>{% if processo_editavel %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalFaturamento" title="Atualizar faturamento"><i class="bi bi-pencil-square"></i></button>{% endif %}</div>
       <div class="row g-3"><div class="col-md-6"><strong>Status</strong><br><span class="badge bg-secondary">{{ processo.status_faturamento }}</span></div><div class="col-md-6"><strong>Data do faturamento</strong><br>{{ processo.data_faturamento.strftime('%d/%m/%Y') if processo.data_faturamento else '—' }}</div></div>
       {% if processo.status_faturamento == 'Realizado' %}<div class="alert alert-secondary py-2 mt-3 mb-0"><i class="bi bi-lock me-1"></i>Processo faturado e concluído. O faturamento não pode ser revertido.</div>{% endif %}
     </div></div>
+    <div class="d-flex justify-content-start mb-4"><button class="btn btn-cinza ress-next-step" type="button" data-target-step="4">Voltar</button></div>
+</section>
+
     <div class="card border-0 shadow-sm"><div class="card-body"><h3 class="fs-6 fw-bold text-laranja mb-3">Histórico</h3>{% for item in historico %}<div class="border-bottom py-2"><strong>{{ item.evento }}</strong> — {{ item.descricao }}<div class="small text-muted">{{ item.usuario_nome }} · {{ item.criado_em.strftime('%d/%m/%Y %H:%M') }}</div></div>{% else %}<p class="text-muted mb-0">Nenhum evento registrado.</p>{% endfor %}</div></div>
 
 <div class="modal fade" id="modalEditarOcorrencia" tabindex="-1" aria-hidden="true">
@@ -164,6 +211,38 @@
 </div>
 {% endif %}{% endfor %}
 <script>
+const ressWorkflow = document.querySelector('.ress-workflow');
+const ressSteps = Array.from(document.querySelectorAll('[data-ress-step]'));
+const ressPanels = Array.from(document.querySelectorAll('[data-ress-panel]'));
+const ressEtapaAtual = Math.min(5, Math.max(1, Number(ressWorkflow?.dataset.etapaAtual || 1)));
+
+function abrirEtapaRessarcimento(numero, atualizarUrl = true) {
+  const etapa = Math.min(5, Math.max(1, Number(numero) || 1));
+  ressSteps.forEach(function (botao) {
+    const ativa = Number(botao.dataset.ressStep) === etapa;
+    botao.classList.toggle('active', ativa);
+    botao.classList.toggle('done', Number(botao.dataset.ressStep) < ressEtapaAtual);
+    botao.setAttribute('aria-selected', ativa ? 'true' : 'false');
+    botao.setAttribute('tabindex', ativa ? '0' : '-1');
+  });
+  ressPanels.forEach(function (painel) {
+    painel.hidden = Number(painel.dataset.ressPanel) !== etapa;
+  });
+  if (atualizarUrl) history.replaceState(null, '', '#etapa-' + etapa);
+}
+
+ressSteps.forEach(function (botao) {
+  botao.addEventListener('click', function () { abrirEtapaRessarcimento(this.dataset.ressStep); });
+});
+document.querySelectorAll('.ress-next-step').forEach(function (botao) {
+  botao.addEventListener('click', function () {
+    abrirEtapaRessarcimento(this.dataset.targetStep);
+    ressWorkflow?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+const etapaHash = /^#etapa-([1-5])$/.exec(window.location.hash);
+abrirEtapaRessarcimento(etapaHash ? etapaHash[1] : ressEtapaAtual, false);
+
 document.getElementById('aprovadorTelefone')?.addEventListener('input', function () {
   const valor = this.value.replace(/\D/g, '').slice(0, 11);
   if (valor.length > 10) this.value = valor.replace(/^(\d{2})(\d{5})(\d{0,4}).*/, '($1) $2-$3');
