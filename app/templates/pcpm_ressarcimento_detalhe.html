@@ -3,7 +3,7 @@
 {% block titulo %}{{ processo.numero }}{% endblock %}
 {% block extra_css %}
 <style>
-  .ress-workflow { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; }
+  .ress-workflow { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; }
   .ress-workflow-step { appearance:none; background:transparent; border:0; border-top:3px solid #d1d5db; color:#6b7280; cursor:pointer; font-size:.8rem; padding:8px 4px 0; text-align:center; }
   .ress-workflow-step:hover, .ress-workflow-step:focus-visible { border-color:#f36b21; color:#f36b21; outline:0; }
   .ress-workflow-step.active { border-color:#f36b21; color:#f36b21; font-weight:700; }
@@ -13,7 +13,7 @@
   .ress-step-summary { background:#f8f9fa; border-radius:8px; padding:10px 12px; }
   .ress-step-summary small { color:#6c757d; display:block; }
   @media (max-width:900px) {
-    .ress-workflow { grid-template-columns:repeat(5,130px); overflow-x:auto; padding-bottom:4px; }
+    .ress-workflow { grid-template-columns:repeat(6,130px); overflow-x:auto; padding-bottom:4px; }
   }
 </style>
 {% endblock %}
@@ -22,7 +22,7 @@
 <hr>
 
 <div class="ress-workflow mb-4" role="tablist" aria-label="Etapas do ressarcimento" data-etapa-atual="{{ processo.etapa_atual or 1 }}">
-  {% for numero, titulo in [(1, 'Ocorrência'), (2, 'Cliente'), (3, 'Orçamento'), (4, 'Documentação'), (5, 'Faturamento')] %}
+  {% for numero, titulo in [(1, 'Ocorrência'), (2, 'Cliente'), (3, 'Orçamento'), (4, 'Documentação'), (5, 'Faturamento'), (6, 'Histórico')] %}
   <button class="ress-workflow-step {% if numero < (processo.etapa_atual or 1) %}done{% endif %} {% if numero == (processo.etapa_atual or 1) %}active{% endif %}"
           type="button" role="tab" data-ress-step="{{ numero }}" aria-controls="ressEtapa{{ numero }}" aria-selected="{{ 'true' if numero == (processo.etapa_atual or 1) else 'false' }}">
     {{ numero }}. {{ titulo }}
@@ -34,8 +34,8 @@
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-start gap-3">
-                <div><h3 class="fs-6 fw-bold text-laranja mb-1">Dados da ocorrência</h3><div class="text-muted">{{ processo.centro_codigo }} — {{ processo.centro_descricao }}</div></div>
-                <div class="d-flex align-items-center gap-2"><span class="badge bg-secondary">{{ processo.status_processo }}</span><span class="badge bg-secondary">Faturamento: {{ processo.status_faturamento }}</span>{% if processo_editavel %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalEditarOcorrencia" title="Editar ocorrência"><i class="bi bi-pencil-square"></i></button>{% endif %}</div>
+                <div class="text-start"><h3 class="fs-6 fw-bold text-laranja text-start mb-1">Dados da ocorrência</h3><div class="text-muted text-start">{{ processo.centro_codigo }} — {{ processo.centro_descricao }}</div></div>
+                <div class="d-flex align-items-center gap-2">{% if processo_editavel %}<button class="btn btn-laranja" type="button" data-bs-toggle="modal" data-bs-target="#modalEditarOcorrencia" title="Editar ocorrência"><i class="bi bi-pencil-square"></i></button>{% endif %}</div>
             </div>
             <hr>
             <div class="row g-3">
@@ -46,8 +46,7 @@
                 <div class="col-md-6"><strong>Funcionário Tradimaq</strong><br>{{ processo.funcionario_nome_snapshot }}{% if processo.funcionario_matricula_snapshot %} — {{ processo.funcionario_matricula_snapshot }}{% endif %}</div>
                 <div class="col-12"><strong>Descrição</strong><div class="border rounded p-3 mt-1">{{ processo.descricao_ocorrencia }}</div></div>
             </div>
-            <div class="d-flex justify-content-between mt-4">
-                <a class="btn btn-cinza" href="{{ url_for('main.pcpm_ressarcimentos') }}">Voltar</a>
+            <div class="d-flex justify-content-end mt-4">
                 {% if processo.status_processo == 'Cancelado' %}
                 <form method="post" action="{{ url_for('main.reabrir_pcpm_ressarcimento', ressarcimento_id=processo.id) }}" class="d-flex gap-2"><input class="form-control" name="motivo" placeholder="Justificativa da reabertura" required><button class="btn btn-laranja">Reabrir</button></form>
                 {% elif processo.status_faturamento != 'Realizado' %}
@@ -57,7 +56,7 @@
         </div>
     </div>
     <div class="card border-0 shadow-sm mb-4"><div class="card-body"><h3 class="fs-6 fw-bold text-laranja mb-3">Anexos da avaria</h3><div class="row g-2">{% for item in anexos if item.categoria in ['foto_avaria', 'checklist'] %}<div class="col-md-6"><a class="btn btn-cinza w-100 text-start" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=item.id) }}"><i class="bi bi-paperclip"></i> {{ item.nome_original }}</a></div>{% else %}<div class="text-muted">Nenhum anexo incluído.</div>{% endfor %}</div></div></div>
-    <div class="d-flex justify-content-end mb-4"><button class="btn btn-laranja ress-next-step" type="button" data-target-step="2">Próximo</button></div>
+    <div class="d-flex justify-content-between mb-4"><a class="btn btn-cinza" href="{{ url_for('main.pcpm_ressarcimentos') }}">Voltar</a><button class="btn btn-laranja ress-next-step" type="button" data-target-step="2">Próximo</button></div>
 </section>
 
 <section id="ressEtapa2" class="ress-step-panel" data-ress-panel="2" role="tabpanel" hidden>
@@ -119,10 +118,13 @@
       <div class="row g-3"><div class="col-md-6"><strong>Status</strong><br><span class="badge bg-secondary">{{ processo.status_faturamento }}</span></div><div class="col-md-6"><strong>Data do faturamento</strong><br>{{ processo.data_faturamento.strftime('%d/%m/%Y') if processo.data_faturamento else '—' }}</div></div>
       {% if processo.status_faturamento == 'Realizado' %}<div class="alert alert-secondary py-2 mt-3 mb-0"><i class="bi bi-lock me-1"></i>Processo faturado e concluído. O faturamento não pode ser revertido.</div>{% endif %}
     </div></div>
-    <div class="d-flex justify-content-start mb-4"><button class="btn btn-cinza ress-next-step" type="button" data-target-step="4">Voltar</button></div>
+    <div class="d-flex justify-content-between mb-4"><button class="btn btn-cinza ress-next-step" type="button" data-target-step="4">Voltar</button><button class="btn btn-laranja ress-next-step" type="button" data-target-step="6">Próximo</button></div>
 </section>
 
-    <div class="card border-0 shadow-sm"><div class="card-body"><h3 class="fs-6 fw-bold text-laranja mb-3">Histórico</h3>{% for item in historico %}<div class="border-bottom py-2"><strong>{{ item.evento }}</strong> — {{ item.descricao }}<div class="small text-muted">{{ item.usuario_nome }} · {{ item.criado_em.strftime('%d/%m/%Y %H:%M') }}</div></div>{% else %}<p class="text-muted mb-0">Nenhum evento registrado.</p>{% endfor %}</div></div>
+<section id="ressEtapa6" class="ress-step-panel" data-ress-panel="6" role="tabpanel" hidden>
+    <div class="card border-0 shadow-sm mb-4"><div class="card-body"><h3 class="fs-6 fw-bold text-laranja mb-3">Histórico</h3>{% for item in historico %}<div class="border-bottom py-2"><strong>{{ item.evento }}</strong> — {{ item.descricao }}<div class="small text-muted">{{ item.usuario_nome }} · {{ item.criado_em.strftime('%d/%m/%Y %H:%M') }}</div></div>{% else %}<p class="text-muted mb-0">Nenhum evento registrado.</p>{% endfor %}</div></div>
+    <div class="d-flex justify-content-start mb-4"><button class="btn btn-cinza ress-next-step" type="button" data-target-step="5">Voltar</button></div>
+</section>
 
 <div class="modal fade" id="modalEditarOcorrencia" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
@@ -219,7 +221,7 @@ const ressPanels = Array.from(document.querySelectorAll('[data-ress-panel]'));
 const ressEtapaAtual = Math.min(5, Math.max(1, Number(ressWorkflow?.dataset.etapaAtual || 1)));
 
 function abrirEtapaRessarcimento(numero, atualizarUrl = true) {
-  const etapa = Math.min(5, Math.max(1, Number(numero) || 1));
+  const etapa = Math.min(6, Math.max(1, Number(numero) || 1));
   ressSteps.forEach(function (botao) {
     const ativa = Number(botao.dataset.ressStep) === etapa;
     botao.classList.toggle('active', ativa);
@@ -242,7 +244,7 @@ document.querySelectorAll('.ress-next-step').forEach(function (botao) {
     ressWorkflow?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 });
-const etapaHash = /^#etapa-([1-5])$/.exec(window.location.hash);
+const etapaHash = /^#etapa-([1-6])$/.exec(window.location.hash);
 abrirEtapaRessarcimento(etapaHash ? etapaHash[1] : ressEtapaAtual, false);
 
 document.getElementById('aprovadorTelefone')?.addEventListener('input', function () {

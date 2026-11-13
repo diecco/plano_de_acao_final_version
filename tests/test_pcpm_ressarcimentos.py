@@ -83,15 +83,16 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
         self.assertIn("{% set processo_editavel =", template)
         self.assertGreaterEqual(template.count("processo_editavel"), 8)
 
-    def test_detail_uses_five_step_navigable_workflow(self):
+    def test_detail_uses_six_step_navigable_workflow_with_history(self):
         template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")
         self.assertIn('class="ress-workflow', template)
         self.assertIn("data-etapa-atual", template)
-        self.assertEqual(template.count('class="ress-step-panel"'), 5)
-        for titulo in ("Ocorrência", "Cliente", "Orçamento", "Documentação", "Faturamento"):
+        self.assertEqual(template.count('class="ress-step-panel"'), 6)
+        for titulo in ("Ocorrência", "Cliente", "Orçamento", "Documentação", "Faturamento", "Histórico"):
             self.assertIn(titulo, template)
         self.assertIn("abrirEtapaRessarcimento", template)
         self.assertIn("#etapa-", template)
+        self.assertNotIn('Faturamento: {{ processo.status_faturamento }}', template)
 
     def test_internal_database_errors_are_not_exposed_to_the_user(self):
         self.assertIn("current_app.logger.exception", self.view)
