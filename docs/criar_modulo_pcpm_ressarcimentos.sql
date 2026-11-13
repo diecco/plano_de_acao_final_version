@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos (
     empresa_ocorrencia_snapshot VARCHAR(150) NOT NULL,
     empresa_cliente_id INT NULL,
     empresa_cliente_snapshot VARCHAR(150) NULL,
+    cliente_nome VARCHAR(150) NULL,
     cliente_centro_custos VARCHAR(150) NULL,
     cliente_area VARCHAR(150) NULL,
     aprovador_email VARCHAR(150) NULL,
@@ -70,6 +71,22 @@ CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos (
     CONSTRAINT fk_ressarcimento_cancelador FOREIGN KEY (cancelado_por) REFERENCES usuarios(id),
     CONSTRAINT fk_ressarcimento_reabertura FOREIGN KEY (reaberto_por) REFERENCES usuarios(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET @coluna_nome_cliente_existe = (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'pcpm_ressarcimentos'
+      AND COLUMN_NAME = 'cliente_nome'
+);
+SET @sql_coluna_nome_cliente = IF(
+    @coluna_nome_cliente_existe = 0,
+    'ALTER TABLE pcpm_ressarcimentos ADD COLUMN cliente_nome VARCHAR(150) NULL AFTER empresa_cliente_snapshot',
+    'SELECT ''A coluna cliente_nome já existe.'' AS informacao'
+);
+PREPARE stmt_coluna_nome_cliente FROM @sql_coluna_nome_cliente;
+EXECUTE stmt_coluna_nome_cliente;
+DEALLOCATE PREPARE stmt_coluna_nome_cliente;
 
 CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos_sequencias (
     ano SMALLINT PRIMARY KEY,

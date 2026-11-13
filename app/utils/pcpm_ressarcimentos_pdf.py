@@ -102,9 +102,9 @@ def gerar_book_ressarcimento(processo, orcamentos, anexos, historico, logo_path=
     ], [3.3 * cm, 6.3 * cm, 2.5 * cm, 6.1 * cm]))
     elementos.append(p("2. Cliente e aprovador", "secao"))
     elementos.append(tabela([
-        [p("Empresa", "pequeno"), p(processo.get("empresa_cliente_snapshot")), p("Centro de custos", "pequeno"), p(processo.get("cliente_centro_custos"))],
-        [p("Área", "pequeno"), p(processo.get("cliente_area")), p("E-mail", "pequeno"), p(processo.get("aprovador_email"))],
-        [p("Telefone", "pequeno"), p(processo.get("aprovador_telefone")), "", ""],
+        [p("Empresa", "pequeno"), p(processo.get("empresa_cliente_snapshot")), p("Nome do cliente", "pequeno"), p(processo.get("cliente_nome"))],
+        [p("Centro de custos", "pequeno"), p(processo.get("cliente_centro_custos")), p("Área", "pequeno"), p(processo.get("cliente_area"))],
+        [p("E-mail", "pequeno"), p(processo.get("aprovador_email")), p("Telefone", "pequeno"), p(processo.get("aprovador_telefone"))],
     ], [3.1 * cm, 6.0 * cm, 3.1 * cm, 6.0 * cm]))
     elementos.append(p("3. Orçamentos TOTVS", "secao"))
     linhas_orcamentos = [[p("Versão", "cabecalho"), p("Número", "cabecalho"), p("Valor", "cabecalho"), p("Envio", "cabecalho"), p("Status", "cabecalho")]]

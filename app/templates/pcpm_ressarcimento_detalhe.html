@@ -70,10 +70,11 @@
         {% if processo.empresa_cliente_id %}
         <div class="row g-3">
           <div class="col-md-4"><strong>Empresa do cliente</strong><br>{{ processo.empresa_cliente_snapshot }}</div>
+          <div class="col-md-4"><strong>Nome do cliente</strong><br>{{ processo.cliente_nome or 'Não informado' }}</div>
           <div class="col-md-4"><strong>Centro de custos do cliente</strong><br>{{ processo.cliente_centro_custos }}</div>
           <div class="col-md-4"><strong>Área do cliente</strong><br>{{ processo.cliente_area }}</div>
-          <div class="col-md-6"><strong>E-mail do aprovador</strong><br>{{ processo.aprovador_email }}</div>
-          <div class="col-md-6"><strong>Telefone do aprovador</strong><br>{{ processo.aprovador_telefone }}</div>
+          <div class="col-md-4"><strong>E-mail do aprovador</strong><br>{{ processo.aprovador_email }}</div>
+          <div class="col-md-4"><strong>Telefone do aprovador</strong><br>{{ processo.aprovador_telefone }}</div>
         </div>
         {% else %}<p class="text-muted mb-0">Dados ainda não informados.</p>{% endif %}
       </div>
@@ -143,11 +144,12 @@
 </div>
 
 <div class="modal fade" id="modalDadosCliente" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
     <form method="post" action="{{ url_for('main.atualizar_cliente_pcpm_ressarcimento', ressarcimento_id=processo.id) }}">
-      <div class="modal-header bg-laranja text-white"><h5 class="modal-title"><i class="bi bi-building me-2"></i>Dados do cliente e aprovador</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-header modal-header-trackplan"><h5 class="modal-title"><i class="bi bi-building"></i>Dados do cliente e aprovador</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
       <div class="modal-body"><div class="row g-3">
         <div class="col-12"><label class="form-label">Empresa do cliente *</label><select class="form-select" name="empresa_cliente_id" required><option value="">Selecione</option>{% for item in empresas %}<option value="{{ item.id }}" {% if item.id == processo.empresa_cliente_id %}selected{% endif %}>{{ item.nome }}</option>{% endfor %}</select></div>
+        <div class="col-12"><label class="form-label">Nome do cliente *</label><input class="form-control" name="cliente_nome" maxlength="150" value="{{ processo.cliente_nome or '' }}" placeholder="Informe o nome do cliente" required></div>
         <div class="col-md-6"><label class="form-label">Centro de custos do cliente *</label><input class="form-control" name="cliente_centro_custos" maxlength="150" value="{{ processo.cliente_centro_custos or '' }}" required></div>
         <div class="col-md-6"><label class="form-label">Área do cliente *</label><input class="form-control" name="cliente_area" maxlength="150" value="{{ processo.cliente_area or '' }}" required></div>
         <div class="col-md-6"><label class="form-label">E-mail do aprovador *</label><input class="form-control" type="email" name="aprovador_email" maxlength="150" value="{{ processo.aprovador_email or '' }}" required></div>
