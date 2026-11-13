@@ -46,6 +46,10 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
         self.assertIn("btn btn-cinza", template)
         self.assertIn("bi-caret-up-fill", template)
         self.assertIn("pagination pagination-sm", template)
+        self.assertIn("modalCancelarRessarcimento", template)
+        self.assertIn("Cancelar processo", template)
+        self.assertIn('name="motivo"', template)
+        self.assertIn("item.status_faturamento != 'Realizado'", template)
 
     def test_schema_preserves_budget_versions_and_history(self):
         self.assertIn("CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos_orcamentos", self.migration)

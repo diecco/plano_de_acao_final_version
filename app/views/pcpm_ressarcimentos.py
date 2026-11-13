@@ -1093,7 +1093,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
         motivo = (request.form.get("motivo") or "").strip()
         if not motivo:
             flash("Informe a justificativa do cancelamento.", "warning")
-            return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
+            return redirect(url_for("main.pcpm_ressarcimentos"))
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         try:
@@ -1123,7 +1123,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             flash("Não foi possível cancelar o ressarcimento. Tente novamente ou acione o suporte.", "danger")
         finally:
             conn.close()
-        return redirect(url_for("main.detalhar_pcpm_ressarcimento", ressarcimento_id=ressarcimento_id))
+        return redirect(url_for("main.pcpm_ressarcimentos"))
 
     @blueprint.route("/pcpm/ressarcimentos/<int:ressarcimento_id>/reabrir", methods=["POST"])
     @login_required

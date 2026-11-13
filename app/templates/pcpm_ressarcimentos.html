@@ -32,9 +32,20 @@
         <th class="text-center"><div class="d-flex justify-content-between align-items-center"><span>Faturamento</span>{{ ordenar('faturamento') }}</div></th><th class="text-center">Ações</th>
     </tr></thead><tbody>{% for item in processos %}<tr>
         <td><strong>{{ item.numero }}</strong></td><td class="text-nowrap">{{ item.ocorrencia_em.strftime('%d/%m/%Y %H:%M') if item.ocorrencia_em else '-' }}</td><td>{{ item.codigo_frota }}</td><td>{{ item.empresa_nome }}</td><td>{{ item.funcionario_nome }}</td>
-        <td class="text-center"><span class="badge bg-secondary">{{ item.status_processo }}</span></td><td class="text-center"><span class="badge bg-secondary">{{ item.status_faturamento }}</span></td><td class="text-center"><a class="btn-acao-icon" title="Visualizar" href="{{ url_for('main.detalhar_pcpm_ressarcimento', ressarcimento_id=item.id) }}"><i class="bi bi-eye"></i></a></td>
+        <td class="text-center"><span class="badge bg-secondary">{{ item.status_processo }}</span></td><td class="text-center"><span class="badge bg-secondary">{{ item.status_faturamento }}</span></td><td class="text-center"><a class="btn-acao-icon" title="Visualizar" href="{{ url_for('main.detalhar_pcpm_ressarcimento', ressarcimento_id=item.id) }}"><i class="bi bi-eye"></i></a>{% if item.status_processo != 'Cancelado' and item.status_faturamento != 'Realizado' %}<button class="btn-acao-icon ms-1" type="button" title="Cancelar processo" aria-label="Cancelar processo {{ item.numero }}" data-bs-toggle="modal" data-bs-target="#modalCancelarRessarcimento{{ item.id }}"><i class="bi bi-x-circle"></i></button>{% endif %}</td>
     </tr>{% else %}<tr><td colspan="8" class="text-center text-muted py-4">Nenhum processo encontrado.</td></tr>{% endfor %}</tbody></table>
 </div></div></div>
+{% for item in processos if item.status_processo != 'Cancelado' and item.status_faturamento != 'Realizado' %}
+<div class="modal fade" id="modalCancelarRessarcimento{{ item.id }}" tabindex="-1" aria-labelledby="tituloCancelarRessarcimento{{ item.id }}" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <form method="post" action="{{ url_for('main.cancelar_pcpm_ressarcimento', ressarcimento_id=item.id) }}">
+      <div class="modal-header modal-header-trackplan"><h5 class="modal-title" id="tituloCancelarRessarcimento{{ item.id }}"><i class="bi bi-x-circle me-2"></i>Cancelar {{ item.numero }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
+      <div class="modal-body"><label class="form-label" for="motivoCancelamento{{ item.id }}">Justificativa do cancelamento *</label><textarea class="form-control" id="motivoCancelamento{{ item.id }}" name="motivo" rows="4" maxlength="1000" required></textarea><div class="form-text">O cancelamento será registrado no histórico do processo.</div></div>
+      <div class="modal-footer"><button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button><button type="submit" class="btn btn-laranja">Confirmar cancelamento</button></div>
+    </form>
+  </div></div>
+</div>
+{% endfor %}
 {% if total_paginas > 1 %}<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2"><div class="text-muted small">Exibindo página {{ page }} de {{ total_paginas }} — {{ total_registros }} registro(s)</div><nav><ul class="pagination pagination-sm mb-0">
     <li class="page-item {% if page <= 1 %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.pcpm_ressarcimentos', busca=filtros.busca, status=filtros.status, faturamento=filtros.faturamento, data_inicio=filtros.data_inicio, data_fim=filtros.data_fim, sort=sort, order=order, page=page-1) }}">Anterior</a></li>
     {% for p in range(1, total_paginas + 1) %}{% if p == 1 or p == total_paginas or (p >= page - 2 and p <= page + 2) %}<li class="page-item {% if p == page %}active{% endif %}"><a class="page-link" href="{{ url_for('main.pcpm_ressarcimentos', busca=filtros.busca, status=filtros.status, faturamento=filtros.faturamento, data_inicio=filtros.data_inicio, data_fim=filtros.data_fim, sort=sort, order=order, page=p) }}">{{ p }}</a></li>{% elif p == page - 3 or p == page + 3 %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}{% endfor %}
