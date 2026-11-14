@@ -164,9 +164,9 @@
 </section>
 
 <div class="modal fade" id="modalEditarOcorrencia" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
     <form method="post" enctype="multipart/form-data" action="{{ url_for('main.atualizar_ocorrencia_pcpm_ressarcimento', ressarcimento_id=processo.id) }}">
-      <div class="modal-header bg-laranja text-white"><h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Editar ocorrência</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-header modal-header-trackplan"><h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Editar ocorrência</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
       <div class="modal-body"><div class="row g-3">
         <div class="col-lg-4"><label class="form-label">Equipamento *</label><select class="form-select" name="equipamento_id" required>{% for item in equipamentos %}<option value="{{ item.id }}" {% if item.id == processo.equipamento_id %}selected{% endif %}>{{ item.codigo_frota }} — {{ item.marca }} {{ item.modelo }}</option>{% endfor %}</select></div>
         <div class="col-lg-4"><label class="form-label">Empresa da ocorrência *</label><select class="form-select" name="empresa_ocorrencia_id" required>{% for item in empresas %}<option value="{{ item.id }}" {% if item.id == processo.empresa_ocorrencia_id %}selected{% endif %}>{{ item.nome }}</option>{% endfor %}</select></div>
@@ -200,9 +200,9 @@
 </div>
 
 <div class="modal fade" id="modalNovoOrcamento" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
     <form method="post" enctype="multipart/form-data" action="{{ url_for('main.adicionar_orcamento_pcpm_ressarcimento', ressarcimento_id=processo.id) }}">
-      <div class="modal-header bg-laranja text-white"><h5 class="modal-title"><i class="bi bi-receipt me-2"></i>Nova versão do orçamento</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-header modal-header-trackplan"><h5 class="modal-title"><i class="bi bi-receipt me-2"></i>Nova versão do orçamento</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
       <div class="modal-body"><div class="row g-3">
         <div class="col-md-6"><label class="form-label">Número do orçamento TOTVS *</label><input class="form-control" name="numero_orcamento_totvs" maxlength="80" required></div>
         <div class="col-md-6"><label class="form-label">Valor do orçamento *</label><div class="input-group"><span class="input-group-text">R$</span><input class="form-control" name="valor_orcamento" inputmode="decimal" placeholder="0,00" required></div></div>
@@ -214,9 +214,9 @@
 </div>
 
 <div class="modal fade" id="modalDocumentacao" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
     <form method="post" enctype="multipart/form-data" action="{{ url_for('main.adicionar_documentos_pcpm_ressarcimento', ressarcimento_id=processo.id) }}">
-      <div class="modal-header bg-laranja text-white"><h5 class="modal-title"><i class="bi bi-paperclip me-2"></i>Adicionar documentação</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-header modal-header-trackplan"><h5 class="modal-title"><i class="bi bi-paperclip me-2"></i>Adicionar documentação</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
       <div class="modal-body"><div class="row g-3">
         <div class="col-12"><label class="form-label">Tipo do documento *</label><select class="form-select" name="tipo_documento" required><option value="">Selecione</option><option>Nota fiscal</option><option>Orçamento</option><option>Laudo</option><option>Ordem de Serviço</option><option>Comunicação com as áreas</option><option>Tratativa de Falha</option><option>Outros</option></select></div>
         <div class="col-12"><label class="form-label">Documentos comprobatórios *</label><input class="form-control" type="file" name="documentos" accept=".pdf,.jpg,.jpeg,.png" multiple required><div class="form-text">O tipo selecionado será aplicado a todos os arquivos deste envio. Limite de 10 MB por arquivo.</div></div>
@@ -227,9 +227,9 @@
 </div>
 
 <div class="modal fade" id="modalFaturamento" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
     <form method="post" action="{{ url_for('main.atualizar_faturamento_pcpm_ressarcimento', ressarcimento_id=processo.id) }}" id="formFaturamento">
-      <div class="modal-header bg-laranja text-white"><h5 class="modal-title"><i class="bi bi-cash-coin me-2"></i>Atualizar faturamento</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-header modal-header-trackplan"><h5 class="modal-title"><i class="bi bi-cash-coin me-2"></i>Atualizar faturamento</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
       <div class="modal-body"><div class="row g-3">
         <div class="col-md-6"><label class="form-label">Status *</label><select class="form-select" name="status_faturamento" id="statusFaturamento" required><option value="Pendente" {% if processo.status_faturamento == 'Pendente' %}selected{% endif %}>Pendente</option><option value="Realizado">Realizado</option></select></div>
         <div class="col-md-6"><label class="form-label">Data do faturamento</label><input class="form-control" type="date" name="data_faturamento" id="dataFaturamento" max="{{ hoje_iso }}"></div>

@@ -211,6 +211,21 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
         self.assertIn('name="status_faturamento"', template)
         self.assertIn('name="data_faturamento"', template)
 
+    def test_workflow_modals_follow_system_pattern(self):
+        template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")
+        for modal_id in (
+            "modalEditarOcorrencia",
+            "modalNovoOrcamento",
+            "modalDocumentacao",
+            "modalFaturamento",
+        ):
+            start = template.index(f'id="{modal_id}"')
+            excerpt = template[start:start + 1400]
+            self.assertIn("modal-dialog-centered", excerpt)
+            self.assertIn("modal-dialog-scrollable", excerpt)
+            self.assertIn("modal-header-trackplan", excerpt)
+            self.assertIn('aria-label="Fechar"', excerpt)
+
 
 if __name__ == "__main__":
     unittest.main()
