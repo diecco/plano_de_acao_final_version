@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos_orcamentos (
     ressarcimento_id INT NOT NULL,
     versao INT NOT NULL,
     numero_orcamento_totvs VARCHAR(80) NOT NULL,
+    numero_tf VARCHAR(80) NULL,
     valor_orcamento DECIMAL(15,2) NOT NULL,
     data_envio DATE NULL,
     status ENUM('Não enviado', 'Aguardando aprovação', 'Aprovado', 'Reprovado') NOT NULL DEFAULT 'Não enviado',
@@ -114,6 +115,21 @@ CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos_orcamentos (
     CONSTRAINT fk_orcamento_ressarcimento FOREIGN KEY (ressarcimento_id) REFERENCES pcpm_ressarcimentos(id),
     CONSTRAINT fk_orcamento_criador FOREIGN KEY (criado_por) REFERENCES usuarios(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET @coluna_numero_tf_existe = (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'pcpm_ressarcimentos_orcamentos'
+      AND COLUMN_NAME = 'numero_tf'
+);
+SET @sql_coluna_numero_tf = IF(
+    @coluna_numero_tf_existe = 0,
+    'ALTER TABLE pcpm_ressarcimentos_orcamentos ADD COLUMN numero_tf VARCHAR(80) NULL AFTER numero_orcamento_totvs',
+    'SELECT ''A coluna numero_tf já existe.'' AS informacao'
+);
+PREPARE stmt_coluna_numero_tf FROM @sql_coluna_numero_tf;
+EXECUTE stmt_coluna_numero_tf;
+DEALLOCATE PREPARE stmt_coluna_numero_tf;
 
 CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos_anexos (
     id INT AUTO_INCREMENT PRIMARY KEY,
