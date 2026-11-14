@@ -179,6 +179,28 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
         self.assertIn("pode_gerar_book", template)
         self.assertIn("Geração do book", self.view)
 
+    def test_book_pdf_tem_estrutura_externa_e_sem_historico(self):
+        pdf_util = (ROOT / "app" / "utils" / "pcpm_ressarcimentos_pdf.py").read_text(encoding="utf-8")
+        for titulo in (
+            "1. Identificação do processo",
+            "2. Descrição da ocorrência",
+            "3. Registro fotográfico da avaria",
+            "4. Pessoas envolvidas",
+            "5. Cliente aprovador",
+            "6. Orçamento",
+            "7. Nº da Tratativa de falha",
+            "8. Relação de documentos",
+        ):
+            self.assertIn(titulo, pdf_util)
+        self.assertNotIn("Orçamentos TOTVS", pdf_util)
+        self.assertNotIn('p("6. Histórico"', pdf_util)
+        self.assertIn("logo_tradimaq.png", self.view)
+        self.assertIn("tipo_documento", self.view)
+
+    def test_aprovacao_do_orcamento_registra_data(self):
+        self.assertIn("data_aprovacao", self.migration)
+        self.assertIn("COALESCE(data_aprovacao, CURRENT_DATE)", self.view)
+
     def test_billing_concludes_and_locks_the_process(self):
         template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")
         self.assertIn("atualizar_faturamento_pcpm_ressarcimento", self.view)
