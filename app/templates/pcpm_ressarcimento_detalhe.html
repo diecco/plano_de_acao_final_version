@@ -247,7 +247,8 @@
       <div class="modal-body"><div class="row g-3">
         <div class="col-md-6"><label class="form-label">Status *</label><select class="form-select status-orcamento" name="status" required><option value="Não enviado" {% if item.status == 'Não enviado' %}selected{% endif %}>Não enviado</option><option value="Aguardando aprovação" {% if item.status == 'Aguardando aprovação' %}selected{% endif %}>Aguardando aprovação</option><option value="Aprovado" {% if item.status == 'Aprovado' %}selected{% endif %}>Aprovado</option><option value="Reprovado" {% if item.status == 'Reprovado' %}selected{% endif %}>Reprovado</option></select></div>
         <div class="col-md-6"><label class="form-label">Data de envio</label><input class="form-control data-envio-orcamento" type="date" name="data_envio" value="{{ item.data_envio.strftime('%Y-%m-%d') if item.data_envio else '' }}"></div>
-        <div class="col-12 numero-tf-orcamento"><label class="form-label">Nº da TF *</label><input class="form-control campo-numero-tf" name="numero_tf" maxlength="80" value="{{ item.numero_tf or '' }}" placeholder="Informe o número da TF"></div>
+        <div class="col-md-6 data-aprovacao-orcamento"><label class="form-label">Data da aprovação *</label><input class="form-control campo-data-aprovacao" type="date" name="data_aprovacao" value="{{ item.data_aprovacao.strftime('%Y-%m-%d') if item.data_aprovacao else '' }}" max="{{ hoje_iso }}"></div>
+        <div class="col-md-6 numero-tf-orcamento"><label class="form-label">Nº da TF *</label><input class="form-control campo-numero-tf" name="numero_tf" maxlength="80" value="{{ item.numero_tf or '' }}" placeholder="Informe o número da TF"></div>
         <div class="col-12 aprovacao-orcamento"><label class="form-label">E-mail de aprovação do cliente{% if not item.possui_aprovacao %} *{% endif %}</label><input class="form-control arquivo-aprovacao" type="file" name="arquivo_aprovacao" accept=".pdf,.jpg,.jpeg,.png"><div class="form-text">Obrigatório quando o status for Aprovado e ainda não houver comprovação anexada.</div></div>
       </div></div>
       <div class="modal-footer"><button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button><button type="submit" class="btn btn-laranja">Salvar</button></div>
@@ -299,6 +300,8 @@ document.querySelectorAll('.form-status-orcamento').forEach(function (form) {
   const status = form.querySelector('.status-orcamento');
   const data = form.querySelector('.data-envio-orcamento');
   const aprovacao = form.querySelector('.aprovacao-orcamento');
+  const dataAprovacaoGrupo = form.querySelector('.data-aprovacao-orcamento');
+  const dataAprovacao = form.querySelector('.campo-data-aprovacao');
   const numeroTfGrupo = form.querySelector('.numero-tf-orcamento');
   const numeroTf = form.querySelector('.campo-numero-tf');
   const atualizar = function () {
@@ -307,6 +310,9 @@ document.querySelectorAll('.form-status-orcamento').forEach(function (form) {
     data.disabled = !enviado;
     data.required = enviado;
     aprovacao.classList.toggle('d-none', !aprovado);
+    dataAprovacaoGrupo.classList.toggle('d-none', !aprovado);
+    dataAprovacao.disabled = !aprovado;
+    dataAprovacao.required = aprovado;
     numeroTfGrupo.classList.toggle('d-none', !aprovado);
     numeroTf.disabled = !aprovado;
     numeroTf.required = aprovado;
