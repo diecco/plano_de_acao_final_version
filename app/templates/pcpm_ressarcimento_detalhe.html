@@ -117,15 +117,15 @@
         </div>
         <hr>
         {% if not processo.empresa_cliente_id %}<div class="alert alert-secondary py-2">Cadastre os dados do cliente antes de incluir um orçamento.</div>{% endif %}
-        <div class="table-responsive"><table class="table table-bordered align-middle mb-0">
-          <thead><tr><th>Versão</th><th>Nº TOTVS</th><th>Valor</th><th>Data de envio</th><th>Status</th><th>Documentos</th><th class="text-center">Ações</th></tr></thead>
+        <div class="table-responsive"><table class="table table-bordered align-middle text-center mb-0">
+          <thead><tr><th>Versão</th><th>Nº TOTVS</th><th>Nº da TF</th><th>Valor</th><th>Data de envio</th><th>Status</th><th>Documentos</th><th>Ações</th></tr></thead>
           <tbody>{% for item in orcamentos %}<tr>
             <td>V{{ item.versao }} {% if item.vigente %}<span class="badge bg-secondary">Vigente</span>{% endif %}</td>
-            <td>{{ item.numero_orcamento_totvs }}</td><td>R$ {{ '%.2f'|format(item.valor_orcamento)|replace('.', ',') }}</td>
+            <td>{{ item.numero_orcamento_totvs }}</td><td>{{ item.numero_tf or '—' }}</td><td>R$ {{ '%.2f'|format(item.valor_orcamento)|replace('.', ',') }}</td>
             <td>{{ item.data_envio.strftime('%d/%m/%Y') if item.data_envio else '—' }}</td><td><span class="badge bg-secondary">{{ item.status }}</span></td>
             <td>{% for anexo in anexos if anexo.orcamento_id == item.id %}<a class="btn-acao-icon me-1" href="{{ url_for('main.baixar_anexo_pcpm_ressarcimento', ressarcimento_id=processo.id, anexo_id=anexo.id) }}" title="{{ anexo.nome_original }}"><i class="bi bi-{% if anexo.categoria == 'aprovacao_cliente' %}envelope-check{% else %}file-earmark-arrow-down{% endif %}"></i></a>{% else %}<span class="text-muted">—</span>{% endfor %}</td>
             <td class="text-center">{% if item.vigente and processo_editavel %}<button class="btn-acao-icon" type="button" data-bs-toggle="modal" data-bs-target="#modalStatusOrcamento{{ item.id }}" title="Atualizar status"><i class="bi bi-pencil-square"></i></button>{% else %}<span class="text-muted">—</span>{% endif %}</td>
-          </tr>{% else %}<tr><td colspan="7" class="text-center text-muted py-4">Nenhum orçamento incluído.</td></tr>{% endfor %}</tbody>
+          </tr>{% else %}<tr><td colspan="8" class="text-center text-muted py-4">Nenhum orçamento incluído.</td></tr>{% endfor %}</tbody>
         </table></div>
       </div>
     </div>
@@ -172,7 +172,7 @@
         <div class="col-lg-4"><label class="form-label">Empresa da ocorrência *</label><select class="form-select" name="empresa_ocorrencia_id" required>{% for item in empresas %}<option value="{{ item.id }}" {% if item.id == processo.empresa_ocorrencia_id %}selected{% endif %}>{{ item.nome }}</option>{% endfor %}</select></div>
         <div class="col-lg-4"><label class="form-label">Data e hora *</label><input class="form-control" type="datetime-local" name="ocorrencia_em" value="{{ processo.ocorrencia_em.strftime('%Y-%m-%dT%H:%M') }}" required></div>
         <div class="col-12"><label class="form-label">Descrição *</label><textarea class="form-control" name="descricao_ocorrencia" rows="4" maxlength="5000" required>{{ processo.descricao_ocorrencia }}</textarea></div>
-        <div class="col-lg-6"><label class="form-label">Operador do equipamento</label><select class="form-select" name="operador_id"><option value="">Não informado</option>{% for item in operadores %}<option value="{{ item.id }}" {% if item.id == processo.operador_id %}selected{% endif %}>{{ item.nome }} — {{ item.matricula or 'Sem matrícula' }}{% if item.empresa_nome %} — {{ item.empresa_nome }}{% endif %}</option>{% endfor %}</select></div>
+        <div class="col-lg-6"><label class="form-label">Operador do equipamento</label><input class="form-control" name="operador_nome" maxlength="150" value="{{ processo.operador_nome_snapshot or '' }}" placeholder="Informe o nome do operador"></div>
         <div class="col-lg-6"><label class="form-label">Funcionário Tradimaq *</label><select class="form-select" name="funcionario_id" required>{% for item in funcionarios %}<option value="{{ item.id }}" {% if item.id == processo.funcionario_id %}selected{% endif %}>{{ item.nome }}{% if item.matricula %} — {{ item.matricula }}{% endif %}</option>{% endfor %}</select></div>
         <div class="col-lg-6"><label class="form-label">Adicionar fotos</label><input class="form-control" type="file" name="fotos_avaria" accept=".jpg,.jpeg,.png" multiple></div>
         <div class="col-lg-6"><label class="form-label">Adicionar checklist</label><input class="form-control" type="file" name="checklist_movimentacao" accept=".pdf,.jpg,.jpeg,.png"></div>
@@ -241,12 +241,13 @@
 
 {% for item in orcamentos %}{% if item.vigente %}
 <div class="modal fade" id="modalStatusOrcamento{{ item.id }}" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content">
     <form method="post" enctype="multipart/form-data" action="{{ url_for('main.atualizar_status_orcamento_pcpm_ressarcimento', ressarcimento_id=processo.id, orcamento_id=item.id) }}" class="form-status-orcamento">
-      <div class="modal-header bg-laranja text-white"><h5 class="modal-title">Atualizar orçamento V{{ item.versao }}</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-header modal-header-trackplan"><h5 class="modal-title"><i class="bi bi-receipt me-2"></i>Atualizar orçamento V{{ item.versao }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
       <div class="modal-body"><div class="row g-3">
         <div class="col-md-6"><label class="form-label">Status *</label><select class="form-select status-orcamento" name="status" required><option value="Não enviado" {% if item.status == 'Não enviado' %}selected{% endif %}>Não enviado</option><option value="Aguardando aprovação" {% if item.status == 'Aguardando aprovação' %}selected{% endif %}>Aguardando aprovação</option><option value="Aprovado" {% if item.status == 'Aprovado' %}selected{% endif %}>Aprovado</option><option value="Reprovado" {% if item.status == 'Reprovado' %}selected{% endif %}>Reprovado</option></select></div>
         <div class="col-md-6"><label class="form-label">Data de envio</label><input class="form-control data-envio-orcamento" type="date" name="data_envio" value="{{ item.data_envio.strftime('%Y-%m-%d') if item.data_envio else '' }}"></div>
+        <div class="col-12 numero-tf-orcamento"><label class="form-label">Nº da TF *</label><input class="form-control campo-numero-tf" name="numero_tf" maxlength="80" value="{{ item.numero_tf or '' }}" placeholder="Informe o número da TF"></div>
         <div class="col-12 aprovacao-orcamento"><label class="form-label">E-mail de aprovação do cliente{% if not item.possui_aprovacao %} *{% endif %}</label><input class="form-control arquivo-aprovacao" type="file" name="arquivo_aprovacao" accept=".pdf,.jpg,.jpeg,.png"><div class="form-text">Obrigatório quando o status for Aprovado e ainda não houver comprovação anexada.</div></div>
       </div></div>
       <div class="modal-footer"><button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button><button type="submit" class="btn btn-laranja">Salvar</button></div>
@@ -258,7 +259,7 @@
 const ressWorkflow = document.querySelector('.ress-workflow');
 const ressSteps = Array.from(document.querySelectorAll('[data-ress-step]'));
 const ressPanels = Array.from(document.querySelectorAll('[data-ress-panel]'));
-const ressEtapaAtual = Math.min(5, Math.max(1, Number(ressWorkflow?.dataset.etapaAtual || 1)));
+const ressEtapaAtual = Math.min(6, Math.max(1, Number(ressWorkflow?.dataset.etapaAtual || 1)));
 
 function abrirEtapaRessarcimento(numero, atualizarUrl = true) {
   const etapa = Math.min(6, Math.max(1, Number(numero) || 1));
@@ -298,11 +299,17 @@ document.querySelectorAll('.form-status-orcamento').forEach(function (form) {
   const status = form.querySelector('.status-orcamento');
   const data = form.querySelector('.data-envio-orcamento');
   const aprovacao = form.querySelector('.aprovacao-orcamento');
+  const numeroTfGrupo = form.querySelector('.numero-tf-orcamento');
+  const numeroTf = form.querySelector('.campo-numero-tf');
   const atualizar = function () {
     const enviado = status.value !== 'Não enviado';
+    const aprovado = status.value === 'Aprovado';
     data.disabled = !enviado;
     data.required = enviado;
-    aprovacao.classList.toggle('d-none', status.value !== 'Aprovado');
+    aprovacao.classList.toggle('d-none', !aprovado);
+    numeroTfGrupo.classList.toggle('d-none', !aprovado);
+    numeroTf.disabled = !aprovado;
+    numeroTf.required = aprovado;
   };
   status.addEventListener('change', atualizar);
   atualizar();

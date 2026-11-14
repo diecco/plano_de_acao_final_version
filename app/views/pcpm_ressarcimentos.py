@@ -308,7 +308,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
 
             equipamento_id = request.form.get("equipamento_id", type=int)
             empresa_id = request.form.get("empresa_ocorrencia_id", type=int)
-            operador_id = request.form.get("operador_id", type=int)
+            operador_nome = (request.form.get("operador_nome") or "").strip()[:150] or None
             funcionario_id = request.form.get("funcionario_id", type=int)
             ocorrencia_raw = (request.form.get("ocorrencia_em") or "").strip()
             descricao = (request.form.get("descricao_ocorrencia") or "").strip()
@@ -331,11 +331,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
                 (funcionario_id, centro_id),
             )
             funcionario = cursor.fetchone()
-            operador = None
-            if operador_id:
-                cursor.execute("SELECT id, nome, matricula FROM pcpm_pessoas WHERE id = %s AND ativo = 1", (operador_id,))
-                operador = cursor.fetchone()
-            if not equipamento or not empresa or not funcionario or (operador_id and not operador):
+            if not equipamento or not empresa or not funcionario:
                 raise ValueError("Um dos cadastros selecionados é inválido ou está fora do centro de custos.")
 
             ano = ocorrencia_em.year
@@ -362,9 +358,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
                 """,
                 (
                     ano, sequencial, numero, centro_id, equipamento_id, empresa_id,
-                    ocorrencia_em, descricao, operador_id,
-                    operador["nome"] if operador else None,
-                    operador["matricula"] if operador else None,
+                    ocorrencia_em, descricao, None,
+                    operador_nome, None,
                     funcionario_id, funcionario["nome"], funcionario["matricula"],
                     equipamento_snapshot, empresa["nome"],
                     session.get("usuario_id"), session.get("usuario_id"),
@@ -470,7 +465,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
 
             equipamento_id = request.form.get("equipamento_id", type=int)
             empresa_id = request.form.get("empresa_ocorrencia_id", type=int)
-            operador_id = request.form.get("operador_id", type=int)
+            operador_nome = (request.form.get("operador_nome") or "").strip()[:150] or None
             funcionario_id = request.form.get("funcionario_id", type=int)
             ocorrencia_raw = (request.form.get("ocorrencia_em") or "").strip()
             descricao = (request.form.get("descricao_ocorrencia") or "").strip()
@@ -493,14 +488,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
                 (funcionario_id, centro_id),
             )
             funcionario = cursor.fetchone()
-            operador = None
-            if operador_id:
-                cursor.execute(
-                    "SELECT id, nome, matricula FROM pcpm_pessoas WHERE id=%s AND ativo=1",
-                    (operador_id,),
-                )
-                operador = cursor.fetchone()
-            if not equipamento or not empresa or not funcionario or (operador_id and not operador):
+            if not equipamento or not empresa or not funcionario:
                 raise ValueError("Um dos cadastros selecionados é inválido ou está fora do centro de custos.")
 
             anteriores = {
@@ -516,7 +504,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
                 "equipamento": equipamento_snapshot,
                 "empresa": empresa["nome"], "ocorrencia_em": ocorrencia_em,
                 "descricao": descricao,
-                "operador": operador["nome"] if operador else None,
+                "operador": operador_nome,
                 "funcionario": funcionario["nome"],
             }
             cursor.execute(
@@ -529,9 +517,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
                        empresa_ocorrencia_snapshot=%s, atualizado_por=%s
                    WHERE id=%s""",
                 (
-                    equipamento_id, empresa_id, ocorrencia_em, descricao, operador_id,
-                    operador["nome"] if operador else None,
-                    operador["matricula"] if operador else None,
+                    equipamento_id, empresa_id, ocorrencia_em, descricao, None,
+                    operador_nome, None,
                     funcionario_id, funcionario["nome"], funcionario["matricula"],
                     equipamento_snapshot, empresa["nome"], session.get("usuario_id"),
                     ressarcimento_id,
@@ -664,6 +651,7 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             if not orcamento:
                 raise ValueError("Somente a versão vigente do orçamento pode ser alterada.")
             status = (request.form.get("status") or "").strip()
+            numero_tf = (request.form.get("numero_tf") or "").strip()[:80] or None
             permitidos = {"Não enviado", "Aguardando aprovação", "Aprovado", "Reprovado"}
             if status not in permitidos:
                 raise ValueError("Selecione um status válido para o orçamento.")
@@ -675,6 +663,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
                 data_envio = datetime.strptime(data_raw, "%Y-%m-%d").date()
             aprovacao = request.files.get("arquivo_aprovacao")
             if status == "Aprovado":
+                if not numero_tf:
+                    raise ValueError("Informe o Nº da TF para aprovar o orçamento.")
                 cursor.execute(
                     """SELECT COUNT(*) AS total FROM pcpm_ressarcimentos_anexos
                        WHERE orcamento_id=%s AND categoria='aprovacao_cliente' AND ativo=1""",
@@ -689,8 +679,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
                 )
             cursor.execute(
                 """UPDATE pcpm_ressarcimentos_orcamentos
-                   SET status=%s, data_envio=%s WHERE id=%s""",
-                (status, data_envio, orcamento_id),
+                   SET status=%s, data_envio=%s, numero_tf=%s WHERE id=%s""",
+                (status, data_envio, numero_tf if status == "Aprovado" else None, orcamento_id),
             )
             cursor.execute(
                 "UPDATE pcpm_ressarcimentos SET atualizado_por=%s WHERE id=%s",
@@ -699,8 +689,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             _registrar_historico(
                 cursor, ressarcimento_id, "Status do orçamento",
                 f"Orçamento versão {orcamento['versao']} alterado para {status}.",
-                anteriores={"status": orcamento["status"], "data_envio": orcamento["data_envio"]},
-                posteriores={"status": status, "data_envio": data_envio}, etapa=3,
+                anteriores={"status": orcamento["status"], "data_envio": orcamento["data_envio"], "numero_tf": orcamento.get("numero_tf")},
+                posteriores={"status": status, "data_envio": data_envio, "numero_tf": numero_tf if status == "Aprovado" else None}, etapa=3,
             )
             conn.commit()
             flash("Status do orçamento atualizado com sucesso.", "success")

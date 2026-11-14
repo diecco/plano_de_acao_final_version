@@ -152,6 +152,11 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
         self.assertIn('id="modalNovoOrcamento"', template)
         self.assertIn('name="arquivo_orcamento"', template)
         self.assertIn('name="arquivo_aprovacao"', template)
+        self.assertIn('name="numero_tf"', template)
+        self.assertIn("Informe o Nº da TF", self.view)
+        self.assertIn("COLUMN_NAME = 'numero_tf'", self.migration)
+        self.assertIn('name="operador_nome"', template)
+        self.assertNotIn('name="operador_id"', template)
 
     def test_supporting_documents_are_audited_and_logically_removed(self):
         template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")
