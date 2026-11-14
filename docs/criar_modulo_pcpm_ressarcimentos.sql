@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos_orcamentos (
     numero_tf VARCHAR(80) NULL,
     valor_orcamento DECIMAL(15,2) NOT NULL,
     data_envio DATE NULL,
+    data_aprovacao DATE NULL,
     status ENUM('Não enviado', 'Aguardando aprovação', 'Aprovado', 'Reprovado') NOT NULL DEFAULT 'Não enviado',
     vigente TINYINT(1) NOT NULL DEFAULT 1,
     criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -130,6 +131,21 @@ SET @sql_coluna_numero_tf = IF(
 PREPARE stmt_coluna_numero_tf FROM @sql_coluna_numero_tf;
 EXECUTE stmt_coluna_numero_tf;
 DEALLOCATE PREPARE stmt_coluna_numero_tf;
+
+SET @coluna_data_aprovacao_existe = (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'pcpm_ressarcimentos_orcamentos'
+      AND COLUMN_NAME = 'data_aprovacao'
+);
+SET @sql_coluna_data_aprovacao = IF(
+    @coluna_data_aprovacao_existe = 0,
+    'ALTER TABLE pcpm_ressarcimentos_orcamentos ADD COLUMN data_aprovacao DATE NULL AFTER data_envio',
+    'SELECT ''A coluna data_aprovacao já existe.'' AS informacao'
+);
+PREPARE stmt_coluna_data_aprovacao FROM @sql_coluna_data_aprovacao;
+EXECUTE stmt_coluna_data_aprovacao;
+DEALLOCATE PREPARE stmt_coluna_data_aprovacao;
 
 CREATE TABLE IF NOT EXISTS pcpm_ressarcimentos_anexos (
     id INT AUTO_INCREMENT PRIMARY KEY,

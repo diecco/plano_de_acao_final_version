@@ -679,8 +679,17 @@ def register_pcpm_ressarcimentos_routes(blueprint):
                 )
             cursor.execute(
                 """UPDATE pcpm_ressarcimentos_orcamentos
-                   SET status=%s, data_envio=%s, numero_tf=%s WHERE id=%s""",
-                (status, data_envio, numero_tf if status == "Aprovado" else None, orcamento_id),
+                   SET status=%s, data_envio=%s, numero_tf=%s,
+                       data_aprovacao=CASE
+                           WHEN %s='Aprovado' THEN COALESCE(data_aprovacao, CURRENT_DATE)
+                           ELSE NULL
+                       END
+                   WHERE id=%s""",
+                (
+                    status, data_envio,
+                    numero_tf if status == "Aprovado" else None,
+                    status, orcamento_id,
+                ),
             )
             cursor.execute(
                 "UPDATE pcpm_ressarcimentos SET atualizado_por=%s WHERE id=%s",
@@ -919,8 +928,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             if not any(item["vigente"] and item["status"] == "Aprovado" for item in orcamentos):
                 raise ValueError("É necessário possuir um orçamento vigente aprovado para gerar o book.")
             cursor.execute(
-                """SELECT id, orcamento_id, categoria, nome_original, nome_armazenado,
-                          tamanho_bytes, criado_em
+                """SELECT id, orcamento_id, categoria, tipo_documento,
+                          nome_original, nome_armazenado, tamanho_bytes, criado_em
                    FROM pcpm_ressarcimentos_anexos
                    WHERE ressarcimento_id=%s AND ativo=1 ORDER BY criado_em, id""",
                 (ressarcimento_id,),
@@ -932,16 +941,20 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             for item in anexos:
                 item["caminho_absoluto"] = os.path.join(diretorio, item["nome_armazenado"])
             cursor.execute(
-                """SELECT h.*, u.nome AS usuario_nome
-                   FROM pcpm_ressarcimentos_historico h
-                   JOIN usuarios u ON u.id=h.usuario_id
-                   WHERE h.ressarcimento_id=%s ORDER BY h.criado_em, h.id""",
+                """SELECT MIN(criado_em) AS data_aprovacao_fallback
+                   FROM pcpm_ressarcimentos_anexos
+                   WHERE ressarcimento_id=%s
+                     AND categoria='aprovacao_cliente' AND ativo=1""",
                 (ressarcimento_id,),
             )
-            historico = cursor.fetchall()
+            processo.update(cursor.fetchone() or {})
             from app.utils.pcpm_ressarcimentos_pdf import gerar_book_ressarcimento
-            logo_path = os.path.join("app", "static", "imagens", "logo_trackplan.png")
-            pdf = gerar_book_ressarcimento(processo, orcamentos, anexos, historico, logo_path)
+            imagens = os.path.join(current_app.root_path, "static", "imagens")
+            pdf = gerar_book_ressarcimento(
+                processo, orcamentos, anexos,
+                os.path.join(imagens, "logo_tradimaq.png"),
+                os.path.join(imagens, "logo_trackplan.png"),
+            )
             _registrar_historico(
                 cursor, ressarcimento_id, "Geração do book",
                 "Book consolidado do processo gerado em PDF.", etapa=4,
