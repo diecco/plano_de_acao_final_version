@@ -199,7 +199,12 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
 
     def test_aprovacao_do_orcamento_registra_data(self):
         self.assertIn("data_aprovacao", self.migration)
-        self.assertIn("COALESCE(data_aprovacao, CURRENT_DATE)", self.view)
+        self.assertIn("Informe a data da aprovação do orçamento", self.view)
+        self.assertIn("A data da aprovação não pode ser futura", self.view)
+        template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")
+        self.assertIn('name="data_aprovacao"', template)
+        self.assertIn("data-aprovacao-orcamento", template)
+        self.assertIn("dataAprovacao.required = aprovado", template)
 
     def test_billing_concludes_and_locks_the_process(self):
         template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")

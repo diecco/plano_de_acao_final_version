@@ -661,8 +661,15 @@ def register_pcpm_ressarcimentos_routes(blueprint):
                 if not data_raw:
                     raise ValueError("Informe a data de envio do orçamento.")
                 data_envio = datetime.strptime(data_raw, "%Y-%m-%d").date()
+            data_aprovacao = None
+            data_aprovacao_raw = (request.form.get("data_aprovacao") or "").strip()
             aprovacao = request.files.get("arquivo_aprovacao")
             if status == "Aprovado":
+                if not data_aprovacao_raw:
+                    raise ValueError("Informe a data da aprovação do orçamento.")
+                data_aprovacao = datetime.strptime(data_aprovacao_raw, "%Y-%m-%d").date()
+                if data_aprovacao > datetime.now().date():
+                    raise ValueError("A data da aprovação não pode ser futura.")
                 if not numero_tf:
                     raise ValueError("Informe o Nº da TF para aprovar o orçamento.")
                 cursor.execute(
@@ -679,16 +686,12 @@ def register_pcpm_ressarcimentos_routes(blueprint):
                 )
             cursor.execute(
                 """UPDATE pcpm_ressarcimentos_orcamentos
-                   SET status=%s, data_envio=%s, numero_tf=%s,
-                       data_aprovacao=CASE
-                           WHEN %s='Aprovado' THEN COALESCE(data_aprovacao, CURRENT_DATE)
-                           ELSE NULL
-                       END
+                   SET status=%s, data_envio=%s, numero_tf=%s, data_aprovacao=%s
                    WHERE id=%s""",
                 (
                     status, data_envio,
                     numero_tf if status == "Aprovado" else None,
-                    status, orcamento_id,
+                    data_aprovacao, orcamento_id,
                 ),
             )
             cursor.execute(
@@ -698,8 +701,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
             _registrar_historico(
                 cursor, ressarcimento_id, "Status do orçamento",
                 f"Orçamento versão {orcamento['versao']} alterado para {status}.",
-                anteriores={"status": orcamento["status"], "data_envio": orcamento["data_envio"], "numero_tf": orcamento.get("numero_tf")},
-                posteriores={"status": status, "data_envio": data_envio, "numero_tf": numero_tf if status == "Aprovado" else None}, etapa=3,
+                anteriores={"status": orcamento["status"], "data_envio": orcamento["data_envio"], "data_aprovacao": orcamento.get("data_aprovacao"), "numero_tf": orcamento.get("numero_tf")},
+                posteriores={"status": status, "data_envio": data_envio, "data_aprovacao": data_aprovacao, "numero_tf": numero_tf if status == "Aprovado" else None}, etapa=3,
             )
             conn.commit()
             flash("Status do orçamento atualizado com sucesso.", "success")
