@@ -205,6 +205,16 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
         self.assertIn('name="data_aprovacao"', template)
         self.assertIn("data-aprovacao-orcamento", template)
         self.assertIn("dataAprovacao.required = aprovado", template)
+        self.assertIn("não pode ser anterior à data de envio", self.view)
+
+    def test_attachments_are_kept_outside_the_public_static_tree(self):
+        self.assertIn('current_app.config.get("UPLOAD_ROOT")', self.view)
+        self.assertIn('current_app.instance_path', self.view)
+        self.assertIn('"uploads_privados"', self.view)
+        self.assertNotIn(
+            'os.path.join("app", "static", "pcpm_ressarcimentos"',
+            self.view,
+        )
 
     def test_billing_concludes_and_locks_the_process(self):
         template = (ROOT / "app" / "templates" / "pcpm_ressarcimento_detalhe.html").read_text(encoding="utf-8")
@@ -212,6 +222,7 @@ class PcpmRessarcimentosStructureTests(unittest.TestCase):
         self.assertIn("O faturamento já foi realizado e não pode ser revertido", self.view)
         self.assertIn('status_processo = "Concluído"', self.view)
         self.assertIn("A data do faturamento não pode ser futura", self.view)
+        self.assertIn("não pode ser anterior à aprovação do orçamento", self.view)
         self.assertIn('id="modalFaturamento"', template)
         self.assertIn('name="status_faturamento"', template)
         self.assertIn('name="data_faturamento"', template)

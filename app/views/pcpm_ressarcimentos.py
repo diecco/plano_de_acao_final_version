@@ -37,7 +37,15 @@ TIPOS_DOCUMENTO_RESSARCIMENTO = {
 
 
 def _diretorio_ressarcimento(ressarcimento_id):
-    return os.path.join("app", "static", "pcpm_ressarcimentos", str(ressarcimento_id))
+    # Anexos de ressarcimento contêm documentos comerciais e dados pessoais.
+    # Eles não podem ficar sob ``static``, pois isso permitiria acesso direto
+    # sem passar pelas verificações de sessão, módulo e centro de custos.
+    raiz_persistente = current_app.config.get("UPLOAD_ROOT")
+    if raiz_persistente:
+        raiz_privada = os.path.join(raiz_persistente, "privados")
+    else:
+        raiz_privada = os.path.join(current_app.instance_path, "uploads_privados")
+    return os.path.join(raiz_privada, "pcpm_ressarcimentos", str(ressarcimento_id))
 
 
 def _tamanho_upload(arquivo):
@@ -670,6 +678,8 @@ def register_pcpm_ressarcimentos_routes(blueprint):
                 data_aprovacao = datetime.strptime(data_aprovacao_raw, "%Y-%m-%d").date()
                 if data_aprovacao > datetime.now().date():
                     raise ValueError("A data da aprovação não pode ser futura.")
+                if data_envio and data_aprovacao < data_envio:
+                    raise ValueError("A data da aprovação não pode ser anterior à data de envio.")
                 if not numero_tf:
                     raise ValueError("Informe o Nº da TF para aprovar o orçamento.")
                 cursor.execute(
@@ -1019,6 +1029,22 @@ def register_pcpm_ressarcimentos_routes(blueprint):
                 )
                 if cursor.fetchone()["total"] == 0:
                     raise ValueError("Inclua a documentação comprobatória antes do faturamento.")
+                cursor.execute(
+                    """SELECT data_aprovacao
+                       FROM pcpm_ressarcimentos_orcamentos
+                       WHERE ressarcimento_id=%s AND vigente=1 AND status='Aprovado'
+                       LIMIT 1""",
+                    (ressarcimento_id,),
+                )
+                orcamento_aprovado = cursor.fetchone()
+                if (
+                    orcamento_aprovado
+                    and orcamento_aprovado.get("data_aprovacao")
+                    and data_faturamento < orcamento_aprovado["data_aprovacao"]
+                ):
+                    raise ValueError(
+                        "A data do faturamento não pode ser anterior à aprovação do orçamento."
+                    )
                 status_processo = "Concluído"
             cursor.execute(
                 """UPDATE pcpm_ressarcimentos
