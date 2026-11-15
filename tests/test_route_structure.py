@@ -13,7 +13,28 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 236)
+        self.assertEqual(len(self.routes), 250)
+
+    def test_pcpm_ressarcimentos_routes_are_registered(self):
+        expected = {
+            ("/pcpm/ressarcimentos", ("GET",)): "main.pcpm_ressarcimentos",
+            ("/pcpm/ressarcimentos/novo", ("GET", "POST")): "main.novo_pcpm_ressarcimento",
+            ("/pcpm/ressarcimentos/<int:ressarcimento_id>", ("GET",)): "main.detalhar_pcpm_ressarcimento",
+            ("/pcpm/ressarcimentos/<int:ressarcimento_id>/ocorrencia", ("POST",)): "main.atualizar_ocorrencia_pcpm_ressarcimento",
+            ("/pcpm/ressarcimentos/<int:ressarcimento_id>/cliente", ("POST",)): "main.atualizar_cliente_pcpm_ressarcimento",
+            ("/pcpm/ressarcimentos/<int:ressarcimento_id>/orcamentos", ("POST",)): "main.adicionar_orcamento_pcpm_ressarcimento",
+            ("/pcpm/ressarcimentos/<int:ressarcimento_id>/orcamentos/<int:orcamento_id>/status", ("POST",)): "main.atualizar_status_orcamento_pcpm_ressarcimento",
+            ("/pcpm/ressarcimentos/<int:ressarcimento_id>/documentos", ("POST",)): "main.adicionar_documentos_pcpm_ressarcimento",
+            ("/pcpm/ressarcimentos/<int:ressarcimento_id>/documentos/<int:anexo_id>/remover", ("POST",)): "main.remover_documento_pcpm_ressarcimento",
+            ("/pcpm/ressarcimentos/<int:ressarcimento_id>/book.pdf", ("GET",)): "main.gerar_book_pcpm_ressarcimento",
+            ("/pcpm/ressarcimentos/<int:ressarcimento_id>/faturamento", ("POST",)): "main.atualizar_faturamento_pcpm_ressarcimento",
+            ("/pcpm/ressarcimentos/<int:ressarcimento_id>/anexos/<int:anexo_id>", ("GET",)): "main.baixar_anexo_pcpm_ressarcimento",
+            ("/pcpm/ressarcimentos/<int:ressarcimento_id>/cancelar", ("POST",)): "main.cancelar_pcpm_ressarcimento",
+            ("/pcpm/ressarcimentos/<int:ressarcimento_id>/reabrir", ("POST",)): "main.reabrir_pcpm_ressarcimento",
+        }
+        for route_contract, endpoint in expected.items():
+            with self.subTest(route_contract=route_contract):
+                self.assertEqual(self.routes.get(route_contract), endpoint)
 
     def test_configurable_checklist_routes_are_registered(self):
         expected = {
