@@ -226,6 +226,9 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         calendar = (
             ROOT / "app" / "templates" / "meu_calendario_ssma.html"
         ).read_text(encoding="utf-8")
+        adherence_report = (
+            ROOT / "app" / "templates" / "relatorio_aderencia_ssma.html"
+        ).read_text(encoding="utf-8")
 
         self.assertIn('"observacao_comportamental"', agenda)
         self.assertIn('"FLUIG_OBSERVACAO_COMPORTAMENTAL_URL"', agenda)
@@ -244,6 +247,11 @@ class ObservacaoComportamentalTests(unittest.TestCase):
             )[0],
         )
         self.assertIn('value="observacao_comportamental"', schedule_form)
+        self.assertIn('value="observacao_comportamental"', adherence_report)
+        self.assertIn(
+            "pratica_selecionada == 'observacao_comportamental'",
+            adherence_report,
+        )
         self.assertIn("Observação Comportamental", calendar)
         self.assertIn("item.pratica == 'observacao_comportamental'", calendar)
         self.assertIn("{{ fluig_observacao_url }}", calendar)
