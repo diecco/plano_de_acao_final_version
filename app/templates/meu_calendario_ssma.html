@@ -438,6 +438,10 @@
                                                                         id=item.id
                                                                     ) }}"
                                                                class="btn btn-laranja btn-executar-pratica"
+                                                               {% if item.pratica == 'observacao_comportamental' %}
+                                                               target="_blank"
+                                                               rel="noopener noreferrer"
+                                                               {% endif %}
                                                                title="Executar prática">
                                                                 <i class="bi bi-play-circle me-1"></i>
                                                                 Executar
