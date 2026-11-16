@@ -15,6 +15,24 @@ from app.feature_flags import (
 from app.utils.db import get_db_connection
 
 
+FLUIG_OBSERVACAO_URL_PADRAO = "https://fluig.tradimaq.com.br/portal/home"
+
+
+def _url_observacao_comportamental_fluig():
+    url = (
+        current_app.config.get("FLUIG_OBSERVACAO_COMPORTAMENTAL_URL")
+        or os.getenv("FLUIG_OBSERVACAO_COMPORTAMENTAL_URL", "")
+        or FLUIG_OBSERVACAO_URL_PADRAO
+    ).strip()
+    destino = urlsplit(url)
+    if destino.scheme not in {"http", "https"} or not destino.netloc:
+        current_app.logger.error(
+            "FLUIG_OBSERVACAO_COMPORTAMENTAL_URL não configurada ou inválida."
+        )
+        return FLUIG_OBSERVACAO_URL_PADRAO
+    return url
+
+
 def _resolver_periodo_aderencia(periodo, mes_referencia=None, data_inicio=None,
                                 data_fim=None, hoje=None):
     """Resolve o período do relatório sem alterar suas regras de cálculo."""
@@ -2409,7 +2427,8 @@ def register_agenda_ssma_routes(blueprint):
             mes_anterior=mes_anterior,
             proximo_mes=proximo_mes,
             resumo=resumo,
-            calendario_semanas=calendario_semanas
+            calendario_semanas=calendario_semanas,
+            fluig_observacao_url=_url_observacao_comportamental_fluig(),
         )
 
     @blueprint.route(
@@ -2589,27 +2608,7 @@ def register_agenda_ssma_routes(blueprint):
                     )
                     return redirect(next_url)
 
-                fluig_url = (
-                    current_app.config.get("FLUIG_OBSERVACAO_COMPORTAMENTAL_URL")
-                    or os.getenv(
-                        "FLUIG_OBSERVACAO_COMPORTAMENTAL_URL",
-                        "",
-                    )
-                    or "https://fluig.tradimaq.com.br/portal/home"
-                ).strip()
-                destino = urlsplit(fluig_url)
-                if destino.scheme not in {"http", "https"} or not destino.netloc:
-                    current_app.logger.error(
-                        "FLUIG_OBSERVACAO_COMPORTAMENTAL_URL não configurada ou inválida."
-                    )
-                    flash(
-                        "O endereço da Observação Comportamental no Fluig "
-                        "ainda não foi configurado.",
-                        "danger",
-                    )
-                    return redirect(next_url)
-
-                return redirect(fluig_url)
+                return redirect(_url_observacao_comportamental_fluig())
 
             # =================================================
             # CHECKLIST CONFIGURÁVEL

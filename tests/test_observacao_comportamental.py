@@ -222,7 +222,10 @@ class ObservacaoComportamentalTests(unittest.TestCase):
             '"https://fluig.tradimaq.com.br/portal/home"',
             agenda,
         )
-        self.assertIn("return redirect(fluig_url)", agenda)
+        self.assertIn(
+            "return redirect(_url_observacao_comportamental_fluig())",
+            agenda,
+        )
         self.assertNotIn(
             '"main.nova_observacao_comportamental"',
             agenda.split('if pratica == "observacao_comportamental":', 1)[1].split(
@@ -232,6 +235,7 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         self.assertIn('value="observacao_comportamental"', schedule_form)
         self.assertIn("Observação Comportamental", calendar)
         self.assertIn("item.pratica == 'observacao_comportamental'", calendar)
+        self.assertIn("{{ fluig_observacao_url }}", calendar)
         self.assertIn('target="_blank"', calendar)
         self.assertIn('rel="noopener noreferrer"', calendar)
         self.assertIn("agendamento_id = request.values.get", observation)

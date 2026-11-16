@@ -433,10 +433,10 @@
                                                         </div>
 
                                                         {% if item.pode_executar %}
-                                                            <a href="{{ url_for(
+                                                            <a href="{% if item.pratica == 'observacao_comportamental' %}{{ fluig_observacao_url }}{% else %}{{ url_for(
                                                                         'main.executar_agendamento_ssma',
                                                                         id=item.id
-                                                                    ) }}"
+                                                                    ) }}{% endif %}"
                                                                class="btn btn-laranja btn-executar-pratica"
                                                                {% if item.pratica == 'observacao_comportamental' %}
                                                                target="_blank"
