@@ -257,13 +257,30 @@ def _listar_observacoes_fluig():
     order = order if order in {"asc", "desc"} else "desc"
     condicoes = ["1 = 1"]
     parametros = []
+    condicoes_escopo = ["1 = 1"]
+    parametros_escopo = []
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
     if session.get("perfil") not in {"administrador", "avancado"}:
-        condicoes.append("""
-            r.centro_custos_codigo = (
-                SELECT codigo FROM centros_custos WHERE id = %s LIMIT 1
+        cursor.execute(
+            "SELECT codigo FROM centros_custos WHERE id = %s LIMIT 1",
+            (session.get("centro_custos_id") or 0,),
+        )
+        centro = cursor.fetchone()
+        if not centro or not (centro.get("codigo") or "").strip():
+            condicoes.append("1 = 0")
+            condicoes_escopo.append("1 = 0")
+        else:
+            filtro_centro = (
+                "CAST(TRIM(r.centro_custos_codigo) AS BINARY) = "
+                "CAST(TRIM(%s) AS BINARY)"
             )
-        """)
-        parametros.append(session.get("centro_custos_id") or 0)
+            codigo_centro = centro["codigo"].strip()
+            condicoes.append(filtro_centro)
+            parametros.append(codigo_centro)
+            condicoes_escopo.append(filtro_centro)
+            parametros_escopo.append(codigo_centro)
     if observador_busca:
         termo = f"%{observador_busca}%"
         condicoes.append(
@@ -277,9 +294,8 @@ def _listar_observacoes_fluig():
         condicoes.append("r.data_observacao <= %s")
         parametros.append(data_fim)
     onde = " AND ".join(condicoes)
+    onde_escopo = " AND ".join(condicoes_escopo)
 
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute(
             f"SELECT COUNT(*) total FROM oc_fluig_registros r WHERE {onde}",
@@ -324,7 +340,8 @@ def _listar_observacoes_fluig():
                        c.nome categoria_nome, i.codigo item_codigo,
                        i.descricao item_descricao, fr.quantidade
                 FROM oc_fluig_respostas fr
-                JOIN oc_itens i ON i.codigo = fr.item_codigo
+                JOIN oc_itens i
+                  ON CAST(i.codigo AS BINARY) = CAST(fr.item_codigo AS BINARY)
                 JOIN oc_categorias c ON c.id = i.categoria_id
                 WHERE fr.registro_id IN ({placeholders})
                   AND fr.quantidade > 0
@@ -332,10 +349,12 @@ def _listar_observacoes_fluig():
             """, tuple(ids))
             for item in cursor.fetchall():
                 marcacoes_por_registro[item["registro_id"]].append(item)
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT DISTINCT observador_nome nome, observador_matricula matricula
-            FROM oc_fluig_registros ORDER BY observador_nome
-        """)
+            FROM oc_fluig_registros r
+            WHERE {onde_escopo}
+            ORDER BY observador_nome
+        """, tuple(parametros_escopo))
         observadores = cursor.fetchall()
     finally:
         cursor.close()
@@ -684,13 +703,16 @@ def register_observacao_comportamental_routes(blueprint):
                     (session.get("centro_custos_id") or 0,),
                 )
                 centro = cursor.fetchone()
-                if not centro or centro["codigo"] != registro["centro_custos_codigo"]:
+                codigo_usuario = (centro.get("codigo") or "").strip() if centro else ""
+                codigo_registro = (registro.get("centro_custos_codigo") or "").strip()
+                if not codigo_usuario or codigo_usuario != codigo_registro:
                     abort(404)
             cursor.execute("""
                 SELECT c.codigo categoria_codigo, c.nome categoria_nome,
                        i.descricao item_descricao, fr.quantidade
                 FROM oc_fluig_respostas fr
-                JOIN oc_itens i ON i.codigo = fr.item_codigo
+                  JOIN oc_itens i
+                    ON CAST(i.codigo AS BINARY) = CAST(fr.item_codigo AS BINARY)
                 JOIN oc_categorias c ON c.id = i.categoria_id
                 WHERE fr.registro_id = %s ORDER BY c.ordem, i.ordem
             """, (registro_id,))

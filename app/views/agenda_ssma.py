@@ -1,6 +1,7 @@
 import calendar
 import json
 import os
+from urllib.parse import urlsplit
 from calendar import monthrange
 from datetime import date, datetime
 
@@ -2588,13 +2589,23 @@ def register_agenda_ssma_routes(blueprint):
                     )
                     return redirect(next_url)
 
-                return redirect(
-                    url_for(
-                        "main.nova_observacao_comportamental",
-                        agendamento_id=agendamento["id"],
-                        next=next_url
+                fluig_url = (
+                    current_app.config.get("FLUIG_OBSERVACAO_COMPORTAMENTAL_URL")
+                    or os.getenv("FLUIG_OBSERVACAO_COMPORTAMENTAL_URL", "")
+                ).strip()
+                destino = urlsplit(fluig_url)
+                if destino.scheme not in {"http", "https"} or not destino.netloc:
+                    current_app.logger.error(
+                        "FLUIG_OBSERVACAO_COMPORTAMENTAL_URL não configurada ou inválida."
                     )
-                )
+                    flash(
+                        "O endereço da Observação Comportamental no Fluig "
+                        "ainda não foi configurado.",
+                        "danger",
+                    )
+                    return redirect(next_url)
+
+                return redirect(fluig_url)
 
             # =================================================
             # CHECKLIST CONFIGURÁVEL

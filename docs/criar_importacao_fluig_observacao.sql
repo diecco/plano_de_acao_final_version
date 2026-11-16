@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS oc_fluig_importacoes (
     KEY idx_oc_fluig_importacoes_data (criado_em),
     CONSTRAINT fk_oc_fluig_importacao_usuario FOREIGN KEY (usuario_id)
         REFERENCES usuarios (id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE IF NOT EXISTS oc_fluig_registros (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS oc_fluig_registros (
     KEY idx_oc_fluig_observador (observador_nome),
     CONSTRAINT fk_oc_fluig_registro_importacao FOREIGN KEY (importacao_id)
         REFERENCES oc_fluig_importacoes (id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE IF NOT EXISTS oc_fluig_respostas (
     registro_id INT NOT NULL,
@@ -49,4 +49,4 @@ CREATE TABLE IF NOT EXISTS oc_fluig_respostas (
     PRIMARY KEY (registro_id, item_codigo),
     CONSTRAINT fk_oc_fluig_resposta_registro FOREIGN KEY (registro_id)
         REFERENCES oc_fluig_registros (id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

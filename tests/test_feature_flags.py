@@ -34,7 +34,7 @@ class FeatureFlagsTestCase(unittest.TestCase):
 
         self.assertEqual(client.get("/observacoes").status_code, 200)
         self.assertEqual(client.get("/desvios").status_code, 200)
-        self.assertFalse(app.config["OBSERVACAO_COMPORTAMENTAL_READ_ONLY"])
+        self.assertTrue(app.config["OBSERVACAO_COMPORTAMENTAL_READ_ONLY"])
 
     def test_features_desativadas_bloqueiam_urls_diretas(self):
         app = self.criar_app({

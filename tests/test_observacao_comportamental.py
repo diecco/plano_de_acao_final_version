@@ -217,12 +217,31 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertIn('"observacao_comportamental"', agenda)
-        self.assertIn('"main.nova_observacao_comportamental"', agenda)
+        self.assertIn('"FLUIG_OBSERVACAO_COMPORTAMENTAL_URL"', agenda)
+        self.assertIn("return redirect(fluig_url)", agenda)
+        self.assertNotIn(
+            '"main.nova_observacao_comportamental"',
+            agenda.split('if pratica == "observacao_comportamental":', 1)[1].split(
+                'if pratica == "checklist_configuravel":', 1
+            )[0],
+        )
         self.assertIn('value="observacao_comportamental"', schedule_form)
         self.assertIn("Observação Comportamental", calendar)
         self.assertIn("agendamento_id = request.values.get", observation)
         self.assertIn("SET registro_executado_id = %s", observation)
         self.assertIn("status_agendamento", observation)
+
+    def test_fluig_listing_scopes_basic_user_without_collation_conflict(self):
+        source = (
+            ROOT / "app" / "views" / "observacao_comportamental.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(
+            'CAST(TRIM(r.centro_custos_codigo) AS BINARY)',
+            source,
+        )
+        self.assertIn("condicoes_escopo", source)
+        self.assertIn("parametros_escopo", source)
 
     def test_schema_contains_original_six_categories_and_history(self):
         migration = (

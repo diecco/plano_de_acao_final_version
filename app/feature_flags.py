@@ -53,7 +53,7 @@ def feature_enabled(feature):
 
 
 def observacao_comportamental_read_only():
-    return bool(current_app.config.get("OBSERVACAO_COMPORTAMENTAL_READ_ONLY", False))
+    return bool(current_app.config.get("OBSERVACAO_COMPORTAMENTAL_READ_ONLY", True))
 
 
 def register_feature_flags(app):
@@ -61,7 +61,7 @@ def register_feature_flags(app):
         config_key = f"FEATURE_{feature.upper()}_ENABLED"
         app.config[config_key] = _env_enabled(env_name)
     app.config["OBSERVACAO_COMPORTAMENTAL_READ_ONLY"] = _env_enabled(
-        "OBSERVACAO_COMPORTAMENTAL_READ_ONLY", default=False
+        "OBSERVACAO_COMPORTAMENTAL_READ_ONLY", default=True
     )
 
     @app.context_processor
