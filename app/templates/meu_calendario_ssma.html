@@ -441,6 +441,7 @@
                                                                {% if item.pratica == 'observacao_comportamental' %}
                                                                target="_blank"
                                                                rel="noopener noreferrer"
+                                                               data-concluir-url="{{ url_for('main.concluir_agendamento_observacao_fluig', id=item.id) }}"
                                                                {% endif %}
                                                                title="Executar prática">
                                                                 <i class="bi bi-play-circle me-1"></i>
@@ -484,5 +485,26 @@
 
     </div>
 </div>
+
+<script>
+document.querySelectorAll('[data-concluir-url]').forEach((botao) => {
+    botao.addEventListener('click', () => {
+        fetch(botao.dataset.concluirUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            keepalive: true,
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        }).then((resposta) => {
+            if (!resposta.ok) return;
+            const card = botao.closest('.pratica-card');
+            const status = card?.querySelector('.pratica-status');
+            if (status) {
+                status.innerHTML = '<span class="badge bg-success">Concluída</span>';
+            }
+            botao.outerHTML = '<span class="text-success small"><i class="bi bi-check-circle me-1"></i>Prática concluída no calendário</span>';
+        });
+    });
+});
+</script>
 
 {% endblock %}

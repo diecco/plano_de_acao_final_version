@@ -13,7 +13,7 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 277)
+        self.assertEqual(len(self.routes), 278)
 
     def test_configurable_form_routes_are_registered(self):
         expected = {
@@ -342,6 +342,8 @@ class RouteStructureTests(unittest.TestCase):
             ("/excluir_agendamento_ssma/<int:id>", ("POST",)): "main.excluir_agendamento_ssma",
             ("/meu_calendario_ssma", ("GET",)): "main.meu_calendario_ssma",
             ("/executar_agendamento_ssma/<int:id>", ("GET",)): "main.executar_agendamento_ssma",
+            ("/concluir_agendamento_observacao_fluig/<int:id>", ("POST",)):
+                "main.concluir_agendamento_observacao_fluig",
             ("/relatorio_aderencia_ssma", ("GET",)): "main.relatorio_aderencia_ssma",
             ("/cadastrar_hs", ("GET",)): "main.cadastrar_hs",
             ("/cadastrar_hs/tema", ("POST",)): "main.cadastrar_hs_tema",
@@ -524,6 +526,7 @@ class RouteStructureTests(unittest.TestCase):
             "main.excluir_agendamento_ssma": "app.views.agenda_ssma",
             "main.meu_calendario_ssma": "app.views.agenda_ssma",
             "main.executar_agendamento_ssma": "app.views.agenda_ssma",
+            "main.concluir_agendamento_observacao_fluig": "app.views.agenda_ssma",
             "main.relatorio_aderencia_ssma": "app.views.agenda_ssma",
             "main.cadastrar_hs": "app.views.horas_seguranca",
             "main.cadastrar_hs_tema": "app.views.horas_seguranca",

@@ -90,6 +90,17 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         self.assertIn("Marcações", listing)
         self.assertNotIn("Total de desvios", template + listing)
 
+    def test_import_notice_uses_trackplan_visual_pattern(self):
+        template = (
+            ROOT / "app" / "templates" / "observacoes_comportamentais.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("oc-import-alert", template)
+        self.assertIn("background: #fff3ec", template)
+        self.assertIn('class="btn btn-sm btn-cinza"', template)
+        self.assertNotIn("alert-info", template)
+        self.assertNotIn("btn-outline-primary", template)
+
     def test_listing_matches_hs_filter_sort_and_pagination_pattern(self):
         template = (
             ROOT / "app" / "templates" / "observacoes_comportamentais.html"
@@ -238,9 +249,40 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         self.assertIn("{{ fluig_observacao_url }}", calendar)
         self.assertIn('target="_blank"', calendar)
         self.assertIn('rel="noopener noreferrer"', calendar)
+        self.assertIn("data-concluir-url", calendar)
+        self.assertIn("concluir_agendamento_observacao_fluig", agenda)
+        self.assertIn("_consolidar_observacao_fluig", agenda)
+        self.assertIn("oc_fluig_registros", agenda)
         self.assertIn("agendamento_id = request.values.get", observation)
         self.assertIn("SET registro_executado_id = %s", observation)
         self.assertIn("status_agendamento", observation)
+
+    def test_monthly_fluig_consolidation_caps_adherence_and_shows_excess(self):
+        from app.views.agenda_ssma import _consolidar_observacao_fluig
+
+        indicadores = {
+            "total_programado": 4,
+            "total_cancelado": 0,
+            "total_concluido": 0,
+            "total_aderente": 0,
+            "total_pendente": 4,
+        }
+        resumos = [{
+            "pratica": "observacao_comportamental",
+            "total_programado": 4,
+            "total_cancelado": 0,
+            "total_concluido": 0,
+            "total_aderente": 0,
+            "total_pendente": 4,
+        }]
+
+        _consolidar_observacao_fluig(indicadores, resumos, 6)
+
+        self.assertEqual(resumos[0]["total_concluido"], 6)
+        self.assertEqual(resumos[0]["total_aderente"], 4)
+        self.assertEqual(resumos[0]["total_excedente"], 2)
+        self.assertEqual(resumos[0]["percentual_aderencia"], 100.0)
+        self.assertEqual(indicadores["percentual_execucao"], 100.0)
 
     def test_fluig_listing_scopes_basic_user_without_collation_conflict(self):
         source = (

@@ -259,6 +259,14 @@
                                     <div class="progress progress-track progress-sm">
                                         <div class="progress-bar progress-bar-trackplan js-progress-bar" data-progress="{{ resumo.percentual_aderencia }}"></div>
                                     </div>
+                                    {% if resumo.origem_execucao == 'Fluig' %}
+                                        <div class="small text-muted mt-1">
+                                            Execuções importadas do Fluig
+                                            {% if resumo.total_excedente %}
+                                                · {{ resumo.total_excedente }} além do programado
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% else %}
