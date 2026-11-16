@@ -218,6 +218,7 @@ class ObservacaoComportamentalTests(unittest.TestCase):
 
         self.assertIn('"observacao_comportamental"', agenda)
         self.assertIn('"FLUIG_OBSERVACAO_COMPORTAMENTAL_URL"', agenda)
+        self.assertIn('"https://www.fluig.tradimaq.com.br"', agenda)
         self.assertIn("return redirect(fluig_url)", agenda)
         self.assertNotIn(
             '"main.nova_observacao_comportamental"',
