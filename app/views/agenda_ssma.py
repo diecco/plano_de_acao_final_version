@@ -5,7 +5,10 @@ from urllib.parse import urlsplit
 from calendar import monthrange
 from datetime import date, datetime
 
-from flask import current_app, flash, redirect, render_template, request, session, url_for
+from flask import (
+    current_app, flash, jsonify, redirect, render_template, request, session,
+    url_for,
+)
 
 from app.decorators import gerenciar_agendamentos_ssma_required, lider_ssma_required, login_required
 from app.feature_flags import (
@@ -31,6 +34,76 @@ def _url_observacao_comportamental_fluig():
         )
         return FLUIG_OBSERVACAO_URL_PADRAO
     return url
+
+
+def _consolidar_observacao_fluig(indicadores, resumo_praticas, executadas):
+    """Troca a execução da OC pelo total mensal efetivamente importado do Fluig."""
+    resumo = next(
+        (item for item in resumo_praticas
+         if item.get("pratica") == "observacao_comportamental"),
+        None,
+    )
+    if resumo is None:
+        return
+
+    programadas = max(
+        int(resumo.get("total_programado") or 0)
+        - int(resumo.get("total_cancelado") or 0),
+        0,
+    )
+    concluidas_anteriores = int(resumo.get("total_concluido") or 0)
+    aderentes_anteriores = int(resumo.get("total_aderente") or 0)
+    pendentes_anteriores = int(resumo.get("total_pendente") or 0)
+    executadas = max(int(executadas or 0), 0)
+    atendidas = min(executadas, programadas)
+
+    resumo.update({
+        "total_concluido": executadas,
+        "total_aderente": atendidas,
+        "total_com_ressalva": 0,
+        "total_nao_aderente": 0,
+        "total_pendente": max(programadas - atendidas, 0),
+        "percentual_aderencia": (
+            round(100.0 * atendidas / programadas, 2) if programadas else 0.0
+        ),
+        "total_excedente": max(executadas - programadas, 0),
+        "origem_execucao": "Fluig",
+    })
+
+    indicadores["total_concluido"] = max(
+        int(indicadores.get("total_concluido") or 0)
+        - concluidas_anteriores + executadas,
+        0,
+    )
+    indicadores["total_aderente"] = max(
+        int(indicadores.get("total_aderente") or 0)
+        - aderentes_anteriores + atendidas,
+        0,
+    )
+    indicadores["total_pendente"] = max(
+        int(indicadores.get("total_pendente") or 0)
+        - pendentes_anteriores + resumo["total_pendente"],
+        0,
+    )
+    base_aderencia = (
+        int(indicadores.get("total_aderente") or 0)
+        + int(indicadores.get("total_com_ressalva") or 0)
+        + int(indicadores.get("total_nao_aderente") or 0)
+    )
+    indicadores["percentual_aderencia"] = (
+        round(100.0 * indicadores["total_aderente"] / base_aderencia, 2)
+        if base_aderencia else 0.0
+    )
+    base_execucao = max(
+        int(indicadores.get("total_programado") or 0)
+        - int(indicadores.get("total_cancelado") or 0),
+        0,
+    )
+    indicadores["percentual_execucao"] = (
+        round(100.0 * min(indicadores["total_concluido"], base_execucao)
+              / base_execucao, 2)
+        if base_execucao else 0.0
+    )
 
 
 def _resolver_periodo_aderencia(periodo, mes_referencia=None, data_inicio=None,
@@ -2662,6 +2735,61 @@ def register_agenda_ssma_routes(blueprint):
                 pass
 
     @blueprint.route(
+        "/concluir_agendamento_observacao_fluig/<int:id>",
+        methods=["POST"],
+    )
+    @login_required
+    @lider_ssma_required
+    def concluir_agendamento_observacao_fluig(id):
+        """Registra a conclusão visual do calendário após a abertura do Fluig."""
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute("""
+                SELECT id, data_programada, status
+                FROM agendamentos_ssma
+                WHERE id = %s
+                  AND lider_id = %s
+                  AND pratica = 'observacao_comportamental'
+                FOR UPDATE
+            """, (id, session.get("usuario_id")))
+            agendamento = cursor.fetchone()
+            if not agendamento:
+                return jsonify({"ok": False, "erro": "Agendamento não encontrado."}), 404
+            if (agendamento.get("status") or "").strip().lower() == "cancelada":
+                return jsonify({"ok": False, "erro": "Agendamento cancelado."}), 409
+
+            data_programada = agendamento.get("data_programada")
+            status = (
+                "concluida_com_atraso"
+                if data_programada and data_programada < date.today()
+                else "concluida"
+            )
+            cursor.execute("""
+                UPDATE agendamentos_ssma
+                SET status = %s,
+                    atualizado_em = NOW()
+                WHERE id = %s
+                  AND lider_id = %s
+                  AND pratica = 'observacao_comportamental'
+                  AND status <> 'cancelada'
+            """, (status, id, session.get("usuario_id")))
+            conn.commit()
+            return jsonify({"ok": True, "status": status})
+        except Exception:
+            conn.rollback()
+            current_app.logger.exception(
+                "Erro ao concluir agendamento de Observação Comportamental %s", id
+            )
+            return jsonify({
+                "ok": False,
+                "erro": "Não foi possível atualizar o calendário.",
+            }), 500
+        finally:
+            cursor.close()
+            conn.close()
+
+    @blueprint.route(
         '/relatorio_aderencia_ssma',
         methods=['GET']
     )
@@ -3369,6 +3497,46 @@ def register_agenda_ssma_routes(blueprint):
                 resumo['percentual_aderencia'] = float(
                     resumo.get('percentual_aderencia')
                     or 0
+                )
+
+            # Consolidação mensal, sem criar vínculo artificial entre uma
+            # solicitação do Fluig e um agendamento individual do TrackPlan.
+            if any(
+                item.get('pratica') == 'observacao_comportamental'
+                for item in resumo_praticas
+            ):
+                condicoes_fluig = [
+                    'r.data_observacao BETWEEN %s AND %s',
+                    "r.status = 'concluida'",
+                    'cc.id = %s',
+                ]
+                parametros_fluig = [data_inicio, data_fim, centro_custo_usuario_id]
+                join_lider_fluig = ''
+                if lider_id:
+                    join_lider_fluig = (
+                        'INNER JOIN usuarios lider_fluig '
+                        'ON lider_fluig.id = %s'
+                    )
+                    parametros_fluig.insert(0, lider_id)
+                    condicoes_fluig.append(
+                        'CAST(TRIM(r.observador_matricula) AS BINARY) = '
+                        'CAST(TRIM(lider_fluig.matricula) AS BINARY)'
+                    )
+
+                cursor.execute(f"""
+                    SELECT COUNT(*) AS total_executado
+                    FROM oc_fluig_registros r
+                    INNER JOIN centros_custos cc
+                        ON CAST(TRIM(r.centro_custos_codigo) AS BINARY) =
+                           CAST(TRIM(cc.codigo) AS BINARY)
+                    {join_lider_fluig}
+                    WHERE {' AND '.join(condicoes_fluig)}
+                """, tuple(parametros_fluig))
+                total_fluig = int(
+                    (cursor.fetchone() or {}).get('total_executado') or 0
+                )
+                _consolidar_observacao_fluig(
+                    indicadores, resumo_praticas, total_fluig
                 )
 
             # =====================================================
