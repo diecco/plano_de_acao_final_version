@@ -47,6 +47,7 @@
                             <option value="hora_seguranca" {% if pratica_selecionada == 'hora_seguranca' %}selected{% endif %}>Hora de Segurança</option>
                             <option value="auditoria_padrao" {% if pratica_selecionada == 'auditoria_padrao' %}selected{% endif %}>Auditoria de Padrão</option>
                             <option value="ifs" {% if pratica_selecionada == 'ifs' %}selected{% endif %}>IFS</option>
+                            <option value="observacao_comportamental" {% if pratica_selecionada == 'observacao_comportamental' %}selected{% endif %}>Observação Comportamental</option>
                             {% for checklist in checklists_relatorio %}
                                 {% set valor_checklist = 'checklist_configuravel:' ~ checklist.id %}
                                 <option value="{{ valor_checklist }}" {% if pratica_selecionada == valor_checklist %}selected{% endif %}>Checklist — {{ checklist.nome }}</option>
