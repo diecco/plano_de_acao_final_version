@@ -2595,7 +2595,7 @@ def register_agenda_ssma_routes(blueprint):
                         "FLUIG_OBSERVACAO_COMPORTAMENTAL_URL",
                         "",
                     )
-                    or "https://www.fluig.tradimaq.com.br"
+                    or "https://fluig.tradimaq.com.br/portal/home"
                 ).strip()
                 destino = urlsplit(fluig_url)
                 if destino.scheme not in {"http", "https"} or not destino.netloc:
