@@ -257,13 +257,30 @@ def _listar_observacoes_fluig():
     order = order if order in {"asc", "desc"} else "desc"
     condicoes = ["1 = 1"]
     parametros = []
+    condicoes_escopo = ["1 = 1"]
+    parametros_escopo = []
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
     if session.get("perfil") not in {"administrador", "avancado"}:
-        condicoes.append("""
-            r.centro_custos_codigo = (
-                SELECT codigo FROM centros_custos WHERE id = %s LIMIT 1
+        cursor.execute(
+            "SELECT codigo FROM centros_custos WHERE id = %s LIMIT 1",
+            (session.get("centro_custos_id") or 0,),
+        )
+        centro = cursor.fetchone()
+        if not centro or not (centro.get("codigo") or "").strip():
+            condicoes.append("1 = 0")
+            condicoes_escopo.append("1 = 0")
+        else:
+            filtro_centro = (
+                "CAST(TRIM(r.centro_custos_codigo) AS BINARY) = "
+                "CAST(TRIM(%s) AS BINARY)"
             )
-        """)
-        parametros.append(session.get("centro_custos_id") or 0)
+            codigo_centro = centro["codigo"].strip()
+            condicoes.append(filtro_centro)
+            parametros.append(codigo_centro)
+            condicoes_escopo.append(filtro_centro)
+            parametros_escopo.append(codigo_centro)
     if observador_busca:
         termo = f"%{observador_busca}%"
         condicoes.append(
@@ -277,9 +294,8 @@ def _listar_observacoes_fluig():
         condicoes.append("r.data_observacao <= %s")
         parametros.append(data_fim)
     onde = " AND ".join(condicoes)
+    onde_escopo = " AND ".join(condicoes_escopo)
 
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute(
             f"SELECT COUNT(*) total FROM oc_fluig_registros r WHERE {onde}",
@@ -324,7 +340,8 @@ def _listar_observacoes_fluig():
                        c.nome categoria_nome, i.codigo item_codigo,
                        i.descricao item_descricao, fr.quantidade
                 FROM oc_fluig_respostas fr
-                JOIN oc_itens i ON i.codigo = fr.item_codigo
+                JOIN oc_itens i
+                  ON CAST(i.codigo AS BINARY) = CAST(fr.item_codigo AS BINARY)
                 JOIN oc_categorias c ON c.id = i.categoria_id
                 WHERE fr.registro_id IN ({placeholders})
                   AND fr.quantidade > 0
@@ -332,10 +349,12 @@ def _listar_observacoes_fluig():
             """, tuple(ids))
             for item in cursor.fetchall():
                 marcacoes_por_registro[item["registro_id"]].append(item)
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT DISTINCT observador_nome nome, observador_matricula matricula
-            FROM oc_fluig_registros ORDER BY observador_nome
-        """)
+            FROM oc_fluig_registros r
+            WHERE {onde_escopo}
+            ORDER BY observador_nome
+        """, tuple(parametros_escopo))
         observadores = cursor.fetchall()
     finally:
         cursor.close()
@@ -374,36 +393,17 @@ def _salvar_importacao_fluig(
         len(registros) + quantidade_erros, quantidade_erros,
     ))
     importacao_id = cursor.lastrowid
-    solicitacoes = [registro["solicitacao"] for registro in registros]
-    existentes = {}
-    for inicio in range(0, len(solicitacoes), 500):
-        lote = solicitacoes[inicio:inicio + 500]
-        placeholders = ", ".join(["%s"] * len(lote))
-        cursor.execute(
-            f"""
-                SELECT id, solicitacao, conteudo_hash
-                FROM oc_fluig_registros
-                WHERE solicitacao IN ({placeholders})
-            """,
-            tuple(lote),
-        )
-        existentes.update({item["solicitacao"]: item for item in cursor.fetchall()})
-
-    alterados = []
     inseridos = atualizados = inalterados = 0
     for registro in registros:
-        existente = existentes.get(registro["solicitacao"])
+        cursor.execute(
+            "SELECT id, conteudo_hash FROM oc_fluig_registros WHERE solicitacao = %s",
+            (registro["solicitacao"],),
+        )
+        existente = cursor.fetchone()
         if existente and existente["conteudo_hash"] == registro["conteudo_hash"]:
             inalterados += 1
             continue
-        alterados.append(registro)
-        if existente:
-            atualizados += 1
-        else:
-            inseridos += 1
-
-    if alterados:
-        valores_registros = [(
+        valores = (
             registro["solicitacao"], registro["data_observacao"],
             registro["hora_observacao"], registro["observador_nome"],
             registro["observador_matricula"], registro["centro_custos_codigo"],
@@ -411,8 +411,8 @@ def _salvar_importacao_fluig(
             registro["setor_observado"], registro["area"], registro["atividade"],
             registro["pessoas_observadas"], registro["status"],
             registro["situacao_fluig"], registro["conteudo_hash"], importacao_id,
-        ) for registro in alterados]
-        cursor.executemany("""
+        )
+        cursor.execute("""
             INSERT INTO oc_fluig_registros (
                 solicitacao, data_observacao, hora_observacao, observador_nome,
                 observador_matricula, centro_custos_codigo,
@@ -432,44 +432,22 @@ def _salvar_importacao_fluig(
                 atividade=VALUES(atividade), pessoas_observadas=VALUES(pessoas_observadas),
                 status=VALUES(status), situacao_fluig=VALUES(situacao_fluig),
                 conteudo_hash=VALUES(conteudo_hash), importacao_id=VALUES(importacao_id)
-        """, valores_registros)
-
-        ids_por_solicitacao = {}
-        solicitacoes_alteradas = [registro["solicitacao"] for registro in alterados]
-        for inicio in range(0, len(solicitacoes_alteradas), 500):
-            lote = solicitacoes_alteradas[inicio:inicio + 500]
-            placeholders = ", ".join(["%s"] * len(lote))
+        """, valores)
+        if existente:
+            registro_id = existente["id"]
+            atualizados += 1
             cursor.execute(
-                f"""
-                    SELECT id, solicitacao
-                    FROM oc_fluig_registros
-                    WHERE solicitacao IN ({placeholders})
-                """,
-                tuple(lote),
+                "DELETE FROM oc_fluig_respostas WHERE registro_id = %s",
+                (registro_id,),
             )
-            ids_por_solicitacao.update({
-                item["solicitacao"]: item["id"] for item in cursor.fetchall()
-            })
-
-        ids_alterados = list(ids_por_solicitacao.values())
-        for inicio in range(0, len(ids_alterados), 500):
-            lote = ids_alterados[inicio:inicio + 500]
-            placeholders = ", ".join(["%s"] * len(lote))
-            cursor.execute(
-                f"DELETE FROM oc_fluig_respostas WHERE registro_id IN ({placeholders})",
-                tuple(lote),
-            )
-
-        valores_respostas = [
-            (ids_por_solicitacao[registro["solicitacao"]], codigo, quantidade)
-            for registro in alterados
-            for codigo, quantidade in registro["respostas"].items()
-        ]
-        if valores_respostas:
-            cursor.executemany("""
+        else:
+            registro_id = cursor.lastrowid
+            inseridos += 1
+        for codigo, quantidade in registro["respostas"].items():
+            cursor.execute("""
                 INSERT INTO oc_fluig_respostas (registro_id, item_codigo, quantidade)
                 VALUES (%s, %s, %s)
-            """, valores_respostas)
+            """, (registro_id, codigo, quantidade))
     cursor.execute("""
         UPDATE oc_fluig_importacoes
         SET inseridos=%s, atualizados=%s, inalterados=%s
@@ -725,13 +703,16 @@ def register_observacao_comportamental_routes(blueprint):
                     (session.get("centro_custos_id") or 0,),
                 )
                 centro = cursor.fetchone()
-                if not centro or centro["codigo"] != registro["centro_custos_codigo"]:
+                codigo_usuario = (centro.get("codigo") or "").strip() if centro else ""
+                codigo_registro = (registro.get("centro_custos_codigo") or "").strip()
+                if not codigo_usuario or codigo_usuario != codigo_registro:
                     abort(404)
             cursor.execute("""
                 SELECT c.codigo categoria_codigo, c.nome categoria_nome,
                        i.descricao item_descricao, fr.quantidade
                 FROM oc_fluig_respostas fr
-                JOIN oc_itens i ON i.codigo = fr.item_codigo
+                  JOIN oc_itens i
+                    ON CAST(i.codigo AS BINARY) = CAST(fr.item_codigo AS BINARY)
                 JOIN oc_categorias c ON c.id = i.categoria_id
                 WHERE fr.registro_id = %s ORDER BY c.ordem, i.ordem
             """, (registro_id,))
@@ -1151,4 +1132,3 @@ def register_observacao_comportamental_routes(blueprint):
             cursor.close()
             conn.close()
         return redirect(url_for("main.detalhar_observacao_comportamental", registro_id=registro_id))
-
