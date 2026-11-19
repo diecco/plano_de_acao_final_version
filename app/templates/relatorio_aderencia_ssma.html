@@ -495,6 +495,10 @@
 
                                     IFS
 
+                                {% elif registro.pratica == 'observacao_comportamental' %}
+
+                                    Observação Comportamental
+
                                 {% elif registro.pratica == 'checklist_configuravel' %}
 
                                     {{ registro.pratica_nome or 'Checklist configurável' }}

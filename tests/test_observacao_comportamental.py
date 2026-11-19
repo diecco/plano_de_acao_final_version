@@ -252,6 +252,10 @@ class ObservacaoComportamentalTests(unittest.TestCase):
             "pratica_selecionada == 'observacao_comportamental'",
             adherence_report,
         )
+        self.assertIn(
+            "registro.pratica == 'observacao_comportamental'",
+            adherence_report,
+        )
         self.assertIn("Observação Comportamental", calendar)
         self.assertIn("item.pratica == 'observacao_comportamental'", calendar)
         self.assertIn("{{ fluig_observacao_url }}", calendar)
