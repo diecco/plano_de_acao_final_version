@@ -1173,4 +1173,3 @@ def register_observacao_comportamental_routes(blueprint):
             cursor.close()
             conn.close()
         return redirect(url_for("main.detalhar_observacao_comportamental", registro_id=registro_id))
-
