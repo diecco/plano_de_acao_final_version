@@ -16,6 +16,9 @@ from app.services.fluig_observacao_import import (
     FluigImportError,
     parse_fluig_observacoes,
 )
+from app.services.centro_custos_scope import (
+    codigos_centros_ativos_da_mesma_unidade,
+)
 from app.utils.db import get_db_connection
 
 
@@ -263,24 +266,24 @@ def _listar_observacoes_fluig():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     if session.get("perfil") not in {"administrador", "avancado"}:
-        cursor.execute(
-            "SELECT codigo FROM centros_custos WHERE id = %s LIMIT 1",
-            (session.get("centro_custos_id") or 0,),
+        codigos_escopo = codigos_centros_ativos_da_mesma_unidade(
+            cursor, session.get("centro_custos_id")
         )
-        centro = cursor.fetchone()
-        if not centro or not (centro.get("codigo") or "").strip():
+        if not codigos_escopo:
             condicoes.append("1 = 0")
             condicoes_escopo.append("1 = 0")
         else:
             filtro_centro = (
-                "CAST(TRIM(r.centro_custos_codigo) AS BINARY) = "
-                "CAST(TRIM(%s) AS BINARY)"
+                "CAST(TRIM(r.centro_custos_codigo) AS BINARY) IN ("
+                + ", ".join(
+                    ["CAST(TRIM(%s) AS BINARY)"] * len(codigos_escopo)
+                )
+                + ")"
             )
-            codigo_centro = centro["codigo"].strip()
             condicoes.append(filtro_centro)
-            parametros.append(codigo_centro)
+            parametros.extend(codigos_escopo)
             condicoes_escopo.append(filtro_centro)
-            parametros_escopo.append(codigo_centro)
+            parametros_escopo.extend(codigos_escopo)
     if observador_busca:
         termo = f"%{observador_busca}%"
         condicoes.append(
@@ -739,14 +742,11 @@ def register_observacao_comportamental_routes(blueprint):
             if not registro:
                 abort(404)
             if session.get("perfil") not in {"administrador", "avancado"}:
-                cursor.execute(
-                    "SELECT codigo FROM centros_custos WHERE id = %s LIMIT 1",
-                    (session.get("centro_custos_id") or 0,),
+                codigos_escopo = codigos_centros_ativos_da_mesma_unidade(
+                    cursor, session.get("centro_custos_id")
                 )
-                centro = cursor.fetchone()
-                codigo_usuario = (centro.get("codigo") or "").strip() if centro else ""
                 codigo_registro = (registro.get("centro_custos_codigo") or "").strip()
-                if not codigo_usuario or codigo_usuario != codigo_registro:
+                if not codigos_escopo or codigo_registro not in codigos_escopo:
                     abort(404)
             cursor.execute("""
                 SELECT c.codigo categoria_codigo, c.nome categoria_nome,

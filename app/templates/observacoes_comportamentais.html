@@ -89,7 +89,7 @@
                                value="{{ filtros.get('observador_id', '') }}">
                         <datalist id="listaObservadoresOc">
                             {% for usuario in observadores %}
-                                <option value="{{ usuario.nome }}{% if usuario.matricula %} — {{ usuario.matricula }}{% endif %}"
+                                <option value="{{ usuario.nome }}"
                                         data-id="{{ usuario.id }}"></option>
                             {% endfor %}
                         </datalist>

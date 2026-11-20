@@ -308,6 +308,41 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         self.assertIn("condicoes_escopo", source)
         self.assertIn("parametros_escopo", source)
 
+    def test_observer_filter_shows_name_without_technical_identifier(self):
+        template = (
+            ROOT / "app" / "templates" / "observacoes_comportamentais.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('<option value="{{ usuario.nome }}"', template)
+        self.assertNotIn("— {{ usuario.matricula }}", template)
+
+    def test_fluig_scope_groups_active_cost_centers_from_same_unit(self):
+        import importlib.util
+
+        caminho = ROOT / "app" / "services" / "centro_custos_scope.py"
+        spec = importlib.util.spec_from_file_location("centro_scope", caminho)
+        modulo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(modulo)
+
+        class CursorStub:
+            def execute(self, query, params):
+                self.query = query
+                self.params = params
+
+            def fetchall(self):
+                return [
+                    {"id": 13, "codigo": "1.10.0052.13"},
+                    {"id": 18, "codigo": "1.10.0052.18"},
+                ]
+
+        cursor = CursorStub()
+        codigos = modulo.codigos_centros_ativos_da_mesma_unidade(cursor, 13)
+
+        self.assertEqual(codigos, ["1.10.0052.13", "1.10.0052.18"])
+        self.assertEqual(cursor.params, (13,))
+        self.assertIn("TRIM(escopo.descricao)", cursor.query)
+        self.assertIn("escopo.ativo = 1", cursor.query)
+
     def test_schema_contains_original_six_categories_and_history(self):
         migration = (
             ROOT / "docs" / "criar_modulo_observacao_comportamental.sql"

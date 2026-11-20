@@ -15,6 +15,9 @@ from app.feature_flags import (
     FEATURE_OBSERVACAO_COMPORTAMENTAL,
     feature_enabled,
 )
+from app.services.centro_custos_scope import (
+    codigos_centros_ativos_da_mesma_unidade,
+)
 from app.utils.db import get_db_connection
 
 
@@ -3505,12 +3508,28 @@ def register_agenda_ssma_routes(blueprint):
                 item.get('pratica') == 'observacao_comportamental'
                 for item in resumo_praticas
             ):
+                codigos_escopo_fluig = (
+                    codigos_centros_ativos_da_mesma_unidade(
+                        cursor, centro_custo_usuario_id
+                    )
+                )
                 condicoes_fluig = [
                     'r.data_observacao BETWEEN %s AND %s',
                     "r.status = 'concluida'",
-                    'cc.id = %s',
                 ]
-                parametros_fluig = [data_inicio, data_fim, centro_custo_usuario_id]
+                parametros_fluig = [data_inicio, data_fim]
+                if codigos_escopo_fluig:
+                    condicoes_fluig.append(
+                        'CAST(TRIM(r.centro_custos_codigo) AS BINARY) IN ('
+                        + ', '.join(
+                            ['CAST(TRIM(%s) AS BINARY)']
+                            * len(codigos_escopo_fluig)
+                        )
+                        + ')'
+                    )
+                    parametros_fluig.extend(codigos_escopo_fluig)
+                else:
+                    condicoes_fluig.append('1 = 0')
                 join_lider_fluig = ''
                 if lider_id:
                     join_lider_fluig = (
@@ -3526,9 +3545,6 @@ def register_agenda_ssma_routes(blueprint):
                 cursor.execute(f"""
                     SELECT COUNT(*) AS total_executado
                     FROM oc_fluig_registros r
-                    INNER JOIN centros_custos cc
-                        ON CAST(TRIM(r.centro_custos_codigo) AS BINARY) =
-                           CAST(TRIM(cc.codigo) AS BINARY)
                     {join_lider_fluig}
                     WHERE {' AND '.join(condicoes_fluig)}
                 """, tuple(parametros_fluig))
