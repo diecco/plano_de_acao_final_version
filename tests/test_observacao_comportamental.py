@@ -302,7 +302,7 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertIn(
-            'CAST(TRIM(r.centro_custos_codigo) AS BINARY)',
+            'CAST(TRIM(r.observador_matricula) AS BINARY)',
             source,
         )
         self.assertIn("condicoes_escopo", source)
@@ -342,6 +342,31 @@ class ObservacaoComportamentalTests(unittest.TestCase):
         self.assertEqual(cursor.params, (13,))
         self.assertIn("TRIM(escopo.descricao)", cursor.query)
         self.assertIn("escopo.ativo = 1", cursor.query)
+
+    def test_adherence_scopes_imported_observations_by_observer_registration(self):
+        agenda = (
+            ROOT / "app" / "views" / "agenda_ssma.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("usuarios observador_fluig", agenda)
+        self.assertIn("observador_fluig.centro_custos_id = %s", agenda)
+        self.assertIn("r.observador_matricula", agenda)
+        self.assertIn("deve_consolidar_observacao", agenda)
+        self.assertIn(
+            "'pratica_nome': 'Observação Comportamental'", agenda
+        )
+
+    def test_fluig_listing_scopes_by_observer_registration_not_event_location(self):
+        source = (
+            ROOT / "app" / "views" / "observacao_comportamental.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("usuarios observador_escopo", source)
+        self.assertIn("observador_escopo.centro_custos_id = %s", source)
+        self.assertIn("r.observador_matricula", source)
+        self.assertIn("r.observador_nome", source)
+        self.assertIn("observador_escopo.nome", source)
+        self.assertNotIn("codigos_centros_ativos_da_mesma_unidade", source)
 
     def test_schema_contains_original_six_categories_and_history(self):
         migration = (

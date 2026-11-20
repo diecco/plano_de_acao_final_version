@@ -15,9 +15,6 @@ from app.feature_flags import (
     FEATURE_OBSERVACAO_COMPORTAMENTAL,
     feature_enabled,
 )
-from app.services.centro_custos_scope import (
-    codigos_centros_ativos_da_mesma_unidade,
-)
 from app.utils.db import get_db_connection
 
 
@@ -3504,48 +3501,50 @@ def register_agenda_ssma_routes(blueprint):
 
             # Consolidação mensal, sem criar vínculo artificial entre uma
             # solicitação do Fluig e um agendamento individual do TrackPlan.
-            if any(
-                item.get('pratica') == 'observacao_comportamental'
-                for item in resumo_praticas
-            ):
-                codigos_escopo_fluig = (
-                    codigos_centros_ativos_da_mesma_unidade(
-                        cursor, centro_custo_usuario_id
-                    )
-                )
+            deve_consolidar_observacao = (
+                pratica in {'', 'observacao_comportamental'}
+                and feature_enabled(FEATURE_OBSERVACAO_COMPORTAMENTAL)
+            )
+            if deve_consolidar_observacao:
+                if not any(
+                    item.get('pratica') == 'observacao_comportamental'
+                    for item in resumo_praticas
+                ):
+                    resumo_praticas.append({
+                        'pratica': 'observacao_comportamental',
+                        'pratica_nome': 'Observação Comportamental',
+                        'total_programado': 0,
+                        'total_concluido': 0,
+                        'total_aderente': 0,
+                        'total_com_ressalva': 0,
+                        'total_nao_aderente': 0,
+                        'total_pendente': 0,
+                        'total_cancelado': 0,
+                        'percentual_aderencia': 0.0,
+                    })
                 condicoes_fluig = [
                     'r.data_observacao BETWEEN %s AND %s',
                     "r.status = 'concluida'",
+                    'observador_fluig.centro_custos_id = %s',
                 ]
-                parametros_fluig = [data_inicio, data_fim]
-                if codigos_escopo_fluig:
-                    condicoes_fluig.append(
-                        'CAST(TRIM(r.centro_custos_codigo) AS BINARY) IN ('
-                        + ', '.join(
-                            ['CAST(TRIM(%s) AS BINARY)']
-                            * len(codigos_escopo_fluig)
-                        )
-                        + ')'
-                    )
-                    parametros_fluig.extend(codigos_escopo_fluig)
-                else:
-                    condicoes_fluig.append('1 = 0')
-                join_lider_fluig = ''
+                parametros_fluig = [
+                    data_inicio, data_fim, centro_custo_usuario_id
+                ]
                 if lider_id:
-                    join_lider_fluig = (
-                        'INNER JOIN usuarios lider_fluig '
-                        'ON lider_fluig.id = %s'
-                    )
-                    parametros_fluig.insert(0, lider_id)
-                    condicoes_fluig.append(
-                        'CAST(TRIM(r.observador_matricula) AS BINARY) = '
-                        'CAST(TRIM(lider_fluig.matricula) AS BINARY)'
-                    )
+                    condicoes_fluig.append('observador_fluig.id = %s')
+                    parametros_fluig.append(lider_id)
 
                 cursor.execute(f"""
                     SELECT COUNT(*) AS total_executado
                     FROM oc_fluig_registros r
-                    {join_lider_fluig}
+                    INNER JOIN usuarios observador_fluig
+                        ON observador_fluig.ativo = 1
+                       AND (
+                            CAST(TRIM(observador_fluig.matricula) AS BINARY) =
+                                CAST(TRIM(r.observador_matricula) AS BINARY)
+                            OR CAST(TRIM(observador_fluig.nome) AS BINARY) =
+                                CAST(TRIM(r.observador_nome) AS BINARY)
+                       )
                     WHERE {' AND '.join(condicoes_fluig)}
                 """, tuple(parametros_fluig))
                 total_fluig = int(
@@ -3754,9 +3753,7 @@ def register_agenda_ssma_routes(blueprint):
                   AND centro_custos_id = %s
                   AND pode_ser_lider_ssma = 1
                 ORDER BY nome
-            """, (
-                centro_custo_usuario_id,
-            ))
+            """, (centro_custo_usuario_id,))
 
             lideres = (
                 cursor.fetchall()

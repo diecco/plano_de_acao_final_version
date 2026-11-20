@@ -16,9 +16,6 @@ from app.services.fluig_observacao_import import (
     FluigImportError,
     parse_fluig_observacoes,
 )
-from app.services.centro_custos_scope import (
-    codigos_centros_ativos_da_mesma_unidade,
-)
 from app.utils.db import get_db_connection
 
 
@@ -266,24 +263,25 @@ def _listar_observacoes_fluig():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     if session.get("perfil") not in {"administrador", "avancado"}:
-        codigos_escopo = codigos_centros_ativos_da_mesma_unidade(
-            cursor, session.get("centro_custos_id")
-        )
-        if not codigos_escopo:
-            condicoes.append("1 = 0")
-            condicoes_escopo.append("1 = 0")
-        else:
-            filtro_centro = (
-                "CAST(TRIM(r.centro_custos_codigo) AS BINARY) IN ("
-                + ", ".join(
-                    ["CAST(TRIM(%s) AS BINARY)"] * len(codigos_escopo)
-                )
-                + ")"
+        filtro_centro_observador = """
+            EXISTS (
+                SELECT 1
+                FROM usuarios observador_escopo
+                WHERE observador_escopo.ativo = 1
+                  AND observador_escopo.centro_custos_id = %s
+                  AND (
+                       CAST(TRIM(observador_escopo.matricula) AS BINARY) =
+                           CAST(TRIM(r.observador_matricula) AS BINARY)
+                       OR CAST(TRIM(observador_escopo.nome) AS BINARY) =
+                           CAST(TRIM(r.observador_nome) AS BINARY)
+                  )
             )
-            condicoes.append(filtro_centro)
-            parametros.extend(codigos_escopo)
-            condicoes_escopo.append(filtro_centro)
-            parametros_escopo.extend(codigos_escopo)
+        """
+        centro_custos_id = session.get("centro_custos_id") or 0
+        condicoes.append(filtro_centro_observador)
+        parametros.append(centro_custos_id)
+        condicoes_escopo.append(filtro_centro_observador)
+        parametros_escopo.append(centro_custos_id)
     if observador_busca:
         termo = f"%{observador_busca}%"
         condicoes.append(
@@ -742,11 +740,24 @@ def register_observacao_comportamental_routes(blueprint):
             if not registro:
                 abort(404)
             if session.get("perfil") not in {"administrador", "avancado"}:
-                codigos_escopo = codigos_centros_ativos_da_mesma_unidade(
-                    cursor, session.get("centro_custos_id")
-                )
-                codigo_registro = (registro.get("centro_custos_codigo") or "").strip()
-                if not codigos_escopo or codigo_registro not in codigos_escopo:
+                cursor.execute("""
+                    SELECT 1
+                    FROM usuarios observador_escopo
+                    WHERE observador_escopo.ativo = 1
+                      AND observador_escopo.centro_custos_id = %s
+                      AND (
+                           CAST(TRIM(observador_escopo.matricula) AS BINARY) =
+                               CAST(TRIM(%s) AS BINARY)
+                           OR CAST(TRIM(observador_escopo.nome) AS BINARY) =
+                               CAST(TRIM(%s) AS BINARY)
+                      )
+                    LIMIT 1
+                """, (
+                    session.get("centro_custos_id") or 0,
+                    registro.get("observador_matricula") or "",
+                    registro.get("observador_nome") or "",
+                ))
+                if not cursor.fetchone():
                     abort(404)
             cursor.execute("""
                 SELECT c.codigo categoria_codigo, c.nome categoria_nome,
