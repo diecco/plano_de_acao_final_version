@@ -41,6 +41,22 @@ class MonitoramentoAplicacaoTests(unittest.TestCase):
         self.assertIn("document.visibilityState", layout)
         self.assertIn("session.get('usuario_id')", layout)
 
+    def test_dashboard_uses_brasilia_and_standard_filter_actions(self):
+        view = (
+            ROOT / "app" / "views" / "monitoramento_aplicacao.py"
+        ).read_text(encoding="utf-8")
+        template = (
+            ROOT / "app" / "templates" / "monitoramento_aplicacao.html"
+        ).read_text(encoding="utf-8")
+        service = (
+            ROOT / "app" / "services" / "monitoramento_aplicacao.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('ZoneInfo("America/Sao_Paulo")', view)
+        self.assertIn("UTC_TIMESTAMP()", service)
+        self.assertIn("Filtrar</button>", template)
+        self.assertIn("Atualizar</a>", template)
+        self.assertNotIn("Acessos, sessões, disponibilidade", template)
+
     def test_sidebar_exposes_monitoring_only_inside_admin_block(self):
         sidebar = (
             ROOT / "app" / "templates" / "components" / "sidebar.html"
