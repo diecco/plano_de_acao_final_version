@@ -14,6 +14,7 @@ ROUTE_DECORATOR_PATHS = (
     TRAINING_ROUTES_PATH,
     PROJECT_ROOT / "app" / "views" / "agenda_ssma.py",
     PROJECT_ROOT / "app" / "views" / "recusa_tarefa.py",
+    PROJECT_ROOT / "app" / "views" / "monitoramento_aplicacao.py",
 )
 PCPM_ROUTE_PATHS = (
     PROJECT_ROOT / "app" / "routes.py",
@@ -191,6 +192,10 @@ class RoutePermissionTests(unittest.TestCase):
             "relatorio_aderencia_ssma",
             "gerenciar_agendamentos_ssma_required",
         )
+
+    def test_application_monitoring_requires_administrator(self):
+        self.assert_route_uses("monitoramento_aplicacao", "admin_required")
+        self.assert_route_uses("monitoramento_aplicacao", "login_required")
 
     def test_all_pcpm_routes_require_pcpm_module(self):
         routes = routes_by_function()

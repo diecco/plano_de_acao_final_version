@@ -23,6 +23,9 @@ from app.views.investigacao_causa_raiz import (
 from app.views.instrutores import register_instrutores_routes
 from app.views.matriz_capacitacao import register_matriz_capacitacao_routes
 from app.views.melhorias import register_melhorias_routes
+from app.views.monitoramento_aplicacao import (
+    register_monitoramento_aplicacao_routes,
+)
 from app.views.origens import register_origens_routes
 from app.views.perfil_seguranca import register_perfil_seguranca_routes
 from app.views.observacao_comportamental import (
@@ -69,6 +72,7 @@ register_tipos_documento_routes(main_routes)
 register_instrutores_routes(main_routes)
 register_matriz_capacitacao_routes(main_routes)
 register_melhorias_routes(main_routes)
+register_monitoramento_aplicacao_routes(main_routes)
 register_pcpm_cadastros_routes(main_routes)
 register_pcpm_checklist_routes(main_routes)
 register_pcpm_equipamentos_routes(main_routes)

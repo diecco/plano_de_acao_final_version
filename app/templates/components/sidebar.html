@@ -550,7 +550,8 @@
                 'main.formularios_configuraveis',
                 'main.editar_formulario_configuravel',
                 'main.etiquetas_nfc',
-                'main.alterar_status_etiqueta_nfc'
+                'main.alterar_status_etiqueta_nfc',
+                'main.monitoramento_aplicacao'
             ] %}
             <section class="sidebar-module"
                      data-search-label="administração estrutura superintendências centros custos usuários comunicados formulários formularios configuráveis configuraveis origens causas recusa temas hs tipos documentos cargos funções setores instrutores matriz empresas equipamentos checklist nfc etiquetas">
@@ -580,6 +581,10 @@
                     <a href="{{ url_for('main.listar_usuarios') }}"
                        class="sidebar-link {% if request.endpoint == 'main.listar_usuarios' %}active{% endif %}">
                         <i class="bi bi-people"></i><span>Usuários / Funcionários</span>
+                    </a>
+                    <a href="{{ url_for('main.monitoramento_aplicacao') }}"
+                       class="sidebar-link {% if request.endpoint == 'main.monitoramento_aplicacao' %}active{% endif %}">
+                        <i class="bi bi-activity"></i><span>Monitoramento</span>
                     </a>
                     <a href="{{ url_for('main.comunicados_visuais') }}"
                        class="sidebar-link {% if request.endpoint == 'main.comunicados_visuais' %}active{% endif %}">
