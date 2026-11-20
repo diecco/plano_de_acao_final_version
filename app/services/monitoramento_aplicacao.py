@@ -82,7 +82,7 @@ def iniciar_sessao_monitorada(usuario_id):
                 token_sessao, usuario_id, login_em, ultima_atividade,
                 ip_address, user_agent, dispositivo, navegador, sistema_operacional,
                 ultimo_endpoint, ultima_rota
-            ) VALUES (%s, %s, NOW(), NOW(), %s, %s, %s, %s, %s, %s, %s)
+            ) VALUES (%s, %s, UTC_TIMESTAMP(), UTC_TIMESTAMP(), %s, %s, %s, %s, %s, %s, %s)
         """, (
             token, usuario_id, ip, user_agent, dispositivo, navegador, sistema,
             request.endpoint, request.path,
@@ -101,7 +101,7 @@ def encerrar_sessao_monitorada(motivo="logout"):
     def operacao(cursor):
         cursor.execute("""
             UPDATE aplicacao_sessoes
-            SET logout_em = COALESCE(logout_em, NOW()), motivo_encerramento = %s
+            SET logout_em = COALESCE(logout_em, UTC_TIMESTAMP()), motivo_encerramento = %s
             WHERE token_sessao = %s
         """, (motivo, token))
 
@@ -123,7 +123,7 @@ def registrar_tentativa_login(email, sucesso, motivo):
             INSERT INTO aplicacao_tentativas_login (
                 identificador_hash, identificador_mascarado, sucesso, motivo,
                 ip_address, user_agent, ocorrido_em
-            ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
+            ) VALUES (%s, %s, %s, %s, %s, %s, UTC_TIMESTAMP())
         """, (
             identificador_hash, mascarado, int(bool(sucesso)), motivo[:100],
             _ip_cliente(), user_agent,
@@ -148,7 +148,7 @@ def atualizar_atividade(
     def operacao(cursor):
         cursor.execute("""
             UPDATE aplicacao_sessoes
-            SET ultima_atividade = NOW(), ultimo_endpoint = %s, ultima_rota = %s,
+            SET ultima_atividade = UTC_TIMESTAMP(), ultimo_endpoint = %s, ultima_rota = %s,
                 total_requisicoes = total_requisicoes + 1,
                 tempo_total_ms = tempo_total_ms + %s,
                 ultimo_status_http = COALESCE(%s, ultimo_status_http)
@@ -173,7 +173,7 @@ def registrar_erro(exception):
             INSERT INTO aplicacao_erros (
                 codigo_correlacao, token_sessao, usuario_id, endpoint, rota,
                 metodo, tipo_erro, mensagem_resumida, ocorrido_em
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, UTC_TIMESTAMP())
         """, (
             codigo, session.get("monitor_token"), session.get("usuario_id"),
             request.endpoint, request.path[:255], request.method,

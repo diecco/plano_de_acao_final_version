@@ -15,13 +15,8 @@
 {% endblock %}
 
 {% block conteudo %}
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-    <div>
-        <h2 class="text-laranja mb-1"><i class="bi bi-activity me-2"></i>Monitoramento da aplicação</h2>
-        <p class="text-muted mb-0">Acessos, sessões, disponibilidade e erros técnicos do TrackPlan.</p>
-    </div>
-    <a href="{{ url_for('main.monitoramento_aplicacao', periodo=filtros.periodo, usuario_id=filtros.usuario_id, centro_custos_id=filtros.centro_custos_id) }}"
-       class="btn btn-cinza" title="Atualizar"><i class="bi bi-arrow-clockwise"></i> Atualizar</a>
+<div class="text-center mb-3">
+    <h2 class="text-laranja mb-0"><i class="bi bi-activity me-2"></i>Monitoramento da aplicação</h2>
 </div>
 
 <form method="get" class="card border-0 shadow-sm mb-4"><div class="card-body"><div class="row g-3 align-items-end">
@@ -32,10 +27,15 @@
     <div class="col-md-4"><label class="form-label">Usuário</label><select class="form-select" name="usuario_id"><option value="">Todos</option>
         {% for usuario in usuarios %}<option value="{{ usuario.id }}" {{ 'selected' if filtros.usuario_id == usuario.id }}>{{ usuario.nome }}{% if usuario.matricula %} — {{ usuario.matricula }}{% endif %}</option>{% endfor %}
     </select></div>
-    <div class="col-md-4"><label class="form-label">Centro de custo</label><select class="form-select" name="centro_custos_id"><option value="">Todos</option>
+    <div class="col-md-3"><label class="form-label">Centro de custo</label><select class="form-select" name="centro_custos_id"><option value="">Todos</option>
         {% for centro in centros %}<option value="{{ centro.id }}" {{ 'selected' if filtros.centro_custos_id == centro.id }}>{{ centro.codigo }} — {{ centro.descricao }}</option>{% endfor %}
     </select></div>
-    <div class="col-md-2 d-flex gap-2"><button class="btn btn-laranja flex-fill" type="submit"><i class="bi bi-funnel"></i></button><a class="btn btn-cinza" href="{{ url_for('main.monitoramento_aplicacao') }}"><i class="bi bi-arrow-counterclockwise"></i></a></div>
+    <div class="col-md-3 d-flex justify-content-md-end gap-2">
+        <button class="btn btn-laranja" type="submit"><i class="bi bi-funnel me-1"></i>Filtrar</button>
+        <a class="btn btn-cinza" href="{{ url_for('main.monitoramento_aplicacao') }}" title="Limpar filtros"><i class="bi bi-arrow-counterclockwise"></i></a>
+        <a href="{{ url_for('main.monitoramento_aplicacao', periodo=filtros.periodo, usuario_id=filtros.usuario_id, centro_custos_id=filtros.centro_custos_id) }}"
+           class="btn btn-cinza" title="Atualizar"><i class="bi bi-arrow-clockwise me-1"></i>Atualizar</a>
+    </div>
 </div></div></form>
 
 <div class="row g-3 mb-4">
