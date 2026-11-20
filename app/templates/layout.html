@@ -84,6 +84,24 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     {% if not is_auth_page %}
         <script src="{{ url_for('static', filename='js/layout.js') }}"></script>
+        {% if session.get('usuario_id') %}
+        <script>
+            (() => {
+                const enviarAtividade = () => {
+                    if (document.visibilityState !== 'visible') return;
+                    fetch("{{ url_for('main.monitoramento_ping') }}", {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({rota: window.location.pathname}),
+                        keepalive: true
+                    }).catch(() => {});
+                };
+                window.setInterval(enviarAtividade, 60000);
+                document.addEventListener('visibilitychange', enviarAtividade);
+            })();
+        </script>
+        {% endif %}
     {% endif %}
     {% block extra_js %}{% endblock %}
 </body>

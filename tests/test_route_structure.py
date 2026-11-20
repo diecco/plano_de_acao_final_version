@@ -13,7 +13,17 @@ class RouteStructureTests(unittest.TestCase):
         }
 
     def test_total_route_contract_is_preserved(self):
-        self.assertEqual(len(self.routes), 253)
+        self.assertEqual(len(self.routes), 255)
+
+    def test_application_monitoring_routes_are_registered(self):
+        expected = {
+            ("/admin/monitoramento", ("GET",)):
+                "main.monitoramento_aplicacao",
+            ("/monitoramento/ping", ("POST",)):
+                "main.monitoramento_ping",
+        }
+        for route_contract, endpoint in expected.items():
+            self.assertEqual(self.routes.get(route_contract), endpoint)
 
     def test_pcpm_ressarcimentos_routes_are_registered(self):
         expected = {

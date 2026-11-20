@@ -50,6 +50,12 @@ def create_app():
     from app.feature_flags import register_feature_flags
     register_feature_flags(app)
 
+    # Telemetria interna de acessos e falhas, sem registrar conteúdo funcional.
+    from app.services.monitoramento_aplicacao import (
+        registrar_monitoramento_aplicacao,
+    )
+    registrar_monitoramento_aplicacao(app)
+
     # --- Scheduler (definido dentro da factory para ter app_context)
     def _job_send_reports():
         with app.app_context():

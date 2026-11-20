@@ -8,6 +8,11 @@ from werkzeug.security import generate_password_hash
 
 from app import mail
 from app.decorators import login_required
+from app.services.monitoramento_aplicacao import (
+    encerrar_sessao_monitorada,
+    iniciar_sessao_monitorada,
+    registrar_tentativa_login,
+)
 from app.utils.db import get_db_connection
 
 
@@ -100,6 +105,9 @@ def register_autenticacao_routes(blueprint):
                     session['perfil'] in ('basico', 'intermediario')
                     and not session['centro_custos_id']
                 ):
+                    registrar_tentativa_login(
+                        email, False, 'centro_custos_ausente'
+                    )
                     session.clear()
                     flash(
                         'Usuário com perfil local sem Centro de Custo vinculado. '
@@ -108,6 +116,9 @@ def register_autenticacao_routes(blueprint):
                     )
                     return redirect('/login')
 
+                registrar_tentativa_login(email, True, 'autenticado')
+                iniciar_sessao_monitorada(usuario['id'])
+
                 # Forçar troca de senha
                 if usuario.get('precisa_alterar_senha'):
                     return redirect('/alterar_senha')
@@ -115,6 +126,7 @@ def register_autenticacao_routes(blueprint):
                 # Todos os perfis iniciam na central neutra do TrackPlan.
                 return redirect('/inicio')
 
+            registrar_tentativa_login(email, False, 'credenciais_invalidas')
             flash('Email ou senha inválidos.', 'warning')
 
         return render_template('login.html')
@@ -164,6 +176,7 @@ def register_autenticacao_routes(blueprint):
 
     @blueprint.route('/logout')
     def logout():
+        encerrar_sessao_monitorada()
         session.clear()
         return render_template('logout.html')  # ou use redirect('/login')
 
