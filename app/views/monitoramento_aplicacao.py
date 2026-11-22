@@ -171,4 +171,3 @@ def register_monitoramento_aplicacao_routes(blueprint):
         rota = str(dados.get("rota") or "")[:255]
         atualizar_atividade(rota=rota, forcar=True)
         return jsonify({"ok": True})
-

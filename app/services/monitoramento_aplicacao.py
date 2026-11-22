@@ -211,4 +211,3 @@ def registrar_monitoramento_aplicacao(app):
     @app.teardown_request
     def _registrar_excecao(exception):
         registrar_erro(exception)
-
