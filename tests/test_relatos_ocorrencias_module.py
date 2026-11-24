@@ -50,15 +50,28 @@ class RelatosOcorrenciasModuleTest(unittest.TestCase):
             encoding="utf-8"
         )
         headers = [
-            "<th>Solicitação", "<th>Data", "<th>Tipo",
+            '>Solicitação {{', '>Data {{', '>Tipo {{',
             "<th>Descrição da ocorrência", "<th>Classificação",
-            "<th>Condição/Comportamento", "<th>Potencial",
-            "<th>Situação", '<th class="text-center">Ações',
+            '>Condição/Comportamento', '<th class="text-center">Potencial',
+            '>Situação {{', '<th class="text-center">Ações',
         ]
         positions = [template.index(header) for header in headers]
         self.assertEqual(positions, sorted(positions))
         self.assertNotIn("<th>Local", template)
         self.assertNotIn("<th>Requisitante", template)
+
+    def test_listing_filters_pending_classification_and_uses_minimal_actions(self):
+        template = (ROOT / "app" / "templates" / "relatos_ocorrencias.html").read_text(
+            encoding="utf-8"
+        )
+        source = (ROOT / "app" / "views" / "relatos_ocorrencias.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('name="potencial"', template)
+        self.assertIn("Pendentes de classificação", template)
+        self.assertIn("btn-acao-icon abrir-classificacao", template)
+        self.assertIn('filters["potencial"] == "pendente"', source)
+        self.assertIn("NOT EXISTS (SELECT 1 FROM relatos_ocorrencias_classificacoes", source)
 
     def test_migration_keeps_import_and_classification_separate(self):
         migration = (ROOT / "docs" / "criar_importacao_relatos_ocorrencias.sql").read_text(

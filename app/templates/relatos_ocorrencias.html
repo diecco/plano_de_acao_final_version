@@ -30,9 +30,9 @@
 {% macro sort_buttons(field) %}
 <span class="btn-group btn-group-sm ms-1">
     <a class="btn btn-link p-0 text-muted" title="Ordenar crescente"
-       href="{{ url_for('main.relatos_ocorrencias', busca=filters.busca, tipo=filters.tipo, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=field, order='asc') }}"><i class="bi bi-caret-up-fill"></i></a>
+       href="{{ url_for('main.relatos_ocorrencias', busca=filters.busca, tipo=filters.tipo, potencial=filters.potencial, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=field, order='asc') }}"><i class="bi bi-caret-up-fill"></i></a>
     <a class="btn btn-link p-0 text-muted" title="Ordenar decrescente"
-       href="{{ url_for('main.relatos_ocorrencias', busca=filters.busca, tipo=filters.tipo, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=field, order='desc') }}"><i class="bi bi-caret-down-fill"></i></a>
+       href="{{ url_for('main.relatos_ocorrencias', busca=filters.busca, tipo=filters.tipo, potencial=filters.potencial, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=field, order='desc') }}"><i class="bi bi-caret-down-fill"></i></a>
 </span>
 {% endmacro %}
 
@@ -54,16 +54,24 @@
 <div class="card shadow-sm border-0 mb-4"><div class="card-body">
     <form method="get" class="bloco-filtros">
         <div class="row g-3 align-items-end">
-            <div class="col-lg-4">
+            <div class="col-lg-3">
                 <label class="form-label" for="busca">Pesquisa</label>
                 <input class="form-control" id="busca" name="busca" value="{{ filters.busca }}"
                        placeholder="Solicitação, requisitante, local ou descrição">
             </div>
-            <div class="col-lg-3">
+            <div class="col-lg-2">
                 <label class="form-label" for="tipo">Tipo do relato</label>
                 <select class="form-select" id="tipo" name="tipo">
                     <option value="">Todos</option>
                     {% for item in types %}<option value="{{ item }}" {% if filters.tipo == item %}selected{% endif %}>{{ item }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label" for="potencial">Potencial</label>
+                <select class="form-select" id="potencial" name="potencial">
+                    <option value="">Todos</option>
+                    <option value="pendente" {% if filters.potencial == 'pendente' %}selected{% endif %}>Pendentes de classificação</option>
+                    <option value="classificado" {% if filters.potencial == 'classificado' %}selected{% endif %}>Classificados</option>
                 </select>
             </div>
             <div class="col-sm-6 col-lg-2">
@@ -85,35 +93,37 @@
 <div class="card shadow-sm border-0"><div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
         <thead><tr>
-            <th>Solicitação {{ sort_buttons('solicitacao') }}</th>
-            <th>Data {{ sort_buttons('data') }}</th>
-            <th>Tipo {{ sort_buttons('tipo') }}</th>
+            <th class="text-center">Solicitação {{ sort_buttons('solicitacao') }}</th>
+            <th class="text-center">Data {{ sort_buttons('data') }}</th>
+            <th class="text-center">Tipo {{ sort_buttons('tipo') }}</th>
             <th>Descrição da ocorrência</th>
             <th>Classificação</th>
-            <th>Condição/Comportamento</th>
-            <th>Potencial</th>
-            <th>Situação {{ sort_buttons('status') }}</th>
+            <th class="text-center">Condição/Comportamento</th>
+            <th class="text-center">Potencial</th>
+            <th class="text-center">Situação {{ sort_buttons('status') }}</th>
             <th class="text-center">Ações</th>
         </tr></thead>
         <tbody>
         {% for item in records %}
             <tr>
-                <td>{{ item.solicitacao }}</td>
-                <td>{{ item.data_ocorrencia.strftime('%d/%m/%Y') }}{% if item.hora_ocorrencia_exibicao %}<small class="d-block text-muted">{{ item.hora_ocorrencia_exibicao }}</small>{% endif %}</td>
-                <td>{{ item.tipo_relato }}</td>
+                <td class="text-center">{{ item.solicitacao }}</td>
+                <td class="text-center">{{ item.data_ocorrencia.strftime('%d/%m/%Y') }}{% if item.hora_ocorrencia_exibicao %}<small class="d-block text-muted">{{ item.hora_ocorrencia_exibicao }}</small>{% endif %}</td>
+                <td class="text-center">{{ item.tipo_relato }}</td>
                 <td class="relato-descricao">{{ item.descricao_ocorrencia }}</td>
                 <td>{{ item.classificacao_ocorrencia or '—' }}</td>
-                <td>{{ item.tipo_origem or '—' }}</td>
-                <td>
+                <td class="text-center">{{ item.tipo_origem or '—' }}</td>
+                <td class="text-center">
                     {% if item.severidade %}
                         <span class="badge {% if item.severidade == 'A' %}bg-danger{% elif item.severidade == 'B' %}bg-warning text-dark{% else %}bg-success{% endif %}">{{ item.severidade }}</span>
                         <small class="d-block text-muted mt-1">Risco {{ item.nivel_risco|capitalize }}</small>
                     {% else %}<span class="badge bg-secondary">Pendente</span>{% endif %}
                 </td>
-                <td><span class="badge bg-secondary">{{ item.situacao_fluig or 'Não informada' }}</span></td>
+                <td class="text-center"><span class="badge bg-secondary">{{ item.situacao_fluig or 'Não informada' }}</span></td>
                 <td class="text-center text-nowrap">
-                    <a class="btn btn-sm btn-cinza" href="{{ url_for('main.detalhar_relato_ocorrencia', record_id=item.id) }}" title="Visualizar"><i class="bi bi-eye"></i></a>
-                    {% if can_classify %}<button type="button" class="btn btn-sm btn-laranja abrir-classificacao" data-id="{{ item.id }}" data-url="{{ url_for('main.classificar_relato_ocorrencia', record_id=item.id) }}" data-bs-toggle="modal" data-bs-target="#modalClassificacao" title="{{ 'Revisar classificação' if item.severidade else 'Classificar' }}"><i class="bi bi-grid-3x3-gap"></i></button>{% endif %}
+                    <div class="d-flex justify-content-center gap-1">
+                        <a class="btn-acao-icon" href="{{ url_for('main.detalhar_relato_ocorrencia', record_id=item.id) }}" title="Visualizar" aria-label="Visualizar relato"><i class="bi bi-eye"></i></a>
+                        {% if can_classify %}<button type="button" class="btn-acao-icon abrir-classificacao" data-id="{{ item.id }}" data-url="{{ url_for('main.classificar_relato_ocorrencia', record_id=item.id) }}" data-bs-toggle="modal" data-bs-target="#modalClassificacao" title="{{ 'Revisar classificação' if item.severidade else 'Classificar' }}" aria-label="{{ 'Revisar classificação' if item.severidade else 'Classificar relato' }}"><i class="bi bi-grid-3x3-gap"></i></button>{% endif %}
+                    </div>
                 </td>
             </tr>
         {% else %}
@@ -126,9 +136,9 @@
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
     <small class="text-muted">{{ total_records }} registro(s)</small>
     {% if total_pages > 1 %}<nav><ul class="pagination pagination-sm mb-0">
-        <li class="page-item {% if page <= 1 %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.relatos_ocorrencias', page=page-1, busca=filters.busca, tipo=filters.tipo, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=filters.sort, order=filters.order) }}">Anterior</a></li>
+        <li class="page-item {% if page <= 1 %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.relatos_ocorrencias', page=page-1, busca=filters.busca, tipo=filters.tipo, potencial=filters.potencial, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=filters.sort, order=filters.order) }}">Anterior</a></li>
         <li class="page-item active"><span class="page-link">{{ page }} de {{ total_pages }}</span></li>
-        <li class="page-item {% if page >= total_pages %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.relatos_ocorrencias', page=page+1, busca=filters.busca, tipo=filters.tipo, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=filters.sort, order=filters.order) }}">Próxima</a></li>
+        <li class="page-item {% if page >= total_pages %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.relatos_ocorrencias', page=page+1, busca=filters.busca, tipo=filters.tipo, potencial=filters.potencial, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=filters.sort, order=filters.order) }}">Próxima</a></li>
     </ul></nav>{% endif %}
 </div>
 

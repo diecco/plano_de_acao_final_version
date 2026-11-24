@@ -223,6 +223,7 @@ def register_relatos_ocorrencias_routes(blueprint):
             "tipo": (request.args.get("tipo") or "").strip(),
             "data_inicio": (request.args.get("data_inicio") or "").strip(),
             "data_fim": (request.args.get("data_fim") or "").strip(),
+            "potencial": (request.args.get("potencial") or "").strip(),
             "sort": (request.args.get("sort") or "data").strip(),
             "order": (request.args.get("order") or "desc").strip(),
         }
@@ -259,6 +260,10 @@ def register_relatos_ocorrencias_routes(blueprint):
         if filters["data_fim"]:
             conditions.append("r.data_ocorrencia <= %s")
             parameters.append(filters["data_fim"])
+        if filters["potencial"] == "pendente":
+            conditions.append("NOT EXISTS (SELECT 1 FROM relatos_ocorrencias_classificacoes cp WHERE cp.relato_id = r.id)")
+        elif filters["potencial"] == "classificado":
+            conditions.append("EXISTS (SELECT 1 FROM relatos_ocorrencias_classificacoes cp WHERE cp.relato_id = r.id)")
         where = " AND ".join(conditions)
 
         conn = get_db_connection()
