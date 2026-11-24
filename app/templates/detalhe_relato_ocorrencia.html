@@ -1,0 +1,33 @@
+{% extends "layout.html" %}
+{% block titulo %}Relato {{ record.solicitacao }}{% endblock %}
+{% block conteudo %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 page-header">
+    <h2 class="page-title mb-0"><i class="bi bi-journal-text me-2"></i>Relato {{ record.solicitacao }}</h2>
+    <a class="btn btn-cinza" href="{{ url_for('main.relatos_ocorrencias') }}"><i class="bi bi-arrow-left me-1"></i>Voltar</a>
+</div><hr>
+
+<div class="card shadow-sm border-0 mb-4"><div class="card-body">
+    <div class="row g-4">
+        <div class="col-md-3"><small class="text-muted d-block">Data e hora</small><strong>{{ record.data_ocorrencia.strftime('%d/%m/%Y') }}{% if record.hora_ocorrencia_exibicao %} {{ record.hora_ocorrencia_exibicao }}{% endif %}</strong></div>
+        <div class="col-md-3"><small class="text-muted d-block">Tipo do relato</small><strong>{{ record.tipo_relato }}</strong></div>
+        <div class="col-md-3"><small class="text-muted d-block">Classificação</small><strong>{{ record.classificacao_ocorrencia or '—' }}</strong></div>
+        <div class="col-md-3"><small class="text-muted d-block">Situação no Fluig</small><strong>{{ record.situacao_fluig or '—' }}</strong></div>
+        <div class="col-md-3"><small class="text-muted d-block">Condição/Comportamento</small><strong>{{ record.tipo_origem or '—' }}</strong></div>
+        <div class="col-md-4"><small class="text-muted d-block">Centro de custos</small><strong>{{ record.centro_custos_codigo or '—' }}{% if record.centro_custos_descricao %} — {{ record.centro_custos_descricao }}{% endif %}</strong></div>
+        <div class="col-md-4"><small class="text-muted d-block">Área</small><strong>{{ record.area_ocorrencia or '—' }}</strong></div>
+        <div class="col-md-4"><small class="text-muted d-block">Local</small><strong>{{ record.local_ocorrencia or '—' }}</strong></div>
+        <div class="col-md-4"><small class="text-muted d-block">Requisitante</small><strong>{{ record.requisitante_nome or '—' }}</strong></div>
+        <div class="col-md-4"><small class="text-muted d-block">Responsável pelo registro</small><strong>{{ record.responsavel_registro or '—' }}</strong></div>
+        <div class="col-md-4"><small class="text-muted d-block">Turno</small><strong>{{ record.turno or '—' }}</strong></div>
+        <div class="col-12"><small class="text-muted d-block">Descrição da ocorrência</small><div class="border rounded p-3 bg-light">{{ record.descricao_ocorrencia }}</div></div>
+        <div class="col-12"><small class="text-muted d-block">Ação tomada</small><div class="border rounded p-3 bg-light">{{ record.acao_tomada or 'Não informada' }}</div></div>
+    </div>
+</div></div>
+
+<div class="card shadow-sm border-0"><div class="card-header bg-white fw-semibold">Pessoas envolvidas</div><div class="table-responsive">
+    <table class="table align-middle mb-0"><thead><tr><th>Nome</th><th>Matrícula</th><th>E-mail</th><th>Centro de custos</th><th>Informação de origem</th></tr></thead><tbody>
+    {% for item in involved %}<tr><td>{{ item.nome or '—' }}</td><td>{{ item.matricula or '—' }}</td><td>{{ item.email or '—' }}</td><td>{{ item.centro_custos or '—' }}</td><td>{{ item.descricao or '—' }}</td></tr>
+    {% else %}<tr><td colspan="5" class="text-center text-muted py-4">Nenhuma pessoa informada.</td></tr>{% endfor %}
+    </tbody></table>
+</div></div>
+{% endblock %}

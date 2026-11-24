@@ -1,0 +1,100 @@
+{% extends "layout.html" %}
+{% block titulo %}Relatos de Ocorrências{% endblock %}
+{% block conteudo %}
+{% macro sort_buttons(field) %}
+<span class="btn-group btn-group-sm ms-1">
+    <a class="btn btn-link p-0 text-muted" title="Ordenar crescente"
+       href="{{ url_for('main.relatos_ocorrencias', busca=filters.busca, tipo=filters.tipo, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=field, order='asc') }}"><i class="bi bi-caret-up-fill"></i></a>
+    <a class="btn btn-link p-0 text-muted" title="Ordenar decrescente"
+       href="{{ url_for('main.relatos_ocorrencias', busca=filters.busca, tipo=filters.tipo, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=field, order='desc') }}"><i class="bi bi-caret-down-fill"></i></a>
+</span>
+{% endmacro %}
+
+<div class="page-header text-center">
+    <h2 class="page-title"><i class="bi bi-journal-text me-2"></i>Relatos de Ocorrências</h2>
+</div>
+<hr>
+
+<div class="alert d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4"
+     style="background:#fff3ec;border:1px solid var(--cor-laranja,#f36c21);color:#5b6065">
+    <span><i class="bi bi-lock me-2 text-laranja"></i>Dados importados do Fluig, disponíveis somente para consulta.</span>
+    {% if session.get('perfil') == 'administrador' or session.get('gestor_ssma') %}
+    <a class="btn btn-cinza btn-sm" href="{{ url_for('main.importar_relatos_ocorrencias') }}">
+        <i class="bi bi-file-earmark-arrow-up me-1"></i>Importar planilha
+    </a>
+    {% endif %}
+</div>
+
+<div class="card shadow-sm border-0 mb-4"><div class="card-body">
+    <form method="get" class="bloco-filtros">
+        <div class="row g-3 align-items-end">
+            <div class="col-lg-4">
+                <label class="form-label" for="busca">Pesquisa</label>
+                <input class="form-control" id="busca" name="busca" value="{{ filters.busca }}"
+                       placeholder="Solicitação, requisitante, local ou descrição">
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label" for="tipo">Tipo do relato</label>
+                <select class="form-select" id="tipo" name="tipo">
+                    <option value="">Todos</option>
+                    {% for item in types %}<option value="{{ item }}" {% if filters.tipo == item %}selected{% endif %}>{{ item }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <label class="form-label" for="data_inicio">Data inicial</label>
+                <input class="form-control" type="date" id="data_inicio" name="data_inicio" value="{{ filters.data_inicio }}">
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <label class="form-label" for="data_fim">Data final</label>
+                <input class="form-control" type="date" id="data_fim" name="data_fim" value="{{ filters.data_fim }}">
+            </div>
+            <div class="col-lg-1 d-flex gap-2 justify-content-lg-end">
+                <button class="btn btn-laranja" title="Filtrar"><i class="bi bi-funnel"></i></button>
+                <a class="btn btn-cinza" href="{{ url_for('main.relatos_ocorrencias') }}" title="Limpar"><i class="bi bi-arrow-clockwise"></i></a>
+            </div>
+        </div>
+    </form>
+</div></div>
+
+<div class="card shadow-sm border-0"><div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+        <thead><tr>
+            <th>Solicitação {{ sort_buttons('solicitacao') }}</th>
+            <th>Data {{ sort_buttons('data') }}</th>
+            <th>Tipo {{ sort_buttons('tipo') }}</th>
+            <th>Classificação</th>
+            <th>Condição/Comportamento</th>
+            <th>Local {{ sort_buttons('local') }}</th>
+            <th>Requisitante {{ sort_buttons('requisitante') }}</th>
+            <th>Situação {{ sort_buttons('status') }}</th>
+            <th class="text-center">Detalhes</th>
+        </tr></thead>
+        <tbody>
+        {% for item in records %}
+            <tr>
+                <td>{{ item.solicitacao }}</td>
+                <td>{{ item.data_ocorrencia.strftime('%d/%m/%Y') }}{% if item.hora_ocorrencia_exibicao %}<small class="d-block text-muted">{{ item.hora_ocorrencia_exibicao }}</small>{% endif %}</td>
+                <td>{{ item.tipo_relato }}</td>
+                <td>{{ item.classificacao_ocorrencia or '—' }}</td>
+                <td>{{ item.tipo_origem or '—' }}</td>
+                <td>{{ item.local_ocorrencia or '—' }}</td>
+                <td>{{ item.requisitante_nome or '—' }}</td>
+                <td><span class="badge bg-secondary">{{ item.situacao_fluig or 'Não informada' }}</span></td>
+                <td class="text-center"><a class="btn btn-sm btn-cinza" href="{{ url_for('main.detalhar_relato_ocorrencia', record_id=item.id) }}" title="Visualizar"><i class="bi bi-eye"></i></a></td>
+            </tr>
+        {% else %}
+            <tr><td colspan="9" class="text-center text-muted py-5">Nenhum relato encontrado.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div></div>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+    <small class="text-muted">{{ total_records }} registro(s)</small>
+    {% if total_pages > 1 %}<nav><ul class="pagination pagination-sm mb-0">
+        <li class="page-item {% if page <= 1 %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.relatos_ocorrencias', page=page-1, busca=filters.busca, tipo=filters.tipo, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=filters.sort, order=filters.order) }}">Anterior</a></li>
+        <li class="page-item active"><span class="page-link">{{ page }} de {{ total_pages }}</span></li>
+        <li class="page-item {% if page >= total_pages %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.relatos_ocorrencias', page=page+1, busca=filters.busca, tipo=filters.tipo, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=filters.sort, order=filters.order) }}">Próxima</a></li>
+    </ul></nav>{% endif %}
+</div>
+{% endblock %}
