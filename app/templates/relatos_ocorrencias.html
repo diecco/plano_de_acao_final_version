@@ -8,7 +8,12 @@
         white-space: normal;
         line-height: 1.35;
     }
-    .severity-card { border: 1px solid #d9dee5; border-radius: .65rem; padding: .85rem; cursor: pointer; height: 100%; background: #fff; }
+    #modalClassificacao .modal-dialog { max-height: calc(100vh - 1rem); margin-top: .5rem; margin-bottom: .5rem; }
+    #modalClassificacao .modal-content { max-height: calc(100vh - 1rem); }
+    #modalClassificacao .modal-header, #modalClassificacao .modal-footer { padding: .65rem 1rem; }
+    #modalClassificacao .modal-body { padding: .75rem 1rem; overflow-y: auto; }
+    .severity-card { border: 1px solid #d9dee5; border-radius: .65rem; padding: .6rem .7rem; cursor: pointer; height: 100%; background: #fff; line-height: 1.25; }
+    .severity-card .severity-help { font-size: .78rem; }
     .severity-card:hover, .severity-card.selected { border-color: var(--cor-laranja, #f36c21); background: #fff5ef; }
     .classification-segmented .btn { min-width: 90px; }
     .classification-segmented .btn-check:checked + .btn { background: var(--cor-laranja, #f36c21); border-color: var(--cor-laranja, #f36c21); color: #fff; }
@@ -16,6 +21,11 @@
     .classification-matrix th, .classification-matrix td { text-align: center; padding: .4rem .55rem; font-size: .82rem; border: 1px solid #dee2e6; }
     .classification-matrix .active-cell { outline: 3px solid var(--cor-laranja, #f36c21); outline-offset: -3px; font-weight: 700; }
     .classification-context { border-left: 3px solid var(--cor-laranja, #f36c21); background: #f8f9fa; }
+    .classification-context .context-text { max-height: 3.2em; overflow-y: auto; line-height: 1.35; }
+    .classification-help { font-size: .82rem; }
+    @media (min-width: 1200px) {
+        #modalClassificacao .modal-xl { max-width: 1180px; }
+    }
 </style>
 {% macro sort_buttons(field) %}
 <span class="btn-group btn-group-sm ms-1">
@@ -133,39 +143,40 @@
             </div>
             <div class="modal-body">
                 <input type="hidden" name="next" value="{{ request.full_path }}">
-                <div class="classification-context rounded p-3 mb-4">
-                    <div class="row g-3 mb-3">
+                <div class="classification-context rounded p-2 mb-2">
+                    <div class="row g-2 mb-2">
                         <div class="col-md-3"><small class="text-muted d-block">Solicitação</small><strong id="classSolicitacao"></strong></div>
                         <div class="col-md-3"><small class="text-muted d-block">Data</small><strong id="classData"></strong></div>
                         <div class="col-md-6"><small class="text-muted d-block">Tipo do relato</small><strong id="classTipo"></strong></div>
                     </div>
-                    <small class="text-muted d-block">Descrição da ocorrência</small><div id="classDescricao" class="mb-3"></div>
-                    <small class="text-muted d-block">Ação tomada</small><div id="classAcao"></div>
+                    <div class="row g-2">
+                        <div class="col-lg-6"><small class="text-muted d-block">Descrição da ocorrência</small><div id="classDescricao" class="context-text"></div></div>
+                        <div class="col-lg-6"><small class="text-muted d-block">Ação tomada</small><div id="classAcao" class="context-text"></div></div>
+                    </div>
                 </div>
-                <p class="text-muted">Considere a consequência máxima dentro de um cenário razoavelmente plausível. O TrackPlan combina severidade e probabilidade para calcular o risco.</p>
-                <div class="row g-4">
+                <p class="text-muted classification-help mb-2">Considere a consequência máxima razoavelmente plausível. O TrackPlan combina severidade e probabilidade para calcular o risco.</p>
+                <div class="row g-3">
                     <div class="col-xl-6">
-                        <h6 class="fw-bold">1. Severidade da consequência</h6>
+                        <h6 class="fw-bold mb-2">1. Severidade da consequência</h6>
                         <div class="row g-2">
                             {% for value, title, text in [('A','A — Crítica','Fatalidade, incapacidade permanente, múltiplas vítimas ou perda catastrófica'),('B','B — Moderada','Lesão com afastamento, fratura, internação ou dano material significativo'),('C','C — Leve','Primeiros socorros, sem afastamento ou dano material leve')] %}
-                            <div class="col-12"><label class="severity-card d-flex gap-3 align-items-start"><input class="form-check-input mt-1 classification-input" type="radio" name="severidade" value="{{ value }}" required><span><strong>{{ title }}</strong><br><span class="text-muted">{{ text }}</span></span></label></div>
+                            <div class="col-12"><label class="severity-card d-flex gap-2 align-items-start"><input class="form-check-input mt-1 classification-input" type="radio" name="severidade" value="{{ value }}" required><span><strong>{{ title }}</strong><br><span class="text-muted severity-help">{{ text }}</span></span></label></div>
                             {% endfor %}
                         </div>
                     </div>
                     <div class="col-xl-6">
-                        <h6 class="fw-bold">2. Probabilidade</h6>
+                        <h6 class="fw-bold mb-2">2. Probabilidade</h6>
                         {% for name, title, options in [('matriz_exposicao','Frequência de exposição',[('baixa','Rara'),('media','Ocasional'),('alta','Frequente')]),('matriz_controles','Efetividade dos controles',[('baixa','Adequados'),('media','Parciais'),('alta','Ausentes')]),('matriz_ocorrencia','Possibilidade de ocorrência',[('baixa','Improvável'),('media','Possível'),('alta','Provável')])] %}
-                        <div class="mb-3"><label class="form-label fw-semibold">{{ title }}</label><div class="btn-group classification-segmented w-100" role="group">{% for value, label in options %}<input type="radio" class="btn-check classification-input" name="{{ name }}" id="class_{{ name }}_{{ value }}" value="{{ value }}" required><label class="btn btn-outline-secondary" for="class_{{ name }}_{{ value }}">{{ label }}</label>{% endfor %}</div></div>
+                        <div class="mb-2"><label class="form-label fw-semibold mb-1">{{ title }}</label><div class="btn-group classification-segmented w-100" role="group">{% for value, label in options %}<input type="radio" class="btn-check classification-input" name="{{ name }}" id="class_{{ name }}_{{ value }}" value="{{ value }}" required><label class="btn btn-outline-secondary btn-sm" for="class_{{ name }}_{{ value }}">{{ label }}</label>{% endfor %}</div></div>
                         {% endfor %}
-                        <div class="p-3 bg-light rounded"><strong>Probabilidade: </strong><span class="badge bg-secondary" id="classProbability">Aguardando</span></div>
+                        <div class="p-2 bg-light rounded"><strong>Probabilidade: </strong><span class="badge bg-secondary" id="classProbability">Aguardando</span></div>
                     </div>
                 </div>
-                <div class="classification-result p-3 mt-4"><div class="row align-items-center g-3">
-                    <div class="col-lg-4"><div class="fw-semibold">Classificação calculada</div><span class="badge bg-secondary fs-6 mt-2" id="classRisk">Aguardando</span><div class="small mt-2" id="classFormula">Preencha a matriz.</div></div>
-                    <div class="col-lg-4 text-muted small">O resultado orienta a priorização. Toda revisão permanece registrada no histórico da ocorrência.</div>
-                    <div class="col-lg-4"><table class="classification-matrix w-100"><thead><tr><th></th><th>Baixa</th><th>Média</th><th>Alta</th></tr></thead><tbody><tr><th>A</th><td data-class-cell="A-baixa">Médio</td><td data-class-cell="A-media">Alto</td><td data-class-cell="A-alta">Alto</td></tr><tr><th>B</th><td data-class-cell="B-baixa">Baixo</td><td data-class-cell="B-media">Médio</td><td data-class-cell="B-alta">Alto</td></tr><tr><th>C</th><td data-class-cell="C-baixa">Baixo</td><td data-class-cell="C-media">Médio</td><td data-class-cell="C-alta">Médio</td></tr></tbody></table></div>
+                <div class="classification-result p-2 mt-2"><div class="row align-items-center g-2">
+                    <div class="col-lg-4"><span class="fw-semibold me-2">Resultado:</span><span class="badge bg-secondary" id="classRisk">Aguardando</span><div class="small mt-1" id="classFormula">Preencha a matriz.</div></div>
+                    <div class="col-lg-8"><table class="classification-matrix w-100"><thead><tr><th></th><th>Baixa</th><th>Média</th><th>Alta</th></tr></thead><tbody><tr><th>A</th><td data-class-cell="A-baixa">Médio</td><td data-class-cell="A-media">Alto</td><td data-class-cell="A-alta">Alto</td></tr><tr><th>B</th><td data-class-cell="B-baixa">Baixo</td><td data-class-cell="B-media">Médio</td><td data-class-cell="B-alta">Alto</td></tr><tr><th>C</th><td data-class-cell="C-baixa">Baixo</td><td data-class-cell="C-media">Médio</td><td data-class-cell="C-alta">Médio</td></tr></tbody></table></div>
                 </div></div>
-                <div class="mt-4"><label for="classJustificativa" class="form-label fw-semibold">Justificativa *</label><textarea class="form-control" id="classJustificativa" name="justificativa" rows="3" minlength="10" maxlength="2000" required></textarea><small class="text-muted">Explique os elementos considerados na definição da severidade e da probabilidade.</small></div>
+                <div class="mt-2"><label for="classJustificativa" class="form-label fw-semibold mb-1">Justificativa *</label><textarea class="form-control" id="classJustificativa" name="justificativa" rows="2" minlength="10" maxlength="2000" required></textarea><small class="text-muted">Explique os elementos considerados na definição da severidade e da probabilidade.</small></div>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button><button type="submit" class="btn btn-laranja">Salvar classificação</button></div>
         </form>
@@ -175,7 +186,7 @@
 const classificationData=JSON.parse(document.getElementById('classification-data').textContent),classificationForm=document.getElementById('formClassificacao');
 const classificationWeights={baixa:1,media:2,alta:3},classificationLabels={baixa:'Baixa',media:'Média',alta:'Alta'},classificationRisk={A:{baixa:'medio',media:'alto',alta:'alto'},B:{baixa:'baixo',media:'medio',alta:'alto'},C:{baixa:'baixo',media:'medio',alta:'medio'}};
 function classValue(name){return classificationForm.querySelector(`[name="${name}"]:checked`)?.value||'';}
-function updateClassification(){classificationForm.querySelectorAll('.severity-card').forEach(card=>card.classList.toggle('selected',!!card.querySelector('input:checked')));classificationForm.querySelectorAll('[data-class-cell]').forEach(cell=>cell.classList.remove('active-cell'));const severity=classValue('severidade'),factors=['matriz_exposicao','matriz_controles','matriz_ocorrencia'].map(classValue),probabilityBadge=document.getElementById('classProbability'),riskBadge=document.getElementById('classRisk');if(factors.some(value=>!value)){probabilityBadge.textContent='Aguardando';riskBadge.textContent='Aguardando';riskBadge.className='badge bg-secondary fs-6 mt-2';document.getElementById('classFormula').textContent='Preencha a matriz.';return;}const average=factors.reduce((total,value)=>total+classificationWeights[value],0)/3,probability=average<=1.5?'baixa':average<=2.3?'media':'alta';probabilityBadge.textContent=classificationLabels[probability];if(!severity){riskBadge.textContent='Aguardando';return;}const risk=classificationRisk[severity][probability];riskBadge.textContent=`RISCO ${risk.toUpperCase()}`;riskBadge.className=`badge fs-6 mt-2 ${risk==='alto'?'bg-danger':risk==='medio'?'bg-warning text-dark':'bg-success'}`;document.getElementById('classFormula').textContent=`Severidade ${severity} + Probabilidade ${classificationLabels[probability]}`;classificationForm.querySelector(`[data-class-cell="${severity}-${probability}"]`)?.classList.add('active-cell');}
+function updateClassification(){classificationForm.querySelectorAll('.severity-card').forEach(card=>card.classList.toggle('selected',!!card.querySelector('input:checked')));classificationForm.querySelectorAll('[data-class-cell]').forEach(cell=>cell.classList.remove('active-cell'));const severity=classValue('severidade'),factors=['matriz_exposicao','matriz_controles','matriz_ocorrencia'].map(classValue),probabilityBadge=document.getElementById('classProbability'),riskBadge=document.getElementById('classRisk');if(factors.some(value=>!value)){probabilityBadge.textContent='Aguardando';riskBadge.textContent='Aguardando';riskBadge.className='badge bg-secondary';document.getElementById('classFormula').textContent='Preencha a matriz.';return;}const average=factors.reduce((total,value)=>total+classificationWeights[value],0)/3,probability=average<=1.5?'baixa':average<=2.3?'media':'alta';probabilityBadge.textContent=classificationLabels[probability];if(!severity){riskBadge.textContent='Aguardando';return;}const risk=classificationRisk[severity][probability];riskBadge.textContent=`RISCO ${risk.toUpperCase()}`;riskBadge.className=`badge ${risk==='alto'?'bg-danger':risk==='medio'?'bg-warning text-dark':'bg-success'}`;document.getElementById('classFormula').textContent=`Severidade ${severity} + Probabilidade ${classificationLabels[probability]}`;classificationForm.querySelector(`[data-class-cell="${severity}-${probability}"]`)?.classList.add('active-cell');}
 function setClassValue(name,value){classificationForm.querySelectorAll(`[name="${name}"]`).forEach(input=>input.checked=input.value===value);}
 document.querySelectorAll('.abrir-classificacao').forEach(button=>button.addEventListener('click',()=>{const data=classificationData[button.dataset.id];classificationForm.action=button.dataset.url;classificationForm.reset();document.getElementById('classSolicitacao').textContent=data.solicitacao;document.getElementById('classData').textContent=data.data;document.getElementById('classTipo').textContent=data.tipo;document.getElementById('classDescricao').textContent=data.descricao;document.getElementById('classAcao').textContent=data.acao_tomada;['severidade','matriz_exposicao','matriz_controles','matriz_ocorrencia'].forEach(name=>setClassValue(name,data[name]));document.getElementById('classJustificativa').value=data.justificativa;updateClassification();}));
 classificationForm.querySelectorAll('.classification-input').forEach(input=>input.addEventListener('change',updateClassification));
