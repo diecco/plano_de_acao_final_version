@@ -51,6 +51,7 @@ class RelatosOcorrenciasModuleTest(unittest.TestCase):
         )
         headers = [
             '>Solicitação {{', '>Data {{', '>Tipo {{',
+            "<th>Responsável pelo registro",
             "<th>Descrição da ocorrência", "<th>Classificação",
             '>Condição/Comportamento', '<th class="text-center">Potencial',
             '>Situação {{', '<th class="text-center">Ações',
@@ -59,6 +60,17 @@ class RelatosOcorrenciasModuleTest(unittest.TestCase):
         self.assertEqual(positions, sorted(positions))
         self.assertNotIn("<th>Local", template)
         self.assertNotIn("<th>Requisitante", template)
+
+    def test_listing_exposes_and_searches_record_owner(self):
+        template = (ROOT / "app" / "templates" / "relatos_ocorrencias.html").read_text(
+            encoding="utf-8"
+        )
+        source = (ROOT / "app" / "views" / "relatos_ocorrencias.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("Responsável pelo registro", template)
+        self.assertIn("item.responsavel_registro", template)
+        self.assertIn("r.responsavel_registro LIKE %s", source)
 
     def test_listing_filters_pending_classification_and_uses_minimal_actions(self):
         template = (ROOT / "app" / "templates" / "relatos_ocorrencias.html").read_text(
