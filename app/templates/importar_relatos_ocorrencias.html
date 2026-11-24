@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+{% block titulo %}Importar Relatos de Ocorrências{% endblock %}
+{% block conteudo %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 page-header">
+    <h2 class="page-title mb-0"><i class="bi bi-file-earmark-arrow-up me-2"></i>Importar Relatos de Ocorrências</h2>
+    <a class="btn btn-cinza" href="{{ url_for('main.relatos_ocorrencias') }}"><i class="bi bi-arrow-left me-1"></i>Voltar</a>
+</div><hr>
+
+<div class="alert" style="background:#fff3ec;border:1px solid var(--cor-laranja,#f36c21);color:#5b6065">
+    Importe a exportação de <strong>Relato de Ocorrência</strong> do Fluig com os dados do formulário.
+    Registros existentes serão atualizados pela solicitação. Registros ausentes não serão excluídos.
+</div>
+
+<div class="card shadow-sm border-0 mb-4"><div class="card-body">
+    <form method="post" enctype="multipart/form-data">
+        <label for="arquivo" class="form-label">Planilha do Fluig (.xlsx)</label>
+        <div class="d-flex gap-2 flex-wrap">
+            <input class="form-control" style="max-width:650px" type="file" id="arquivo" name="arquivo" accept=".xlsx" required>
+            <button class="btn btn-laranja" type="submit"><i class="bi bi-upload me-1"></i>Validar e importar</button>
+        </div>
+        <small class="text-muted">Limite de 20 MB. A classificação de potencial A, B ou C será implantada na próxima etapa.</small>
+    </form>
+</div></div>
+
+{% if result %}
+<div class="card shadow-sm border-0 mb-4"><div class="card-header bg-white fw-semibold">Resultado da importação</div><div class="card-body">
+    <div class="row g-3 text-center">
+        <div class="col-6 col-md"><div class="border rounded p-3"><strong class="d-block fs-4">{{ result.total }}</strong>Total</div></div>
+        <div class="col-6 col-md"><div class="border rounded p-3"><strong class="d-block fs-4 text-success">{{ result.inseridos }}</strong>Inseridos</div></div>
+        <div class="col-6 col-md"><div class="border rounded p-3"><strong class="d-block fs-4 text-primary">{{ result.atualizados }}</strong>Atualizados</div></div>
+        <div class="col-6 col-md"><div class="border rounded p-3"><strong class="d-block fs-4 text-muted">{{ result.inalterados }}</strong>Sem alteração</div></div>
+        <div class="col-6 col-md"><div class="border rounded p-3"><strong class="d-block fs-4 text-danger">{{ result.erros }}</strong>Erros</div></div>
+    </div>
+</div></div>
+{% endif %}
+
+{% if errors %}
+<div class="card shadow-sm border-0 mb-4"><div class="card-header bg-white fw-semibold">Linhas não importadas</div><div class="table-responsive">
+    <table class="table table-sm mb-0"><thead><tr><th>Linha</th><th>Solicitação</th><th>Motivo</th></tr></thead><tbody>
+    {% for error in errors %}<tr><td>{{ error.linha }}</td><td>{{ error.solicitacao or '—' }}</td><td>{{ error.erro }}</td></tr>{% endfor %}
+    </tbody></table>
+</div></div>
+{% endif %}
+
+<div class="card shadow-sm border-0"><div class="card-header bg-white fw-semibold">Histórico de importações</div><div class="table-responsive">
+    <table class="table table-hover align-middle mb-0"><thead><tr><th>Data</th><th>Arquivo</th><th>Responsável</th><th class="text-center">Total</th><th class="text-center">Inseridos</th><th class="text-center">Atualizados</th><th class="text-center">Sem alteração</th><th class="text-center">Erros</th></tr></thead><tbody>
+    {% for item in history %}<tr><td>{{ item.criado_em.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ item.nome_arquivo }}</td><td>{{ item.usuario_nome }}</td><td class="text-center">{{ item.total_linhas }}</td><td class="text-center">{{ item.inseridos }}</td><td class="text-center">{{ item.atualizados }}</td><td class="text-center">{{ item.inalterados }}</td><td class="text-center">{{ item.erros }}</td></tr>
+    {% else %}<tr><td colspan="8" class="text-center text-muted py-4">Nenhuma importação realizada.</td></tr>{% endfor %}
+    </tbody></table>
+</div></div>
+{% endblock %}

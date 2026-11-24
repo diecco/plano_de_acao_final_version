@@ -109,6 +109,9 @@
                 'main.nova_observacao_comportamental',
                 'main.detalhar_observacao_comportamental',
                 'main.editar_observacao_comportamental',
+                'main.relatos_ocorrencias',
+                'main.importar_relatos_ocorrencias',
+                'main.detalhar_relato_ocorrencia',
                 'main.listar_desvios',
                 'main.novo_desvio',
                 'main.editar_desvio',
@@ -117,7 +120,7 @@
                 'main.executar_agendamento_ssma'
             ] %}
             <section class="sidebar-module"
-                     data-search-label="ssma meu calendário horas segurança recusa tarefa apr auditoria padrão ifs">
+                     data-search-label="ssma meu calendário horas segurança recusa tarefa relatos ocorrências apr auditoria padrão ifs">
                 <button class="sidebar-module-toggle {% if request.endpoint in endpoints_ssma or checklist_ssma_ativo %}active{% endif %}"
                         type="button"
                         data-bs-toggle="collapse"
@@ -151,6 +154,10 @@
                         </a>
                     {% endif %}
                     {% if session.get('acesso_ssma') or is_admin %}
+                        <a href="{{ url_for('main.relatos_ocorrencias') }}"
+                           class="sidebar-link {% if request.endpoint in ['main.relatos_ocorrencias', 'main.importar_relatos_ocorrencias', 'main.detalhar_relato_ocorrencia'] %}active{% endif %}">
+                            <i class="bi bi-journal-text"></i><span>Relatos de Ocorrências</span>
+                        </a>
                         <a href="{{ url_for('main.listar_hs') }}"
                            class="sidebar-link {% if request.endpoint in ['main.listar_hs', 'main.editar_hs'] %}active{% endif %}">
                             <i class="bi bi-clock-history"></i><span>Horas de segurança</span>
