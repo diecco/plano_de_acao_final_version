@@ -33,6 +33,21 @@ class RelatosOcorrenciasModuleTest(unittest.TestCase):
         self.assertIn("main.relatos_ocorrencias", sidebar)
         self.assertIn("Relatos de Ocorrências", sidebar)
 
+    def test_listing_prioritizes_occurrence_description(self):
+        template = (ROOT / "app" / "templates" / "relatos_ocorrencias.html").read_text(
+            encoding="utf-8"
+        )
+        headers = [
+            "<th>Solicitação", "<th>Data", "<th>Tipo",
+            "<th>Descrição da ocorrência", "<th>Classificação",
+            "<th>Condição/Comportamento", "<th>Situação",
+            '<th class="text-center">Detalhes',
+        ]
+        positions = [template.index(header) for header in headers]
+        self.assertEqual(positions, sorted(positions))
+        self.assertNotIn("<th>Local", template)
+        self.assertNotIn("<th>Requisitante", template)
+
     def test_migration_keeps_import_and_classification_separate(self):
         migration = (ROOT / "docs" / "criar_importacao_relatos_ocorrencias.sql").read_text(
             encoding="utf-8"

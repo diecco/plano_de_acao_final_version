@@ -195,8 +195,6 @@ def register_relatos_ocorrencias_routes(blueprint):
             "solicitacao": "r.solicitacao",
             "data": "r.data_ocorrencia",
             "tipo": "r.tipo_relato",
-            "local": "r.local_ocorrencia",
-            "requisitante": "r.requisitante_nome",
             "status": "r.situacao_fluig",
         }
         if filters["sort"] not in sort_columns:
