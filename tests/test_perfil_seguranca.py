@@ -63,6 +63,7 @@ class PerfilSegurancaTests(unittest.TestCase):
             "auditorias_padrao": 0,
             "recusas": 0,
             "melhorias": 0,
+            "relatos_ocorrencia": 0,
             "minutos_treinamento": 0,
         })
         self.assertFalse(item["tem_registros"])
@@ -74,11 +75,26 @@ class PerfilSegurancaTests(unittest.TestCase):
             "auditorias_padrao": 2,
             "recusas": 1,
             "melhorias": 0,
+            "relatos_ocorrencia": 0,
             "minutos_treinamento": 90,
         })
         self.assertTrue(item["tem_registros"])
         self.assertEqual(4, item["total_praticas"])
         self.assertEqual(1.5, item["horas_treinamento"])
+
+    def test_perfil_inclui_relato_classificado_ou_do_tipo_desvio(self):
+        raiz = Path(__file__).parents[1]
+        fonte = (raiz / "app" / "views" / "perfil_seguranca.py").read_text(
+            encoding="utf-8"
+        )
+        template = (
+            raiz / "app" / "templates" / "perfil_seguranca_colaborador.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("TRIM(ro.responsavel_registro) = TRIM(u.nome)", fonte)
+        self.assertIn("roc.id IS NOT NULL OR LOWER(TRIM(ro.tipo_relato)) = 'desvio'", fonte)
+        self.assertIn("AS relatos_ocorrencia", fonte)
+        self.assertIn("Relatos de Ocorrência", template)
+        self.assertIn("item.relatos_ocorrencia", template)
 
     def test_historico_abre_visualizacao_somente_leitura(self):
         raiz = Path(__file__).parents[1]
