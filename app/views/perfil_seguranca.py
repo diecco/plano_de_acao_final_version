@@ -26,7 +26,10 @@ def _periodo_perfil(valor, hoje=None):
 
 
 def _parametros_indicadores(inicio, fim):
-    return (inicio, fim, inicio, fim, inicio, fim, inicio, fim, inicio, fim)
+    return (
+        inicio, fim, inicio, fim, inicio, fim, inicio, fim, inicio, fim,
+        inicio, fim,
+    )
 
 
 def _colunas_indicadores():
@@ -53,7 +56,15 @@ def _colunas_indicadores():
            JOIN treinamentos_realizados tr
              ON tr.id = trp.treinamento_realizado_id
           WHERE trp.usuario_id = u.id AND COALESCE(trp.presenca, 1) = 1
-            AND tr.data_treinamento BETWEEN %s AND %s) AS minutos_treinamento
+            AND tr.data_treinamento BETWEEN %s AND %s) AS minutos_treinamento,
+        (SELECT COUNT(DISTINCT ro.id)
+           FROM relatos_ocorrencias ro
+           LEFT JOIN relatos_ocorrencias_classificacoes roc
+             ON roc.relato_id = ro.id
+          WHERE TRIM(ro.responsavel_registro) = TRIM(u.nome)
+            AND ro.data_ocorrencia BETWEEN %s AND %s
+            AND (roc.id IS NOT NULL OR LOWER(TRIM(ro.tipo_relato)) = 'desvio')
+        ) AS relatos_ocorrencia
     """
 
 
@@ -87,7 +98,8 @@ def _preparar_indicadores(item):
     minutos = int(item.get("minutos_treinamento") or 0)
     item["horas_treinamento"] = round(minutos / 60, 1)
     quantidade = sum(int(item.get(chave) or 0) for chave in (
-        "horas_seguranca", "auditorias_padrao", "recusas", "melhorias"
+        "horas_seguranca", "auditorias_padrao", "recusas", "melhorias",
+        "relatos_ocorrencia",
     ))
     item["tem_registros"] = quantidade > 0 or minutos > 0
     item["total_praticas"] = quantidade
@@ -131,6 +143,19 @@ def _linha_tempo(cursor, usuario_id, inicio, fim, url_retorno):
              WHERE trp.usuario_id = %s AND COALESCE(trp.presenca, 1) = 1
                AND tr.data_treinamento BETWEEN %s AND %s
         """, (usuario_id, inicio, fim)),
+        ("Relato de Ocorrência", """
+            SELECT ro.id, ro.data_ocorrencia AS data_evento,
+                   CONCAT_WS(' — ', ro.tipo_relato, ro.descricao_ocorrencia)
+                       AS descricao
+              FROM relatos_ocorrencias ro
+              JOIN usuarios u
+                ON u.id = %s
+               AND TRIM(ro.responsavel_registro) = TRIM(u.nome)
+              LEFT JOIN relatos_ocorrencias_classificacoes roc
+                ON roc.relato_id = ro.id
+             WHERE ro.data_ocorrencia BETWEEN %s AND %s
+               AND (roc.id IS NOT NULL OR LOWER(TRIM(ro.tipo_relato)) = 'desvio')
+        """, (usuario_id, inicio, fim)),
     )
     eventos = []
     for tipo, sql, parametros in consultas:
@@ -143,6 +168,7 @@ def _linha_tempo(cursor, usuario_id, inicio, fim, url_retorno):
                 "Recusa à Tarefa": "recusa-tarefa",
                 "Melhoria": "melhoria",
                 "Treinamento": "treinamento",
+                "Relato de Ocorrência": "relato-ocorrencia",
             }
             item["url_pratica"] = url_for(
                 "main.visualizar_pratica_perfil_seguranca",
@@ -179,6 +205,7 @@ def register_perfil_seguranca_routes(blueprint):
             "recusas": "recusas",
             "melhorias": "melhorias",
             "treinamentos": "minutos_treinamento",
+            "relatos": "relatos_ocorrencia",
         }
         if ordenar not in colunas_ordenacao:
             ordenar = "nome"
@@ -463,6 +490,31 @@ def register_perfil_seguranca_routes(blueprint):
                 ("Hora final", "hora_fim"), ("Local", "local"),
                 ("Procedimento", "procedimento"), ("Revisão", "revisao"),
                 ("Instrutor", "instrutor"), ("Observações", "observacoes"),
+            )),
+            "relato-ocorrencia": ("Relato de Ocorrência", """
+                SELECT ro.data_ocorrencia AS data,
+                       TIME_FORMAT(ro.hora_ocorrencia, '%%H:%%i') AS hora,
+                       ro.solicitacao, ro.tipo_relato AS tipo,
+                       ro.responsavel_registro AS responsavel,
+                       ro.descricao_ocorrencia AS descricao,
+                       ro.situacao_fluig AS situacao,
+                       roc.severidade, roc.probabilidade,
+                       roc.nivel_risco AS risco
+                  FROM relatos_ocorrencias ro
+                  JOIN usuarios u
+                    ON u.id = %s
+                   AND TRIM(ro.responsavel_registro) = TRIM(u.nome)
+                  LEFT JOIN relatos_ocorrencias_classificacoes roc
+                    ON roc.relato_id = ro.id
+                 WHERE ro.id = %s
+                   AND (roc.id IS NOT NULL OR LOWER(TRIM(ro.tipo_relato)) = 'desvio')
+            """, (usuario_id, registro_id), (
+                ("Data", "data"), ("Hora", "hora"),
+                ("Solicitação Fluig", "solicitacao"), ("Tipo", "tipo"),
+                ("Responsável pelo registro", "responsavel"),
+                ("Descrição", "descricao"), ("Situação", "situacao"),
+                ("Severidade", "severidade"),
+                ("Probabilidade", "probabilidade"), ("Risco", "risco"),
             )),
         }
 
