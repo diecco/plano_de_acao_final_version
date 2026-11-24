@@ -112,6 +112,8 @@ class RelatosOcorrenciasModuleTest(unittest.TestCase):
         self.assertIn('id="modalClassificacao"', template)
         self.assertIn("modal-xl", template)
         self.assertIn("Classificar potencial de severidade", template)
+        self.assertIn("#modalClassificacao .modal-title", template)
+        self.assertIn("text-align: center", template)
         self.assertIn("relatos_ocorrencias_classificacoes_historico", source)
         self.assertIn("justificativa", source)
 
