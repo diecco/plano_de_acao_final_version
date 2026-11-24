@@ -92,7 +92,13 @@ def _parse_datetime(value):
 
 
 def _split_lines(value):
-    return [part.strip() for part in re.split(r"[\r\n]+", _text(value)) if part.strip()]
+    # Os campos-filhos do Fluig aparecem com quebra de linha em algumas
+    # exportações e separados por ponto e vírgula em outras.
+    return [
+        part.strip()
+        for part in re.split(r"[;\r\n]+", _text(value))
+        if part.strip()
+    ]
 
 
 def _extract_cost_center(value):

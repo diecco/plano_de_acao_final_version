@@ -35,7 +35,7 @@ class FluigRelatoOcorrenciaImportTest(unittest.TestCase):
         rows = [[
             12345, "Finalizada", "uuid-1", "Usuário Teste", "20/11/2026",
             "14:30", "Descrição de teste", "Incidente", "Condição",
-            "1.10.0052.13 - Gerdau", "Pessoa A\nPessoa B", "100\n200",
+            "1.10.0052.13 - Gerdau", "Pessoa A; Pessoa B", "100; 200",
         ]]
         records, errors = parse_fluig_relatos_ocorrencias(self._file(headers, rows))
         self.assertEqual(errors, [])
