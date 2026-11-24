@@ -23,6 +23,10 @@
     .classification-context { border-left: 3px solid var(--cor-laranja, #f36c21); background: #f8f9fa; }
     .classification-context .context-text { max-height: 3.2em; overflow-y: auto; line-height: 1.35; }
     .classification-help { font-size: .82rem; }
+    .responsavel-autocomplete { position: relative; }
+    .responsavel-resultados { position: absolute; top: 100%; left: 0; right: 0; z-index: 1050; max-height: 240px; overflow-y: auto; background: #fff; border: 1px solid #dee2e6; border-radius: .375rem; box-shadow: 0 .5rem 1rem rgba(0,0,0,.12); display: none; }
+    .responsavel-item { width: 100%; border: 0; border-bottom: 1px solid #f1f1f1; background: #fff; padding: .6rem .75rem; text-align: left; }
+    .responsavel-item:hover, .responsavel-item:focus { background: #fff4eb; outline: none; }
     @media (min-width: 1200px) {
         #modalClassificacao .modal-xl { max-width: 1180px; }
     }
@@ -30,9 +34,9 @@
 {% macro sort_buttons(field) %}
 <span class="btn-group btn-group-sm ms-1">
     <a class="btn btn-link p-0 text-muted" title="Ordenar crescente"
-       href="{{ url_for('main.relatos_ocorrencias', busca=filters.busca, tipo=filters.tipo, potencial=filters.potencial, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=field, order='asc') }}"><i class="bi bi-caret-up-fill"></i></a>
+       href="{{ url_for('main.relatos_ocorrencias', responsavel=filters.responsavel, tipo=filters.tipo, potencial=filters.potencial, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=field, order='asc') }}"><i class="bi bi-caret-up-fill"></i></a>
     <a class="btn btn-link p-0 text-muted" title="Ordenar decrescente"
-       href="{{ url_for('main.relatos_ocorrencias', busca=filters.busca, tipo=filters.tipo, potencial=filters.potencial, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=field, order='desc') }}"><i class="bi bi-caret-down-fill"></i></a>
+       href="{{ url_for('main.relatos_ocorrencias', responsavel=filters.responsavel, tipo=filters.tipo, potencial=filters.potencial, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=field, order='desc') }}"><i class="bi bi-caret-down-fill"></i></a>
 </span>
 {% endmacro %}
 
@@ -54,10 +58,12 @@
 <div class="card shadow-sm border-0 mb-4"><div class="card-body">
     <form method="get" class="bloco-filtros">
         <div class="row g-3 align-items-end">
-            <div class="col-lg-3">
-                <label class="form-label" for="busca">Pesquisa</label>
-                <input class="form-control" id="busca" name="busca" value="{{ filters.busca }}"
-                       placeholder="Solicitação, responsável, requisitante ou descrição">
+            <div class="col-lg-3 responsavel-autocomplete">
+                <label class="form-label" for="responsavelBusca">Responsável pelo registro</label>
+                <input type="hidden" id="responsavelFiltro" name="responsavel" value="{{ filters.responsavel }}">
+                <input class="form-control" id="responsavelBusca" value="{{ filters.responsavel }}"
+                       placeholder="Digite o nome do responsável" autocomplete="off">
+                <div class="responsavel-resultados" id="responsavelResultados"></div>
             </div>
             <div class="col-lg-2">
                 <label class="form-label" for="tipo">Tipo do relato</label>
@@ -138,11 +144,48 @@
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
     <small class="text-muted">{{ total_records }} registro(s)</small>
     {% if total_pages > 1 %}<nav><ul class="pagination pagination-sm mb-0">
-        <li class="page-item {% if page <= 1 %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.relatos_ocorrencias', page=page-1, busca=filters.busca, tipo=filters.tipo, potencial=filters.potencial, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=filters.sort, order=filters.order) }}">Anterior</a></li>
+        <li class="page-item {% if page <= 1 %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.relatos_ocorrencias', page=page-1, responsavel=filters.responsavel, tipo=filters.tipo, potencial=filters.potencial, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=filters.sort, order=filters.order) }}">Anterior</a></li>
         <li class="page-item active"><span class="page-link">{{ page }} de {{ total_pages }}</span></li>
-        <li class="page-item {% if page >= total_pages %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.relatos_ocorrencias', page=page+1, busca=filters.busca, tipo=filters.tipo, potencial=filters.potencial, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=filters.sort, order=filters.order) }}">Próxima</a></li>
+        <li class="page-item {% if page >= total_pages %}disabled{% endif %}"><a class="page-link" href="{{ url_for('main.relatos_ocorrencias', page=page+1, responsavel=filters.responsavel, tipo=filters.tipo, potencial=filters.potencial, data_inicio=filters.data_inicio, data_fim=filters.data_fim, sort=filters.sort, order=filters.order) }}">Próxima</a></li>
     </ul></nav>{% endif %}
 </div>
+
+<script id="responsaveis-data" type="application/json">{{ responsibles | tojson }}</script>
+<script>
+(() => {
+    const input = document.getElementById('responsavelBusca');
+    const hidden = document.getElementById('responsavelFiltro');
+    const results = document.getElementById('responsavelResultados');
+    const names = JSON.parse(document.getElementById('responsaveis-data').textContent || '[]');
+    const normalize = value => (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const close = () => { results.style.display = 'none'; results.innerHTML = ''; };
+    input.addEventListener('input', () => {
+        hidden.value = '';
+        results.innerHTML = '';
+        const term = normalize(input.value.trim());
+        if (!term) { close(); return; }
+        const matches = names.filter(name => normalize(name).includes(term)).slice(0, 12);
+        matches.forEach(name => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'responsavel-item';
+            button.textContent = name;
+            button.addEventListener('click', () => { input.value = name; hidden.value = name; close(); });
+            results.appendChild(button);
+        });
+        results.style.display = matches.length ? 'block' : 'none';
+    });
+    input.form.addEventListener('submit', event => {
+        if (input.value.trim() && !hidden.value) {
+            event.preventDefault();
+            input.setCustomValidity('Selecione um responsável na lista.');
+            input.reportValidity();
+        }
+    });
+    input.addEventListener('input', () => input.setCustomValidity(''));
+    document.addEventListener('click', event => { if (!event.target.closest('.responsavel-autocomplete')) close(); });
+})();
+</script>
 
 {% if can_classify %}
 <script id="classification-data" type="application/json">{{ classification_data | tojson }}</script>

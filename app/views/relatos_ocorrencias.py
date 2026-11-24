@@ -219,7 +219,7 @@ def register_relatos_ocorrencias_routes(blueprint):
     @module_required("acesso_ssma")
     def relatos_ocorrencias():
         filters = {
-            "busca": (request.args.get("busca") or "").strip(),
+            "responsavel": (request.args.get("responsavel") or "").strip(),
             "tipo": (request.args.get("tipo") or "").strip(),
             "data_inicio": (request.args.get("data_inicio") or "").strip(),
             "data_fim": (request.args.get("data_fim") or "").strip(),
@@ -244,14 +244,9 @@ def register_relatos_ocorrencias_routes(blueprint):
         scope, scope_parameters = _scope_filter()
         conditions.append(scope)
         parameters.extend(scope_parameters)
-        if filters["busca"]:
-            term = f"%{filters['busca']}%"
-            conditions.append("""(
-                r.solicitacao LIKE %s OR r.requisitante_nome LIKE %s OR
-                r.responsavel_registro LIKE %s OR r.descricao_ocorrencia LIKE %s OR
-                r.local_ocorrencia LIKE %s
-            )""")
-            parameters.extend([term, term, term, term, term])
+        if filters["responsavel"]:
+            conditions.append("r.responsavel_registro = %s")
+            parameters.append(filters["responsavel"])
         if filters["tipo"]:
             conditions.append("r.tipo_relato = %s")
             parameters.append(filters["tipo"])
@@ -322,11 +317,22 @@ def register_relatos_ocorrencias_routes(blueprint):
                 ORDER BY tipo_relato
             """, tuple(scope_type_parameters))
             types = [row["tipo_relato"] for row in cursor.fetchall()]
+            scope_responsibles, scope_responsible_parameters = _scope_filter()
+            cursor.execute(f"""
+                SELECT DISTINCT responsavel_registro
+                FROM relatos_ocorrencias r
+                WHERE {scope_responsibles}
+                  AND responsavel_registro IS NOT NULL
+                  AND TRIM(responsavel_registro) <> ''
+                ORDER BY responsavel_registro
+            """, tuple(scope_responsible_parameters))
+            responsibles = [row["responsavel_registro"] for row in cursor.fetchall()]
         finally:
             cursor.close()
             conn.close()
         return render_template(
             "relatos_ocorrencias.html", records=records, types=types,
+            responsibles=responsibles,
             filters=filters, page=page, total_pages=pages,
             total_records=total, per_page=POR_PAGINA,
             can_classify=_can_classify(), classification_data=classification_data,
