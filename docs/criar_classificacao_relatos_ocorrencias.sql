@@ -1,5 +1,5 @@
 -- Classificação do potencial dos Relatos de Ocorrências.
--- Execute no schema de homologação após criar_importacao_relatos_ocorrencias.sql.
+-- Execute no schema de destino após criar_importacao_relatos_ocorrencias.sql.
 
 CREATE TABLE IF NOT EXISTS relatos_ocorrencias_classificacoes (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,

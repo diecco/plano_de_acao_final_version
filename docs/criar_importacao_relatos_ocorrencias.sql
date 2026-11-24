@@ -1,5 +1,5 @@
 -- Importação de Relatos de Ocorrências exportados do Fluig.
--- Execute no schema de homologação antes de publicar a aplicação.
+-- Execute no schema de destino e confirme antes com SELECT DATABASE().
 
 CREATE TABLE IF NOT EXISTS relatos_ocorrencias_importacoes (
     id INT AUTO_INCREMENT PRIMARY KEY,
