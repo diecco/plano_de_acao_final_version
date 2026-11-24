@@ -1,6 +1,14 @@
 {% extends "layout.html" %}
 {% block titulo %}Relatos de Ocorrências{% endblock %}
 {% block conteudo %}
+<style>
+    .relato-descricao {
+        min-width: 280px;
+        max-width: 520px;
+        white-space: normal;
+        line-height: 1.35;
+    }
+</style>
 {% macro sort_buttons(field) %}
 <span class="btn-group btn-group-sm ms-1">
     <a class="btn btn-link p-0 text-muted" title="Ordenar crescente"
@@ -62,10 +70,9 @@
             <th>Solicitação {{ sort_buttons('solicitacao') }}</th>
             <th>Data {{ sort_buttons('data') }}</th>
             <th>Tipo {{ sort_buttons('tipo') }}</th>
+            <th>Descrição da ocorrência</th>
             <th>Classificação</th>
             <th>Condição/Comportamento</th>
-            <th>Local {{ sort_buttons('local') }}</th>
-            <th>Requisitante {{ sort_buttons('requisitante') }}</th>
             <th>Situação {{ sort_buttons('status') }}</th>
             <th class="text-center">Detalhes</th>
         </tr></thead>
@@ -75,15 +82,14 @@
                 <td>{{ item.solicitacao }}</td>
                 <td>{{ item.data_ocorrencia.strftime('%d/%m/%Y') }}{% if item.hora_ocorrencia_exibicao %}<small class="d-block text-muted">{{ item.hora_ocorrencia_exibicao }}</small>{% endif %}</td>
                 <td>{{ item.tipo_relato }}</td>
+                <td class="relato-descricao">{{ item.descricao_ocorrencia }}</td>
                 <td>{{ item.classificacao_ocorrencia or '—' }}</td>
                 <td>{{ item.tipo_origem or '—' }}</td>
-                <td>{{ item.local_ocorrencia or '—' }}</td>
-                <td>{{ item.requisitante_nome or '—' }}</td>
                 <td><span class="badge bg-secondary">{{ item.situacao_fluig or 'Não informada' }}</span></td>
                 <td class="text-center"><a class="btn btn-sm btn-cinza" href="{{ url_for('main.detalhar_relato_ocorrencia', record_id=item.id) }}" title="Visualizar"><i class="bi bi-eye"></i></a></td>
             </tr>
         {% else %}
-            <tr><td colspan="9" class="text-center text-muted py-5">Nenhum relato encontrado.</td></tr>
+            <tr><td colspan="8" class="text-center text-muted py-5">Nenhum relato encontrado.</td></tr>
         {% endfor %}
         </tbody>
     </table>
