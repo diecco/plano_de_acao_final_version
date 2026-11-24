@@ -70,7 +70,9 @@ class RelatosOcorrenciasModuleTest(unittest.TestCase):
         )
         self.assertIn("Responsável pelo registro", template)
         self.assertIn("item.responsavel_registro", template)
-        self.assertIn("r.responsavel_registro LIKE %s", source)
+        self.assertIn("r.responsavel_registro = %s", source)
+        self.assertIn('id="responsavelResultados"', template)
+        self.assertIn('id="responsaveis-data"', template)
 
     def test_listing_filters_pending_classification_and_uses_minimal_actions(self):
         template = (ROOT / "app" / "templates" / "relatos_ocorrencias.html").read_text(
