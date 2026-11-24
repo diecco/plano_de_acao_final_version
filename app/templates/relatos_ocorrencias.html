@@ -57,7 +57,7 @@
             <div class="col-lg-3">
                 <label class="form-label" for="busca">Pesquisa</label>
                 <input class="form-control" id="busca" name="busca" value="{{ filters.busca }}"
-                       placeholder="Solicitação, requisitante, local ou descrição">
+                       placeholder="Solicitação, responsável, requisitante ou descrição">
             </div>
             <div class="col-lg-2">
                 <label class="form-label" for="tipo">Tipo do relato</label>
@@ -96,6 +96,7 @@
             <th class="text-center">Solicitação {{ sort_buttons('solicitacao') }}</th>
             <th class="text-center">Data {{ sort_buttons('data') }}</th>
             <th class="text-center">Tipo {{ sort_buttons('tipo') }}</th>
+            <th>Responsável pelo registro</th>
             <th>Descrição da ocorrência</th>
             <th>Classificação</th>
             <th class="text-center">Condição/Comportamento</th>
@@ -109,6 +110,7 @@
                 <td class="text-center">{{ item.solicitacao }}</td>
                 <td class="text-center">{{ item.data_ocorrencia.strftime('%d/%m/%Y') }}{% if item.hora_ocorrencia_exibicao %}<small class="d-block text-muted">{{ item.hora_ocorrencia_exibicao }}</small>{% endif %}</td>
                 <td class="text-center">{{ item.tipo_relato }}</td>
+                <td>{{ item.responsavel_registro or '—' }}</td>
                 <td class="relato-descricao">{{ item.descricao_ocorrencia }}</td>
                 <td>{{ item.classificacao_ocorrencia or '—' }}</td>
                 <td class="text-center">{{ item.tipo_origem or '—' }}</td>
@@ -127,7 +129,7 @@
                 </td>
             </tr>
         {% else %}
-            <tr><td colspan="9" class="text-center text-muted py-5">Nenhum relato encontrado.</td></tr>
+            <tr><td colspan="10" class="text-center text-muted py-5">Nenhum relato encontrado.</td></tr>
         {% endfor %}
         </tbody>
     </table>

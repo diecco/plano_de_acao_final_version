@@ -248,9 +248,10 @@ def register_relatos_ocorrencias_routes(blueprint):
             term = f"%{filters['busca']}%"
             conditions.append("""(
                 r.solicitacao LIKE %s OR r.requisitante_nome LIKE %s OR
-                r.descricao_ocorrencia LIKE %s OR r.local_ocorrencia LIKE %s
+                r.responsavel_registro LIKE %s OR r.descricao_ocorrencia LIKE %s OR
+                r.local_ocorrencia LIKE %s
             )""")
-            parameters.extend([term, term, term, term])
+            parameters.extend([term, term, term, term, term])
         if filters["tipo"]:
             conditions.append("r.tipo_relato = %s")
             parameters.append(filters["tipo"])
@@ -283,7 +284,8 @@ def register_relatos_ocorrencias_routes(blueprint):
                        TIME_FORMAT(r.hora_ocorrencia, '%H:%i') hora_ocorrencia_exibicao,
                        r.tipo_relato, r.classificacao_ocorrencia, r.tipo_origem,
                        r.local_ocorrencia,
-                       r.requisitante_nome, r.situacao_fluig,
+                       r.requisitante_nome, r.responsavel_registro,
+                       r.situacao_fluig,
                        r.centro_custos_codigo, r.descricao_ocorrencia,
                        r.acao_tomada, c.id classificacao_id,
                        c.severidade, c.matriz_exposicao, c.matriz_controles,
