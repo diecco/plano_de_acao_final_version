@@ -16,6 +16,9 @@ class ModalEdicaoAcaoResponsivoTests(unittest.TestCase):
         self.assertIn("max-height: calc(100dvh - 2rem)", css)
         self.assertIn("overflow-y: auto", css)
         self.assertIn("#modalEditarAcao .modal-footer", css)
+        self.assertIn("#modalEditarAcao .modal-header-acao", css)
+        self.assertIn("justify-content: center", css)
+        self.assertIn("color: var(--trackplan-orange)", css)
 
     def test_os_dois_modais_usam_a_estrutura_responsiva(self):
         for nome_template in ("minhas_acoes.html", "acoes_criadas.html"):
@@ -27,6 +30,7 @@ class ModalEdicaoAcaoResponsivoTests(unittest.TestCase):
                 self.assertIn('id="formEditarAcaoModal"', template)
                 self.assertIn('class="modal-footer"', template)
                 self.assertIn("modal-dialog-scrollable", template)
+                self.assertIn('class="modal-header modal-header-acao"', template)
 
 
 if __name__ == "__main__":

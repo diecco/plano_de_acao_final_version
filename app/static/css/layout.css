@@ -513,6 +513,34 @@ html.sidebar-collapsed .sidebar-module-toggle.active {
     font-weight: 700;
 }
 
+/* Cabeçalho leve e centralizado do modal compartilhado de edição de ação. */
+#modalEditarAcao .modal-header-acao {
+    position: relative;
+    justify-content: center;
+    padding: 16px 56px;
+    border-bottom: 1px solid #dee2e6;
+    background: #fff;
+}
+
+#modalEditarAcao .modal-header-acao .modal-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 0;
+    color: var(--trackplan-orange);
+    font-weight: 700;
+    text-align: center;
+}
+
+#modalEditarAcao .modal-header-acao .btn-close {
+    position: absolute;
+    top: 50%;
+    right: 20px;
+    margin: 0;
+    transform: translateY(-50%);
+}
+
 .modal-footer {
     border-top: 1px solid #dee2e6;
     background: #fff;
