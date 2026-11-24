@@ -24,10 +24,33 @@
     </div>
 </div></div>
 
-<div class="card shadow-sm border-0"><div class="card-header bg-white fw-semibold">Pessoas envolvidas</div><div class="table-responsive">
+<div class="card shadow-sm border-0 mb-4"><div class="card-header bg-white fw-semibold text-laranja">Classificação do potencial</div><div class="card-body">
+    {% if record.severidade %}
+    <div class="row g-3">
+        <div class="col-md-2"><small class="text-muted d-block">Severidade</small><strong class="fs-5">{{ record.severidade }}</strong></div>
+        <div class="col-md-2"><small class="text-muted d-block">Probabilidade</small><strong>{{ record.probabilidade|capitalize }}</strong></div>
+        <div class="col-md-2"><small class="text-muted d-block">Nível de risco</small><strong>{{ record.nivel_risco|capitalize }}</strong></div>
+        <div class="col-md-2"><small class="text-muted d-block">Exposição</small>{{ record.matriz_exposicao|capitalize }}</div>
+        <div class="col-md-2"><small class="text-muted d-block">Controles</small>{% if record.matriz_controles == 'baixa' %}Adequados{% elif record.matriz_controles == 'media' %}Parciais{% else %}Ausentes{% endif %}</div>
+        <div class="col-md-2"><small class="text-muted d-block">Ocorrência</small>{{ record.matriz_ocorrencia|capitalize }}</div>
+        <div class="col-12"><small class="text-muted d-block">Justificativa</small>{{ record.justificativa }}</div>
+        <div class="col-12"><small class="text-muted">Classificado por {{ record.classificado_por_nome }} em {{ record.classificado_em.strftime('%d/%m/%Y %H:%M') }}{% if record.atualizado_em %}. Última revisão por {{ record.atualizado_por_nome }} em {{ record.atualizado_em.strftime('%d/%m/%Y %H:%M') }}{% endif %}.</small></div>
+    </div>
+    {% else %}<p class="text-muted mb-0">Potencial ainda não classificado.</p>{% endif %}
+</div></div>
+
+<div class="card shadow-sm border-0 mb-4"><div class="card-header bg-white fw-semibold">Pessoas envolvidas</div><div class="table-responsive">
     <table class="table align-middle mb-0"><thead><tr><th>Nome</th><th>Matrícula</th><th>E-mail</th><th>Centro de custos</th><th>Informação de origem</th></tr></thead><tbody>
     {% for item in involved %}<tr><td>{{ item.nome or '—' }}</td><td>{{ item.matricula or '—' }}</td><td>{{ item.email or '—' }}</td><td>{{ item.centro_custos or '—' }}</td><td>{{ item.descricao or '—' }}</td></tr>
     {% else %}<tr><td colspan="5" class="text-center text-muted py-4">Nenhuma pessoa informada.</td></tr>{% endfor %}
     </tbody></table>
 </div></div>
+
+{% if classification_history %}
+<div class="card shadow-sm border-0"><div class="card-header bg-white fw-semibold">Histórico da classificação</div><div class="table-responsive">
+    <table class="table table-sm align-middle mb-0"><thead><tr><th>Versão</th><th>Data</th><th>Responsável</th><th>Severidade</th><th>Probabilidade</th><th>Risco</th><th>Justificativa</th></tr></thead><tbody>
+    {% for item in classification_history %}<tr><td>{{ item.versao }}</td><td>{{ item.criado_em.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ item.usuario_nome }}</td><td>{{ item.severidade }}</td><td>{{ item.probabilidade|capitalize }}</td><td>{{ item.nivel_risco|capitalize }}</td><td>{{ item.justificativa }}</td></tr>{% endfor %}
+    </tbody></table>
+</div></div>
+{% endif %}
 {% endblock %}

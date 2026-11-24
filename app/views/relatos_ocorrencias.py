@@ -14,6 +14,42 @@ from app.utils.db import get_db_connection
 
 POR_PAGINA = 30
 LIMITE_ARQUIVO = 20 * 1024 * 1024
+VALORES_MATRIZ = {"baixa": 1, "media": 2, "alta": 3}
+
+
+def _calculate_probability(exposure, controls, occurrence):
+    values = (exposure, controls, occurrence)
+    if any(value not in VALORES_MATRIZ for value in values):
+        raise ValueError("Preencha os três critérios de probabilidade.")
+    average = sum(VALORES_MATRIZ[value] for value in values) / 3
+    if average <= 1.5:
+        return "baixa"
+    if average <= 2.3:
+        return "media"
+    return "alta"
+
+
+def _calculate_risk(severity, probability):
+    matrix = {
+        "A": {"baixa": "medio", "media": "alto", "alta": "alto"},
+        "B": {"baixa": "baixo", "media": "medio", "alta": "alto"},
+        "C": {"baixa": "baixo", "media": "medio", "alta": "medio"},
+    }
+    try:
+        return matrix[severity][probability]
+    except KeyError as exc:
+        raise ValueError("Classificação de risco inválida.") from exc
+
+
+def _can_classify():
+    return session.get("perfil") == "administrador" or bool(session.get("gestor_ssma"))
+
+
+def _safe_next(value):
+    value = (value or "").strip()
+    if value.startswith("/") and not value.startswith("//"):
+        return value
+    return url_for("main.relatos_ocorrencias")
 
 
 def _scope_filter(alias="r"):
@@ -243,14 +279,34 @@ def register_relatos_ocorrencias_routes(blueprint):
                        r.tipo_relato, r.classificacao_ocorrencia, r.tipo_origem,
                        r.local_ocorrencia,
                        r.requisitante_nome, r.situacao_fluig,
-                       r.centro_custos_codigo, r.descricao_ocorrencia
+                       r.centro_custos_codigo, r.descricao_ocorrencia,
+                       r.acao_tomada, c.id classificacao_id,
+                       c.severidade, c.matriz_exposicao, c.matriz_controles,
+                       c.matriz_ocorrencia, c.probabilidade, c.nivel_risco,
+                       c.justificativa
                 FROM relatos_ocorrencias r
+                LEFT JOIN relatos_ocorrencias_classificacoes c ON c.relato_id = r.id
                 WHERE {where}
                 ORDER BY {sort_columns[filters['sort']]} {filters['order'].upper()},
                          r.id DESC
                 LIMIT %s OFFSET %s
             """, tuple(parameters + [POR_PAGINA, offset]))
             records = cursor.fetchall()
+            classification_data = {
+                str(row["id"]): {
+                    "solicitacao": row["solicitacao"],
+                    "data": row["data_ocorrencia"].strftime("%d/%m/%Y"),
+                    "tipo": row["tipo_relato"],
+                    "descricao": row["descricao_ocorrencia"],
+                    "acao_tomada": row.get("acao_tomada") or "Não informada",
+                    "severidade": row.get("severidade") or "",
+                    "matriz_exposicao": row.get("matriz_exposicao") or "",
+                    "matriz_controles": row.get("matriz_controles") or "",
+                    "matriz_ocorrencia": row.get("matriz_ocorrencia") or "",
+                    "justificativa": row.get("justificativa") or "",
+                }
+                for row in records
+            }
             scope_types, scope_type_parameters = _scope_filter()
             cursor.execute(f"""
                 SELECT DISTINCT tipo_relato
@@ -266,7 +322,104 @@ def register_relatos_ocorrencias_routes(blueprint):
             "relatos_ocorrencias.html", records=records, types=types,
             filters=filters, page=page, total_pages=pages,
             total_records=total, per_page=POR_PAGINA,
+            can_classify=_can_classify(), classification_data=classification_data,
         )
+
+    @blueprint.route(
+        "/relatos_ocorrencias/<int:record_id>/classificar", methods=["POST"]
+    )
+    @login_required
+    @module_required("acesso_ssma")
+    def classificar_relato_ocorrencia(record_id):
+        next_url = _safe_next(request.form.get("next"))
+        if not _can_classify():
+            abort(403)
+
+        severity = (request.form.get("severidade") or "").strip().upper()
+        exposure = (request.form.get("matriz_exposicao") or "").strip()
+        controls = (request.form.get("matriz_controles") or "").strip()
+        occurrence = (request.form.get("matriz_ocorrencia") or "").strip()
+        justification = (request.form.get("justificativa") or "").strip()
+        try:
+            if severity not in {"A", "B", "C"}:
+                raise ValueError("Selecione a severidade da consequência.")
+            if len(justification) < 10:
+                raise ValueError("Informe uma justificativa com pelo menos 10 caracteres.")
+            if len(justification) > 2000:
+                raise ValueError("A justificativa deve ter no máximo 2.000 caracteres.")
+            probability = _calculate_probability(exposure, controls, occurrence)
+            risk = _calculate_risk(severity, probability)
+        except ValueError as exc:
+            flash(str(exc), "warning")
+            return redirect(next_url)
+
+        scope, scope_parameters = _scope_filter()
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute(
+                f"SELECT r.id FROM relatos_ocorrencias r "
+                f"WHERE r.id = %s AND {scope} FOR UPDATE",
+                tuple([record_id] + scope_parameters),
+            )
+            if not cursor.fetchone():
+                abort(404)
+            cursor.execute("""
+                SELECT id FROM relatos_ocorrencias_classificacoes
+                WHERE relato_id = %s FOR UPDATE
+            """, (record_id,))
+            current = cursor.fetchone()
+            if current:
+                classification_id = current["id"]
+                cursor.execute("""
+                    UPDATE relatos_ocorrencias_classificacoes
+                    SET severidade=%s, matriz_exposicao=%s, matriz_controles=%s,
+                        matriz_ocorrencia=%s, probabilidade=%s, nivel_risco=%s,
+                        justificativa=%s, atualizado_por=%s,
+                        atualizado_em=CURRENT_TIMESTAMP
+                    WHERE id=%s
+                """, (
+                    severity, exposure, controls, occurrence, probability, risk,
+                    justification, session["usuario_id"], classification_id,
+                ))
+            else:
+                cursor.execute("""
+                    INSERT INTO relatos_ocorrencias_classificacoes (
+                        relato_id, severidade, matriz_exposicao, matriz_controles,
+                        matriz_ocorrencia, probabilidade, nivel_risco,
+                        justificativa, classificado_por
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    record_id, severity, exposure, controls, occurrence,
+                    probability, risk, justification, session["usuario_id"],
+                ))
+                classification_id = cursor.lastrowid
+            cursor.execute("""
+                SELECT COALESCE(MAX(versao), 0) + 1 versao
+                FROM relatos_ocorrencias_classificacoes_historico
+                WHERE classificacao_id = %s
+            """, (classification_id,))
+            version = cursor.fetchone()["versao"]
+            cursor.execute("""
+                INSERT INTO relatos_ocorrencias_classificacoes_historico (
+                    classificacao_id, relato_id, versao, severidade,
+                    matriz_exposicao, matriz_controles, matriz_ocorrencia,
+                    probabilidade, nivel_risco, justificativa, usuario_id
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                classification_id, record_id, version, severity, exposure,
+                controls, occurrence, probability, risk, justification,
+                session["usuario_id"],
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+        flash("Potencial de severidade classificado com sucesso.", "success")
+        return redirect(next_url)
 
     @blueprint.route("/relatos_ocorrencias/importar", methods=["GET", "POST"])
     @login_required
@@ -342,9 +495,16 @@ def register_relatos_ocorrencias_routes(blueprint):
         try:
             cursor.execute(f"""
                 SELECT r.*, cc.descricao centro_custos_descricao,
-                       TIME_FORMAT(r.hora_ocorrencia, '%H:%i') hora_ocorrencia_exibicao
+                       TIME_FORMAT(r.hora_ocorrencia, '%H:%i') hora_ocorrencia_exibicao,
+                       c.severidade, c.matriz_exposicao, c.matriz_controles,
+                       c.matriz_ocorrencia, c.probabilidade, c.nivel_risco,
+                       c.justificativa, c.classificado_em, c.atualizado_em,
+                       uc.nome classificado_por_nome, ua.nome atualizado_por_nome
                 FROM relatos_ocorrencias r
                 LEFT JOIN centros_custos cc ON cc.id = r.centro_custos_id
+                LEFT JOIN relatos_ocorrencias_classificacoes c ON c.relato_id = r.id
+                LEFT JOIN usuarios uc ON uc.id = c.classificado_por
+                LEFT JOIN usuarios ua ON ua.id = c.atualizado_por
                 WHERE r.id = %s AND {scope}
             """, tuple([record_id] + parameters))
             record = cursor.fetchone()
@@ -355,9 +515,17 @@ def register_relatos_ocorrencias_routes(blueprint):
                 WHERE relato_id = %s ORDER BY ordem, id
             """, (record_id,))
             involved = cursor.fetchall()
+            cursor.execute("""
+                SELECT h.*, u.nome usuario_nome
+                FROM relatos_ocorrencias_classificacoes_historico h
+                JOIN usuarios u ON u.id = h.usuario_id
+                WHERE h.relato_id = %s ORDER BY h.versao DESC
+            """, (record_id,))
+            classification_history = cursor.fetchall()
         finally:
             cursor.close()
             conn.close()
         return render_template(
             "detalhe_relato_ocorrencia.html", record=record, involved=involved,
+            classification_history=classification_history,
         )

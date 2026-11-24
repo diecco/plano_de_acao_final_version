@@ -6,6 +6,18 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class RelatosOcorrenciasModuleTest(unittest.TestCase):
+    def test_probability_and_risk_match_existing_matrix(self):
+        from app.views.relatos_ocorrencias import (
+            _calculate_probability,
+            _calculate_risk,
+        )
+
+        self.assertEqual(_calculate_probability("baixa", "baixa", "media"), "baixa")
+        self.assertEqual(_calculate_probability("alta", "media", "alta"), "alta")
+        self.assertEqual(_calculate_risk("A", "baixa"), "medio")
+        self.assertEqual(_calculate_risk("B", "alta"), "alto")
+        self.assertEqual(_calculate_risk("C", "media"), "medio")
+
     def test_templates_compile(self):
         from app import create_app
 
@@ -40,8 +52,8 @@ class RelatosOcorrenciasModuleTest(unittest.TestCase):
         headers = [
             "<th>Solicitação", "<th>Data", "<th>Tipo",
             "<th>Descrição da ocorrência", "<th>Classificação",
-            "<th>Condição/Comportamento", "<th>Situação",
-            '<th class="text-center">Detalhes',
+            "<th>Condição/Comportamento", "<th>Potencial",
+            "<th>Situação", '<th class="text-center">Ações',
         ]
         positions = [template.index(header) for header in headers]
         self.assertEqual(positions, sorted(positions))
@@ -56,6 +68,25 @@ class RelatosOcorrenciasModuleTest(unittest.TestCase):
         self.assertIn("relatos_ocorrencias_envolvidos", migration)
         self.assertIn("relatos_ocorrencias_importacao_erros", migration)
         self.assertNotIn("potencial_severidade", migration)
+
+        classification_migration = (
+            ROOT / "docs" / "criar_classificacao_relatos_ocorrencias.sql"
+        ).read_text(encoding="utf-8")
+        self.assertIn("relatos_ocorrencias_classificacoes", classification_migration)
+        self.assertIn("relatos_ocorrencias_classificacoes_historico", classification_migration)
+
+    def test_classification_uses_modal_and_preserves_history(self):
+        template = (ROOT / "app" / "templates" / "relatos_ocorrencias.html").read_text(
+            encoding="utf-8"
+        )
+        source = (ROOT / "app" / "views" / "relatos_ocorrencias.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('id="modalClassificacao"', template)
+        self.assertIn("modal-xl", template)
+        self.assertIn("Classificar potencial de severidade", template)
+        self.assertIn("relatos_ocorrencias_classificacoes_historico", source)
+        self.assertIn("justificativa", source)
 
 
 if __name__ == "__main__":
