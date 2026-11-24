@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block titulo %}IFS do Cliente{% endblock %}
+{% block conteudo %}
+<div class="page-header"><h2 class="page-title"><i class="bi bi-building-check me-2"></i>IFS do Cliente</h2></div>
+<hr>
+{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div class="alert alert-{{ category }} alert-dismissible fade show">{{ message }}<button class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}{% endwith %}
+
+<div class="card shadow-sm border-0 mb-4"><div class="card-body">
+  <form method="get" class="row g-3 align-items-end">
+    <div class="col-md-3"><label class="form-label">Data inicial</label><input type="date" name="data_inicio" class="form-control" value="{{ filtros.data_inicio }}"></div>
+    <div class="col-md-3"><label class="form-label">Data final</label><input type="date" name="data_fim" class="form-control" value="{{ filtros.data_fim }}"></div>
+    <div class="col-md-3"><label class="form-label">Situação</label><select name="status" class="form-select"><option value="">Todas</option>{% for valor,rotulo in [('sem_desvios','Sem desvios'),('em_tratamento','Em tratamento'),('pronta_devolutiva','Pronta para devolutiva'),('encerrada','Encerrada')] %}<option value="{{ valor }}" {% if filtros.status==valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}</select></div>
+    <div class="col-md-3"><div class="d-flex justify-content-end gap-2"><button class="btn btn-laranja" title="Filtrar"><i class="bi bi-funnel"></i></button><a class="btn btn-cinza" href="{{ url_for('main.listar_ifs_cliente') }}" title="Limpar"><i class="bi bi-arrow-clockwise"></i></a><a class="btn btn-laranja" href="{{ url_for('main.nova_ifs_cliente') }}" title="Nova IFS do Cliente"><i class="bi bi-plus-circle"></i></a></div></div>
+  </form>
+</div></div>
+
+<div class="card shadow-sm border-0"><div class="card-body"><div class="table-responsive">
+<table class="table table-bordered align-middle mb-0"><thead class="table-light"><tr><th class="text-center">Data</th><th>Referência</th><th>Atividade / OS</th><th class="text-center">Nota</th><th class="text-center">NC</th><th class="text-center">Ações</th><th class="text-center">Situação</th><th class="text-center">Detalhes</th></tr></thead><tbody>
+{% for ifs in inspecoes %}<tr>
+<td class="text-center">{{ ifs.data_inspecao.strftime('%d/%m/%Y') if ifs.data_inspecao else '-' }}</td>
+<td>{{ ifs.referencia_cliente or '-' }}</td><td>{{ ifs.descricao_atividade_os or '-' }}</td>
+<td class="text-center"><strong>{{ '%.2f'|format(ifs.percentual or 0) }}%</strong><br><small class="text-muted">{{ ifs.conceito }}</small></td>
+<td class="text-center"><span class="badge {{ 'bg-danger' if ifs.total_nao_conformidades else 'bg-success' }}">{{ ifs.total_nao_conformidades }}</span></td>
+<td class="text-center">{{ ifs.acoes_concluidas or 0 }}/{{ ifs.total_acoes or 0 }}</td>
+<td class="text-center"><span class="badge bg-secondary">{{ {'sem_desvios':'Sem desvios','em_tratamento':'Em tratamento','pronta_devolutiva':'Pronta para devolutiva','encerrada':'Encerrada'}.get(ifs.status,ifs.status) }}</span></td>
+<td class="text-center"><a class="btn-acao-icon" href="{{ url_for('main.detalhar_ifs_cliente', id=ifs.id) }}" title="Visualizar"><i class="bi bi-eye"></i></a></td>
+</tr>{% else %}<tr><td colspan="8" class="text-center text-muted py-4">Nenhuma IFS do Cliente encontrada.</td></tr>{% endfor %}
+</tbody></table></div></div></div>
+{% endblock %}
