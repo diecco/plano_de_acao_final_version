@@ -343,8 +343,6 @@ def register_relatos_ocorrencias_routes(blueprint):
         try:
             if severity not in {"A", "B", "C"}:
                 raise ValueError("Selecione a severidade da consequência.")
-            if len(justification) < 10:
-                raise ValueError("Informe uma justificativa com pelo menos 10 caracteres.")
             if len(justification) > 2000:
                 raise ValueError("A justificativa deve ter no máximo 2.000 caracteres.")
             probability = _calculate_probability(exposure, controls, occurrence)

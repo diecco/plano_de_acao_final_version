@@ -15,7 +15,7 @@
     .severity-card { border: 1px solid #d9dee5; border-radius: .65rem; padding: .6rem .7rem; cursor: pointer; height: 100%; background: #fff; line-height: 1.25; }
     .severity-card .severity-help { font-size: .78rem; }
     .severity-card:hover, .severity-card.selected { border-color: var(--cor-laranja, #f36c21); background: #fff5ef; }
-    .classification-segmented .btn { min-width: 90px; }
+    .classification-segmented .btn { flex: 1 1 0; min-width: 0; }
     .classification-segmented .btn-check:checked + .btn { background: var(--cor-laranja, #f36c21); border-color: var(--cor-laranja, #f36c21); color: #fff; }
     .classification-result { border: 1px solid #ffc5a4; background: #fff8f4; border-radius: .75rem; }
     .classification-matrix th, .classification-matrix td { text-align: center; padding: .4rem .55rem; font-size: .82rem; border: 1px solid #dee2e6; }
@@ -176,9 +176,9 @@
                     <div class="col-lg-4"><span class="fw-semibold me-2">Resultado:</span><span class="badge bg-secondary" id="classRisk">Aguardando</span><div class="small mt-1" id="classFormula">Preencha a matriz.</div></div>
                     <div class="col-lg-8"><table class="classification-matrix w-100"><thead><tr><th></th><th>Baixa</th><th>Média</th><th>Alta</th></tr></thead><tbody><tr><th>A</th><td data-class-cell="A-baixa">Médio</td><td data-class-cell="A-media">Alto</td><td data-class-cell="A-alta">Alto</td></tr><tr><th>B</th><td data-class-cell="B-baixa">Baixo</td><td data-class-cell="B-media">Médio</td><td data-class-cell="B-alta">Alto</td></tr><tr><th>C</th><td data-class-cell="C-baixa">Baixo</td><td data-class-cell="C-media">Médio</td><td data-class-cell="C-alta">Médio</td></tr></tbody></table></div>
                 </div></div>
-                <div class="mt-2"><label for="classJustificativa" class="form-label fw-semibold mb-1">Justificativa *</label><textarea class="form-control" id="classJustificativa" name="justificativa" rows="2" minlength="10" maxlength="2000" required></textarea><small class="text-muted">Explique os elementos considerados na definição da severidade e da probabilidade.</small></div>
+                <div class="mt-2"><label for="classJustificativa" class="form-label fw-semibold mb-1">Justificativa <span class="text-muted fw-normal">(opcional)</span></label><textarea class="form-control" id="classJustificativa" name="justificativa" rows="2" maxlength="2000"></textarea><small class="text-muted">Se necessário, registre os elementos considerados na definição da severidade e da probabilidade.</small></div>
             </div>
-            <div class="modal-footer"><button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Fechar</button><button type="submit" class="btn btn-laranja">Salvar classificação</button></div>
+            <div class="modal-footer justify-content-between"><button type="button" class="btn btn-cinza" data-bs-dismiss="modal">Voltar</button><button type="submit" class="btn btn-laranja">Salvar</button></div>
         </form>
     </div></div>
 </div>
