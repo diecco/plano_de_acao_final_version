@@ -5,8 +5,8 @@
 <hr>
 {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div class="alert alert-{{ category }} alert-dismissible fade show">{{ message }}<button class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}{% endwith %}
 
-<div class="alert alert-light border"><i class="bi bi-info-circle me-2 text-laranja"></i>A edição altera somente os dados de identificação. Respostas, nota, desvios e planos de ação permanecem preservados.</div>
-<form method="post">
+<div class="alert alert-light border"><i class="bi bi-info-circle me-2 text-laranja"></i>A edição altera os dados de identificação e permite substituir o PDF original. Respostas, nota, desvios e planos de ação permanecem preservados.</div>
+<form method="post" enctype="multipart/form-data">
   <div class="card shadow-sm border-0 mb-4"><div class="card-body">
     <h5 class="text-laranja mb-3"><i class="bi bi-clipboard-data me-2"></i>Dados da inspeção recebida</h5>
     <div class="row g-3">
@@ -21,6 +21,7 @@
       <div class="col-md-6"><label class="form-label">SESMT (Gerdau / Fiscalizadora)</label><input class="form-control" name="sesmt_gerdau_fiscalizadora" maxlength="255" value="{{ inspecao.sesmt_gerdau_fiscalizadora or '' }}"></div>
       <div class="col-12"><label class="form-label">Participantes</label><input class="form-control" name="participantes" value="{{ inspecao.participantes or '' }}"></div>
       <div class="col-12"><label class="form-label">Descrição das atividades / Nº da OS</label><textarea class="form-control" rows="3" name="descricao_atividade_os">{{ inspecao.descricao_atividade_os or '' }}</textarea></div>
+      <div class="col-12"><label class="form-label">PDF original enviado pelo cliente</label>{% if documento_original %}<div class="d-flex align-items-center gap-2 border rounded p-2 mb-2"><i class="bi bi-file-earmark-pdf text-danger"></i><span class="flex-grow-1">{{ documento_original.nome_original }}</span><a class="btn-acao-icon" target="_blank" href="{{ url_for('main.documento_ifs_cliente', id=inspecao.id, documento_id=documento_original.id, visualizar=1) }}" title="Visualizar PDF original"><i class="bi bi-eye"></i></a></div>{% endif %}<input type="file" class="form-control" name="documento_original" accept="application/pdf,.pdf"><div class="form-text">{{ 'Selecione outro PDF para substituir o documento atual, preservando a versão anterior.' if documento_original else 'Somente PDF, com até 15 MB.' }}</div></div>
     </div>
   </div></div>
   <div class="d-flex justify-content-between mb-4"><a class="btn btn-cinza" href="{{ url_for('main.listar_ifs_cliente') }}">Voltar</a><button class="btn btn-laranja" type="submit">Salvar</button></div>

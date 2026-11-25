@@ -15,6 +15,7 @@ DIRETORIOS_PERSISTENTES = (
     "recrutamento_curriculos",
     "comunicados",
     "desvios",
+    "ifs_cliente",
 )
 
 

@@ -1,16 +1,66 @@
 import json
 import calendar
+import hashlib
+import os
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-from flask import flash, redirect, render_template, request, send_file, session, url_for
+from flask import flash, redirect, render_template, request, send_file, send_from_directory, session, url_for
 
 from app.decorators import gestor_ssma_required, login_required
+from app.upload_security import UploadService, UploadValidationError
 from app.utils.db import get_db_connection
 
 
 ORIGEM_IFS_CLIENTE = "IFS do Cliente"
 FUSO_BRASILIA = ZoneInfo("America/Sao_Paulo")
+EXTENSOES_DOCUMENTO_IFS = {"pdf"}
+TAMANHO_MAXIMO_DOCUMENTO_IFS = 15 * 1024 * 1024
+
+
+def _diretorio_documentos_ifs(inspecao_id):
+    return os.path.join("app", "static", "ifs_cliente", str(inspecao_id))
+
+
+def _tamanho_upload(arquivo):
+    posicao = arquivo.stream.tell()
+    arquivo.stream.seek(0, os.SEEK_END)
+    tamanho = arquivo.stream.tell()
+    arquivo.stream.seek(posicao)
+    return tamanho
+
+
+def _hash_arquivo(caminho):
+    digest = hashlib.sha256()
+    with open(caminho, "rb") as arquivo:
+        for bloco in iter(lambda: arquivo.read(1024 * 1024), b""):
+            digest.update(bloco)
+    return digest.hexdigest()
+
+
+def _salvar_documento_original(cursor, inspecao_id, arquivo):
+    tamanho = _tamanho_upload(arquivo)
+    if tamanho <= 0:
+        raise ValueError("O PDF original selecionado está vazio.")
+    if tamanho > TAMANHO_MAXIMO_DOCUMENTO_IFS:
+        raise ValueError("O PDF original deve possuir no máximo 15 MB.")
+    nome_original = os.path.basename(arquivo.filename.replace("\\", "/"))[:255]
+    diretorio = _diretorio_documentos_ifs(inspecao_id)
+    nome = UploadService.salvar(
+        arquivo, EXTENSOES_DOCUMENTO_IFS,
+        prefixo="ifs_cliente_original", diretorio=diretorio,
+    )
+    caminho = os.path.join(UploadService.resolver_diretorio(diretorio), nome)
+    cursor.execute("""
+        INSERT INTO ifs_cliente_documentos (
+            inspecao_id, tipo, nome_original, nome_armazenado,
+            mime_type, tamanho_bytes, hash_sha256, criado_por
+        ) VALUES (%s,'original_cliente',%s,%s,'application/pdf',%s,%s,%s)
+    """, (
+        inspecao_id, nome_original, nome, tamanho,
+        _hash_arquivo(caminho), session.get("usuario_id"),
+    ))
+    return nome, diretorio
 
 
 def _deslocar_mes(referencia, deslocamento):
@@ -158,7 +208,10 @@ def register_ifs_cliente_routes(blueprint):
             cursor.execute(f"""
                 SELECT i.*, u.nome criado_por_nome,
                        COUNT(DISTINCT da.acao_id) total_acoes,
-                       SUM(CASE WHEN a.status IN ('Concluída', 'Concluida') THEN 1 ELSE 0 END) acoes_concluidas
+                       SUM(CASE WHEN a.status IN ('Concluída', 'Concluida') THEN 1 ELSE 0 END) acoes_concluidas,
+                       (SELECT doc.id FROM ifs_cliente_documentos doc
+                        WHERE doc.inspecao_id=i.id AND doc.tipo='original_cliente'
+                          AND doc.ativo=1 ORDER BY doc.id DESC LIMIT 1) documento_original_id
                 FROM ifs_cliente_inspecoes i
                 JOIN usuarios u ON u.id = i.criado_por
                 LEFT JOIN ifs_cliente_desvios d ON d.inspecao_id = i.id
@@ -194,6 +247,7 @@ def register_ifs_cliente_routes(blueprint):
     def nova_ifs_cliente():
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
+        arquivos_salvos = []
         try:
             blocos, itens, itens_por_bloco = _carregar_catalogo(cursor)
             centro_custos_id = session.get("centro_custos_id")
@@ -284,6 +338,12 @@ def register_ifs_cliente_routes(blueprint):
             ))
             inspecao_id = cursor.lastrowid
 
+            documento_original = request.files.get("documento_original")
+            if documento_original and documento_original.filename:
+                arquivos_salvos.append(
+                    _salvar_documento_original(cursor, inspecao_id, documento_original)
+                )
+
             for item, resultado in respostas_limpas:
                 cursor.execute("""
                     INSERT INTO ifs_cliente_respostas
@@ -324,12 +384,16 @@ def register_ifs_cliente_routes(blueprint):
             conn.commit()
             flash("IFS do Cliente registrada com sucesso.", "success")
             return redirect(url_for("main.detalhar_ifs_cliente", id=inspecao_id))
-        except ValueError as exc:
+        except (ValueError, UploadValidationError) as exc:
             conn.rollback()
+            for nome, diretorio in arquivos_salvos:
+                UploadService.excluir(nome, diretorio)
             flash(str(exc), "warning")
             return redirect(url_for("main.nova_ifs_cliente"))
         except Exception:
             conn.rollback()
+            for nome, diretorio in arquivos_salvos:
+                UploadService.excluir(nome, diretorio)
             raise
         finally:
             cursor.close()
@@ -386,7 +450,17 @@ def register_ifs_cliente_routes(blueprint):
                 WHERE h.inspecao_id=%s ORDER BY h.criado_em DESC, h.id DESC
             """, (id,))
             historico = cursor.fetchall()
-            return render_template("detalhar_ifs_cliente.html", inspecao=inspecao, desvios=desvios, historico=historico)
+            cursor.execute("""
+                SELECT id, nome_original, tamanho_bytes, hash_sha256, criado_em
+                FROM ifs_cliente_documentos
+                WHERE inspecao_id=%s AND tipo='original_cliente' AND ativo=1
+                ORDER BY id DESC LIMIT 1
+            """, (id,))
+            documento_original = cursor.fetchone()
+            return render_template(
+                "detalhar_ifs_cliente.html", inspecao=inspecao, desvios=desvios,
+                historico=historico, documento_original=documento_original,
+            )
         finally:
             cursor.close()
             conn.close()
@@ -397,6 +471,7 @@ def register_ifs_cliente_routes(blueprint):
     def editar_ifs_cliente(id):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
+        arquivos_salvos = []
         try:
             where_escopo = "" if session.get("perfil") == "administrador" else " AND centro_custos_id = %s"
             params = [id]
@@ -412,7 +487,16 @@ def register_ifs_cliente_routes(blueprint):
                 return redirect(url_for("main.listar_ifs_cliente"))
 
             if request.method == "GET":
-                return render_template("editar_ifs_cliente.html", inspecao=inspecao)
+                cursor.execute("""
+                    SELECT id, nome_original, tamanho_bytes, criado_em
+                    FROM ifs_cliente_documentos
+                    WHERE inspecao_id=%s AND tipo='original_cliente' AND ativo=1
+                    ORDER BY id DESC LIMIT 1
+                """, (id,))
+                return render_template(
+                    "editar_ifs_cliente.html", inspecao=inspecao,
+                    documento_original=cursor.fetchone(),
+                )
 
             data_inspecao = (request.form.get("data_inspecao") or "").strip()
             if not data_inspecao:
@@ -443,15 +527,34 @@ def register_ifs_cliente_routes(blueprint):
                 INSERT INTO ifs_cliente_historico (inspecao_id,usuario_id,evento,descricao)
                 VALUES (%s,%s,'edicao','Dados de identificação da IFS do Cliente atualizados.')
             """, (id, session.get("usuario_id")))
+            novo_documento = request.files.get("documento_original")
+            if novo_documento and novo_documento.filename:
+                documento_salvo = _salvar_documento_original(cursor, id, novo_documento)
+                arquivos_salvos.append(documento_salvo)
+                cursor.execute("""
+                    UPDATE ifs_cliente_documentos SET ativo=0
+                    WHERE inspecao_id=%s AND tipo='original_cliente'
+                      AND ativo=1 AND nome_armazenado <> %s
+                """, (id, documento_salvo[0]))
+                cursor.execute("""
+                    INSERT INTO ifs_cliente_historico
+                    (inspecao_id,usuario_id,evento,descricao)
+                    VALUES (%s,%s,'documento_substituido',
+                            'PDF original recebido do cliente substituído; versão anterior preservada.')
+                """, (id, session.get("usuario_id")))
             conn.commit()
             flash("IFS do Cliente atualizada com sucesso.", "success")
             return redirect(url_for("main.detalhar_ifs_cliente", id=id))
-        except ValueError as exc:
+        except (ValueError, UploadValidationError) as exc:
             conn.rollback()
+            for nome, diretorio in arquivos_salvos:
+                UploadService.excluir(nome, diretorio)
             flash(str(exc), "warning")
             return redirect(url_for("main.editar_ifs_cliente", id=id))
         except Exception:
             conn.rollback()
+            for nome, diretorio in arquivos_salvos:
+                UploadService.excluir(nome, diretorio)
             raise
         finally:
             cursor.close()
@@ -513,6 +616,40 @@ def register_ifs_cliente_routes(blueprint):
                 mimetype="application/pdf",
                 as_attachment=True,
                 download_name=f"ifs_cliente_{id}.pdf",
+            )
+        finally:
+            cursor.close()
+            conn.close()
+
+    @blueprint.route("/gestao_ssma/ifs_cliente/<int:id>/documento/<int:documento_id>")
+    @login_required
+    @gestor_ssma_required
+    def documento_ifs_cliente(id, documento_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            where_escopo = "" if session.get("perfil") == "administrador" else " AND i.centro_custos_id = %s"
+            params = [documento_id, id]
+            if where_escopo:
+                params.append(session.get("centro_custos_id"))
+            cursor.execute(f"""
+                SELECT doc.nome_original, doc.nome_armazenado
+                FROM ifs_cliente_documentos doc
+                JOIN ifs_cliente_inspecoes i ON i.id=doc.inspecao_id
+                WHERE doc.id=%s AND doc.inspecao_id=%s
+                  AND doc.tipo='original_cliente' AND doc.ativo=1
+                  AND i.ativo=1 {where_escopo}
+            """, tuple(params))
+            documento = cursor.fetchone()
+            if not documento:
+                flash("PDF original não encontrado no seu escopo.", "warning")
+                return redirect(url_for("main.detalhar_ifs_cliente", id=id))
+            return send_from_directory(
+                UploadService.resolver_diretorio(_diretorio_documentos_ifs(id)),
+                documento["nome_armazenado"],
+                as_attachment=request.args.get("visualizar") != "1",
+                download_name=documento["nome_original"],
+                mimetype="application/pdf",
             )
         finally:
             cursor.close()

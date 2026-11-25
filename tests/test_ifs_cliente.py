@@ -76,7 +76,7 @@ class IfsClienteTests(unittest.TestCase):
 
     def test_rotas_exigem_gestor_ssma(self):
         source = (ROOT / "app" / "views" / "ifs_cliente.py").read_text(encoding="utf-8")
-        self.assertEqual(source.count("@gestor_ssma_required"), 7)
+        self.assertEqual(source.count("@gestor_ssma_required"), 8)
         self.assertIn('ORIGEM_IFS_CLIENTE = "IFS do Cliente"', source)
 
     def test_sidebar_fica_em_gestao_ssma(self):
@@ -210,6 +210,45 @@ class IfsClienteTests(unittest.TestCase):
         self.assertIn("Não conformidades e planos de ação", pdf)
         self.assertNotIn("ifs_cliente_historico", pdf)
         self.assertNotIn("Histórico", pdf)
+
+    def test_documento_original_tem_upload_seguro_e_rastreabilidade(self):
+        view = (ROOT / "app" / "views" / "ifs_cliente.py").read_text(
+            encoding="utf-8"
+        )
+        upload = (ROOT / "app" / "upload_security.py").read_text(
+            encoding="utf-8"
+        )
+        nova = (ROOT / "app" / "templates" / "nova_ifs_cliente.html").read_text(
+            encoding="utf-8"
+        )
+        editar = (ROOT / "app" / "templates" / "editar_ifs_cliente.html").read_text(
+            encoding="utf-8"
+        )
+        detalhe = (ROOT / "app" / "templates" / "detalhar_ifs_cliente.html").read_text(
+            encoding="utf-8"
+        )
+        listar = (ROOT / "app" / "templates" / "listar_ifs_cliente.html").read_text(
+            encoding="utf-8"
+        )
+        migration = (
+            ROOT / "docs" / "adicionar_documento_original_ifs_cliente.sql"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('enctype="multipart/form-data"', nova)
+        self.assertIn('name="documento_original"', nova)
+        self.assertIn('accept="application/pdf,.pdf"', nova)
+        self.assertIn('enctype="multipart/form-data"', editar)
+        self.assertIn("UploadService.salvar", view)
+        self.assertIn('EXTENSOES_DOCUMENTO_IFS = {"pdf"}', view)
+        self.assertIn("hash_sha256", view)
+        self.assertIn("documento_substituido", view)
+        self.assertIn("def documento_ifs_cliente", view)
+        self.assertIn("send_from_directory", view)
+        self.assertIn("main.documento_ifs_cliente", detalhe)
+        self.assertIn("bi-paperclip", listar)
+        self.assertIn('"ifs_cliente"', upload)
+        self.assertIn("CREATE TABLE IF NOT EXISTS ifs_cliente_documentos", migration)
+        self.assertIn("ativo TINYINT(1) NOT NULL DEFAULT 1", migration)
 
 
 if __name__ == "__main__":

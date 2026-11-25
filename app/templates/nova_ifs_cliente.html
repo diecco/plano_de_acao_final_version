@@ -4,7 +4,7 @@
 <style>.ifs-cliente-contexto{border-left:4px solid #ea6a23;background:#fff8f2}.acao-linha{background:#f8f9fa}</style>
 <div class="page-header"><h2 class="page-title"><i class="bi bi-building-check me-2"></i>Nova IFS do Cliente</h2></div><hr>
 {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div class="alert alert-{{ category }} alert-dismissible fade show">{{ message }}<button class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}{% endwith %}
-<form method="post" id="formIFSCliente"><input type="hidden" name="respostas_json" id="respostas_json"><input type="hidden" name="desvios_json" id="desvios_json">
+<form method="post" enctype="multipart/form-data" id="formIFSCliente"><input type="hidden" name="respostas_json" id="respostas_json"><input type="hidden" name="desvios_json" id="desvios_json">
 <div class="card shadow-sm border-0 mb-4"><div class="card-body"><h5 class="text-laranja mb-3"><i class="bi bi-clipboard-data me-2"></i>Dados da inspeção recebida</h5><div class="row g-3">
 <div class="col-md-3"><label class="form-label">Data da inspeção *</label><input type="date" class="form-control" name="data_inspecao" required></div>
 <div class="col-md-3"><label class="form-label">Hora</label><input type="time" class="form-control" name="hora_inspecao"></div>
@@ -17,6 +17,7 @@
 <div class="col-md-6"><label class="form-label">SESMT (Gerdau / Fiscalizadora)</label><input class="form-control" name="sesmt_gerdau_fiscalizadora" maxlength="255"></div>
 <div class="col-12"><label class="form-label">Participantes</label><input class="form-control" name="participantes"></div>
 <div class="col-12"><label class="form-label">Descrição das atividades / Nº da OS</label><textarea class="form-control" rows="3" name="descricao_atividade_os"></textarea></div>
+<div class="col-12"><label class="form-label">PDF original enviado pelo cliente</label><input type="file" class="form-control" name="documento_original" accept="application/pdf,.pdf"><div class="form-text">Anexo opcional para rastreabilidade. Somente PDF, com até 15 MB.</div></div>
 </div></div></div>
 
 <div class="card shadow-sm border-0 mb-4"><div class="card-body"><div class="row g-3 text-center"><div class="col"><small>Itens avaliados</small><div class="fs-4 fw-bold" id="rAvaliados">0</div></div><div class="col"><small>Não conformidades</small><div class="fs-4 fw-bold text-danger" id="rNC">0</div></div><div class="col"><small>Potencial A</small><div class="fs-4 fw-bold" id="rA">0</div></div><div class="col"><small>Potencial B</small><div class="fs-4 fw-bold" id="rB">0</div></div><div class="col"><small>Potencial C</small><div class="fs-4 fw-bold" id="rC">0</div></div><div class="col"><small>Nota</small><div class="fs-4 fw-bold" id="rNota">0,00%</div></div><div class="col"><small>Conceito</small><div class="fs-5 fw-bold" id="rConceito">-</div></div></div></div></div>
