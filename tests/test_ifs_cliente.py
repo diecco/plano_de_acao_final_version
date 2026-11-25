@@ -95,6 +95,36 @@ class IfsClienteTests(unittest.TestCase):
         self.assertNotIn("const modal=bootstrap", template)
         self.assertIn("ifs_cliente_desvio_acoes", migration)
 
+    def test_cabecalho_rev13_e_persistido_e_data_inicia_vazia(self):
+        template = (
+            ROOT / "app" / "templates" / "nova_ifs_cliente.html"
+        ).read_text(encoding="utf-8")
+        detalhe = (
+            ROOT / "app" / "templates" / "detalhar_ifs_cliente.html"
+        ).read_text(encoding="utf-8")
+        view = (ROOT / "app" / "views" / "ifs_cliente.py").read_text(
+            encoding="utf-8"
+        )
+        migration = (
+            ROOT / "docs" / "adicionar_cabecalho_ifs_cliente_rev13.sql"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('name="data_inspecao" required', template)
+        self.assertNotIn("data_hoje", template)
+        self.assertNotIn("date.today", view)
+        campos = (
+            "gerencia",
+            "administrador_contrato",
+            "contratada",
+            "profissional_sesmt_contratada_lideranca",
+            "sesmt_gerdau_fiscalizadora",
+        )
+        for campo in campos:
+            self.assertIn(f'name="{campo}"', template)
+            self.assertIn(f'request.form.get("{campo}")', view)
+            self.assertIn(f"inspecao.{campo}", detalhe)
+            self.assertIn(f"COLUMN_NAME = '{campo}'", migration)
+
 
 if __name__ == "__main__":
     unittest.main()

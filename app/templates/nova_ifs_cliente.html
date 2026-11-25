@@ -6,10 +6,15 @@
 {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div class="alert alert-{{ category }} alert-dismissible fade show">{{ message }}<button class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}{% endwith %}
 <form method="post" id="formIFSCliente"><input type="hidden" name="respostas_json" id="respostas_json"><input type="hidden" name="desvios_json" id="desvios_json">
 <div class="card shadow-sm border-0 mb-4"><div class="card-body"><h5 class="text-laranja mb-3"><i class="bi bi-clipboard-data me-2"></i>Dados da inspeção recebida</h5><div class="row g-3">
-<div class="col-md-3"><label class="form-label">Data da inspeção *</label><input type="date" class="form-control" name="data_inspecao" value="{{ data_hoje }}" required></div>
+<div class="col-md-3"><label class="form-label">Data da inspeção *</label><input type="date" class="form-control" name="data_inspecao" required></div>
 <div class="col-md-3"><label class="form-label">Hora</label><input type="time" class="form-control" name="hora_inspecao"></div>
 <div class="col-md-3"><label class="form-label">Referência do cliente</label><input class="form-control" name="referencia_cliente" maxlength="120" placeholder="Número ou identificação"></div>
 <div class="col-md-3"><label class="form-label">Local</label><input class="form-control" name="local_inspecao"></div>
+<div class="col-md-4"><label class="form-label">Gerência</label><input class="form-control" name="gerencia" maxlength="255"></div>
+<div class="col-md-4"><label class="form-label">Administrador do contrato</label><input class="form-control" name="administrador_contrato" maxlength="255"></div>
+<div class="col-md-4"><label class="form-label">Contratada</label><input class="form-control" name="contratada" maxlength="255"></div>
+<div class="col-md-6"><label class="form-label">Profissional do SESMT (contratada) / Liderança</label><input class="form-control" name="profissional_sesmt_contratada_lideranca" maxlength="255"></div>
+<div class="col-md-6"><label class="form-label">SESMT (Gerdau / Fiscalizadora)</label><input class="form-control" name="sesmt_gerdau_fiscalizadora" maxlength="255"></div>
 <div class="col-12"><label class="form-label">Participantes</label><input class="form-control" name="participantes"></div>
 <div class="col-12"><label class="form-label">Descrição das atividades / Nº da OS</label><textarea class="form-control" rows="3" name="descricao_atividade_os"></textarea></div>
 </div></div></div>

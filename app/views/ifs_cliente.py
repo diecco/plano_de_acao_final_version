@@ -1,5 +1,4 @@
 import json
-from datetime import date
 
 from flask import flash, redirect, render_template, request, session, url_for
 
@@ -137,7 +136,6 @@ def register_ifs_cliente_routes(blueprint):
                 return render_template(
                     "nova_ifs_cliente.html", blocos=blocos,
                     itens_por_bloco=itens_por_bloco, usuarios=usuarios,
-                    data_hoje=date.today().isoformat(),
                 )
 
             try:
@@ -187,9 +185,12 @@ def register_ifs_cliente_routes(blueprint):
                 INSERT INTO ifs_cliente_inspecoes (
                     centro_custos_id, data_inspecao, hora_inspecao, local_inspecao,
                     participantes, descricao_atividade_os, referencia_cliente,
+                    gerencia, administrador_contrato, contratada,
+                    profissional_sesmt_contratada_lideranca,
+                    sesmt_gerdau_fiscalizadora,
                     total_itens_avaliados, total_nao_conformidades, percentual,
                     conceito, status, criado_por
-                ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             """, (
                 centro_custos_id, request.form.get("data_inspecao"),
                 request.form.get("hora_inspecao") or None,
@@ -197,6 +198,11 @@ def register_ifs_cliente_routes(blueprint):
                 (request.form.get("participantes") or "").strip() or None,
                 (request.form.get("descricao_atividade_os") or "").strip() or None,
                 (request.form.get("referencia_cliente") or "").strip() or None,
+                (request.form.get("gerencia") or "").strip() or None,
+                (request.form.get("administrador_contrato") or "").strip() or None,
+                (request.form.get("contratada") or "").strip() or None,
+                (request.form.get("profissional_sesmt_contratada_lideranca") or "").strip() or None,
+                (request.form.get("sesmt_gerdau_fiscalizadora") or "").strip() or None,
                 len(respostas_limpas), len(nao_conformes), percentual,
                 conceito, status, session.get("usuario_id"),
             ))
