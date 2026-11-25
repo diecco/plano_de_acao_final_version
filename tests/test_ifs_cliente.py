@@ -125,6 +125,26 @@ class IfsClienteTests(unittest.TestCase):
             self.assertIn(f"inspecao.{campo}", detalhe)
             self.assertIn(f"COLUMN_NAME = '{campo}'", migration)
 
+    def test_listagem_tem_periodos_indicadores_e_origem_padronizada(self):
+        template = (
+            ROOT / "app" / "templates" / "listar_ifs_cliente.html"
+        ).read_text(encoding="utf-8")
+        view = (ROOT / "app" / "views" / "ifs_cliente.py").read_text(
+            encoding="utf-8"
+        )
+        migration = (
+            ROOT / "docs" / "corrigir_origem_ifs_cliente.sql"
+        ).read_text(encoding="utf-8")
+
+        for periodo in ("mes_atual", "mes_anterior", "mes_proximo", "personalizado"):
+            self.assertIn(f'value="{periodo}"', template)
+        for indicador in ("total", "nota_media", "nao_conformidades", "acoes_pendentes"):
+            self.assertIn(f"indicadores.{indicador}", template)
+        self.assertIn('FUSO_BRASILIA = ZoneInfo("America/Sao_Paulo")', view)
+        self.assertIn('(ORIGEM_IFS_CLIENTE, ORIGEM_IFS_CLIENTE, origem["id"])', view)
+        self.assertIn("SET nome = 'IFS do Cliente'", migration)
+        self.assertIn("descricao = 'IFS do Cliente'", migration)
+
 
 if __name__ == "__main__":
     unittest.main()

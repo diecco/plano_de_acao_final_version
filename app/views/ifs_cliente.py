@@ -1,4 +1,7 @@
 import json
+import calendar
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from flask import flash, redirect, render_template, request, session, url_for
 
@@ -7,6 +10,29 @@ from app.utils.db import get_db_connection
 
 
 ORIGEM_IFS_CLIENTE = "IFS do Cliente"
+FUSO_BRASILIA = ZoneInfo("America/Sao_Paulo")
+
+
+def _deslocar_mes(referencia, deslocamento):
+    indice = referencia.year * 12 + referencia.month - 1 + deslocamento
+    return date(indice // 12, indice % 12 + 1, 1)
+
+
+def _resolver_periodo(periodo, data_inicio="", data_fim=""):
+    hoje = datetime.now(FUSO_BRASILIA).date()
+    if periodo == "personalizado":
+        try:
+            inicio = date.fromisoformat(data_inicio)
+            fim = date.fromisoformat(data_fim)
+            if inicio > fim:
+                inicio, fim = fim, inicio
+            return inicio.isoformat(), fim.isoformat()
+        except (TypeError, ValueError):
+            periodo = "mes_atual"
+    deslocamento = {"mes_anterior": -1, "mes_atual": 0, "mes_proximo": 1}.get(periodo, 0)
+    inicio = _deslocar_mes(hoje, deslocamento)
+    fim = date(inicio.year, inicio.month, calendar.monthrange(inicio.year, inicio.month)[1])
+    return inicio.isoformat(), fim.isoformat()
 
 
 def _peso_nao_conformidade(potencial):
@@ -34,16 +60,31 @@ def _carregar_catalogo(cursor):
 def _buscar_origem(cursor, centro_custos_id):
     cursor.execute("""
         SELECT id FROM origens
-        WHERE nome = %s AND centro_custos_id = %s AND ativo = 1
+        WHERE centro_custos_id = %s AND ativo = 1
+          AND (nome = %s OR nome IN (
+              'Acoes originadas em IFS realizada pelo cliente',
+              'Ações originadas em IFS realizada pelo cliente',
+              'Acoes originadas em FS realizada pelo cliente',
+              'Ações originadas em FS realizada pelo cliente'
+          ) OR descricao IN (
+              'Acoes originadas em IFS realizada pelo cliente',
+              'Ações originadas em IFS realizada pelo cliente',
+              'Acoes originadas em FS realizada pelo cliente',
+              'Ações originadas em FS realizada pelo cliente'
+          ))
         LIMIT 1
-    """, (ORIGEM_IFS_CLIENTE, centro_custos_id))
+    """, (centro_custos_id, ORIGEM_IFS_CLIENTE))
     origem = cursor.fetchone()
     if origem:
+        cursor.execute(
+            "UPDATE origens SET nome = %s, descricao = %s WHERE id = %s",
+            (ORIGEM_IFS_CLIENTE, ORIGEM_IFS_CLIENTE, origem["id"]),
+        )
         return origem["id"]
     cursor.execute("""
         INSERT INTO origens (nome, descricao, ativo, centro_custos_id)
         VALUES (%s, %s, 1, %s)
-    """, (ORIGEM_IFS_CLIENTE, "Acoes originadas em IFS realizada pelo cliente", centro_custos_id))
+    """, (ORIGEM_IFS_CLIENTE, ORIGEM_IFS_CLIENTE, centro_custos_id))
     return cursor.lastrowid
 
 
@@ -75,10 +116,16 @@ def register_ifs_cliente_routes(blueprint):
         cursor = conn.cursor(dictionary=True)
         try:
             filtros = {
-                "data_inicio": (request.args.get("data_inicio") or "").strip(),
-                "data_fim": (request.args.get("data_fim") or "").strip(),
+                "periodo": (request.args.get("periodo") or "mes_atual").strip(),
                 "status": (request.args.get("status") or "").strip(),
             }
+            if filtros["periodo"] not in {"mes_atual", "mes_anterior", "mes_proximo", "personalizado"}:
+                filtros["periodo"] = "mes_atual"
+            filtros["data_inicio"], filtros["data_fim"] = _resolver_periodo(
+                filtros["periodo"],
+                (request.args.get("data_inicio") or "").strip(),
+                (request.args.get("data_fim") or "").strip(),
+            )
             where = ["i.ativo = 1"]
             params = []
             if session.get("perfil") != "administrador":
@@ -107,7 +154,21 @@ def register_ifs_cliente_routes(blueprint):
                 ORDER BY i.data_inspecao DESC, i.id DESC
             """, tuple(params))
             inspecoes = cursor.fetchall()
-            return render_template("listar_ifs_cliente.html", inspecoes=inspecoes, filtros=filtros)
+            indicadores = {
+                "total": len(inspecoes),
+                "nota_media": round(
+                    sum(float(item.get("percentual") or 0) for item in inspecoes) / len(inspecoes), 2
+                ) if inspecoes else 0,
+                "nao_conformidades": sum(int(item.get("total_nao_conformidades") or 0) for item in inspecoes),
+                "acoes_pendentes": sum(
+                    max(int(item.get("total_acoes") or 0) - int(item.get("acoes_concluidas") or 0), 0)
+                    for item in inspecoes
+                ),
+            }
+            return render_template(
+                "listar_ifs_cliente.html", inspecoes=inspecoes,
+                filtros=filtros, indicadores=indicadores,
+            )
         finally:
             cursor.close()
             conn.close()

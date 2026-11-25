@@ -7,12 +7,20 @@
 
 <div class="card shadow-sm border-0 mb-4"><div class="card-body">
   <form method="get" class="row g-3 align-items-end">
-    <div class="col-md-3"><label class="form-label">Data inicial</label><input type="date" name="data_inicio" class="form-control" value="{{ filtros.data_inicio }}"></div>
-    <div class="col-md-3"><label class="form-label">Data final</label><input type="date" name="data_fim" class="form-control" value="{{ filtros.data_fim }}"></div>
+    <div class="col-md-3"><label class="form-label">Período</label><select name="periodo" id="periodoIFSCliente" class="form-select"><option value="mes_atual" {% if filtros.periodo=='mes_atual' %}selected{% endif %}>Este mês</option><option value="mes_anterior" {% if filtros.periodo=='mes_anterior' %}selected{% endif %}>Mês anterior</option><option value="mes_proximo" {% if filtros.periodo=='mes_proximo' %}selected{% endif %}>Próximo mês</option><option value="personalizado" {% if filtros.periodo=='personalizado' %}selected{% endif %}>Período personalizado</option></select></div>
+    <div class="col-md-2 periodo-personalizado"><label class="form-label">Data inicial</label><input type="date" name="data_inicio" class="form-control" value="{{ filtros.data_inicio }}"></div>
+    <div class="col-md-2 periodo-personalizado"><label class="form-label">Data final</label><input type="date" name="data_fim" class="form-control" value="{{ filtros.data_fim }}"></div>
     <div class="col-md-3"><label class="form-label">Situação</label><select name="status" class="form-select"><option value="">Todas</option>{% for valor,rotulo in [('sem_desvios','Sem desvios'),('em_tratamento','Em tratamento'),('pronta_devolutiva','Pronta para devolutiva'),('encerrada','Encerrada')] %}<option value="{{ valor }}" {% if filtros.status==valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}</select></div>
-    <div class="col-md-3"><div class="d-flex justify-content-end gap-2"><button class="btn btn-laranja" title="Filtrar"><i class="bi bi-funnel"></i></button><a class="btn btn-cinza" href="{{ url_for('main.listar_ifs_cliente') }}" title="Limpar"><i class="bi bi-arrow-clockwise"></i></a><a class="btn btn-laranja" href="{{ url_for('main.nova_ifs_cliente') }}" title="Nova IFS do Cliente"><i class="bi bi-plus-circle"></i></a></div></div>
+    <div class="col-md-2"><div class="d-flex justify-content-end gap-2"><button class="btn btn-laranja" title="Filtrar"><i class="bi bi-funnel"></i></button><a class="btn btn-cinza" href="{{ url_for('main.listar_ifs_cliente') }}" title="Limpar"><i class="bi bi-arrow-clockwise"></i></a><a class="btn btn-laranja" href="{{ url_for('main.nova_ifs_cliente') }}" title="Nova IFS do Cliente"><i class="bi bi-plus-circle"></i></a></div></div>
   </form>
 </div></div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="card shadow-sm border-0 h-100"><div class="card-body text-center"><small class="text-muted">IFS realizadas</small><div class="fs-3 fw-bold">{{ indicadores.total }}</div></div></div></div>
+  <div class="col-md-3"><div class="card shadow-sm border-0 h-100"><div class="card-body text-center"><small class="text-muted">Nota média</small><div class="fs-3 fw-bold text-laranja">{{ '%.2f'|format(indicadores.nota_media)|replace('.', ',') }}%</div></div></div></div>
+  <div class="col-md-3"><div class="card shadow-sm border-0 h-100"><div class="card-body text-center"><small class="text-muted">Não conformidades</small><div class="fs-3 fw-bold text-danger">{{ indicadores.nao_conformidades }}</div></div></div></div>
+  <div class="col-md-3"><div class="card shadow-sm border-0 h-100"><div class="card-body text-center"><small class="text-muted">Ações pendentes</small><div class="fs-3 fw-bold">{{ indicadores.acoes_pendentes }}</div></div></div></div>
+</div>
 
 <div class="card shadow-sm border-0"><div class="card-body"><div class="table-responsive">
 <table class="table table-bordered align-middle mb-0"><thead class="table-light"><tr><th class="text-center">Data</th><th>Referência</th><th>Atividade / OS</th><th class="text-center">Nota</th><th class="text-center">NC</th><th class="text-center">Ações</th><th class="text-center">Situação</th><th class="text-center">Detalhes</th></tr></thead><tbody>
@@ -26,4 +34,21 @@
 <td class="text-center"><a class="btn-acao-icon" href="{{ url_for('main.detalhar_ifs_cliente', id=ifs.id) }}" title="Visualizar"><i class="bi bi-eye"></i></a></td>
 </tr>{% else %}<tr><td colspan="8" class="text-center text-muted py-4">Nenhuma IFS do Cliente encontrada.</td></tr>{% endfor %}
 </tbody></table></div></div></div>
+<script>
+(() => {
+  const periodo = document.getElementById('periodoIFSCliente');
+  const grupos = document.querySelectorAll('.periodo-personalizado');
+  const atualizarPeriodo = () => {
+    const personalizado = periodo.value === 'personalizado';
+    grupos.forEach(grupo => {
+      grupo.classList.toggle('d-none', !personalizado);
+      const campo = grupo.querySelector('input');
+      campo.disabled = !personalizado;
+      campo.required = personalizado;
+    });
+  };
+  periodo.addEventListener('change', atualizarPeriodo);
+  atualizarPeriodo();
+})();
+</script>
 {% endblock %}
