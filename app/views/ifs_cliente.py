@@ -3,7 +3,7 @@ import calendar
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-from flask import flash, redirect, render_template, request, session, url_for
+from flask import flash, redirect, render_template, request, send_file, session, url_for
 
 from app.decorators import gestor_ssma_required, login_required
 from app.utils.db import get_db_connection
@@ -453,6 +453,67 @@ def register_ifs_cliente_routes(blueprint):
         except Exception:
             conn.rollback()
             raise
+        finally:
+            cursor.close()
+            conn.close()
+
+    @blueprint.route("/gestao_ssma/ifs_cliente/<int:id>/pdf")
+    @login_required
+    @gestor_ssma_required
+    def gerar_pdf_ifs_cliente(id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            where_escopo = "" if session.get("perfil") == "administrador" else " AND i.centro_custos_id = %s"
+            params = [id]
+            if where_escopo:
+                params.append(session.get("centro_custos_id"))
+            cursor.execute(f"""
+                SELECT i.*, u.nome criado_por_nome,
+                       cc.codigo centro_codigo, cc.descricao centro_descricao
+                FROM ifs_cliente_inspecoes i
+                JOIN usuarios u ON u.id=i.criado_por
+                LEFT JOIN centros_custos cc ON cc.id=i.centro_custos_id
+                WHERE i.id=%s AND i.ativo=1 {where_escopo}
+            """, tuple(params))
+            inspecao = cursor.fetchone()
+            if not inspecao:
+                flash("IFS do Cliente não encontrada no seu escopo.", "warning")
+                return redirect(url_for("main.listar_ifs_cliente"))
+            cursor.execute("""
+                SELECT d.*, a.id acao_id, a.descricao acao_descricao,
+                       u.nome responsavel_nome, a.prazo, a.status acao_status
+                FROM ifs_cliente_desvios d
+                LEFT JOIN ifs_cliente_desvio_acoes da ON da.desvio_id=d.id
+                LEFT JOIN acoes a ON a.id=da.acao_id
+                LEFT JOIN usuarios u ON u.id=a.responsavel_id
+                WHERE d.inspecao_id=%s
+                ORDER BY d.codigo_item, a.id
+            """, (id,))
+            linhas = cursor.fetchall()
+            desvios, mapa = [], {}
+            for linha in linhas:
+                chave = linha["id"]
+                if chave not in mapa:
+                    registro = {
+                        campo: linha[campo] for campo in (
+                            "id", "codigo_item", "descricao_item", "potencial",
+                            "desvio_observado",
+                        )
+                    }
+                    registro["acoes"] = []
+                    mapa[chave] = registro
+                    desvios.append(registro)
+                if linha.get("acao_id"):
+                    mapa[chave]["acoes"].append(linha)
+            from app.utils.ifs_cliente_pdf import gerar_pdf_ifs_cliente as montar_pdf
+            pdf = montar_pdf(inspecao, desvios)
+            return send_file(
+                pdf,
+                mimetype="application/pdf",
+                as_attachment=True,
+                download_name=f"ifs_cliente_{id}.pdf",
+            )
         finally:
             cursor.close()
             conn.close()

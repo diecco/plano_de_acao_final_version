@@ -76,7 +76,7 @@ class IfsClienteTests(unittest.TestCase):
 
     def test_rotas_exigem_gestor_ssma(self):
         source = (ROOT / "app" / "views" / "ifs_cliente.py").read_text(encoding="utf-8")
-        self.assertEqual(source.count("@gestor_ssma_required"), 6)
+        self.assertEqual(source.count("@gestor_ssma_required"), 7)
         self.assertIn('ORIGEM_IFS_CLIENTE = "IFS do Cliente"', source)
 
     def test_sidebar_fica_em_gestao_ssma(self):
@@ -190,6 +190,26 @@ class IfsClienteTests(unittest.TestCase):
         self.assertIn("SET ativo=0, atualizado_em=CURRENT_TIMESTAMP", view)
         self.assertIn("'exclusao'", view)
         self.assertIn("Respostas, nota, desvios e planos de ação permanecem preservados", editar)
+
+    def test_relatorio_pdf_reproduz_detalhes_sem_historico(self):
+        template = (
+            ROOT / "app" / "templates" / "listar_ifs_cliente.html"
+        ).read_text(encoding="utf-8")
+        view = (ROOT / "app" / "views" / "ifs_cliente.py").read_text(
+            encoding="utf-8"
+        )
+        pdf = (ROOT / "app" / "utils" / "ifs_cliente_pdf.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("main.gerar_pdf_ifs_cliente", template)
+        self.assertIn("bi-file-earmark-pdf", template)
+        self.assertIn("def gerar_pdf_ifs_cliente", view)
+        self.assertIn('mimetype="application/pdf"', view)
+        self.assertIn("RELATÓRIO DE IFS DO CLIENTE", pdf)
+        self.assertIn("Não conformidades e planos de ação", pdf)
+        self.assertNotIn("ifs_cliente_historico", pdf)
+        self.assertNotIn("Histórico", pdf)
 
 
 if __name__ == "__main__":
