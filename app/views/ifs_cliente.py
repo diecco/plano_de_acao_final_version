@@ -10,6 +10,11 @@ from app.utils.db import get_db_connection
 ORIGEM_IFS_CLIENTE = "IFS do Cliente"
 
 
+def _peso_nao_conformidade(potencial):
+    """Pesos definidos pelo formulario IFS Rev. 13 (abril/2026)."""
+    return {"A": 2, "B": 1, "C": 0.5}.get(potencial, 1)
+
+
 def _carregar_catalogo(cursor):
     cursor.execute("""
         SELECT id, nome FROM ifs_blocos
@@ -166,7 +171,10 @@ def register_ifs_cliente_routes(blueprint):
 
             conformes = sum(1 for _, r in respostas_limpas if r == "S")
             nao_conformes = [(item, r) for item, r in respostas_limpas if r == "N"]
-            denominador = conformes + sum(2 if item["potencial"] == "A" else 1 for item, _ in nao_conformes)
+            denominador = conformes + sum(
+                _peso_nao_conformidade(item["potencial"])
+                for item, _ in nao_conformes
+            )
             percentual = round((conformes / denominador * 100) if denominador else 0, 2)
             conceito = "Satisfatório" if percentual >= 85 else "Insatisfatório"
             status = "sem_desvios" if not nao_conformes else "em_tratamento"

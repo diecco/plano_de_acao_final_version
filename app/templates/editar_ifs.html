@@ -675,7 +675,7 @@ function atualizarResumoIFS() {
             if (resultado === 'N') {
                 nc += 1;
 
-                const peso = potencial === 'A' ? 2 : 1;
+                const peso = potencial === 'A' ? 2 : (potencial === 'C' ? 0.5 : 1);
                 denominadorPonderado += peso;
 
                 ncPorBloco[blocoId] += 1;

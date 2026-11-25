@@ -5,6 +5,25 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class IfsClienteTests(unittest.TestCase):
+    def test_peso_c_segue_revisao_13_do_formulario(self):
+        view = (ROOT / "app" / "views" / "ifs_cliente.py").read_text(
+            encoding="utf-8"
+        )
+        cliente = (
+            ROOT / "app" / "templates" / "nova_ifs_cliente.html"
+        ).read_text(encoding="utf-8")
+        lancar = (ROOT / "app" / "templates" / "lancar_ifs.html").read_text(
+            encoding="utf-8"
+        )
+        editar = (ROOT / "app" / "templates" / "editar_ifs.html").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('"C": 0.5', view)
+        self.assertIn("s.dataset.potencial==='C'?0.5:1", cliente)
+        self.assertIn('potencial === "C"', lancar)
+        self.assertIn("potencial === 'C' ? 0.5 : 1", editar)
+
     def test_catalogo_comportamento_e_alinhado_ao_formulario_cliente(self):
         migration = (
             ROOT / "docs" / "alinhar_itens_comportamento_ifs.sql"
