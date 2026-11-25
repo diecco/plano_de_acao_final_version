@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block titulo %}Editar IFS do Cliente{% endblock %}
+{% block conteudo %}
+<div class="page-header"><h2 class="page-title"><i class="bi bi-pencil-square me-2"></i>Editar IFS do Cliente</h2></div>
+<hr>
+{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div class="alert alert-{{ category }} alert-dismissible fade show">{{ message }}<button class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}{% endwith %}
+
+<div class="alert alert-light border"><i class="bi bi-info-circle me-2 text-laranja"></i>A edição altera os dados de identificação e permite substituir o PDF original. Respostas, nota, desvios e planos de ação permanecem preservados.</div>
+<form method="post" enctype="multipart/form-data">
+  <div class="card shadow-sm border-0 mb-4"><div class="card-body">
+    <h5 class="text-laranja mb-3"><i class="bi bi-clipboard-data me-2"></i>Dados da inspeção recebida</h5>
+    <div class="row g-3">
+      <div class="col-md-3"><label class="form-label">Data da inspeção *</label><input type="date" class="form-control" name="data_inspecao" value="{{ inspecao.data_inspecao.strftime('%Y-%m-%d') if inspecao.data_inspecao else '' }}" required></div>
+      <div class="col-md-3"><label class="form-label">Hora</label><input type="time" class="form-control" name="hora_inspecao" value="{{ inspecao.hora_inspecao.strftime('%H:%M') if inspecao.hora_inspecao else '' }}"></div>
+      <div class="col-md-3"><label class="form-label">Referência do cliente</label><input class="form-control" name="referencia_cliente" maxlength="120" value="{{ inspecao.referencia_cliente or '' }}"></div>
+      <div class="col-md-3"><label class="form-label">Local</label><input class="form-control" name="local_inspecao" maxlength="255" value="{{ inspecao.local_inspecao or '' }}"></div>
+      <div class="col-md-4"><label class="form-label">Gerência</label><input class="form-control" name="gerencia" maxlength="255" value="{{ inspecao.gerencia or '' }}"></div>
+      <div class="col-md-4"><label class="form-label">Administrador do contrato</label><input class="form-control" name="administrador_contrato" maxlength="255" value="{{ inspecao.administrador_contrato or '' }}"></div>
+      <div class="col-md-4"><label class="form-label">Contratada</label><input class="form-control" name="contratada" maxlength="255" value="{{ inspecao.contratada or '' }}"></div>
+      <div class="col-md-6"><label class="form-label">Profissional do SESMT (contratada) / Liderança</label><input class="form-control" name="profissional_sesmt_contratada_lideranca" maxlength="255" value="{{ inspecao.profissional_sesmt_contratada_lideranca or '' }}"></div>
+      <div class="col-md-6"><label class="form-label">SESMT (Gerdau / Fiscalizadora)</label><input class="form-control" name="sesmt_gerdau_fiscalizadora" maxlength="255" value="{{ inspecao.sesmt_gerdau_fiscalizadora or '' }}"></div>
+      <div class="col-12"><label class="form-label">Participantes</label><input class="form-control" name="participantes" value="{{ inspecao.participantes or '' }}"></div>
+      <div class="col-12"><label class="form-label">Descrição das atividades / Nº da OS</label><textarea class="form-control" rows="3" name="descricao_atividade_os">{{ inspecao.descricao_atividade_os or '' }}</textarea></div>
+      <div class="col-12"><label class="form-label">PDF original enviado pelo cliente</label>{% if documento_original %}<div class="d-flex align-items-center gap-2 border rounded p-2 mb-2"><i class="bi bi-file-earmark-pdf text-danger"></i><span class="flex-grow-1">{{ documento_original.nome_original }}</span><a class="btn-acao-icon" target="_blank" href="{{ url_for('main.documento_ifs_cliente', id=inspecao.id, documento_id=documento_original.id, visualizar=1) }}" title="Visualizar PDF original"><i class="bi bi-eye"></i></a></div>{% endif %}<input type="file" class="form-control" name="documento_original" accept="application/pdf,.pdf"><div class="form-text">{{ 'Selecione outro PDF para substituir o documento atual, preservando a versão anterior.' if documento_original else 'Somente PDF, com até 15 MB.' }}</div></div>
+    </div>
+  </div></div>
+  <div class="d-flex justify-content-between mb-4"><a class="btn btn-cinza" href="{{ url_for('main.listar_ifs_cliente') }}">Voltar</a><button class="btn btn-laranja" type="submit">Salvar</button></div>
+</form>
+{% endblock %}

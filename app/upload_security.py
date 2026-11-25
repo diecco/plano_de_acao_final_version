@@ -13,6 +13,7 @@ DIRETORIOS_PERSISTENTES = (
     "pcpm_movimentacoes",
     "comunicados",
     "desvios",
+    "ifs_cliente",
 )
 
 

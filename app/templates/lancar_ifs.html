@@ -814,8 +814,10 @@ function atualizarResumoIFS() {
             avaliados += 1;
 
             if (resultado === "S") {
-                conformes += 1;
-                denominadorPonderado += 1;
+                if (potencial) {
+                    conformes += 1;
+                    denominadorPonderado += 1;
+                }
             }
 
             if (resultado === "N") {
@@ -824,7 +826,11 @@ function atualizarResumoIFS() {
                 const peso =
                     potencial === "A"
                         ? 2
-                        : 1;
+                        : potencial === "C"
+                            ? 0.5
+                            : potencial === "B"
+                                ? 1
+                                : 0;
 
                 denominadorPonderado +=
                     peso;

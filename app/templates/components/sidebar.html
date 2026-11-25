@@ -191,7 +191,15 @@
                 'main.novo_agendamento_ssma',
                 'main.relatorio_aderencia_ssma',
                 'main.perfil_seguranca_colaborador',
-                'main.buffer_desvios'
+                'main.buffer_desvios',
+                'main.listar_ifs_cliente',
+                'main.nova_ifs_cliente',
+                'main.detalhar_ifs_cliente',
+                'main.editar_ifs_cliente',
+                'main.gerar_pdf_ifs_cliente',
+                'main.excluir_ifs_cliente',
+                'main.encerrar_ifs_cliente',
+                'main.documento_ifs_cliente'
             ] %}
             <section class="sidebar-module"
                      data-search-label="gestão ssma buffer desvios criar agendamento relatório aderência">
@@ -228,6 +236,12 @@
                            class="sidebar-link {% if request.endpoint == 'main.perfil_seguranca_colaborador' %}active{% endif %}">
                             <i class="bi bi-person-vcard"></i><span>Perfil de segurança</span>
                         </a>
+                        {% if is_admin or session.get('gestor_ssma') %}
+                            <a href="{{ url_for('main.listar_ifs_cliente') }}"
+                               class="sidebar-link {% if request.endpoint in ['main.listar_ifs_cliente', 'main.nova_ifs_cliente', 'main.detalhar_ifs_cliente', 'main.editar_ifs_cliente', 'main.gerar_pdf_ifs_cliente', 'main.excluir_ifs_cliente', 'main.encerrar_ifs_cliente', 'main.documento_ifs_cliente'] %}active{% endif %}">
+                                <i class="bi bi-building-check"></i><span>IFS do Cliente</span>
+                            </a>
+                        {% endif %}
                         {% for checklist in checklists_sidebar_gestao %}
                             <a href="{{ url_for('main.abrir_checklist_dinamico', checklist_id=checklist.id) }}"
                                class="sidebar-link {% if checklist_em_uso and checklist_aberto_id == checklist.id %}active{% endif %}">

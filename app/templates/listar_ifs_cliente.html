@@ -1,0 +1,68 @@
+{% extends "layout.html" %}
+{% block titulo %}IFS do Cliente{% endblock %}
+{% block conteudo %}
+{% macro botoes_ordenacao(campo) %}
+<span class="btn-group btn-group-sm">
+  <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente" href="{{ url_for('main.listar_ifs_cliente', periodo=filtros.periodo, data_inicio=filtros.data_inicio, data_fim=filtros.data_fim, status=filtros.status, sort=campo, order='asc') }}"><i class="bi bi-caret-up-fill"></i></a>
+  <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente" href="{{ url_for('main.listar_ifs_cliente', periodo=filtros.periodo, data_inicio=filtros.data_inicio, data_fim=filtros.data_fim, status=filtros.status, sort=campo, order='desc') }}"><i class="bi bi-caret-down-fill"></i></a>
+</span>
+{% endmacro %}
+<div class="page-header"><h2 class="page-title"><i class="bi bi-building-check me-2"></i>IFS do Cliente</h2></div>
+<hr>
+{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div class="alert alert-{{ category }} alert-dismissible fade show">{{ message }}<button class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}{% endwith %}
+
+<div class="card shadow-sm border-0 mb-4"><div class="card-body">
+  <form method="get" class="row g-3 align-items-end">
+    <div class="col-md-3"><label class="form-label">Período</label><select name="periodo" id="periodoIFSCliente" class="form-select"><option value="mes_atual" {% if filtros.periodo=='mes_atual' %}selected{% endif %}>Este mês</option><option value="mes_anterior" {% if filtros.periodo=='mes_anterior' %}selected{% endif %}>Mês anterior</option><option value="mes_proximo" {% if filtros.periodo=='mes_proximo' %}selected{% endif %}>Próximo mês</option><option value="personalizado" {% if filtros.periodo=='personalizado' %}selected{% endif %}>Período personalizado</option></select></div>
+    <div class="col-md-2 periodo-personalizado"><label class="form-label">Data inicial</label><input type="date" name="data_inicio" class="form-control" value="{{ filtros.data_inicio }}"></div>
+    <div class="col-md-2 periodo-personalizado"><label class="form-label">Data final</label><input type="date" name="data_fim" class="form-control" value="{{ filtros.data_fim }}"></div>
+    <div class="col-md-3"><label class="form-label">Situação</label><select name="status" class="form-select"><option value="">Todas</option>{% for valor,rotulo in [('sem_desvios','Sem desvios'),('em_tratamento','Em tratamento'),('pronta_devolutiva','Pronta para devolutiva'),('encerrada','Encerrada')] %}<option value="{{ valor }}" {% if filtros.status==valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}</select></div>
+    <div class="col-md-2 ms-md-auto"><div class="d-flex justify-content-end gap-2"><button class="btn btn-laranja" title="Filtrar"><i class="bi bi-funnel"></i></button><a class="btn btn-cinza" href="{{ url_for('main.listar_ifs_cliente') }}" title="Limpar"><i class="bi bi-arrow-clockwise"></i></a><a class="btn btn-laranja" href="{{ url_for('main.nova_ifs_cliente') }}" title="Nova IFS do Cliente"><i class="bi bi-plus-circle"></i></a></div></div>
+  </form>
+</div></div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="card shadow-sm border-0 h-100"><div class="card-body text-center"><small class="text-muted">IFS realizadas</small><div class="fs-3 fw-bold">{{ indicadores.total }}</div></div></div></div>
+  <div class="col-md-3"><div class="card shadow-sm border-0 h-100"><div class="card-body text-center"><small class="text-muted">Nota média</small><div class="fs-3 fw-bold text-laranja">{{ '%.2f'|format(indicadores.nota_media)|replace('.', ',') }}%</div></div></div></div>
+  <div class="col-md-3"><div class="card shadow-sm border-0 h-100"><div class="card-body text-center"><small class="text-muted">Não conformidades</small><div class="fs-3 fw-bold text-danger">{{ indicadores.nao_conformidades }}</div></div></div></div>
+  <div class="col-md-3"><div class="card shadow-sm border-0 h-100"><div class="card-body text-center"><small class="text-muted">Ações pendentes</small><div class="fs-3 fw-bold">{{ indicadores.acoes_pendentes }}</div></div></div></div>
+</div>
+
+<div class="card shadow-sm border-0"><div class="card-body"><div class="table-responsive">
+<table class="table table-bordered align-middle mb-0"><thead class="table-light"><tr>
+<th><div class="d-flex justify-content-between align-items-center"><span class="th-label">Data</span>{{ botoes_ordenacao('data_inspecao') }}</div></th>
+<th><div class="d-flex justify-content-between align-items-center"><span class="th-label">Referência</span>{{ botoes_ordenacao('referencia_cliente') }}</div></th>
+<th><div class="d-flex justify-content-between align-items-center"><span class="th-label">Atividade / OS</span>{{ botoes_ordenacao('descricao_atividade_os') }}</div></th>
+<th><div class="d-flex justify-content-between align-items-center"><span class="th-label">Nota</span>{{ botoes_ordenacao('percentual') }}</div></th>
+<th><div class="d-flex justify-content-between align-items-center"><span class="th-label">NC</span>{{ botoes_ordenacao('total_nao_conformidades') }}</div></th>
+<th><div class="d-flex justify-content-between align-items-center"><span class="th-label">Plano de ação</span>{{ botoes_ordenacao('total_acoes') }}</div></th>
+<th><div class="d-flex justify-content-between align-items-center"><span class="th-label">Situação</span>{{ botoes_ordenacao('status') }}</div></th>
+<th class="text-center">Ações</th></tr></thead><tbody>
+{% for ifs in inspecoes %}<tr>
+<td class="text-center">{{ ifs.data_inspecao.strftime('%d/%m/%Y') if ifs.data_inspecao else '-' }}</td>
+<td>{{ ifs.referencia_cliente or '-' }}</td><td>{{ ifs.descricao_atividade_os or '-' }}</td>
+<td class="text-center"><strong>{{ '%.2f'|format(ifs.percentual or 0) }}%</strong><br><small class="text-muted">{{ ifs.conceito }}</small></td>
+<td class="text-center"><span class="badge {{ 'bg-danger' if ifs.total_nao_conformidades else 'bg-success' }}">{{ ifs.total_nao_conformidades }}</span></td>
+<td class="text-center">{{ ifs.acoes_concluidas or 0 }}/{{ ifs.total_acoes or 0 }}</td>
+<td class="text-center"><span class="badge bg-secondary">{{ {'sem_desvios':'Sem desvios','em_tratamento':'Em tratamento','pronta_devolutiva':'Pronta para devolutiva','encerrada':'Encerrada'}.get(ifs.status,ifs.status) }}</span></td>
+<td class="text-center"><div class="d-flex justify-content-center gap-2"><a class="btn-acao-icon" href="{{ url_for('main.detalhar_ifs_cliente', id=ifs.id) }}" title="Visualizar"><i class="bi bi-eye"></i></a><a class="btn-acao-icon" href="{{ url_for('main.editar_ifs_cliente', id=ifs.id) }}" title="Editar"><i class="bi bi-pencil-square"></i></a>{% if ifs.documento_original_id %}<a class="btn-acao-icon" target="_blank" href="{{ url_for('main.documento_ifs_cliente', id=ifs.id, documento_id=ifs.documento_original_id, visualizar=1) }}" title="Visualizar PDF original do cliente"><i class="bi bi-paperclip"></i></a>{% endif %}<a class="btn-acao-icon" href="{{ url_for('main.gerar_pdf_ifs_cliente', id=ifs.id) }}" title="Gerar relatório PDF"><i class="bi bi-file-earmark-pdf"></i></a><form method="post" class="d-inline" action="{{ url_for('main.excluir_ifs_cliente', id=ifs.id) }}" data-confirmacao="Tem certeza de que deseja excluir esta IFS do Cliente?" data-confirmacao-titulo="Excluir IFS do Cliente" data-confirmacao-contexto="IFS do Cliente #{{ ifs.id }}" data-confirmacao-observacao="Ela será removida da listagem, mas seus dados, ações e histórico permanecerão preservados." data-confirmacao-botao="Excluir" data-confirmacao-icone="bi-trash"><button type="submit" class="btn-acao-icon" title="Excluir"><i class="bi bi-trash"></i></button></form></div></td>
+</tr>{% else %}<tr><td colspan="8" class="text-center text-muted py-4">Nenhuma IFS do Cliente encontrada.</td></tr>{% endfor %}
+</tbody></table></div></div></div>
+<script>
+(() => {
+  const periodo = document.getElementById('periodoIFSCliente');
+  const grupos = document.querySelectorAll('.periodo-personalizado');
+  const atualizarPeriodo = () => {
+    const personalizado = periodo.value === 'personalizado';
+    grupos.forEach(grupo => {
+      grupo.classList.toggle('d-none', !personalizado);
+      const campo = grupo.querySelector('input');
+      campo.disabled = !personalizado;
+      campo.required = personalizado;
+    });
+  };
+  periodo.addEventListener('change', atualizarPeriodo);
+  atualizarPeriodo();
+})();
+</script>
+{% endblock %}
