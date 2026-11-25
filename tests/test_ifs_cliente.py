@@ -32,6 +32,11 @@ class IfsClienteTests(unittest.TestCase):
         self.assertEqual(migration.count("INSERT INTO ifs_blocos ("), 28)
         self.assertEqual(migration.count("INSERT INTO ifs_itens ("), 328)
         self.assertIn(
+            "INSERT INTO ifs_blocos (nome, ordem, ativo) VALUES ('CONDIÇÃO FÍSICA', 1, 1)",
+            migration,
+        )
+        self.assertNotIn("CONTROLE SISTÊMICO (PROCEDIMENTO/APR/PT)", migration)
+        self.assertIn(
             "UPDATE ifs_itens SET ativo = 0 WHERE id > 0 AND ativo = 1",
             migration,
         )

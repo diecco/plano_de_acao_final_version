@@ -24,7 +24,7 @@ BEGIN
         UPDATE ifs_itens SET ativo = 0 WHERE id > 0 AND ativo = 1;
         UPDATE ifs_blocos SET ativo = 0 WHERE id > 0 AND ativo = 1;
 
-        INSERT INTO ifs_blocos (nome, ordem, ativo) VALUES ('CONTROLE SISTÊMICO (PROCEDIMENTO/APR/PT)', 1, 1);
+        INSERT INTO ifs_blocos (nome, ordem, ativo) VALUES ('CONDIÇÃO FÍSICA', 1, 1);
         INSERT INTO ifs_blocos (nome, ordem, ativo) VALUES ('REQUISITOS GERAIS', 2, 1);
         INSERT INTO ifs_blocos (nome, ordem, ativo) VALUES ('BLOQUEIO DE FONTES DE ENERGIA', 3, 1);
         INSERT INTO ifs_blocos (nome, ordem, ativo) VALUES ('ANDAIMES', 4, 1);
@@ -54,31 +54,31 @@ BEGIN
         INSERT INTO ifs_blocos (nome, ordem, ativo) VALUES ('IFS', 28, 1);
 
         SET @bloco_id = NULL;
-        SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONTROLE SISTÊMICO (PROCEDIMENTO/APR/PT)' ORDER BY id DESC LIMIT 1;
+        SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONDIÇÃO FÍSICA' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '1.1', 'O serviço possui Procedimento, APR, APR na OS, PT, que contemplam os cenários de riscos, foram considerados todos os controles aplicáveis e estão implementados?', 'A', 1, 1);
-        SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONTROLE SISTÊMICO (PROCEDIMENTO/APR/PT)' ORDER BY id DESC LIMIT 1;
+        SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONDIÇÃO FÍSICA' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '1.2', 'Todos os campos dos formulários foram preenchidos e fechados, conforme padrão? Para acréscimo de executantes, estes foram inclusos em folha adicional liberada pelo responsável da tarefa?', 'C', 2, 1);
-        SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONTROLE SISTÊMICO (PROCEDIMENTO/APR/PT)' ORDER BY id DESC LIMIT 1;
+        SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONDIÇÃO FÍSICA' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '1.3', 'O Procedimento, APR, APR na OS, PT está divulgada e possui assinatura de todos os executantes da tarefa e disponível na frente de serviço?', 'A', 3, 1);
-        SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONTROLE SISTÊMICO (PROCEDIMENTO/APR/PT)' ORDER BY id DESC LIMIT 1;
+        SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONDIÇÃO FÍSICA' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '1.4', 'O vigia do fogo conhece seus papeis e suas responsabilidade e esta atuando corretamente na frente de serviço de trabalho á quente?', 'B', 4, 1);
-        SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONTROLE SISTÊMICO (PROCEDIMENTO/APR/PT)' ORDER BY id DESC LIMIT 1;
+        SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONDIÇÃO FÍSICA' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '1.5', 'As tarefas da APR/PT, estão de acordo com o potencial de severidade em função do cenário?', 'A', 5, 1);
-        SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONTROLE SISTÊMICO (PROCEDIMENTO/APR/PT)' ORDER BY id DESC LIMIT 1;
+        SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONDIÇÃO FÍSICA' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '1.6', 'A APR, APR na OS e PT foi emitida e liberada por profissionais treinados e autorizados (carteirinha), e seguindo a alçada de liberação?', 'A', 6, 1);
-        SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONTROLE SISTÊMICO (PROCEDIMENTO/APR/PT)' ORDER BY id DESC LIMIT 1;
+        SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONDIÇÃO FÍSICA' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '1.7', 'A carteirinha de liberação emitida pelo Bancodoc, contempla todas as liberações necessárias para realização da função?', 'B', 7, 1);
-        SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONTROLE SISTÊMICO (PROCEDIMENTO/APR/PT)' ORDER BY id DESC LIMIT 1;
+        SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONDIÇÃO FÍSICA' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '1.8', 'DDS foi realizado, os colaboradores conhecem o tema abordado?', 'C', 8, 1);
-        SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONTROLE SISTÊMICO (PROCEDIMENTO/APR/PT)' ORDER BY id DESC LIMIT 1;
+        SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONDIÇÃO FÍSICA' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '1.9', 'Outros:', NULL, 9, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 2 AND nome = 'REQUISITOS GERAIS' ORDER BY id DESC LIMIT 1;
