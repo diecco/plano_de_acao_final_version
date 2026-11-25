@@ -39,6 +39,12 @@ class IfsClienteTests(unittest.TestCase):
             "UPDATE ifs_blocos SET ativo = 0 WHERE id > 0 AND ativo = 1",
             migration,
         )
+        self.assertIn(
+            "ALTER TABLE ifs_itens MODIFY COLUMN potencial ENUM('A', 'B', 'C') NULL",
+            migration,
+        )
+        self.assertNotIn(", '', ", migration)
+        self.assertIn("'Outros:', NULL", migration)
         self.assertNotIn("DELETE FROM ifs_", migration)
         self.assertIn("'REV13-2026-04'", migration)
 

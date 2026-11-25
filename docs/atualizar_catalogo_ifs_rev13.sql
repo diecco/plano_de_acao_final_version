@@ -8,6 +8,11 @@ CREATE TABLE IF NOT EXISTS ifs_catalogo_versoes (
     aplicado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- A Rev13 possui linhas "Outros" sem potencial de severidade. O catalogo
+-- aceita NULL nesses itens, enquanto A, B e C continuam sendo os únicos
+-- potenciais considerados no cálculo da nota.
+ALTER TABLE ifs_itens MODIFY COLUMN potencial ENUM('A', 'B', 'C') NULL;
+
 DROP PROCEDURE IF EXISTS aplicar_catalogo_ifs_rev13;
 DELIMITER $$
 CREATE PROCEDURE aplicar_catalogo_ifs_rev13()
@@ -75,7 +80,7 @@ BEGIN
         VALUES (@bloco_id, '1.8', 'DDS foi realizado, os colaboradores conhecem o tema abordado?', 'C', 8, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 1 AND nome = 'CONTROLE SISTÊMICO (PROCEDIMENTO/APR/PT)' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '1.9', 'Outros:', '', 9, 1);
+        VALUES (@bloco_id, '1.9', 'Outros:', NULL, 9, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 2 AND nome = 'REQUISITOS GERAIS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '2.1', 'O posto de trabalho possui água potável e copos disponíveis?', 'C', 1, 1);
@@ -111,7 +116,7 @@ BEGIN
         VALUES (@bloco_id, '2.11', 'Itens de abrangências mapeados estão implantados?', 'A', 11, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 2 AND nome = 'REQUISITOS GERAIS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '2.12', 'Outros*:', '', 12, 1);
+        VALUES (@bloco_id, '2.12', 'Outros*:', NULL, 12, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 3 AND nome = 'BLOQUEIO DE FONTES DE ENERGIA' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '3.1', 'O Mapa de Bloqueio de fontes de energia foi preenchido corretamente seguindo os pontos de bloqueios que estão contemplados na APR, OS ou Procedimento Operacional?', 'A', 1, 1);
@@ -132,7 +137,7 @@ BEGIN
         VALUES (@bloco_id, '3.6', 'Nas caixas de bloqueios estão contidos no mínimo os pontos de bloqueios e/ou nº da Ordem de Serviço?', 'C', 6, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 3 AND nome = 'BLOQUEIO DE FONTES DE ENERGIA' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '3.7', 'Outros*:', '', 7, 1);
+        VALUES (@bloco_id, '3.7', 'Outros*:', NULL, 7, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 4 AND nome = 'ANDAIMES' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '4.1', 'Para atividades de montagens de andaimes: tipo torre ou tipo passarela com risco de queda acima de 10 metros, forro em vão aberto com com risco de queda acima de 6 metros, tipo guarda corpo temporário com risco de queda acima de 6 metros, tipo estrura de acesso com degraus e patamares com risco de queda acima de 6 metros, tipo torre com a base apoiada em piso estável e seguro com um único balanço com risco de queda acima de 6 metros, tipo balanço vertical com travamento em estrutura fixa, travando em: colunas; vigas e estruturas metálicas com risco de queda acima de 2 metros, tipo balanço com travamento em estrutura fixa travado em: colunas, vigas e estruturas metálicas com risco de queda acima de 2 metro, com risco de queda em corpo hidrico que possa causar afogamento, foi seguida alçada de liberação da APR como catálogo de risco (Gerente e SESMT GERDAU)?', 'A', 1, 1);
@@ -225,7 +230,7 @@ BEGIN
         VALUES (@bloco_id, '4.30', 'Os materiais armazenados no gaveteiro estãor armazenados por tipos e agrupados de acordo com o comprimento e características específicas?', 'B', 30, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 4 AND nome = 'ANDAIMES' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '4.31', 'Outros*:', '', 31, 1);
+        VALUES (@bloco_id, '4.31', 'Outros*:', NULL, 31, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 5 AND nome = 'CARGA SUSPENSA' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '5.1', 'Para atividades com içamento de pessoas com uso de gaiola, içamentos utilizando dois guindastes simultâneos ou um guindaste e uma ponte; içamento de carga com distância inferior a 6m a linhas de alta tensão energizadas e/ou linhas de gás viva foi seguida a alçada de liberação da APR como catálogo de risco,(Gerente e SESMT GERDAU)?', 'A', 1, 1);
@@ -276,7 +281,7 @@ BEGIN
         VALUES (@bloco_id, '5.16', 'Para içamentos de carga abaixo de 10ton. com guindastes e/ou caminhão munck está sendo preenchido o Anexo II conforme OB-IO-010-010?', 'A', 16, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 5 AND nome = 'CARGA SUSPENSA' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '5.17', 'Outros*:', '', 17, 1);
+        VALUES (@bloco_id, '5.17', 'Outros*:', NULL, 17, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 6 AND nome = 'MÁQUINAS E FERRAMENTAS MANUAIS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '6.1', 'Foi realizada a inspeção de pré uso nas máquinas e ferramentas? O formulário utilizado determina itens a serem avaliados, parâmentos de aceitabilidade,  itens que interditam claramente os equipamentos , tag ou número, metodologia (C/NC), frequência, Código de ação para itens Não Conformes (ex.:1 - Corrigir, 2 - Impeditivo), Plano de Ação e está preenchido com o nome do responsável pela inspeção?', 'A', 1, 1);
@@ -339,7 +344,7 @@ BEGIN
         VALUES (@bloco_id, '6.20', 'Foi feita um estudo de outras ferramentas para substituição da marreta na atividade?', 'C', 20, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 6 AND nome = 'MÁQUINAS E FERRAMENTAS MANUAIS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '6.21', 'Outros*:', '', 21, 1);
+        VALUES (@bloco_id, '6.21', 'Outros*:', NULL, 21, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 7 AND nome = 'SEGURANÇA EM INSTALAÇÕES E SERVIÇOS EM ELETRICIDADE' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '7.1', 'Os quadros de energia estão fechados em bom estado de conservação, livre de objetos, limpos, desobstruídos e com sinalização quanto ao perigo de choque elétrico e identificação de colaboradores autorizados a operar?', 'A', 1, 1);
@@ -363,7 +368,7 @@ BEGIN
         VALUES (@bloco_id, '7.7', 'É respeitada a proibição de realização de serviços individualmente, em instalações elétricas energizadas em Alta Tensão ou no Sistema Elétrico de Potência - SEP?', 'B', 7, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 7 AND nome = 'SEGURANÇA EM INSTALAÇÕES E SERVIÇOS EM ELETRICIDADE' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '7.8', 'Outros*: As extensões eletrica possuem tag de identificação para auxiliar na identificação', '', 8, 1);
+        VALUES (@bloco_id, '7.8', 'Outros*: As extensões eletrica possuem tag de identificação para auxiliar na identificação', NULL, 8, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 8 AND nome = 'EMVI - EQUIPAMENTOS MÓVEIS / VEÍCULOS INDUSTRIAIS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '8.1', 'O EMVI passou pela inspeção periódica de equipamentos móveis e possui QR Code do Frota Legal válida? Todos os equipamentos da contratada estão como status liberado no Frota Legal?', 'B', 1, 1);
@@ -420,7 +425,7 @@ BEGIN
         VALUES (@bloco_id, '8.18', 'Os operadores utilizam uniformes com listras reflexivas?', 'B', 18, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 8 AND nome = 'EMVI - EQUIPAMENTOS MÓVEIS / VEÍCULOS INDUSTRIAIS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '8.19', 'Outros:', '', 19, 1);
+        VALUES (@bloco_id, '8.19', 'Outros:', NULL, 19, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 9 AND nome = 'VEÍCULOS FRETADOS  - TRANSPORTE DE PESSOAS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '9.1', 'Um Rotograma está disponível no veículo e contém minimamente: interferências existentes no trajeto, trechos de maior risco, pontos de maior segurança recomendados para paradas em caso de emergência/pane, mapa do trajeto, velocidades máximas permitidas, possíveis rotas alternativas?', 'A', 1, 1);
@@ -465,7 +470,7 @@ BEGIN
         VALUES (@bloco_id, '9.14', 'Os Ônibus possuem todos os DIPS e estes estão alinhados, e com ausência de quebra e/ou derretimento?', 'A', 14, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 9 AND nome = 'VEÍCULOS FRETADOS  - TRANSPORTE DE PESSOAS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '9.15', 'Outros*:', '', 15, 1);
+        VALUES (@bloco_id, '9.15', 'Outros*:', NULL, 15, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 10 AND nome = 'ESCADAS, RAMPAS E PASSARELAS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '10.1', 'A escada móvel está posicionada em local isento de risco de contato acidental com equipamentos e redes elétricas?', 'A', 1, 1);
@@ -495,7 +500,7 @@ BEGIN
         VALUES (@bloco_id, '10.9', 'As rampas são providas de peças transversais para apoio dos pés?', 'B', 9, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 10 AND nome = 'ESCADAS, RAMPAS E PASSARELAS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '10.10', 'Outros*:', '', 10, 1);
+        VALUES (@bloco_id, '10.10', 'Outros*:', NULL, 10, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 11 AND nome = 'ESCAVAÇÕES' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '11.1', 'Existe um Plano de Escavação com acompanhamento por profissional legalmente habilitado, quando aplicável? (Engenheiro Civel ou Geólogo com CREA)', 'A', 1, 1);
@@ -525,7 +530,7 @@ BEGIN
         VALUES (@bloco_id, '11.9', 'A escavação permite a saída e o resgate rápido de colaboradores?', 'B', 9, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 11 AND nome = 'ESCAVAÇÕES' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '11.10', 'Outros*:', '', 10, 1);
+        VALUES (@bloco_id, '11.10', 'Outros*:', NULL, 10, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 12 AND nome = 'ESPAÇO CONFINADO' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '12.1', 'Para atividades em atmosferas IPVS foi seguida a alçada de liberação da APR como catálogo de risco (Gerente e SESMT GERDAU)?', 'A', 1, 1);
@@ -561,7 +566,7 @@ BEGIN
         VALUES (@bloco_id, '12.11', 'Foi verificada a necessidade de implantar sistema de ventilação/exaustão?', 'A', 11, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 12 AND nome = 'ESPAÇO CONFINADO' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '12.12', 'Outros*:', '', 12, 1);
+        VALUES (@bloco_id, '12.12', 'Outros*:', NULL, 12, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 13 AND nome = 'TRABALHO A QUENTE' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '13.1', 'Para atividades de trabalho a quente em áreas classificadas (zona 0 e 1), em espaços confinados com risco de atmosfera explosiva, tanques e tubulações de gases combustíveis, inflamáveis e criogênicos, foi seguida a alçada de liberação da APR como catálogo de risco (Gerente e SESMT GERDAU)?', 'A', 1, 1);
@@ -597,7 +602,7 @@ BEGIN
         VALUES (@bloco_id, '13.11', 'Esta sendo utilizado barreira física (Biombos) onde a risco de projeção de partículas, acessos indevidos ou isolamento de riscos operacionais?', 'A', 11, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 13 AND nome = 'TRABALHO A QUENTE' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '13.12', 'Outros*:', '', 12, 1);
+        VALUES (@bloco_id, '13.12', 'Outros*:', NULL, 12, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 14 AND nome = 'PRODUTOS QUÍMICOS - MEIO AMBIENTE' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '14.1', 'As FISPQ/FDS estão disponíveis na frente de serviço/local de armazenamento e estocagem atualizadas conforme PGG-010-020, as pessoas envolvidas têm conhecimento registrado através de lista de divulgação e as recomendações estão sendo seguidas?', 'B', 1, 1);
@@ -627,7 +632,7 @@ BEGIN
         VALUES (@bloco_id, '14.9', 'Há KIT de Emergência Ambiental devidamente identificado e com os dispositivos de contenção?', 'B', 9, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 14 AND nome = 'PRODUTOS QUÍMICOS - MEIO AMBIENTE' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '14.10', 'Outros*:', '', 10, 1);
+        VALUES (@bloco_id, '14.10', 'Outros*:', NULL, 10, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 15 AND nome = 'TRABALHO EM ALTURA' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '15.1', 'Para os serviços em altura, acima de 2m, foi verificado a aplicabilidade de um plano de resgate para o cenário da tarefa?', 'A', 1, 1);
@@ -657,7 +662,7 @@ BEGIN
         VALUES (@bloco_id, '15.9', 'Em atividades sobre andaimes, o cinto de segurança está ancorado em tubos já montados e travados nas duas extremidades?', 'A', 9, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 15 AND nome = 'TRABALHO EM ALTURA' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '15.10', 'Outros*:', '', 10, 1);
+        VALUES (@bloco_id, '15.10', 'Outros*:', NULL, 10, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 16 AND nome = 'ALPINISMO' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '16.1', 'Para atividades que envolvam alpinismo foi emitido PT e foi seguida a alçada de liberação da APR como catálogo de risco (Gerente e SESMT GERDAU)?', 'A', 1, 1);
@@ -675,7 +680,7 @@ BEGIN
         VALUES (@bloco_id, '16.5', 'O dimensionamento dos dispositivos de deslocamento e ancoragem provisórios e permanentes estão instaladas e usadas de acordo com os procedimentos de segurança e conforme projeto elaborado por profissional habilitado?', 'A', 5, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 16 AND nome = 'ALPINISMO' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '16.6', 'Outros*:', '', 6, 1);
+        VALUES (@bloco_id, '16.6', 'Outros*:', NULL, 6, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 17 AND nome = 'TELHADOS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '17.1', 'Para atividades em telhados foi emitido PT e seguida a alçada de liberação da APR como catálogo de risco (Gerente e SESMT GERDAU)?', 'A', 1, 1);
@@ -732,7 +737,7 @@ BEGIN
         VALUES (@bloco_id, '17.18', 'O içamento de ferramentas será executado através de cordas e em recipientes adequados;', 'B', 18, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 17 AND nome = 'TELHADOS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '17.19', 'Outros*:', '', 19, 1);
+        VALUES (@bloco_id, '17.19', 'Outros*:', NULL, 19, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 18 AND nome = 'SERVIÇOS EM VIAS DE TRÂNSITO E TERRAPLANAGEM' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '18.1', 'Há Sinalização de trânsito adequada? Há sinaleiros para todos os equipamentos móveis e/ou frentes de serviços?', 'B', 1, 1);
@@ -756,7 +761,7 @@ BEGIN
         VALUES (@bloco_id, '18.7', 'Em locais com trânsito de equipamentos móveis e ferrovia, o vão livre está com altura de 5,5m e com sinalização adequada?', 'A', 7, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 18 AND nome = 'SERVIÇOS EM VIAS DE TRÂNSITO E TERRAPLANAGEM' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '18.8', 'Outros*:', '', 8, 1);
+        VALUES (@bloco_id, '18.8', 'Outros*:', NULL, 8, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 19 AND nome = 'BANHEIROS QUÍMICOS (OBRA/CONTRATOS CURTOS)' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '19.1', 'Há banheiros químicos para cada 20 colaboradores em atividade? Estão instalados em locais adequados e com cobertura?', 'B', 1, 1);
@@ -777,7 +782,7 @@ BEGIN
         VALUES (@bloco_id, '19.6', 'Sanitários químicos estão isolados, com  distância segura de áreas classificadas, tubulações de gás, selos pote, linha férrea, produtos químicos/combustíveis e área de manobra de veículos/equipamentos?', 'A', 6, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 19 AND nome = 'BANHEIROS QUÍMICOS (OBRA/CONTRATOS CURTOS)' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '19.7', 'Outros*:', '', 7, 1);
+        VALUES (@bloco_id, '19.7', 'Outros*:', NULL, 7, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 20 AND nome = 'EXPOSIÇÃO A GASES / BENZENO' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '20.1', 'Para as seguintes atividades: em linha de gás, onde não é possível instalação de raquetes / Atividades de corte/solda de tubulação em linha viva / Trepanação (Perfuração) em rede de gás / Atividades que necessitam de utilização de equipamento de respiração autônoma / Atividades com uso de equipamentos com uso de linha de ar respirável, foi seguida alçada de liberação da APR como catálogo de risco (Gerente e SESMT GERDAU) ?', 'A', 1, 1);
@@ -828,7 +833,7 @@ BEGIN
         VALUES (@bloco_id, '20.16', 'A máscara semifacial está limpa em seu interior, seus cartuchos estão em boas condições e dentro da validade (validade do cartucho para exposição esporádica 6 meses. Exposição diária validade 2 meses. Deve estar registrado no cartucho data de validade).', 'A', 16, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 20 AND nome = 'EXPOSIÇÃO A GASES / BENZENO' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '20.17', 'Outros:', '', 17, 1);
+        VALUES (@bloco_id, '20.17', 'Outros:', NULL, 17, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 21 AND nome = 'CANTEIROS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '21.1', 'O canteiro da contratada possui alvará?', 'A', 1, 1);
@@ -891,7 +896,7 @@ BEGIN
         VALUES (@bloco_id, '21.20', 'Os vestiários e banheiros atendem os dimensionamentos da NR-24?', 'B', 20, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 21 AND nome = 'CANTEIROS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '21.21', 'Outros:', '', 21, 1);
+        VALUES (@bloco_id, '21.21', 'Outros:', NULL, 21, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 22 AND nome = 'ATIVIDADE DE HIDROJATO' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '22.1', 'Para atividades com uso de equipamentos com alta pressão (Hidrojato) que não atendam a todos os requisitos do check list do procedimento para atividades com hidrojato, foi seguida alçada de liberação da APR como catálogo de risco ( Gerente e SESMT GERDAU) ?', 'A', 1, 1);
@@ -924,7 +929,7 @@ BEGIN
         VALUES (@bloco_id, '22.10', 'Foi realizado o pré uso para  máquina de alta pressão (lavadoras) e este foi preenchido corretamente?', 'B', 10, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 22 AND nome = 'ATIVIDADE DE HIDROJATO' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '22.11', 'Outros*:', '', 11, 1);
+        VALUES (@bloco_id, '22.11', 'Outros*:', NULL, 11, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 23 AND nome = 'NR 13 - CALDEIRA E VASOS DE PRESSÃO' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '23.1', 'O recipiente pressurizado possui placa de identificação com código de projeto, ano de fabricação, fabricante, pressão máxima de trabalho admissível (PMTA), pressão de teste hidrostático e categoria do vaso?', 'A', 1, 1);
@@ -939,7 +944,7 @@ BEGIN
         VALUES (@bloco_id, '23.4', 'As válvulas de segurança do recipiente pressurizado estão instaladas em boas condições, com lacre preservado, identificadas e calibradas conforme certificado de calibração correspondente?', 'A', 4, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 23 AND nome = 'NR 13 - CALDEIRA E VASOS DE PRESSÃO' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '23.5', 'Outros*:', '', 5, 1);
+        VALUES (@bloco_id, '23.5', 'Outros*:', NULL, 5, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 24 AND nome = 'EMERGÊNCIAS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '24.1', 'O extintor está lacrado, com carga completa e pressurizado (manômetro na zona verde)? A data de validade está atualizada? Há algum dano físico no extintor, como amassados ou cortes na mangueira? Existe a ficha de inspeção com registros mensais?', 'B', 1, 1);
@@ -948,7 +953,7 @@ BEGIN
         VALUES (@bloco_id, '24.2', 'Os colaboradores conhecem o ponto de encontro para emergências mais próximo ao local da atividade?', 'B', 2, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 24 AND nome = 'EMERGÊNCIAS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '24.3', 'Outros*:', '', 3, 1);
+        VALUES (@bloco_id, '24.3', 'Outros*:', NULL, 3, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 25 AND nome = 'COMPORTAMENTO' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '25.1', 'Colaborador tem olhos na atividade, sem pressa, com equilíbrio, tração e firmeza, manteve posição ao ser observado e adequada a execução da atividade?', 'B', 1, 1);
@@ -990,7 +995,7 @@ BEGIN
         VALUES (@bloco_id, '25.13', 'Foi aberta Recusa Tarefa para condições físicas ou sistêmicas na àrea de atuação/atendimento passivas de serm identificadas e paralizada a execução?', 'A', 13, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 25 AND nome = 'COMPORTAMENTO' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '25.14', 'Outros*:', '', 14, 1);
+        VALUES (@bloco_id, '25.14', 'Outros*:', NULL, 14, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 26 AND nome = 'MÃOS SEGURAS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '26.1', 'O executante conhece o programa mãos seguras e sabe o objetivo do mesmo?', 'B', 1, 1);
@@ -1014,7 +1019,7 @@ BEGIN
         VALUES (@bloco_id, '26.7', 'Os dispositivos utilizados nas tarefas, são bem dimencionados de forma não permitir sua exposição ao risco.', 'A', 7, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 26 AND nome = 'MÃOS SEGURAS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '26.8', 'Outros:', '', 8, 1);
+        VALUES (@bloco_id, '26.8', 'Outros:', NULL, 8, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 27 AND nome = 'BOAS PRÁTICAS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '27.1', 'As boas práticas criadas pela parceira, estão disponíveis em todas as frentes de serviço que se aplicam, e essas foram e descritas nos controles sistêmicos das atividades?', 'A', 1, 1);
@@ -1023,7 +1028,7 @@ BEGIN
         VALUES (@bloco_id, '27.2', 'Os colaboradores da parceira, reconhecem as boas práticas implementadas e estão treinados na implantação das mesmas como controles de segurança, nas atvidades que se aplicam?', 'C', 2, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 27 AND nome = 'BOAS PRÁTICAS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
-        VALUES (@bloco_id, '27.3', 'Outros:', '', 3, 1);
+        VALUES (@bloco_id, '27.3', 'Outros:', NULL, 3, 1);
         SELECT id INTO @bloco_id FROM ifs_blocos WHERE ativo = 1 AND ordem = 28 AND nome = 'IFS' ORDER BY id DESC LIMIT 1;
         INSERT INTO ifs_itens (bloco_id, codigo, descricao, potencial, ordem, ativo)
         VALUES (@bloco_id, '28.1', 'Foi elaborado e enviado para a Gestão de Terceiros, o plano de ação das últimas três IFS realizadas? Está sendo cumprido o prazo de 07 dias úteis para envio do plano de ação.', 'B', 1, 1);
