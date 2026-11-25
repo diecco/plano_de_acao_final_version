@@ -668,14 +668,16 @@ function atualizarResumoIFS() {
             avaliados += 1;
 
             if (resultado === 'S') {
-                conformes += 1;
-                denominadorPonderado += 1;
+                if (potencial) {
+                    conformes += 1;
+                    denominadorPonderado += 1;
+                }
             }
 
             if (resultado === 'N') {
                 nc += 1;
 
-                const peso = potencial === 'A' ? 2 : (potencial === 'C' ? 0.5 : 1);
+                const peso = potencial === 'A' ? 2 : (potencial === 'C' ? 0.5 : (potencial === 'B' ? 1 : 0));
                 denominadorPonderado += peso;
 
                 ncPorBloco[blocoId] += 1;

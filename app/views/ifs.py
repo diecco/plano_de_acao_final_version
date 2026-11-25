@@ -1148,27 +1148,50 @@ def register_ifs_routes(blueprint):
         # =========================================================
 
         cursor.execute("""
-            SELECT id, nome
-            FROM ifs_blocos
-            WHERE ativo = 1
-            ORDER BY ordem
-        """)
-        blocos = cursor.fetchall()
-
-        cursor.execute("""
-            SELECT id, bloco_id, codigo, descricao, potencial
-            FROM ifs_itens
-            WHERE ativo = 1
-            ORDER BY bloco_id, ordem
-        """)
-        itens = cursor.fetchall()
-
-        cursor.execute("""
             SELECT item_id, resultado
             FROM ifs_respostas
             WHERE inspecao_id = %s
         """, (id,))
         respostas_lista = cursor.fetchall()
+
+        if respostas_lista:
+            # Uma inspeção já respondida continua vinculada à revisão do
+            # catálogo usada no lançamento, mesmo após uma nova revisão.
+            cursor.execute("""
+                SELECT DISTINCT b.id, b.nome, b.ordem
+                FROM ifs_blocos b
+                JOIN ifs_itens i ON i.bloco_id = b.id
+                JOIN ifs_respostas r ON r.item_id = i.id
+                WHERE r.inspecao_id = %s
+                ORDER BY b.ordem, b.id
+            """, (id,))
+            blocos = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT DISTINCT i.id, i.bloco_id, i.codigo,
+                                i.descricao, i.potencial, i.ordem
+                FROM ifs_itens i
+                JOIN ifs_respostas r ON r.item_id = i.id
+                WHERE r.inspecao_id = %s
+                ORDER BY i.bloco_id, i.ordem, i.id
+            """, (id,))
+            itens = cursor.fetchall()
+        else:
+            cursor.execute("""
+                SELECT id, nome
+                FROM ifs_blocos
+                WHERE ativo = 1
+                ORDER BY ordem, id
+            """)
+            blocos = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT id, bloco_id, codigo, descricao, potencial
+                FROM ifs_itens
+                WHERE ativo = 1
+                ORDER BY bloco_id, ordem, id
+            """)
+            itens = cursor.fetchall()
 
         respostas_por_item = {
             str(r['item_id']): r['resultado'] for r in respostas_lista

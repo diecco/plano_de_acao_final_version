@@ -12,7 +12,7 @@ ORIGEM_IFS_CLIENTE = "IFS do Cliente"
 
 def _peso_nao_conformidade(potencial):
     """Pesos definidos pelo formulario IFS Rev. 13 (abril/2026)."""
-    return {"A": 2, "B": 1, "C": 0.5}.get(potencial, 1)
+    return {"A": 2, "B": 1, "C": 0.5}.get(potencial, 0)
 
 
 def _carregar_catalogo(cursor):
@@ -169,7 +169,11 @@ def register_ifs_cliente_routes(blueprint):
                     if not desvio.get("acoes"):
                         raise ValueError(f"Cadastre pelo menos uma ação para o item {item['codigo']}.")
 
-            conformes = sum(1 for _, r in respostas_limpas if r == "S")
+            conformes = sum(
+                1
+                for item, resultado in respostas_limpas
+                if resultado == "S" and item["potencial"] in {"A", "B", "C"}
+            )
             nao_conformes = [(item, r) for item, r in respostas_limpas if r == "N"]
             denominador = conformes + sum(
                 _peso_nao_conformidade(item["potencial"])

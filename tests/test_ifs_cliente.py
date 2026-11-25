@@ -20,9 +20,27 @@ class IfsClienteTests(unittest.TestCase):
         )
 
         self.assertIn('"C": 0.5', view)
-        self.assertIn("s.dataset.potencial==='C'?0.5:1", cliente)
+        self.assertIn("p==='C'?0.5:(p==='B'?1:0)", cliente)
         self.assertIn('potencial === "C"', lancar)
-        self.assertIn("potencial === 'C' ? 0.5 : 1", editar)
+        self.assertIn("potencial === 'C' ? 0.5 : (potencial === 'B' ? 1 : 0)", editar)
+
+    def test_migracao_rev13_substitui_catalogo_sem_apagar_historico(self):
+        migration = (
+            ROOT / "docs" / "atualizar_catalogo_ifs_rev13.sql"
+        ).read_text(encoding="utf-8")
+
+        self.assertEqual(migration.count("INSERT INTO ifs_blocos ("), 28)
+        self.assertEqual(migration.count("INSERT INTO ifs_itens ("), 328)
+        self.assertIn("UPDATE ifs_itens SET ativo = 0", migration)
+        self.assertIn("UPDATE ifs_blocos SET ativo = 0", migration)
+        self.assertNotIn("DELETE FROM ifs_", migration)
+        self.assertIn("'REV13-2026-04'", migration)
+
+        ifs_view = (ROOT / "app" / "views" / "ifs.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("if respostas_lista:", ifs_view)
+        self.assertIn("JOIN ifs_respostas r ON r.item_id = i.id", ifs_view)
 
     def test_catalogo_comportamento_e_alinhado_ao_formulario_cliente(self):
         migration = (
