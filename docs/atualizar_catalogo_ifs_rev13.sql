@@ -14,8 +14,10 @@ CREATE PROCEDURE aplicar_catalogo_ifs_rev13()
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM ifs_catalogo_versoes WHERE versao = 'REV13-2026-04') THEN
         START TRANSACTION;
-        UPDATE ifs_itens SET ativo = 0 WHERE ativo = 1;
-        UPDATE ifs_blocos SET ativo = 0 WHERE ativo = 1;
+        -- O predicado usa a chave primaria para funcionar também com
+        -- SQL_SAFE_UPDATES habilitado no MySQL Workbench.
+        UPDATE ifs_itens SET ativo = 0 WHERE id > 0 AND ativo = 1;
+        UPDATE ifs_blocos SET ativo = 0 WHERE id > 0 AND ativo = 1;
 
         INSERT INTO ifs_blocos (nome, ordem, ativo) VALUES ('CONTROLE SISTÊMICO (PROCEDIMENTO/APR/PT)', 1, 1);
         INSERT INTO ifs_blocos (nome, ordem, ativo) VALUES ('REQUISITOS GERAIS', 2, 1);

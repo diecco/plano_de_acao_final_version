@@ -31,8 +31,14 @@ class IfsClienteTests(unittest.TestCase):
 
         self.assertEqual(migration.count("INSERT INTO ifs_blocos ("), 28)
         self.assertEqual(migration.count("INSERT INTO ifs_itens ("), 328)
-        self.assertIn("UPDATE ifs_itens SET ativo = 0", migration)
-        self.assertIn("UPDATE ifs_blocos SET ativo = 0", migration)
+        self.assertIn(
+            "UPDATE ifs_itens SET ativo = 0 WHERE id > 0 AND ativo = 1",
+            migration,
+        )
+        self.assertIn(
+            "UPDATE ifs_blocos SET ativo = 0 WHERE id > 0 AND ativo = 1",
+            migration,
+        )
         self.assertNotIn("DELETE FROM ifs_", migration)
         self.assertIn("'REV13-2026-04'", migration)
 
