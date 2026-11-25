@@ -153,7 +153,9 @@ class IfsClienteTests(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn("cabecalho_ordenavel", template)
+        self.assertIn("botoes_ordenacao", template)
+        self.assertIn('class="btn-group btn-group-sm"', template)
+        self.assertNotIn("flex-column", template)
         self.assertIn("bi-caret-up-fill", template)
         self.assertIn("bi-caret-down-fill", template)
         for campo in (

@@ -1,8 +1,11 @@
 {% extends "layout.html" %}
 {% block titulo %}IFS do Cliente{% endblock %}
 {% block conteudo %}
-{% macro cabecalho_ordenavel(rotulo, campo, centralizado=false) %}
-<th class="{% if centralizado %}text-center{% endif %}"><div class="d-flex align-items-center {% if centralizado %}justify-content-center{% else %}justify-content-between{% endif %} gap-2"><span>{{ rotulo }}</span><span class="d-inline-flex flex-column lh-1"><a class="btn btn-link p-0 {{ 'text-laranja' if filtros.sort==campo and filtros.order=='asc' else 'text-muted' }}" href="{{ url_for('main.listar_ifs_cliente', periodo=filtros.periodo, data_inicio=filtros.data_inicio, data_fim=filtros.data_fim, status=filtros.status, sort=campo, order='asc') }}" title="Ordenar {{ rotulo|lower }} em ordem crescente"><i class="bi bi-caret-up-fill"></i></a><a class="btn btn-link p-0 {{ 'text-laranja' if filtros.sort==campo and filtros.order=='desc' else 'text-muted' }}" href="{{ url_for('main.listar_ifs_cliente', periodo=filtros.periodo, data_inicio=filtros.data_inicio, data_fim=filtros.data_fim, status=filtros.status, sort=campo, order='desc') }}" title="Ordenar {{ rotulo|lower }} em ordem decrescente"><i class="bi bi-caret-down-fill"></i></a></span></div></th>
+{% macro botoes_ordenacao(campo) %}
+<span class="btn-group btn-group-sm">
+  <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar crescente" href="{{ url_for('main.listar_ifs_cliente', periodo=filtros.periodo, data_inicio=filtros.data_inicio, data_fim=filtros.data_fim, status=filtros.status, sort=campo, order='asc') }}"><i class="bi bi-caret-up-fill"></i></a>
+  <a class="btn btn-link p-0 px-1 text-muted" title="Ordenar decrescente" href="{{ url_for('main.listar_ifs_cliente', periodo=filtros.periodo, data_inicio=filtros.data_inicio, data_fim=filtros.data_fim, status=filtros.status, sort=campo, order='desc') }}"><i class="bi bi-caret-down-fill"></i></a>
+</span>
 {% endmacro %}
 <div class="page-header"><h2 class="page-title"><i class="bi bi-building-check me-2"></i>IFS do Cliente</h2></div>
 <hr>
@@ -26,7 +29,15 @@
 </div>
 
 <div class="card shadow-sm border-0"><div class="card-body"><div class="table-responsive">
-<table class="table table-bordered align-middle mb-0"><thead class="table-light"><tr>{{ cabecalho_ordenavel('Data', 'data_inspecao', true) }}{{ cabecalho_ordenavel('Referência', 'referencia_cliente') }}{{ cabecalho_ordenavel('Atividade / OS', 'descricao_atividade_os') }}{{ cabecalho_ordenavel('Nota', 'percentual', true) }}{{ cabecalho_ordenavel('NC', 'total_nao_conformidades', true) }}{{ cabecalho_ordenavel('Ações', 'total_acoes', true) }}{{ cabecalho_ordenavel('Situação', 'status', true) }}<th class="text-center">Detalhes</th></tr></thead><tbody>
+<table class="table table-bordered align-middle mb-0"><thead class="table-light"><tr>
+<th><div class="d-flex justify-content-between align-items-center"><span class="th-label">Data</span>{{ botoes_ordenacao('data_inspecao') }}</div></th>
+<th><div class="d-flex justify-content-between align-items-center"><span class="th-label">Referência</span>{{ botoes_ordenacao('referencia_cliente') }}</div></th>
+<th><div class="d-flex justify-content-between align-items-center"><span class="th-label">Atividade / OS</span>{{ botoes_ordenacao('descricao_atividade_os') }}</div></th>
+<th><div class="d-flex justify-content-between align-items-center"><span class="th-label">Nota</span>{{ botoes_ordenacao('percentual') }}</div></th>
+<th><div class="d-flex justify-content-between align-items-center"><span class="th-label">NC</span>{{ botoes_ordenacao('total_nao_conformidades') }}</div></th>
+<th><div class="d-flex justify-content-between align-items-center"><span class="th-label">Ações</span>{{ botoes_ordenacao('total_acoes') }}</div></th>
+<th><div class="d-flex justify-content-between align-items-center"><span class="th-label">Situação</span>{{ botoes_ordenacao('status') }}</div></th>
+<th class="text-center">Detalhes</th></tr></thead><tbody>
 {% for ifs in inspecoes %}<tr>
 <td class="text-center">{{ ifs.data_inspecao.strftime('%d/%m/%Y') if ifs.data_inspecao else '-' }}</td>
 <td>{{ ifs.referencia_cliente or '-' }}</td><td>{{ ifs.descricao_atividade_os or '-' }}</td>
