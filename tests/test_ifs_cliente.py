@@ -5,6 +5,17 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class IfsClienteTests(unittest.TestCase):
+    def test_catalogo_comportamento_e_alinhado_ao_formulario_cliente(self):
+        migration = (
+            ROOT / "docs" / "alinhar_itens_comportamento_ifs.sql"
+        ).read_text(encoding="utf-8")
+
+        for numero in range(1, 15):
+            self.assertIn(f"'25.{numero}'", migration)
+        self.assertIn("SET ativo = 0", migration)
+        self.assertIn("codigo NOT IN", migration)
+        self.assertIn("COUNT(*) AS total_itens_ativos", migration)
+
     def test_rotas_exigem_gestor_ssma(self):
         source = (ROOT / "app" / "views" / "ifs_cliente.py").read_text(encoding="utf-8")
         self.assertEqual(source.count("@gestor_ssma_required"), 4)
