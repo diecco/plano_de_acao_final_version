@@ -17,7 +17,7 @@
     <div class="col-md-2 periodo-personalizado"><label class="form-label">Data inicial</label><input type="date" name="data_inicio" class="form-control" value="{{ filtros.data_inicio }}"></div>
     <div class="col-md-2 periodo-personalizado"><label class="form-label">Data final</label><input type="date" name="data_fim" class="form-control" value="{{ filtros.data_fim }}"></div>
     <div class="col-md-3"><label class="form-label">Situação</label><select name="status" class="form-select"><option value="">Todas</option>{% for valor,rotulo in [('sem_desvios','Sem desvios'),('em_tratamento','Em tratamento'),('pronta_devolutiva','Pronta para devolutiva'),('encerrada','Encerrada')] %}<option value="{{ valor }}" {% if filtros.status==valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}</select></div>
-    <div class="col-md-2"><div class="d-flex justify-content-end gap-2"><button class="btn btn-laranja" title="Filtrar"><i class="bi bi-funnel"></i></button><a class="btn btn-cinza" href="{{ url_for('main.listar_ifs_cliente') }}" title="Limpar"><i class="bi bi-arrow-clockwise"></i></a><a class="btn btn-laranja" href="{{ url_for('main.nova_ifs_cliente') }}" title="Nova IFS do Cliente"><i class="bi bi-plus-circle"></i></a></div></div>
+    <div class="col-md-2 ms-md-auto"><div class="d-flex justify-content-end gap-2"><button class="btn btn-laranja" title="Filtrar"><i class="bi bi-funnel"></i></button><a class="btn btn-cinza" href="{{ url_for('main.listar_ifs_cliente') }}" title="Limpar"><i class="bi bi-arrow-clockwise"></i></a><a class="btn btn-laranja" href="{{ url_for('main.nova_ifs_cliente') }}" title="Nova IFS do Cliente"><i class="bi bi-plus-circle"></i></a></div></div>
   </form>
 </div></div>
 

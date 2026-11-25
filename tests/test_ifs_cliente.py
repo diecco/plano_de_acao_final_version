@@ -166,6 +166,7 @@ class IfsClienteTests(unittest.TestCase):
             self.assertIn(f"'{campo}'", template)
         self.assertIn("if filtros[\"sort\"] not in colunas_ordenacao", view)
         self.assertIn("if filtros[\"order\"] not in {\"asc\", \"desc\"}", view)
+        self.assertIn('class="col-md-2 ms-md-auto"', template)
 
 
 if __name__ == "__main__":
