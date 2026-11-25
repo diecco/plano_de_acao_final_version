@@ -37,6 +37,10 @@ class IfsClienteTests(unittest.TestCase):
         )
         self.assertNotIn("CONTROLE SISTÊMICO (PROCEDIMENTO/APR/PT)", migration)
         self.assertIn(
+            "AND ordem = 1\n  AND nome <> 'CONDIÇÃO FÍSICA'",
+            migration,
+        )
+        self.assertIn(
             "UPDATE ifs_itens SET ativo = 0 WHERE id > 0 AND ativo = 1",
             migration,
         )

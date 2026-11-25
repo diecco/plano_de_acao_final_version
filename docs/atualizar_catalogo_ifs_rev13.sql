@@ -1046,6 +1046,16 @@ BEGIN
 END$$
 DELIMITER ;
 CALL aplicar_catalogo_ifs_rev13();
+
+-- Correções editoriais devem ser reaplicáveis mesmo quando a versão do
+-- catálogo já estiver registrada.
+UPDATE ifs_blocos
+SET nome = 'CONDIÇÃO FÍSICA'
+WHERE id > 0
+  AND ativo = 1
+  AND ordem = 1
+  AND nome <> 'CONDIÇÃO FÍSICA';
+
 DROP PROCEDURE IF EXISTS aplicar_catalogo_ifs_rev13;
 
 SELECT COUNT(*) AS blocos_ativos FROM ifs_blocos WHERE ativo = 1;
