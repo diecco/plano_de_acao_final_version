@@ -22,6 +22,8 @@ class IfsClienteTests(unittest.TestCase):
         migration = (ROOT / "docs" / "criar_ifs_cliente.sql").read_text(encoding="utf-8")
         self.assertIn('<option value="NA" selected>NA</option>', template)
         self.assertIn("adicionarAcao", template)
+        self.assertIn("if(s.value==='N')abrirTratativa(s)", template)
+        self.assertNotIn("const modal=bootstrap", template)
         self.assertIn("ifs_cliente_desvio_acoes", migration)
 
 
