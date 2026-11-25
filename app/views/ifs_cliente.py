@@ -391,6 +391,109 @@ def register_ifs_cliente_routes(blueprint):
             cursor.close()
             conn.close()
 
+    @blueprint.route("/gestao_ssma/ifs_cliente/<int:id>/editar", methods=["GET", "POST"])
+    @login_required
+    @gestor_ssma_required
+    def editar_ifs_cliente(id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            where_escopo = "" if session.get("perfil") == "administrador" else " AND centro_custos_id = %s"
+            params = [id]
+            if where_escopo:
+                params.append(session.get("centro_custos_id"))
+            cursor.execute(
+                f"SELECT * FROM ifs_cliente_inspecoes WHERE id=%s AND ativo=1 {where_escopo}",
+                tuple(params),
+            )
+            inspecao = cursor.fetchone()
+            if not inspecao:
+                flash("IFS do Cliente não encontrada no seu escopo.", "warning")
+                return redirect(url_for("main.listar_ifs_cliente"))
+
+            if request.method == "GET":
+                return render_template("editar_ifs_cliente.html", inspecao=inspecao)
+
+            data_inspecao = (request.form.get("data_inspecao") or "").strip()
+            if not data_inspecao:
+                raise ValueError("Informe a data da inspeção realizada pelo cliente.")
+            cursor.execute("""
+                UPDATE ifs_cliente_inspecoes
+                SET data_inspecao=%s, hora_inspecao=%s, referencia_cliente=%s,
+                    local_inspecao=%s, gerencia=%s, administrador_contrato=%s,
+                    contratada=%s, profissional_sesmt_contratada_lideranca=%s,
+                    sesmt_gerdau_fiscalizadora=%s, participantes=%s,
+                    descricao_atividade_os=%s
+                WHERE id=%s
+            """, (
+                data_inspecao,
+                request.form.get("hora_inspecao") or None,
+                (request.form.get("referencia_cliente") or "").strip() or None,
+                (request.form.get("local_inspecao") or "").strip() or None,
+                (request.form.get("gerencia") or "").strip() or None,
+                (request.form.get("administrador_contrato") or "").strip() or None,
+                (request.form.get("contratada") or "").strip() or None,
+                (request.form.get("profissional_sesmt_contratada_lideranca") or "").strip() or None,
+                (request.form.get("sesmt_gerdau_fiscalizadora") or "").strip() or None,
+                (request.form.get("participantes") or "").strip() or None,
+                (request.form.get("descricao_atividade_os") or "").strip() or None,
+                id,
+            ))
+            cursor.execute("""
+                INSERT INTO ifs_cliente_historico (inspecao_id,usuario_id,evento,descricao)
+                VALUES (%s,%s,'edicao','Dados de identificação da IFS do Cliente atualizados.')
+            """, (id, session.get("usuario_id")))
+            conn.commit()
+            flash("IFS do Cliente atualizada com sucesso.", "success")
+            return redirect(url_for("main.detalhar_ifs_cliente", id=id))
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), "warning")
+            return redirect(url_for("main.editar_ifs_cliente", id=id))
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+
+    @blueprint.route("/gestao_ssma/ifs_cliente/<int:id>/excluir", methods=["POST"])
+    @login_required
+    @gestor_ssma_required
+    def excluir_ifs_cliente(id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            where_escopo = "" if session.get("perfil") == "administrador" else " AND centro_custos_id = %s"
+            params = [id]
+            if where_escopo:
+                params.append(session.get("centro_custos_id"))
+            cursor.execute(
+                f"SELECT id FROM ifs_cliente_inspecoes WHERE id=%s AND ativo=1 {where_escopo}",
+                tuple(params),
+            )
+            if not cursor.fetchone():
+                flash("IFS do Cliente não encontrada no seu escopo.", "warning")
+                return redirect(url_for("main.listar_ifs_cliente"))
+            cursor.execute("""
+                INSERT INTO ifs_cliente_historico (inspecao_id,usuario_id,evento,descricao)
+                VALUES (%s,%s,'exclusao','IFS do Cliente removida logicamente da listagem.')
+            """, (id, session.get("usuario_id")))
+            cursor.execute("""
+                UPDATE ifs_cliente_inspecoes
+                SET ativo=0, atualizado_em=CURRENT_TIMESTAMP
+                WHERE id=%s
+            """, (id,))
+            conn.commit()
+            flash("IFS do Cliente excluída da listagem. O histórico foi preservado.", "success")
+            return redirect(url_for("main.listar_ifs_cliente"))
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+
     @blueprint.route("/gestao_ssma/ifs_cliente/<int:id>/encerrar", methods=["POST"])
     @login_required
     @gestor_ssma_required

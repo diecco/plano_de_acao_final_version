@@ -200,6 +200,8 @@
                 'main.listar_ifs_cliente',
                 'main.nova_ifs_cliente',
                 'main.detalhar_ifs_cliente',
+                'main.editar_ifs_cliente',
+                'main.excluir_ifs_cliente',
                 'main.encerrar_ifs_cliente'
             ] %}
             <section class="sidebar-module"
@@ -243,7 +245,7 @@
                         </a>
                         {% if is_admin or session.get('gestor_ssma') %}
                             <a href="{{ url_for('main.listar_ifs_cliente') }}"
-                               class="sidebar-link {% if request.endpoint in ['main.listar_ifs_cliente', 'main.nova_ifs_cliente', 'main.detalhar_ifs_cliente', 'main.encerrar_ifs_cliente'] %}active{% endif %}">
+                               class="sidebar-link {% if request.endpoint in ['main.listar_ifs_cliente', 'main.nova_ifs_cliente', 'main.detalhar_ifs_cliente', 'main.editar_ifs_cliente', 'main.excluir_ifs_cliente', 'main.encerrar_ifs_cliente'] %}active{% endif %}">
                                 <i class="bi bi-building-check"></i><span>IFS do Cliente</span>
                             </a>
                         {% endif %}

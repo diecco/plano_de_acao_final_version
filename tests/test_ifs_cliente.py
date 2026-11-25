@@ -76,7 +76,7 @@ class IfsClienteTests(unittest.TestCase):
 
     def test_rotas_exigem_gestor_ssma(self):
         source = (ROOT / "app" / "views" / "ifs_cliente.py").read_text(encoding="utf-8")
-        self.assertEqual(source.count("@gestor_ssma_required"), 4)
+        self.assertEqual(source.count("@gestor_ssma_required"), 6)
         self.assertIn('ORIGEM_IFS_CLIENTE = "IFS do Cliente"', source)
 
     def test_sidebar_fica_em_gestao_ssma(self):
@@ -167,6 +167,29 @@ class IfsClienteTests(unittest.TestCase):
         self.assertIn("if filtros[\"sort\"] not in colunas_ordenacao", view)
         self.assertIn("if filtros[\"order\"] not in {\"asc\", \"desc\"}", view)
         self.assertIn('class="col-md-2 ms-md-auto"', template)
+
+    def test_listagem_oferece_edicao_e_exclusao_logica(self):
+        template = (
+            ROOT / "app" / "templates" / "listar_ifs_cliente.html"
+        ).read_text(encoding="utf-8")
+        editar = (
+            ROOT / "app" / "templates" / "editar_ifs_cliente.html"
+        ).read_text(encoding="utf-8")
+        view = (ROOT / "app" / "views" / "ifs_cliente.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("Plano de ação", template)
+        self.assertIn("main.editar_ifs_cliente", template)
+        self.assertIn("main.excluir_ifs_cliente", template)
+        self.assertIn("bi-pencil-square", template)
+        self.assertIn("bi-trash", template)
+        self.assertIn("data-confirmacao-observacao", template)
+        self.assertIn("def editar_ifs_cliente", view)
+        self.assertIn("def excluir_ifs_cliente", view)
+        self.assertIn("SET ativo=0, atualizado_em=CURRENT_TIMESTAMP", view)
+        self.assertIn("'exclusao'", view)
+        self.assertIn("Respostas, nota, desvios e planos de ação permanecem preservados", editar)
 
 
 if __name__ == "__main__":
