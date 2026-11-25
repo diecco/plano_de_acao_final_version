@@ -118,6 +118,8 @@ def register_ifs_cliente_routes(blueprint):
             filtros = {
                 "periodo": (request.args.get("periodo") or "mes_atual").strip(),
                 "status": (request.args.get("status") or "").strip(),
+                "sort": (request.args.get("sort") or "data_inspecao").strip(),
+                "order": (request.args.get("order") or "desc").strip().lower(),
             }
             if filtros["periodo"] not in {"mes_atual", "mes_anterior", "mes_proximo", "personalizado"}:
                 filtros["periodo"] = "mes_atual"
@@ -126,6 +128,19 @@ def register_ifs_cliente_routes(blueprint):
                 (request.args.get("data_inicio") or "").strip(),
                 (request.args.get("data_fim") or "").strip(),
             )
+            colunas_ordenacao = {
+                "data_inspecao": "i.data_inspecao",
+                "referencia_cliente": "i.referencia_cliente",
+                "descricao_atividade_os": "i.descricao_atividade_os",
+                "percentual": "i.percentual",
+                "total_nao_conformidades": "i.total_nao_conformidades",
+                "total_acoes": "total_acoes",
+                "status": "i.status",
+            }
+            if filtros["sort"] not in colunas_ordenacao:
+                filtros["sort"] = "data_inspecao"
+            if filtros["order"] not in {"asc", "desc"}:
+                filtros["order"] = "desc"
             where = ["i.ativo = 1"]
             params = []
             if session.get("perfil") != "administrador":
@@ -151,7 +166,7 @@ def register_ifs_cliente_routes(blueprint):
                 LEFT JOIN acoes a ON a.id = da.acao_id AND a.ativo = 1
                 WHERE {' AND '.join(where)}
                 GROUP BY i.id, u.nome
-                ORDER BY i.data_inspecao DESC, i.id DESC
+                ORDER BY {colunas_ordenacao[filtros['sort']]} {filtros['order'].upper()}, i.id DESC
             """, tuple(params))
             inspecoes = cursor.fetchall()
             indicadores = {

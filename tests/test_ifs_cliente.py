@@ -145,6 +145,26 @@ class IfsClienteTests(unittest.TestCase):
         self.assertIn("SET nome = 'IFS do Cliente'", migration)
         self.assertIn("descricao = 'IFS do Cliente'", migration)
 
+    def test_listagem_tem_ordenacao_segura_no_cabecalho(self):
+        template = (
+            ROOT / "app" / "templates" / "listar_ifs_cliente.html"
+        ).read_text(encoding="utf-8")
+        view = (ROOT / "app" / "views" / "ifs_cliente.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("cabecalho_ordenavel", template)
+        self.assertIn("bi-caret-up-fill", template)
+        self.assertIn("bi-caret-down-fill", template)
+        for campo in (
+            "data_inspecao", "referencia_cliente", "descricao_atividade_os",
+            "percentual", "total_nao_conformidades", "total_acoes", "status",
+        ):
+            self.assertIn(f'"{campo}":', view)
+            self.assertIn(f"'{campo}'", template)
+        self.assertIn("if filtros[\"sort\"] not in colunas_ordenacao", view)
+        self.assertIn("if filtros[\"order\"] not in {\"asc\", \"desc\"}", view)
+
 
 if __name__ == "__main__":
     unittest.main()
