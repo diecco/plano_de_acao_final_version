@@ -3,6 +3,7 @@ from flask import Blueprint, flash, jsonify, redirect, request, url_for
 main_routes = Blueprint('main', __name__)
 
 from app.views.agenda_ssma import register_agenda_ssma_routes
+from app.views.api_bi import register_api_bi_routes
 from app.views.apr import register_apr_routes
 from app.views.auditoria_padrao import register_auditoria_padrao_routes
 from app.views.autenticacao import register_autenticacao_routes
@@ -50,6 +51,7 @@ from app.views.treinamentos import register_treinamentos_routes
 from app.views.usuarios import register_usuarios_routes
 
 register_agenda_ssma_routes(main_routes)
+register_api_bi_routes(main_routes)
 register_apr_routes(main_routes)
 register_auditoria_padrao_routes(main_routes)
 register_autenticacao_routes(main_routes)
