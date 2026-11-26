@@ -51,6 +51,11 @@ class ApiBiStructureTests(unittest.TestCase):
         self.assertIn("Web.Contents", self.docs)
         self.assertIn("Não salve o segredo", self.docs)
 
+    def test_serializa_time_do_mysql_como_horario(self):
+        self.assertIn("isinstance(valor, timedelta)", self.view)
+        self.assertIn("valor.total_seconds()", self.view)
+        self.assertIn('f"{sinal}{horas:02d}:{minutos:02d}:{segundos:02d}"', self.view)
+
 
 if __name__ == "__main__":
     unittest.main()

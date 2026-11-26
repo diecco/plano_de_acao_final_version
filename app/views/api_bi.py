@@ -2,7 +2,7 @@ import hmac
 import logging
 import os
 import base64
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from functools import wraps
 
@@ -146,6 +146,13 @@ def _filtros_comuns(campo_data, campo_cc, campo_atualizacao=None):
 def _serializar(valor):
     if isinstance(valor, (datetime, date, time)):
         return valor.isoformat()
+    if isinstance(valor, timedelta):
+        segundos_totais = int(valor.total_seconds())
+        sinal = "-" if segundos_totais < 0 else ""
+        segundos_totais = abs(segundos_totais)
+        horas, restante = divmod(segundos_totais, 3600)
+        minutos, segundos = divmod(restante, 60)
+        return f"{sinal}{horas:02d}:{minutos:02d}:{segundos:02d}"
     if isinstance(valor, Decimal):
         return float(valor)
     return valor
