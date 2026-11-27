@@ -31,11 +31,18 @@ configuração recomendada para o modelo publicado.
 - `GET /api/bi/v1`
 - `GET /api/bi/v1/ocorrencias`
 - `GET /api/bi/v1/observacoes-comportamentais`
+- `GET /api/bi/v1/observacoes-comportamentais-itens`
 - `GET /api/bi/v1/auditorias-padrao`
 - `GET /api/bi/v1/ifs`
 
 O recurso `ifs` possui o campo `origem_ifs`, com os valores `IFS Tradimaq` e
 `IFS do Cliente`.
+
+O recurso `observacoes-comportamentais-itens` retorna uma linha para cada
+comportamento crítico identificado. Relacione `registro_id` ao campo `id` de
+`observacoes-comportamentais`. Os campos `categoria_nome`, `item_descricao`,
+`descricao_estratificacao` e `quantidade` permitem montar a distribuição e o
+ranking dos principais desvios no Power BI.
 
 ## Parâmetros comuns
 

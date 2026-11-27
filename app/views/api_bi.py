@@ -200,6 +200,7 @@ def register_api_bi_routes(blueprint):
             "recursos": [
                 "/api/bi/v1/ocorrencias",
                 "/api/bi/v1/observacoes-comportamentais",
+                "/api/bi/v1/observacoes-comportamentais-itens",
                 "/api/bi/v1/auditorias-padrao",
                 "/api/bi/v1/ifs",
             ],
@@ -244,6 +245,32 @@ def register_api_bi_routes(blueprint):
                r.pessoas_observadas, r.status, r.situacao_fluig,
                r.importado_em, r.atualizado_em""",
             filtros, parametros, "r.data_observacao DESC, r.id DESC",
+        )
+
+    @blueprint.route("/api/bi/v1/observacoes-comportamentais-itens")
+    @api_bi_required
+    def api_bi_observacoes_itens():
+        filtros, parametros = _filtros_comuns(
+            "r.data_observacao", "r.centro_custos_codigo", "r.atualizado_em"
+        )
+        return _executar_paginado(
+            """FROM oc_fluig_respostas fr
+               JOIN oc_fluig_registros r ON r.id=fr.registro_id
+               JOIN oc_itens i
+                 ON CAST(i.codigo AS BINARY) = CAST(fr.item_codigo AS BINARY)
+               JOIN oc_categorias c ON c.id=i.categoria_id""",
+            """r.id registro_id, r.solicitacao, r.data_observacao,
+               r.hora_observacao, r.observador_nome, r.observador_matricula,
+               r.centro_custos_codigo, r.centro_custos_descricao,
+               r.local_observado, r.setor_observado, r.area, r.atividade,
+               r.pessoas_observadas, r.status, r.situacao_fluig,
+               c.codigo categoria_codigo, c.nome categoria_nome,
+               c.ordem categoria_ordem, i.codigo item_codigo,
+               i.descricao item_descricao, i.ordem item_ordem,
+               CONCAT(c.nome, ' | ', i.descricao) descricao_estratificacao,
+               fr.quantidade, r.importado_em, r.atualizado_em""",
+            filtros + ["fr.quantidade > 0"], parametros,
+            "r.data_observacao DESC, r.id DESC, c.ordem, i.ordem",
         )
 
     @blueprint.route("/api/bi/v1/auditorias-padrao")
